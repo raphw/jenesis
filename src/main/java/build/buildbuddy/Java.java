@@ -1,6 +1,7 @@
 package build.buildbuddy;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -47,8 +48,11 @@ public abstract class Java implements ProcessBuildStep {
         return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
                 Stream.of(
                         java,
-                        "--class-path", arguments.values().stream()
-                                .map(result -> result.folder().toString())
+                        "--class-path", arguments.values().stream() // TODO: needs better approach.
+                                .flatMap(result -> Stream.concat(Stream.of(result.folder()), result.files().keySet().stream()
+                                        .filter(path -> path.toString().endsWith(".jar")))
+                                        .map(path -> result.folder().resolve(path)))
+                                .map(Path::toString)
                                 .collect(Collectors.joining(":"))
                 ),
                 commands.stream()

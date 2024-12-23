@@ -20,8 +20,10 @@ where Main is a class located in the project's build folder. This should be empl
 document the use of this tool within its own source.
 
 The POC is currently missing:
-- Task for JUnit (4, keep it simple).
+- Task for JUnit (4 first, keep it simple).
+- Some form of qualifier information for results (see need in Java step).
 - Refactor this project to use itself as build tool. (Retain POM for IDE support.)
+- Mechanism for logging and "non-build output".
 - Builder class for a BuildExecutor that offers convenient defaults.
 - Task to create a dependencies file from a POM file.
 - Task to create a POM file from dependencies.
