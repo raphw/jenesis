@@ -41,7 +41,7 @@ public class BuildExecutorTest {
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("source");
             assertThat(dependencies.get("source").root()).isEqualTo(source);
-            assertThat(dependencies.get("source").diffs()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
+            assertThat(dependencies.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("source").root().resolve("sample"), target.resolve("result"));
             return CompletableFuture.completedStage("Success");
         }, "source");

@@ -16,10 +16,9 @@ public class BuildExecutor {
     private final Path root;
     private final ChecksumDiff diff;
 
-    private final TaskGraph<String, Map<String, BuildResult>> taskGraph = new TaskGraph<>((left, right) -> Stream.concat(
-            left.entrySet().stream(),
-            right.entrySet().stream()
-    ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    private final TaskGraph<String, Map<String, BuildResult>> taskGraph = new TaskGraph<>((left, right) -> Stream
+            .concat(left.entrySet().stream(), right.entrySet().stream())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
     public BuildExecutor(Path root, ChecksumDiff diff) {
         this.root = root;
