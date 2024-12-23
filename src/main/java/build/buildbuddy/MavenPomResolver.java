@@ -10,7 +10,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -41,104 +40,49 @@ public class MavenPomResolver {
                                               String artifactId,
                                               String version,
                                               MavenDependencyScope scope) throws IOException {
-        SequencedMap<DependencyKey, DependencyInclusion> dependencies = new LinkedHashMap<>();
-        Map<DependencyKey, MavenDependencyScope> overrides = new HashMap<>();
         Map<DependencyCoordinate, UnresolvedPom> poms = new HashMap<>();
-        Map<DependencyName, Metadata> metadata = new HashMap<>();
-        Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
-                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, metadata, null),
+        Queue<ResolvedPom> queue = new ArrayDeque<>();
+        Map<DependencyKey, DependencyResolution> dependencies = new HashMap<>();
+        ResolvedPom current = new ResolvedPom(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
+                false,
                 scope,
-                Set.of(),
-                Map.of())));
+                Set.of());
+        Map<DependencyKey, DependencyValue> managedDependencies = current.managedDependencies();
         do {
-            ContextualPom current = queue.remove();
-            Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
-            managedDependencies.putAll(current.managedDependencies());
-            for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
-                if (!current.exclusions().contains(new DependencyName(
-                        entry.getKey().groupId(),
-                        entry.getKey().artifactId()))) {
-                    DependencyValue primary = current.managedDependencies().get(entry.getKey()), value = primary == null
-                            ? entry.getValue().with(current.pom().managedDependencies().get(entry.getKey()))
-                            : primary.with(entry.getValue());
-                    boolean optional = switch (value.optional()) {
-                        case "true" -> true;
-                        case "false" -> false;
-                        case null -> false;
-                        default -> throw new IllegalStateException("Unexpected value: " + value);
-                    };
-                    if (optional && current.pom().origin() != null) {
-                        continue;
-                    }
-                    MavenDependencyScope actual = toScope(value.scope()), derived = switch (current.scope()) {
-                        case null -> actual == MavenDependencyScope.IMPORT ? null : actual;
-                        case COMPILE -> switch (actual) {
-                            case COMPILE, RUNTIME -> actual;
-                            default -> null;
-                        };
-                        case PROVIDED, RUNTIME, TEST -> switch (actual) {
-                            case COMPILE, RUNTIME -> current.scope();
-                            default -> null;
-                        };
-                        case SYSTEM, IMPORT -> null;
-                    };
-                    if (derived == null) {
-                        continue;
-                    }
-                    DependencyInclusion previous = dependencies.get(entry.getKey());
-                    if (previous != null) {
-                        if (previous.scope().ordinal() > overrides.getOrDefault(entry.getKey(), derived).ordinal()) {
-                            overrides.put(entry.getKey(), derived);
-                        }
-                        continue;
-                    }
-                    String resolved = toVersion(metadata,
-                            entry.getKey().groupId(),
-                            entry.getKey().artifactId(),
-                            value.version());
-                    dependencies.put(entry.getKey(), new DependencyInclusion(resolved,
-                            optional,
-                            derived,
-                            value.systemPath() == null ? null : Path.of(value.systemPath()),
-                            new HashSet<>()));
-                    if (current.pom().origin() != null) {
-                        dependencies.get(current.pom().origin()).transitives().add(entry.getKey());
-                    }
-                    Set<DependencyName> exclusions;
-                    if (value.exclusions() == null || value.exclusions().isEmpty()) {
-                        exclusions = current.exclusions();
-                    } else {
-                        exclusions = new HashSet<>(current.exclusions());
+            for (Map.Entry<DependencyKey, DependencyValue> entry : current.dependencies().entrySet()) {
+                DependencyValue override = managedDependencies.get(entry.getKey()), value = (override == null
+                        ? entry.getValue()
+                        : override.with(entry.getValue())).with(current.managedDependencies().get(entry.getKey()));
+                if (current.child() && Boolean.parseBoolean(value.optional())) {
+                    continue;
+                }
+                MavenDependencyScope mergedScope = current.scope().merge(toScope(value.scope()));
+                if (mergedScope == null) {
+                    continue;
+                }
+                DependencyResolution previous = dependencies.get(entry.getKey());
+                if (previous == null) {
+                    Set<DependencyName> exclusions = current.exclusions();
+                    if (value.exclusions() != null) {
+                        exclusions = new HashSet<>(exclusions);
                         exclusions.addAll(value.exclusions());
                     }
-                    queue.add(new ContextualPom(resolve(assembleOrCached(entry.getKey().groupId(),
-                            entry.getKey().artifactId(),
-                            resolved,
-                            new HashSet<>(),
-                            poms), poms, metadata, entry.getKey()), derived, exclusions, managedDependencies));
+                    dependencies.put(entry.getKey(), new DependencyResolution(
+                            new LinkedHashSet<>(Set.of(value.version())),
+                            mergedScope));
+                    queue.add(new ResolvedPom(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
+                            true,
+                            mergedScope,
+                            exclusions));
+                } else if (!previous.versions().contains(value.version()) || previous.scope() != mergedScope) {
+                    SequencedSet<String> versions = new LinkedHashSet<>(previous.versions());
+                    versions.add(value.version());
+                    dependencies.put(entry.getKey(), new DependencyResolution(
+                            versions,
+                            mergedScope.ordinal() < previous.scope().ordinal() ? mergedScope : previous.scope()));
                 }
             }
-        } while (!queue.isEmpty());
-        Queue<DependencyKey> keys = new ArrayDeque<>(overrides.keySet());
-        while (!keys.isEmpty()) {
-            DependencyKey key = keys.remove();
-            Set<DependencyKey> transitives = dependencies.get(key).transitives();
-            transitives.forEach(transitive -> {
-                MavenDependencyScope current = overrides.get(transitive), candidate = overrides.get(key);
-                if (current == null || candidate.ordinal() < current.ordinal()) {
-                    overrides.put(transitive, candidate);
-                }
-            });
-            keys.addAll(transitives);
-        }
-        return dependencies.entrySet().stream().map(entry -> new MavenDependency(entry.getKey().groupId(),
-                entry.getKey().artifactId(),
-                entry.getValue().version(),
-                entry.getKey().type(),
-                entry.getKey().classifier(),
-                overrides.getOrDefault(entry.getKey(), entry.getValue().scope()),
-                entry.getValue().path(),
-                entry.getValue().optional())).toList();
+        } while ((current = queue.poll()) != null);
     }
 
     private UnresolvedPom assemble(InputStream inputStream,
@@ -239,34 +183,6 @@ public class MavenPomResolver {
         return pom;
     }
 
-    private ResolvedPom resolve(UnresolvedPom pom,
-                                Map<DependencyCoordinate, UnresolvedPom> poms,
-                                Map<DependencyName, Metadata> metadata,
-                                DependencyKey origin) throws IOException {
-        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
-        for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
-            DependencyKey key = entry.getKey().resolve(pom.properties());
-            DependencyValue value = entry.getValue().resolve(pom.properties());
-            if (Objects.equals(value.scope(), "import") && Objects.equals(key.type(), "pom")) {
-                UnresolvedPom imported = assembleOrCached(key.groupId(),
-                        key.artifactId(),
-                        toVersion(metadata, key.groupId(), key.artifactId(), value.version()),
-                        new HashSet<>(),
-                        poms);
-                imported.managedDependencies().forEach((importedKey, importedValue) -> managedDependencies.putIfAbsent(
-                        importedKey.resolve(imported.properties()),
-                        importedValue.resolve(imported.properties())));
-            } else {
-                managedDependencies.put(key, value);
-            }
-        }
-        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
-        pom.dependencies().forEach((key, value) -> dependencies.putLast(
-                key.resolve(pom.properties()),
-                value.resolve(pom.properties())));
-        return new ResolvedPom(managedDependencies, dependencies, origin);
-    }
-
     private static Stream<Node> toChildren(Node node) {
         NodeList children = node.getChildNodes();
         return IntStream.iterate(0,
@@ -352,14 +268,6 @@ public class MavenPomResolver {
         return () -> new IllegalStateException("Property not defined: " + property);
     }
 
-    private String toVersion(Map<DependencyName, Metadata> cache, String groupId, String artifactId, String version) throws IOException {
-        return switch (version) { // TODO: what to do with version ranges?
-            case "RELEASE" -> toMetadata(cache, groupId, artifactId).release();
-            case "LATEST" -> toMetadata(cache, groupId, artifactId).latest();
-            default -> version;
-        };
-    }
-
     private Metadata toMetadata(Map<DependencyName, Metadata> cache, String groupId, String artifactId) throws IOException {
         Metadata metadata = cache.get(new DependencyName(groupId, artifactId));
         if (metadata == null) {
@@ -443,13 +351,6 @@ public class MavenPomResolver {
         }
     }
 
-    private record DependencyInclusion(String version,
-                                       boolean optional,
-                                       MavenDependencyScope scope,
-                                       Path path,
-                                       Set<DependencyKey> transitives) {
-    }
-
     private record DependencyName(String groupId, String artifactId) {
     }
 
@@ -463,13 +364,22 @@ public class MavenPomResolver {
 
     private record ResolvedPom(Map<DependencyKey, DependencyValue> managedDependencies,
                                SequencedMap<DependencyKey, DependencyValue> dependencies,
-                               DependencyKey origin) {
+                               boolean child,
+                               MavenDependencyScope scope,
+                               Set<DependencyName> exclusions) {
+        private ResolvedPom(UnresolvedPom pom, boolean child, MavenDependencyScope scope, Set<DependencyName> exclusions) {
+            this(new HashMap<>(), new LinkedHashMap<>(), child, scope, exclusions);
+            pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
+                    key.resolve(pom.properties()),
+                    value.resolve(pom.properties())));
+            pom.dependencies().forEach((key, value) -> dependencies.put(
+                    key.resolve(pom.properties()),
+                    value.resolve(pom.properties())));
+
+        }
     }
 
-    private record ContextualPom(ResolvedPom pom,
-                                 MavenDependencyScope scope,
-                                 Set<DependencyName> exclusions,
-                                 Map<DependencyKey, DependencyValue> managedDependencies) {
+    private record DependencyResolution(SequencedSet<String> versions, MavenDependencyScope scope) {
     }
 
     private record Metadata(String latest, String release, List<String> versions) {
