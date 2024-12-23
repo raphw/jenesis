@@ -1,5 +1,6 @@
 package build.buildbuddy;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -7,6 +8,7 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -51,7 +53,7 @@ public class MavenRepository implements Repository {
                                    String type,
                                    String classifier,
                                    String checksum) throws IOException {
-        return fetch(repository, groupId, artifactId, version, type, classifier, checksum).resolve();
+        return fetch(repository, groupId, artifactId, version, type, classifier, checksum).materialize();
     }
 
     private LazyInputStreamSource fetch(URI repository,
@@ -71,7 +73,7 @@ public class MavenRepository implements Repository {
             if (Files.exists(cached)) {
                 boolean valid = true;
                 if (checksum == null) {
-                    Map<LazyInputStreamSource, byte[]> digests = new HashMap<>();
+                    Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
                         LazyInputStreamSource source = fetch(entry.getValue(),
                                 groupId,
@@ -94,19 +96,20 @@ public class MavenRepository implements Repository {
                             try (InputStream inputStream = source.toInputStream()) {
                                 expected = inputStream.readAllBytes();
                             }
-                            digests.put(source, expected);
+                            results.put(source, expected);
                             valid = Arrays.equals(Base64.getDecoder().decode(expected), digest.digest());
                         } else {
-                            digests.put(source, null);
+                            results.put(source, null);
                         }
                     }
                     if (valid) {
-                        for (Map.Entry<LazyInputStreamSource, byte[]> entry : digests.entrySet()) {
-                            entry.getKey().store(entry.getValue());
+                        for (Map.Entry<LazyInputStreamSource, byte[]> entry : results.entrySet()) {
+                            entry.getKey().storeIfNotPresent(entry.getValue());
                         }
                     } else {
-                        for (LazyInputStreamSource source : digests.keySet()) {
-                            source.delete();
+                        Files.delete(cached);
+                        for (LazyInputStreamSource source : results.keySet()) {
+                            source.deleteIfPresent();
                         }
                     }
                 }
@@ -117,12 +120,32 @@ public class MavenRepository implements Repository {
                 Files.createDirectories(cached.getParent());
             }
         }
+        Map<LazyInputStreamSource, MessageDigest> digests = new HashMap<>();
+        if (checksum == null) {
+            for (Map.Entry<String, URI> entry : validations.entrySet()) {
+                LazyInputStreamSource source = fetch(entry.getValue(),
+                        groupId,
+                        artifactId,
+                        version,
+                        type,
+                        classifier,
+                        entry.getKey().toLowerCase());
+                MessageDigest digest;
+                try {
+                    digest = MessageDigest.getInstance(entry.getKey());
+                } catch (NoSuchAlgorithmException e) {
+                    throw new IllegalStateException(e);
+                }
+                digests.put(source, digest);
+            }
+        }
         URI uri = repository.resolve(path);
         if (cached == null) {
-            return () -> uri.toURL().openStream();
+            return () -> ValidatingInputStream.of(uri.toURL().openStream(), digests);
         } else {
             return new LatentInputStreamSource(cached,
                     uri,
+                    digests,
                     artifactId + "-" + version + (classifier == null ? "" : "-" + classifier),
                     type + (checksum == null ? "" : ("." + checksum)));
         }
@@ -131,13 +154,13 @@ public class MavenRepository implements Repository {
     @FunctionalInterface
     private interface LazyInputStreamSource extends InputStreamSource {
 
-        default void delete() throws IOException {
+        default void deleteIfPresent() throws IOException {
         }
 
-        default void store(byte[] bytes) throws IOException {
+        default void storeIfNotPresent(byte[] bytes) throws IOException {
         }
 
-        default InputStreamSource resolve() throws IOException {
+        default InputStreamSource materialize() throws IOException {
             return this;
         }
     }
@@ -145,7 +168,7 @@ public class MavenRepository implements Repository {
     record StoredInputStreamSource(Path path) implements LazyInputStreamSource {
 
         @Override
-        public void delete() throws IOException {
+        public void deleteIfPresent() throws IOException {
             Files.delete(path);
         }
 
@@ -160,28 +183,19 @@ public class MavenRepository implements Repository {
         }
     }
 
-    record LatentInputStreamSource(Path path, URI uri, String prefix, String suffix) implements LazyInputStreamSource {
+    record LatentInputStreamSource(Path path,
+                                   URI uri,
+                                   Map<LazyInputStreamSource, MessageDigest> digests,
+                                   String prefix,
+                                   String suffix) implements LazyInputStreamSource {
 
         @Override
         public InputStream toInputStream() throws IOException {
-            return uri.toURL().openStream();
+            return ValidatingInputStream.of(uri.toURL().openStream(), digests);
         }
 
         @Override
-        public InputStreamSource resolve() throws IOException {
-            Path temporary = Files.createTempFile(prefix, suffix);
-            try (InputStream inputStream = uri.toURL().openConnection().getInputStream();
-                 OutputStream outputStream = Files.newOutputStream(temporary)) {
-                inputStream.transferTo(outputStream);
-            } catch (Throwable t) {
-                Files.delete(temporary);
-                throw t;
-            }
-            return new StoredInputStreamSource(Files.move(temporary, path));
-        }
-
-        @Override
-        public void store(byte[] bytes) throws IOException {
+        public void storeIfNotPresent(byte[] bytes) throws IOException {
             Path temporary = Files.createTempFile(prefix, suffix);
             try (OutputStream outputStream = Files.newOutputStream(temporary)) {
                 outputStream.write(bytes);
@@ -190,6 +204,66 @@ public class MavenRepository implements Repository {
                 throw t;
             }
             Files.move(temporary, path);
+        }
+
+        @Override
+        public InputStreamSource materialize() throws IOException {
+            Path temporary = Files.createTempFile(prefix, suffix);
+            try (InputStream inputStream = toInputStream();
+                 OutputStream outputStream = Files.newOutputStream(temporary)) {
+                inputStream.transferTo(outputStream);
+            } catch (Throwable t) {
+                Files.delete(temporary);
+                throw t;
+            }
+            return new StoredInputStreamSource(Files.move(temporary, path));
+        }
+    }
+
+    private static class ValidatingInputStream extends FilterInputStream {
+
+        private final Map<LazyInputStreamSource, MessageDigest> digests;
+
+        private ValidatingInputStream(InputStream inputStream, Map<LazyInputStreamSource, MessageDigest> digests) {
+            super(inputStream);
+            this.digests = digests;
+        }
+
+        private static InputStream of(InputStream inputStream, Map<LazyInputStreamSource, MessageDigest> digests) {
+            if (digests.isEmpty()) {
+                return inputStream;
+            }
+            for (MessageDigest digest : digests.values()) {
+                inputStream = new DigestInputStream(inputStream, digest);
+            }
+            return new ValidatingInputStream(inputStream, digests);
+        }
+
+        @Override
+        public void close() throws IOException {
+            super.close();
+            boolean valid = true;
+            Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
+            for (Map.Entry<LazyInputStreamSource, MessageDigest> entry : digests.entrySet()) {
+                byte[] expected;
+                try (InputStream inputStream = entry.getKey().toInputStream()) {
+                    expected = inputStream.readAllBytes();
+                }
+                results.put(entry.getKey(), expected);
+                if (!(valid = Arrays.equals(Base64.getDecoder().decode(expected), entry.getValue().digest()))) {
+                    break;
+                }
+            }
+            if (valid) {
+                for (Map.Entry<LazyInputStreamSource, byte[]> entry : results.entrySet()) {
+                    entry.getKey().storeIfNotPresent(entry.getValue());
+                }
+            } else {
+                for (LazyInputStreamSource source : digests.keySet()) {
+                    source.deleteIfPresent();
+                }
+                throw new IOException("Failed checksum validation");
+            }
         }
     }
 }
