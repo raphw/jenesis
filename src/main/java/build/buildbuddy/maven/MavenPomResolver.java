@@ -35,7 +35,7 @@ public class MavenPomResolver implements Resolver {
     }
 
     @Override
-    public List<String> dependencies(List<String> descriptors) throws IOException {
+    public List<String> dependencies(Collection<String> descriptors) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         descriptors.forEach(coordinate -> {
             String[] elements = coordinate.split("/");
