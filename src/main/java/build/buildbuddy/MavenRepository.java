@@ -112,8 +112,8 @@ public class MavenRepository implements Repository {
                 Files.createDirectories(cached.getParent());
             }
         }
-        Function<InputStream, InputStream> decorator = Function.identity();
         URI uri = repository.resolve(path);
+        Function<InputStream, InputStream> decorator = Function.identity();
         if (checksum == null) {
             for (Map.Entry<String, URI> validation : validations.entrySet()) {
                 MessageDigest digest;
@@ -142,12 +142,13 @@ public class MavenRepository implements Repository {
                         if (file != null) {
                             Files.delete(file);
                         }
-                        throw new IOException("Digest did not match expectation for " + uri);
+                        throw new IOException("Digest did not match expectation");
                     }
                 } else {
                     decorator = decorator.andThen(inputStream -> new ValidationInputStream(digest,
                             inputStream,
-                            Base64.getDecoder().decode(expected)));
+                            Base64.getDecoder().decode(expected),
+                            source.getPath().orElse(null)));
                 }
             }
         }
@@ -176,16 +177,21 @@ public class MavenRepository implements Repository {
     private static class ValidationInputStream extends DigestInputStream {
 
         private final byte[] expected;
+        private final Path file;
 
-        private ValidationInputStream(MessageDigest digest, InputStream inputStream, byte[] expected) {
+        private ValidationInputStream(MessageDigest digest, InputStream inputStream, byte[] expected, Path file) {
             super(inputStream, digest);
             this.expected = expected;
+            this.file = file;
         }
 
         @Override
         public void close() throws IOException {
             super.close();
             if (!Arrays.equals(expected, getMessageDigest().digest())) {
+                if (file != null) {
+                    Files.delete(file);
+                }
                 throw new IOException("Digest did not match expectation");
             }
         }
