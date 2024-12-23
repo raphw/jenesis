@@ -81,7 +81,8 @@ public class BuildExecutor {
                         checksum = current.resolve("checksum"),
                         self = checksum.resolve("checksums"),
                         output = current.resolve("output");
-                Map<Path, byte[]> previous = Files.exists(self) ? HashFunction.read(self) : null;
+                boolean exists = Files.exists(self);
+                Map<Path, byte[]> previous = exists ? HashFunction.read(self) : null;
                 boolean consistent = previous != null && HashFunction.areConsistent(output, previous, hash);
                 Map<String, BuildStepArgument> dependencies = new HashMap<>();
                 for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
@@ -91,25 +92,25 @@ public class BuildExecutor {
                             : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
                 if (!consistent || step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildStepArgument::isChanged)) {
-                    Path target = Files.createTempDirectory(identity);
+                    Path next = Files.createTempDirectory(identity);
                     return step.apply(executor,
-                            output,
-                            Files.createDirectory(target.resolve("output")),
+                            exists ? output : null,
+                            Files.createDirectory(next.resolve("output")),
                             dependencies).handleAsync((result, throwable) -> {
                         try {
-                            if (Files.exists(checksum)) {
-                                Files.walkFileTree(checksum, new RecursiveFileDeletion());
-                            } else {
-                                Files.createDirectory(checksum);
-                            }
                             if (throwable != null) {
-                                Files.delete(Files.walkFileTree(target, new RecursiveFileDeletion()));
+                                Files.delete(Files.walkFileTree(next, new RecursiveFileDeletion()));
                                 throw throwable;
                             } else if (result.useTarget()) {
-                                Files.delete(Files.walkFileTree(current, new RecursiveFileDeletion()));
-                                Files.copy(target, current);
+                                Files.move(next, exists
+                                        ? Files.walkFileTree(current, new RecursiveFileDeletion())
+                                        : current);
+                                Files.createDirectory(checksum);
+                            } else if (exists) {
+                                Files.delete(Files.walkFileTree(next, new RecursiveFileDeletion()));
+                                Files.walkFileTree(checksum, new RecursiveFileDeletion());
                             } else {
-                                Files.delete(Files.walkFileTree(target, new RecursiveFileDeletion()));
+                                throw new IllegalStateException("Cannot reuse non-existing location for " + identity);
                             }
                             for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
                                 HashFunction.write(

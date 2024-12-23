@@ -42,7 +42,7 @@ public class BuildExecutorTest {
         }
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("source");
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
@@ -121,7 +121,7 @@ public class BuildExecutorTest {
         }
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("source");
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
@@ -130,7 +130,7 @@ public class BuildExecutorTest {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
         buildExecutor.addStep("step2", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("step1");
             assertThat(dependencies.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
@@ -157,7 +157,7 @@ public class BuildExecutorTest {
         buildExecutor.addSource("source1", source1);
         buildExecutor.addSource("source2", source2);
         buildExecutor.addStep("step", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("source1", "source2");
             assertThat(dependencies.get("source1").folder()).isEqualTo(source1);
@@ -188,7 +188,7 @@ public class BuildExecutorTest {
         }
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("source");
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
@@ -197,7 +197,7 @@ public class BuildExecutorTest {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
         buildExecutor.addStep("step2", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("source");
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
@@ -206,7 +206,7 @@ public class BuildExecutorTest {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
         buildExecutor.addStep("step3", (executor, previous, target, dependencies) -> {
-            assertThat(previous).doesNotExist();
+            assertThat(previous).isNull();
             assertThat(target).isDirectory();
             assertThat(dependencies).containsOnlyKeys("step1", "step2");
             assertThat(dependencies.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
