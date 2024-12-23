@@ -8,10 +8,7 @@ import java.util.Set;
 
 public enum ChecksumStatus {
 
-    ADDED,
-    REMOVED,
-    ALTERED,
-    RETAINED;
+    ADDED, REMOVED, ALTERED, RETAINED;
 
     public static Map<Path, ChecksumStatus> diff(Map<Path, byte[]> expected, Map<Path, byte[]> actual) {
         Map<Path, ChecksumStatus> diff = new LinkedHashMap<>();

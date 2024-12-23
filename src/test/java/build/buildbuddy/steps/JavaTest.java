@@ -12,7 +12,6 @@ import sample.Sample;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -40,9 +39,8 @@ public class JavaTest {
     @Test
     public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
         Path folder = Files.createDirectories(classes.resolve(Javac.CLASSES + "sample"));
-        try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
-             OutputStream output = Files.newOutputStream(folder.resolve("Sample.class"))) {
-            requireNonNull(input).transferTo(output);
+        try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
+            Files.copy(requireNonNull(input), folder.resolve("Sample.class"));
         }
         BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),

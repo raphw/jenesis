@@ -5,7 +5,6 @@ import build.buildbuddy.maven.MavenRepository;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,11 +74,8 @@ public class Dependencies implements BuildStep {
                                         .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
-                                    try (
-                                            DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest);
-                                            OutputStream outputStream = Files.newOutputStream(dependencies.resolve(dependency))
-                                    ) {
-                                        inputStream.transferTo(outputStream);
+                                    try (DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest)) {
+                                        Files.copy(inputStream, dependencies.resolve(dependency));
                                         if (!Arrays.equals(
                                                 inputStream.getMessageDigest().digest(),
                                                 Base64.getDecoder().decode(expectation[expectation.length == 1 ? 0 : 1]))) {

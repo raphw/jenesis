@@ -19,5 +19,5 @@ public interface MavenVersionNegotiator {
                    String current,
                    SequencedSet<String> versions) throws IOException {
         return current;
-    };
+    }
 }

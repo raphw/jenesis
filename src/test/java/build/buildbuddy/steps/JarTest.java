@@ -12,13 +12,12 @@ import sample.Sample;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static java.util.Objects.requireNonNull;
+import static java.util.Objects.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class JarTest {
@@ -40,11 +39,10 @@ public class JarTest {
     @Test
     public void can_execute_jar() throws IOException, ExecutionException, InterruptedException {
         Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
-        try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
-             OutputStream output = Files.newOutputStream(Files
-                     .createDirectory(folder.resolve("sample"))
-                     .resolve("Sample.class"))) {
-            requireNonNull(input).transferTo(output);
+        try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
+            Files.copy(requireNonNull(inputStream), Files
+                    .createDirectory(folder.resolve("sample"))
+                    .resolve("Sample.class"));
         }
         BuildStepResult result = new Jar().apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),

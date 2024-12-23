@@ -221,9 +221,8 @@ public class MavenRepository implements Repository {
             if (candidate.isEmpty()) {
                 return Optional.empty();
             }
-            try (InputStream inputStream = candidate.get();
-                 OutputStream outputStream = Files.newOutputStream(temporary)) {
-                inputStream.transferTo(outputStream);
+            try (InputStream inputStream = candidate.get()) {
+                Files.copy(inputStream, temporary);
             } catch (Throwable t) {
                 Files.delete(temporary);
                 throw t;

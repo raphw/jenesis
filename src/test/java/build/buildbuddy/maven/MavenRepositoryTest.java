@@ -16,8 +16,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 public class MavenRepositoryTest {
 
@@ -42,9 +41,8 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).orElseThrow().toInputStream();
-             OutputStream outputStream = Files.newOutputStream(dependency)) {
-            inputStream.transferTo(outputStream);
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
         }
         assertThat(dependency).content().isEqualTo("foo");
     }
@@ -61,9 +59,8 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).orElseThrow().toInputStream();
-             OutputStream outputStream = Files.newOutputStream(dependency)) {
-            inputStream.transferTo(outputStream);
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
@@ -90,9 +87,8 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).orElseThrow().toInputStream();
-             OutputStream outputStream = Files.newOutputStream(dependency)) {
-            inputStream.transferTo(outputStream);
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
@@ -145,9 +141,8 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).orElseThrow().toInputStream();
-             OutputStream outputStream = Files.newOutputStream(dependency)) {
-            inputStream.transferTo(outputStream);
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
@@ -175,9 +170,8 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).orElseThrow().toInputStream();
-             OutputStream outputStream = Files.newOutputStream(dependency)) {
-            inputStream.transferTo(outputStream);
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
@@ -217,9 +211,8 @@ public class MavenRepositoryTest {
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
                 "artifact",
-                null).orElseThrow().toInputStream();
-             OutputStream outputStream = Files.newOutputStream(dependency)) {
-            inputStream.transferTo(outputStream);
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
         }
         assertThat(dependency).content().isEqualTo("foo");
     }
