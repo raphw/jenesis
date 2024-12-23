@@ -50,7 +50,9 @@ public class MavenPomResolver {
                 if (!dependencies.containsKey(entry.getKey()) && !current.exclusions().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId()))) {
-                    DependencyValue value = managedDependencies.getOrDefault(entry.getKey(), entry.getValue());
+                    DependencyValue primary = current.managedDependencies().get(entry.getKey()), value = primary == null
+                            ? entry.getValue().with(current.pom().managedDependencies().get(entry.getKey()))
+                            : primary.with(entry.getValue());
                     boolean optional = switch (value.optional()) {
                         case "true" -> true;
                         case "false" -> false;
@@ -219,8 +221,7 @@ public class MavenPomResolver {
         SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.dependencies().entrySet()) {
             DependencyKey resolvedKey = entry.getKey().resolve(pom.properties());
-            DependencyValue managed = managedDependencies.get(resolvedKey);
-            DependencyValue resolvedValue = managed == null ? entry.getValue().resolve(pom.properties()) : managed;
+            DependencyValue resolvedValue = entry.getValue().resolve(pom.properties());
             dependencies.putLast(resolvedKey, resolvedValue);
             if (Objects.equals(resolvedValue.scope(), "import")) {
                 UnresolvedPom imported = assembleOrCached(resolvedKey.groupId(),
@@ -355,6 +356,17 @@ public class MavenPomResolver {
                             property(exclusion.artifactId(), properties))).toList(),
                     property(optional, properties)
             );
+        }
+
+        private DependencyValue with(DependencyValue supplement) {
+            if (supplement == null) {
+                return this;
+            }
+            return new DependencyValue(version == null ? supplement.version() : version,
+                    scope == null ? supplement.scope() : scope,
+                    systemPath == null ? supplement.systemPath() : systemPath,
+                    exclusions == null ? supplement.exclusions() : exclusions,
+                    optional == null ? supplement.optional() : optional);
         }
     }
 
