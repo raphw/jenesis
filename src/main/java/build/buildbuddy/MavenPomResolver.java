@@ -122,15 +122,18 @@ public class MavenPomResolver {
                 if (!current.root() && Boolean.parseBoolean(value.optional())) {
                     continue;
                 }
-                MavenDependencyScope mergedScope = current.scope() == null
+                DependencyResolution resolution = resolutions.computeIfAbsent(
+                        entry.getKey(),
+                        key -> new DependencyResolution());
+                MavenDependencyScope currentScope = resolution.currentScope == null
+                        ? current.scope()
+                        : resolution.currentScope;
+                MavenDependencyScope mergedScope = currentScope == null
                         ? toScope(value.scope())
-                        : current.scope().merge(toScope(value.scope()));
+                        : currentScope.merge(toScope(value.scope()));
                 if (mergedScope == null) {
                     continue;
                 }
-                DependencyResolution resolution = resolutions.computeIfAbsent(
-                        entry.getKey(),
-                        key -> new DependencyResolution()); // TODO: scope override before continue above.
                 String version;
                 if (resolution.currentVersion == null) {
                     version = resolution.currentVersion = negotiator.resolve(entry.getKey().groupId(),
