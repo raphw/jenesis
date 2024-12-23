@@ -41,18 +41,44 @@ public class MavenPomResolver {
                                               String version,
                                               MavenDependencyScope scope) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> poms = new HashMap<>();
-        List<DependencyEntry> dependencies = new ArrayList<>(); // TODO: add included/excluded marks
-        Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>();
+        List<DependencyEntry> dependencies = new ArrayList<>();
+        Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>(); // TODO: handle removal of nodes
         ResolvedPom initial = new ResolvedPom(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
                 true,
                 scope,
                 Set.of());
-        SequencedSet<DependencyKey> unresolved = resolve(poms,
+        Queue<DependencyKey> queue = new ArrayDeque<>(resolve(poms,
                 resolutions,
                 initial.managedDependencies(),
                 dependencies,
                 0,
-                initial);
+                initial));
+        while (!queue.isEmpty()) { // TODO: avoid renegotiation
+            DependencyKey current = queue.remove();
+            DependencyResolution resolution = resolutions.get(current);
+            String negotiated = resolution.versions().getFirst(); // TODO: negotiate
+            if (!Objects.equals(negotiated, resolution.version())) {
+                int offset = (int) dependencies.stream()
+                        .takeWhile(entry -> !entry.key().equals(current))
+                        .count();
+                int remaining = 1;
+                do {
+                    DependencyEntry entry = dependencies.remove(offset);
+                    // TODO: remove from dependency resolution
+                    remaining += entry.size() - 1;
+                } while (remaining > 0);
+                queue.addAll(resolve(poms,
+                        resolutions,
+                        initial.managedDependencies(),
+                        dependencies,
+                        offset,
+                        new ResolvedPom(assembleOrCached(current.groupId(),
+                                current.artifactId(),
+                                negotiated,
+                                new HashSet<>(),
+                                poms), false, resolution.scope(), resolution.exclusions())));
+            }
+        }
         return dependencies.stream().map(DependencyEntry::key).distinct().map(key -> {
             DependencyResolution resolution = resolutions.get(key);
             return new MavenDependency(key.groupId(),
@@ -99,18 +125,20 @@ public class MavenPomResolver {
                 }
                 DependencyResolution previous = resolutions.get(entry.getKey());
                 if (previous == null) {
-                    resolutions.put(entry.getKey(), new DependencyResolution(
-                            new LinkedHashSet<>(Set.of(value.version())),
-                            mergedScope));
                     Set<DependencyName> exclusions = current.exclusions();
                     if (value.exclusions() != null) {
                         exclusions = new HashSet<>(exclusions);
                         exclusions.addAll(value.exclusions());
                     }
-                    // TODO: first attempt to resolve dependency from version.
+                    String version = value.version(); // TODO: first attempt to resolve dependency from version.
+                    resolutions.put(entry.getKey(), new DependencyResolution(
+                            version,
+                            new LinkedHashSet<>(Set.of(value.version())),
+                            mergedScope,
+                            exclusions));
                     UnresolvedPom pom = assembleOrCached(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
-                            value.version(),
+                            version,
                             new HashSet<>(),
                             poms);
                     queue.add(new ResolvedPom(pom, false, mergedScope, exclusions));
@@ -121,8 +149,10 @@ public class MavenPomResolver {
                         SequencedSet<String> versions = new LinkedHashSet<>(previous.versions());
                         versions.add(value.version());
                         resolutions.put(entry.getKey(), new DependencyResolution(
+                                previous.version(),
                                 versions,
-                                mergedScope.overrides(previous.scope()) ? mergedScope : previous.scope()));
+                                mergedScope.overrides(previous.scope()) ? mergedScope : previous.scope(),
+                                previous.exclusions()));
                     }
                     dependencies.add(index++, new DependencyEntry(entry.getKey(), 0));
                 }
@@ -424,7 +454,10 @@ public class MavenPomResolver {
         }
     }
 
-    private record DependencyResolution(SequencedSet<String> versions, MavenDependencyScope scope) {
+    private record DependencyResolution(String version,
+                                        SequencedSet<String> versions,
+                                        MavenDependencyScope scope,
+                                        Set<DependencyName> exclusions) {
     }
 
     private record DependencyEntry(DependencyKey key, int size) {
