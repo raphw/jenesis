@@ -32,7 +32,7 @@ public class JavacTest {
 
     @Test
     public void can_execute_javac() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectory(sources.resolve("sample"));
+        Path folder = Files.createDirectories(sources.resolve(Resolve.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
             writer.newLine();
@@ -43,8 +43,8 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Javac.FOLDER + "sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
 }

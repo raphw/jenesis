@@ -1,7 +1,8 @@
 package build.buildbuddy;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +12,7 @@ import java.util.concurrent.Executor;
 
 public class Javac implements ProcessBuildStep {
 
-    public static final String FOLDER = "classes/";
+    public static final String CLASSES = "classes/";
 
     private final String javac;
 
@@ -29,10 +30,19 @@ public class Javac implements ProcessBuildStep {
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
         List<String> commands = new ArrayList<>(List.of(javac,
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
-                "-d", Files.createDirectory(context.next().resolve(FOLDER)).toString()));
-        arguments.values().stream().flatMap(result -> result.files().keySet().stream()
-                .filter(path -> path.getFileName().toString().endsWith(".java"))
-                .map(path -> result.folder().resolve(path).toString())).forEach(commands::add);
+                "-d", Files.createDirectory(context.next().resolve(CLASSES)).toString()));
+        for (BuildStepArgument argument : arguments.values()) {
+            Path sources = argument.folder().resolve(Resolve.SOURCES);
+            Files.walkFileTree(sources, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (file.getFileName().toString().endsWith(".java")) {
+                        commands.add(file.toString());
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
         return CompletableFuture.completedStage(new ProcessBuilder(commands));
     }
 }

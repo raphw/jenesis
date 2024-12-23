@@ -18,7 +18,7 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    public static final String FOLDER = "libs/";
+    public static final String LIBS = "libs/";
 
     private final Map<String, Repository> repositories;
 
@@ -35,7 +35,7 @@ public class Dependencies implements BuildStep {
                                                   BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        Path dependencies = Files.createDirectory(context.next().resolve(FOLDER));
+        Path dependencies = Files.createDirectory(context.next().resolve(LIBS));
         for (BuildStepArgument result : arguments.values()) {
             for (Path path : result.files().keySet()) {
                 if (path.toString().endsWith(".dependencies")) {
@@ -55,8 +55,8 @@ public class Dependencies implements BuildStep {
                         } catch (NoSuchAlgorithmException e) {
                             throw new IllegalStateException(e);
                         }
-                        if (context.previous() != null && Files.exists(context.previous().resolve(FOLDER + dependency))) {
-                            Path file = context.previous().resolve(FOLDER + dependency);
+                        if (context.previous() != null && Files.exists(context.previous().resolve(LIBS + dependency))) {
+                            Path file = context.previous().resolve(LIBS + dependency);
                             if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
                                 Files.createLink(dependencies.resolve(dependency), file);
                                 continue;
@@ -83,7 +83,7 @@ public class Dependencies implements BuildStep {
                                     }
                                 } else {
                                     if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
-                                        Files.createLink(context.next().resolve(FOLDER + dependency), file);
+                                        Files.createLink(context.next().resolve(LIBS + dependency), file);
                                     } else {
                                         throw new IllegalStateException("Mismatched digest for " + dependency);
                                     }

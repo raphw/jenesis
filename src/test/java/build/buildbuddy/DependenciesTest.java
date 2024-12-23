@@ -5,7 +5,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,7 +55,7 @@ public class DependenciesTest {
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
@@ -67,10 +70,7 @@ public class DependenciesTest {
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
                 coordinate -> {
-                    Path file = temporaryFolder.newFile(coordinate).toPath();
-                    try (Writer writer = Files.newBufferedWriter(file)) {
-                        writer.write(coordinate);
-                    }
+                    Path file = Files.writeString(temporaryFolder.newFile(coordinate).toPath(), coordinate);
                     return new Repository.InputStreamSource() {
                         @Override
                         public InputStream toInputStream() {
@@ -87,7 +87,7 @@ public class DependenciesTest {
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
@@ -107,16 +107,14 @@ public class DependenciesTest {
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Mismatched digest for sample:coordinate");
-        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
-        try (Writer writer = Files.newBufferedWriter(Files.createDirectory(Files.createDirectory(previous)
-                .resolve(Dependencies.FOLDER))
-                .resolve("sample:coordinate"))) {
-            writer.write("other");
-        }
+        Files.writeString(Files.createDirectory(Files.createDirectory(previous)
+                        .resolve(Dependencies.LIBS))
+                .resolve("sample:coordinate"), "other");
         Path folder = Files.createDirectory(classes.resolve("sample"));
         Properties properties = new Properties();
         properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
@@ -131,7 +129,7 @@ public class DependenciesTest {
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("other");
-        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("other");
+        assertThat(previous.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("other");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("other");
     }
 }

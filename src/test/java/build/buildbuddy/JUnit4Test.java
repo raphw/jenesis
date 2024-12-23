@@ -39,7 +39,7 @@ public class JUnit4Test {
 
     @Test
     public void can_execute_java() throws IOException, ExecutionException, InterruptedException, URISyntaxException {
-        Path libs = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
+        Path libs = Files.createDirectory(dependencies.resolve(Dependencies.LIBS));
         Files.copy(
                 Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
                 libs.resolve("junit.jar"));
@@ -48,7 +48,7 @@ public class JUnit4Test {
                 libs.resolve("hamcrest-core.jar"));
         try (InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files
-                     .createDirectories(classes.resolve(Javac.FOLDER + "sample"))
+                     .createDirectories(classes.resolve(Javac.CLASSES + "sample"))
                      .resolve("SampleTest.class"))) {
             requireNonNull(input).transferTo(output);
         }
@@ -58,11 +58,11 @@ public class JUnit4Test {
                         "dependencies", new BuildStepArgument(
                                 dependencies,
                                 Map.of(
-                                        Path.of(Dependencies.FOLDER + "junit.jar"), ChecksumStatus.ADDED,
-                                        Path.of(Dependencies.FOLDER + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
+                                        Path.of(Dependencies.LIBS + "junit.jar"), ChecksumStatus.ADDED,
+                                        Path.of(Dependencies.LIBS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of(Javac.FOLDER + "sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content()
                 .contains("JUnit")

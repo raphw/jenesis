@@ -8,7 +8,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,11 +33,9 @@ public class MavenRepositoryTest {
 
     @Test
     public void can_fetch_dependency() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetch("group",
                 "artifact",
@@ -54,11 +51,9 @@ public class MavenRepositoryTest {
 
     @Test
     public void can_fetch_and_cache_dependency() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).fetch("group",
@@ -76,11 +71,9 @@ public class MavenRepositoryTest {
 
     @Test
     public void can_fetch_and_validate_dependency() throws IOException, NoSuchAlgorithmException {
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         byte[] hash = digest.digest("foo".getBytes(StandardCharsets.UTF_8));
         try (OutputStream outputStream = Files.newOutputStream(Files
@@ -108,11 +101,9 @@ public class MavenRepositoryTest {
 
     @Test
     public void can_fetch_and_fail_validate_dependency() throws IOException, NoSuchAlgorithmException {
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         try (OutputStream outputStream = Files.newOutputStream(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
@@ -136,11 +127,9 @@ public class MavenRepositoryTest {
     @Test
     public void can_validate_cached_dependency() throws IOException, NoSuchAlgorithmException {
         Path local = temporaryFolder.newFolder("cache").toPath();
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         byte[] hash = digest.digest("foo".getBytes(StandardCharsets.UTF_8));
         try (OutputStream outputStream = Files.newOutputStream(Files
@@ -168,11 +157,9 @@ public class MavenRepositoryTest {
     @Test
     public void can_validate_cached_dependency_with_cached_hash() throws IOException, NoSuchAlgorithmException {
         Path local = temporaryFolder.newFolder("cache").toPath();
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         byte[] hash = digest.digest("foo".getBytes(StandardCharsets.UTF_8));
         try (OutputStream outputStream = Files.newOutputStream(Files
@@ -200,11 +187,9 @@ public class MavenRepositoryTest {
     @Test
     public void can_fail_validate_cached_dependency() throws IOException, NoSuchAlgorithmException {
         Path local = temporaryFolder.newFolder("cache").toPath();
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
-                .resolve("artifact-1.jar"))) {
-            writer.write("foo");
-        }
+                .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         try (OutputStream outputStream = Files.newOutputStream(Files
                 .createDirectories(local.resolve("group/artifact/1"))

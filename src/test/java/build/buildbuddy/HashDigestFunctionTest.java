@@ -5,7 +5,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,10 +20,7 @@ public class HashDigestFunctionTest {
 
     @Test
     public void can_compute_hash() throws IOException, NoSuchAlgorithmException {
-        Path file = temporaryFolder.newFile("file").toPath();
-        try (Writer writer = Files.newBufferedWriter(file)) {
-            writer.append("bar");
-        }
+        Path file = Files.writeString(temporaryFolder.newFile("file").toPath(), "bar");
         byte[] hash = new HashDigestFunction("MD5").hash(file);
         assertThat(hash).isEqualTo(MessageDigest.getInstance("MD5").digest("bar".getBytes(StandardCharsets.UTF_8)));
     }

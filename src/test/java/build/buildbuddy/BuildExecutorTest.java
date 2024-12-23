@@ -38,9 +38,7 @@ public class BuildExecutorTest {
     @Test
     public void can_execute_build() throws IOException, ExecutionException, InterruptedException {
         Path source = temporaryFolder.newFolder("source").toPath();
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
             assertThat(context.previous()).isNull();
@@ -61,9 +59,7 @@ public class BuildExecutorTest {
     @Test
     public void rejects_use_of_context_if_not_exists() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
             assertThat(context.previous()).isNull();
@@ -83,9 +79,7 @@ public class BuildExecutorTest {
     @Test
     public void handles_error_in_step() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
             assertThat(context.previous()).isNull();
@@ -108,13 +102,9 @@ public class BuildExecutorTest {
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
-        try (Writer writer = Files.newBufferedWriter(output.resolve("result"))) {
-            writer.append("foo");
-        }
+        Files.writeString(output.resolve("result"), "foo");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
@@ -133,13 +123,9 @@ public class BuildExecutorTest {
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, file -> new byte[0]));
-        try (Writer writer = Files.newBufferedWriter(output.resolve("result"))) {
-            writer.append("bar");
-        }
+        Files.writeString(output.resolve("result"), "bar");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
@@ -164,13 +150,9 @@ public class BuildExecutorTest {
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, file -> new byte[0]));
-        try (Writer writer = Files.newBufferedWriter(output.resolve("result"))) {
-            writer.append("bar");
-        }
+        Files.writeString(output.resolve("result"), "bar");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
@@ -195,13 +177,9 @@ public class BuildExecutorTest {
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
-        try (Writer writer = Files.newBufferedWriter(output.resolve("result"))) {
-            writer.append("bar");
-        }
+        Files.writeString(output.resolve("result"), "bar");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, file -> new byte[0]));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
@@ -223,9 +201,7 @@ public class BuildExecutorTest {
     @Test
     public void can_execute_build_multiple_steps() throws IOException, ExecutionException, InterruptedException {
         Path source = temporaryFolder.newFolder("source").toPath();
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (executor, context, arguments) -> {
             assertThat(context.previous()).isNull();
@@ -255,12 +231,8 @@ public class BuildExecutorTest {
     @Test
     public void can_execute_multiple_sources() throws IOException, ExecutionException, InterruptedException {
         Path source1 = temporaryFolder.newFolder("source1").toPath(), source2 = temporaryFolder.newFolder("source2").toPath();
-        try (Writer writer = Files.newBufferedWriter(source1.resolve("sample1"))) {
-            writer.append("foo");
-        }
-        try (Writer writer = Files.newBufferedWriter(source2.resolve("sample2"))) {
-            writer.append("bar");
-        }
+        Files.writeString(source1.resolve("sample1"), "foo");
+        Files.writeString(source2.resolve("sample2"), "bar");
         buildExecutor.addSource("source1", source1);
         buildExecutor.addSource("source2", source2);
         buildExecutor.addStep("step", (executor, context, arguments) -> {
@@ -271,11 +243,9 @@ public class BuildExecutorTest {
             assertThat(arguments.get("source2").folder()).isEqualTo(source2);
             assertThat(arguments.get("source1").files()).isEqualTo(Map.of(Path.of("sample1"), ChecksumStatus.ADDED));
             assertThat(arguments.get("source2").files()).isEqualTo(Map.of(Path.of("sample2"), ChecksumStatus.ADDED));
-            try (
-                    Writer writer = Files.newBufferedWriter(context.next().resolve("result"));
-                    BufferedReader reader1 = Files.newBufferedReader(arguments.get("source1").folder().resolve("sample1"));
-                    BufferedReader reader2 = Files.newBufferedReader(arguments.get("source2").folder().resolve("sample2"))
-            ) {
+            try (Writer writer = Files.newBufferedWriter(context.next().resolve("result"));
+                 BufferedReader reader1 = Files.newBufferedReader(arguments.get("source1").folder().resolve("sample1"));
+                 BufferedReader reader2 = Files.newBufferedReader(arguments.get("source2").folder().resolve("sample2"))) {
                 writer.write(Stream.concat(reader1.lines(), reader2.lines()).collect(Collectors.joining()));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -290,9 +260,7 @@ public class BuildExecutorTest {
     @Test
     public void can_execute_diverging_steps() throws IOException, ExecutionException, InterruptedException {
         Path source = temporaryFolder.newFolder("source").toPath();
-        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
-            writer.append("foo");
-        }
+        Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (executor, context, arguments) -> {
             assertThat(context.previous()).isNull();

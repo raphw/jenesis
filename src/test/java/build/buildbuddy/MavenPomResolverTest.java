@@ -6,7 +6,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -1244,10 +1243,8 @@ public class MavenPomResolverTest {
     }
 
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
+        Files.writeString(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
-                .resolve(artifactId + "-" + version + ".pom"))) {
-            writer.write(pom);
-        }
+                .resolve(artifactId + "-" + version + ".pom"), pom);
     }
 }

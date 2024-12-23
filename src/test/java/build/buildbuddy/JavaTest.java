@@ -35,7 +35,7 @@ public class JavaTest {
 
     @Test
     public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectories(classes.resolve(Javac.FOLDER + "sample"));
+        Path folder = Files.createDirectories(classes.resolve(Javac.CLASSES + "sample"));
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(folder.resolve("Sample.class"))) {
             requireNonNull(input).transferTo(output);

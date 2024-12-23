@@ -49,13 +49,13 @@ public abstract class Java implements ProcessBuildStep {
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
         List<String> classPath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String folder : List.of(Javac.FOLDER, "resources/")) {
+            for (String folder : List.of(Javac.CLASSES, Resolve.RESOURCES)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.exists(candidate)) {
                     classPath.add(candidate.toString());
                 }
             }
-            for (String folder : List.of(Dependencies.FOLDER, Jar.FOLDER)) {
+            for (String folder : List.of(Dependencies.LIBS, Jar.JARS)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.exists(candidate)) {
                     try (DirectoryStream<Path> stream = Files.newDirectoryStream(candidate)) {

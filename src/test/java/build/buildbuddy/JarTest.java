@@ -35,7 +35,7 @@ public class JarTest {
 
     @Test
     public void can_execute_jar() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectory(classes.resolve(Javac.FOLDER));
+        Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files
                      .createDirectory(folder.resolve("sample"))
@@ -48,6 +48,6 @@ public class JarTest {
                         classes,
                         Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Jar.FOLDER + "artifact.jar")).isNotEmptyFile();
+        assertThat(next.resolve(Jar.JARS + "artifact.jar")).isNotEmptyFile();
     }
 }

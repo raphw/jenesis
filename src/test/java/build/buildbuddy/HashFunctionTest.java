@@ -5,7 +5,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -29,9 +28,7 @@ public class HashFunctionTest {
     @Test
     public void can_extract_folder() throws IOException {
         Path folder = temporaryFolder.newFolder("folder").toPath();
-        try (Writer writer = Files.newBufferedWriter(folder.resolve("foo"))) {
-            writer.append("bar");
-        }
+        Files.writeString(folder.resolve("foo"), "bar");
         Map<Path, byte[]> checksums = HashFunction.read(folder, file -> new byte[]{1, 2, 3});
         assertThat(checksums).containsOnlyKeys(Path.of("foo"));
         assertThat(checksums.get(Path.of("foo"))).isEqualTo(new byte[]{1, 2, 3});
@@ -40,9 +37,7 @@ public class HashFunctionTest {
     @Test
     public void can_extract_nested_folder() throws IOException {
         Path folder = temporaryFolder.newFolder("folder").toPath();
-        try (Writer writer = Files.newBufferedWriter(Files.createDirectory(folder.resolve("bar")).resolve("foo"))) {
-            writer.append("bar");
-        }
+        Files.writeString(Files.createDirectory(folder.resolve("bar")).resolve("foo"), "bar");
         Map<Path, byte[]> checksums = HashFunction.read(folder, file -> new byte[]{1, 2, 3});
         assertThat(checksums).containsOnlyKeys(Path.of("bar/foo"));
         assertThat(checksums.get(Path.of("bar/foo"))).isEqualTo(new byte[]{1, 2, 3});
