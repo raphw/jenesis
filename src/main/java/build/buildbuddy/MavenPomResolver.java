@@ -214,10 +214,11 @@ public class MavenPomResolver {
         UnresolvedPom pom = poms.get(coordinates);
         if (pom == null) {
             try {
-                pom = assemble(repository.download(groupId,
+                pom = assemble(repository.fetch(groupId,
                         artifactId,
                         version,
                         "pom",
+                        null,
                         null).toInputStream(), children, poms);
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);

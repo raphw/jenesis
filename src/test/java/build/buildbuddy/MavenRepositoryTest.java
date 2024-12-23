@@ -27,8 +27,6 @@ public class MavenRepositoryTest {
 
     private Path repository;
 
-    private MavenRepository mavenRepository;
-
     @Before
     public void setUp() throws Exception {
         repository = temporaryFolder.newFolder("repository").toPath();
@@ -43,10 +41,11 @@ public class MavenRepositoryTest {
         }
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (
-                InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).download("group",
+                InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetch("group",
                         "artifact",
                         "1",
                         "jar",
+                        null,
                         null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
@@ -65,10 +64,11 @@ public class MavenRepositoryTest {
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (
-                InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).download("group",
+                InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).fetch("group",
                         "artifact",
                         "1",
                         "jar",
+                        null,
                         null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
@@ -97,10 +97,11 @@ public class MavenRepositoryTest {
         try (
                 InputStream inputStream = new MavenRepository(repository.toUri(),
                         local,
-                        Map.of("MD5", repository.toUri())).download("group",
+                        Map.of("MD5", repository.toUri())).fetch("group",
                         "artifact",
                         "1",
                         "jar",
+                        null,
                         null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
@@ -128,10 +129,11 @@ public class MavenRepositoryTest {
         MavenRepository repository = new MavenRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
-        assertThatThrownBy(() -> repository.download("group",
+        assertThatThrownBy(() -> repository.fetch("group",
                 "artifact",
                 "1",
                 "jar",
+                null,
                 null)).isInstanceOf(IOException.class);
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
@@ -156,10 +158,11 @@ public class MavenRepositoryTest {
         try (
                 InputStream inputStream = new MavenRepository(repository.toUri(),
                         local,
-                        Map.of("MD5", repository.toUri())).download("group",
+                        Map.of("MD5", repository.toUri())).fetch("group",
                         "artifact",
                         "1",
                         "jar",
+                        null,
                         null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
@@ -189,10 +192,11 @@ public class MavenRepositoryTest {
         try (
                 InputStream inputStream = new MavenRepository(repository.toUri(),
                         local,
-                        Map.of("MD5", repository.toUri())).download("group",
+                        Map.of("MD5", repository.toUri())).fetch("group",
                         "artifact",
                         "1",
                         "jar",
+                        null,
                         null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
@@ -220,10 +224,11 @@ public class MavenRepositoryTest {
         MavenRepository repository = new MavenRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
-        assertThatThrownBy(() -> repository.download("group",
+        assertThatThrownBy(() -> repository.fetch("group",
                 "artifact",
                 "1",
                 "jar",
+                null,
                 null)).isInstanceOf(IOException.class);
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
