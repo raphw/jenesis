@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class MavenPomResolver {
+public class MavenPomResolver { // TODO: scope resolution, BOMs
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
 
@@ -69,9 +69,7 @@ public class MavenPomResolver {
     private ResolvedPom doResolveOrCached(InputStream inputStream,
                                           Set<DependencyCoordinates> children,
                                           Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
-        // TODO: resolve properties
         // TODO: order of dependencies?
-        // TODO: scope resolution, BOMs
         Document document;
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
@@ -125,12 +123,12 @@ public class MavenPomResolver {
                         .flatMap(node -> toChildren400(node, "dependencies"))
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
-                        .map(MavenPomResolver::toDependency400)
+                        .map(node -> toDependency400(node, properties))
                         .forEach(entry -> managedDependencies.put(entry.getKey(), entry.getValue()));
                 toChildren400(document.getDocumentElement(), "dependencies")
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
-                        .map(MavenPomResolver::toDependency400)
+                        .map(node -> toDependency400(node, properties))
                         .forEach(entry -> dependencies.put(
                                 entry.getKey(),
                                 managedDependencies.getOrDefault(entry.getKey(), entry.getValue())));
@@ -171,25 +169,34 @@ public class MavenPomResolver {
                 && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
     }
 
-    private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node) {
+    private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node, Map<String, String> properties) {
         return Map.entry(
                 new DependencyKey(
-                        toChildren400(node, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
-                        toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().orElseThrow(),
-                        toChildren400(node, "type").map(Node::getTextContent).findFirst().orElse("jar"),
-                        toChildren400(node, "classifier").map(Node::getTextContent).findFirst().orElse(null)),
+                        toChildren400(node, "groupId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(),
+                        toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(),
+                        toChildren400(node, "type").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse("jar"),
+                        toChildren400(node, "classifier").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse(null)),
                 new DependencyValue(
-                        toChildren400(node, "version").map(Node::getTextContent).findFirst().orElse(null),
-                        toChildren400(node, "scope").map(Node::getTextContent).findFirst().orElse("compile"),
+                        toChildren400(node, "version").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse(null),
+                        toChildren400(node, "scope").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse("compile"),
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
                                         .map(child -> new DependencyExclusion(
-                                                toChildren400(child, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
-                                                toChildren400(child, "artifactId").map(Node::getTextContent).findAny().orElseThrow()))
+                                                toChildren400(child, "groupId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow(),
+                                                toChildren400(child, "artifactId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow()))
                                         .toList())
                                 .orElse(null),
-                        toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(Boolean::valueOf).orElse(null)));
+                        toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(value -> toValue(value, properties)).map(Boolean::valueOf).orElse(null)));
+    }
+
+    private static String toValue(String text, Map<String, String> properties) {
+        if (text.contains("$")) {
+            throw new UnsupportedOperationException();
+            // TODO: implement resolution.
+        } else {
+            return text;
+        }
     }
 
     private record DependencyKey(String groupId,
