@@ -57,7 +57,7 @@ public class MavenPomResolver {
                         case null -> false;
                         default -> throw new IllegalStateException("Unexpected value: " + value);
                     };
-                    if (optional && current.pom().transitive()) {
+                    if (optional && current.pom().main()) {
                         continue;
                     }
                     MavenDependencyScope base = toScope(value.scope()), transitive = switch (current.scope()) {
@@ -294,6 +294,9 @@ public class MavenPomResolver {
                 String property = matcher.group(2);
                 String replacement = properties.get(property);
                 if (replacement == null) {
+                    replacement = System.getProperty(property);
+                }
+                if (replacement == null) {
                     throw new IllegalStateException("Property not defined: " + property);
                 } else {
                     HashSet<String> duplicates = new HashSet<>(previous);
@@ -371,7 +374,7 @@ public class MavenPomResolver {
 
     private record ResolvedPom(Map<DependencyKey, DependencyValue> managedDependencies,
                                SequencedMap<DependencyKey, DependencyValue> dependencies,
-                               boolean transitive) {
+                               boolean main) {
     }
 
     private record ContextualPom(ResolvedPom pom,
