@@ -36,8 +36,7 @@ public class MavenPomResolver {
                                               String version,
                                               MavenDependencyScope scope) throws IOException {
         SequencedMap<DependencyKey, DependencyInclusion> dependencies = new LinkedHashMap<>();
-        Map<DependencyKey, Set<DependencyKey>> transitives = new HashMap<>();
-        Map<DependencyKey, MavenDependencyScope> scopes = new HashMap<>();
+        Map<DependencyKey, MavenDependencyScope> overrides = new HashMap<>();
         Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
                 resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, null),
@@ -81,24 +80,18 @@ public class MavenPomResolver {
                     }
                     DependencyInclusion previous = dependencies.get(entry.getKey());
                     if (previous != null) {
-                        if (previous.scope().ordinal() > derived.ordinal()) {
-                            Queue<DependencyKey> keys = new ArrayDeque<>(List.of(entry.getKey()));
-                            do {
-                                DependencyKey key = keys.remove();
-                                scopes.put(key, derived);
-                                keys.addAll(transitives.getOrDefault(key, Set.of()));
-                            } while (!keys.isEmpty());
+                        if (previous.scope().ordinal() > overrides.getOrDefault(entry.getKey(), derived).ordinal()) {
+                            overrides.put(entry.getKey(), derived);
                         }
                         continue;
                     }
                     dependencies.put(entry.getKey(), new DependencyInclusion(value.version(),
                             optional,
                             derived,
-                            value.systemPath() == null ? null : Path.of(value.systemPath())));
+                            value.systemPath() == null ? null : Path.of(value.systemPath()),
+                            new HashSet<>()));
                     if (current.pom().origin() != null) {
-                        transitives.computeIfAbsent(
-                                current.pom().origin(),
-                                ignored -> new HashSet<>()).add(entry.getKey());
+                        dependencies.get(current.pom().origin()).transitives().add(entry.getKey());
                     }
                     Set<DependencyExclusion> exclusions;
                     if (value.exclusions() == null || value.exclusions().isEmpty()) {
@@ -115,12 +108,24 @@ public class MavenPomResolver {
                 }
             }
         } while (!queue.isEmpty());
+        Queue<DependencyKey> keys = new ArrayDeque<>(overrides.keySet());
+        while (!keys.isEmpty()) {
+            DependencyKey key = keys.remove();
+            Set<DependencyKey> transitives = dependencies.get(key).transitives();
+            transitives.forEach(transitive -> {
+                MavenDependencyScope current = overrides.get(transitive), candidate = overrides.get(key);
+                if (current == null || candidate.ordinal() < current.ordinal()) {
+                    overrides.put(transitive, candidate);
+                }
+            });
+            keys.addAll(transitives);
+        }
         return dependencies.entrySet().stream().map(entry -> new MavenDependency(entry.getKey().groupId(),
                 entry.getKey().artifactId(),
                 entry.getValue().version(),
                 entry.getKey().type(),
                 entry.getKey().classifier(),
-                scopes.getOrDefault(entry.getKey(), entry.getValue().scope()),
+                overrides.getOrDefault(entry.getKey(), entry.getValue().scope()),
                 entry.getValue().path(),
                 entry.getValue().optional())).toList();
     }
@@ -287,7 +292,6 @@ public class MavenPomResolver {
                         toTextChild400(node, "optional").orElse(null)));
     }
 
-
     private static String property(String text, Map<String, String> properties) {
         return property(text, properties, Set.of());
     }
@@ -375,7 +379,11 @@ public class MavenPomResolver {
         }
     }
 
-    private record DependencyInclusion(String version, boolean optional, MavenDependencyScope scope, Path path) {
+    private record DependencyInclusion(String version,
+                                       boolean optional,
+                                       MavenDependencyScope scope,
+                                       Path path,
+                                       Set<DependencyKey> transitives) {
     }
 
     private record DependencyExclusion(String groupId, String artifactId) {

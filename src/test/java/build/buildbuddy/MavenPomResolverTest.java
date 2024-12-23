@@ -1031,6 +1031,134 @@ public class MavenPomResolverTest {
                         false));
     }
 
+    @Test
+    public void can_resolve_lowest_depth_version_with_scope_override_and_nested_transitives() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>deep</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>shallow</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>test</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("deep", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>intermediate</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("intermediate", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>2</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>nested</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("nested", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("shallow", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("deep",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false),
+                new MavenDependency("shallow",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.TEST,
+                        null,
+                        false),
+                new MavenDependency("intermediate",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false),
+                new MavenDependency("transitive",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false),
+                new MavenDependency("nested",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false));
+    }
+
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
