@@ -47,8 +47,8 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             case "RELEASE" -> toMetadata(groupId, artifactId).release();
             case "LATEST" -> toMetadata(groupId, artifactId).latest();
             case String range when (range.startsWith("[") || range.startsWith("(")) && (range.endsWith("]") || range.endsWith(")")) -> {
-                String value = range.substring(1, range.length() - 2), minimum, maximum;
-                int includeMinimum = range.startsWith("[") ? 0 : 1, includeMaximum = range.endsWith("]") ? 0 : 1, index = value.indexOf(',');
+                String value = range.substring(1, range.length() - 1), minimum, maximum;
+                int includeMinimum = range.startsWith("[") ? 1 : 0, includeMaximum = range.endsWith("]") ? 1 : 0, index = value.indexOf(',');
                 if (index == -1) {
                     minimum = maximum = value.trim();
                 } else {
@@ -56,7 +56,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                     maximum = value.substring(index + 1).trim();
                 }
                 yield toMetadata(groupId, artifactId).versions().stream()
-                        .filter(candidate -> compare(candidate, minimum) < includeMinimum)
+                        .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                         .filter(candidate -> compare(candidate, maximum) < includeMaximum)
                         .reduce((left, right) -> right)
                         .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
