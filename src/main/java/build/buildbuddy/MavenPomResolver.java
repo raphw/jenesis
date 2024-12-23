@@ -26,13 +26,10 @@ public class MavenPomResolver {
     }
 
     public List<MavenDependency> dependencies(String groupId, String artifactId, String version) throws IOException {
+        Map<DependencyCoordinates, ResolvedPom> poms = new HashMap<>();
         SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
-        ResolvedPom root = doResolve(repository.download(groupId,
-                artifactId,
-                version,
-                null,
-                "pom"), new HashSet<>());
+        ResolvedPom root = doResolveOrCached(groupId, artifactId, version, new HashSet<>(), poms);
         Queue<DependencyElement> queue = new ArrayDeque<>();
         DependencyElement current = new DependencyElement(root, Set.of(), Map.of());
         do {
@@ -50,11 +47,11 @@ public class MavenPomResolver {
                         exclusions = new HashSet<>(current.exclusions());
                         exclusions.addAll(entry.getValue().exclusions());
                     }
-                    queue.add(new DependencyElement(doResolve(repository.download(entry.getKey().groupId(),
+                    queue.add(new DependencyElement(doResolveOrCached(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
                             entry.getValue().version(),
-                            null,
-                            "pom"), new HashSet<>()), exclusions, managedDependencies));
+                            new HashSet<>(),
+                            poms), exclusions, managedDependencies));
                 }
             }
         } while ((current = queue.poll()) != null);
@@ -67,10 +64,11 @@ public class MavenPomResolver {
                 Objects.equals(entry.getValue().optional(), true))).toList();
     }
 
-    private ResolvedPom doResolve(InputStream inputStream, Set<DependencyCoordinates> children) throws IOException {
+    private ResolvedPom doResolveOrCached(InputStream inputStream,
+                                          Set<DependencyCoordinates> children,
+                                          Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
         // TODO: implicit properties.
         // TODO: resolve properties
-        // TODO: cache resolved poms
         // TODO: order of dependencies?
         // TODO: scope resolution, BOMs
         Document document;
@@ -95,11 +93,11 @@ public class MavenPomResolver {
                     if (!children.add(new DependencyCoordinates(parent.groupId(), parent.artifactId(), parent.version()))) {
                         throw new IllegalStateException("Circular dependency to " + parent);
                     }
-                    ResolvedPom resolution = doResolve(repository.download(parent.groupId(),
+                    ResolvedPom resolution = doResolveOrCached(parent.groupId(),
                             parent.artifactId(),
                             parent.version(),
-                            null,
-                            "pom"), children);
+                            children,
+                            poms);
                     properties.putAll(resolution.properties());
                     managedDependencies.putAll(resolution.managedDependencies());
                     dependencies.putAll(resolution.dependencies());
@@ -127,6 +125,24 @@ public class MavenPomResolver {
             case null, default ->
                     throw new IllegalArgumentException("Unknown namespace: " + document.getDocumentElement().getNamespaceURI());
         };
+    }
+
+    private ResolvedPom doResolveOrCached(String groupId,
+                                          String artifactId,
+                                          String version,
+                                          Set<DependencyCoordinates> children,
+                                          Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
+        DependencyCoordinates coordinates = new DependencyCoordinates(groupId, artifactId, version);
+        ResolvedPom pom = poms.get(coordinates);
+        if (pom == null) {
+            pom = doResolveOrCached(repository.download(groupId,
+                    artifactId,
+                    version,
+                    null,
+                    "pom"), children, poms);
+            poms.put(coordinates, pom);
+        }
+        return pom;
     }
 
     private static Stream<Node> toChildren(Node node) {
@@ -172,13 +188,6 @@ public class MavenPomResolver {
                                    String scope,
                                    List<DependencyExclusion> exclusions,
                                    Boolean optional) {
-        DependencyValue merge(DependencyValue value) {
-            return value.equals(this) ? this : new DependencyValue(
-                    value.version() == null ? version : value.version(),
-                    value.scope() == null ? scope : value.scope(),
-                    value.exclusions() == null ? exclusions : value.exclusions(),
-                    value.optional() == null ? optional : value.optional());
-        }
     }
 
     private record DependencyExclusion(String groupId, String artifactId) {
