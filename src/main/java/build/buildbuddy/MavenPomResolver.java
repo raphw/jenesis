@@ -70,6 +70,7 @@ public class MavenPomResolver {
         // TODO: resolve properties
         // TODO: cache resolved poms
         // TODO: order of dependencies?
+        // TODO: scope resolution, BOMs
         Document document;
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
