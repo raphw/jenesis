@@ -35,11 +35,15 @@ public class Resolve implements BuildStep {
         return new Resolve(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
+    public static BuildStep asDependencies() {
+        return new Resolve(Map.of(Path.of("."), Path.of(PropertyDependencies.DEPENDENCIES)));
+    }
+
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
-        for (BuildStepArgument argument : arguments.values()) {
+        for (BuildStepArgument argument : arguments.values()) { // TODO: better incremental support
             for (Map.Entry<Path, Path> entry : paths.entrySet()) {
                 Path source = argument.folder().resolve(entry.getKey());
                 if (Files.exists(source)) {

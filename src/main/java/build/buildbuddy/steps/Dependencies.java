@@ -5,6 +5,7 @@ import build.buildbuddy.maven.MavenRepository;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.nio.channels.FileChannel;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -21,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    public static final String FOLDER = "dependencies/", LIBS = "libs/";
+    public static final String FLATTENED = "flattened/", LIBS = "libs/";
 
     private final Map<String, Repository> repositories;
 
@@ -40,15 +41,15 @@ public class Dependencies implements BuildStep {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         Path libs = Files.createDirectory(context.next().resolve(LIBS));
         for (BuildStepArgument result : arguments.values()) {
-            Path dependencies = result.folder().resolve(FOLDER);
+            Path dependencies = result.folder().resolve(FLATTENED);
             if (!Files.exists(dependencies)) {
                 continue;
             }
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dependencies, "*.properties")) {
                 for (Path path : stream) {
                     Properties properties = new Properties();
-                    try (InputStream inputStream = Files.newInputStream(result.folder().resolve(path))) {
-                        properties.load(inputStream);
+                    try (Reader reader = Files.newBufferedReader(result.folder().resolve(path))) {
+                        properties.load(reader);
                     }
                     for (String dependency : properties.stringPropertyNames()) {
                         int index = dependency.indexOf('|');

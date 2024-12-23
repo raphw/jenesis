@@ -144,7 +144,7 @@ public class MavenRepository implements Repository {
                     uri,
                     digests,
                     path.substring(path.lastIndexOf('/') + 1, path.indexOf('.')),
-                    path.substring(path.indexOf('.') + 1));
+                    path.substring(path.indexOf('.')));
         }
     }
 

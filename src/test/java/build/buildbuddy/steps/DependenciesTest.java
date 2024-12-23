@@ -42,7 +42,7 @@ public class DependenciesTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
-        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
+        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
@@ -54,14 +54,14 @@ public class DependenciesTest {
                 coordinate -> Optional.of(() -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 dependencies,
-                Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
-        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
+        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
@@ -86,14 +86,14 @@ public class DependenciesTest {
                 }
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 dependencies,
-                Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
-        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
+        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
@@ -105,7 +105,7 @@ public class DependenciesTest {
                 coordinate -> Optional.of(() -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 dependencies,
-                Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
+                Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Mismatched digest for sample|coordinate");
         assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("coordinate");
@@ -116,7 +116,7 @@ public class DependenciesTest {
         Files.writeString(Files.createDirectory(Files.createDirectory(previous)
                         .resolve(Dependencies.LIBS))
                 .resolve("sample|coordinate"), "other");
-        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
+        Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
@@ -128,7 +128,7 @@ public class DependenciesTest {
                 coordinate -> Optional.of(() -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 dependencies,
-                Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(previous.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("other");
         assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("other");
