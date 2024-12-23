@@ -25,13 +25,14 @@ public class BuildExecutorTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private Path root;
-    private HashFunction md5 = new HashDigestFunction("MD5");
+    private HashFunction hash;
     private BuildExecutor buildExecutor;
 
     @Before
     public void setUp() throws Exception {
         root = temporaryFolder.newFolder().toPath();
-        buildExecutor = new BuildExecutor(root, md5);
+        hash = new HashDigestFunction("MD5");
+        buildExecutor = new BuildExecutor(root, hash);
     }
 
     @Test
@@ -50,7 +51,7 @@ public class BuildExecutorTest {
             Files.copy(dependencies.get("source").folder().resolve("sample"), target.resolve("result"));
             return CompletableFuture.completedStage(true);
         }, "source");
-        Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("result");
         assertThat(result).isRegularFile();
@@ -65,7 +66,7 @@ public class BuildExecutorTest {
         }
         HashFunction.write(
                 Files.createDirectory(step.resolve("checksum")).resolve("checksums.source"),
-                HashFunction.read(source));
+                HashFunction.read(source, hash));
         try (Writer writer = Files.newBufferedWriter(step.resolve("result"))) {
             writer.append("foo");
         }
@@ -74,7 +75,7 @@ public class BuildExecutorTest {
             fail();
             return CompletableFuture.completedStage(true);
         }, "source");
-        Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("result");
         assertThat(result).isRegularFile();
@@ -106,7 +107,7 @@ public class BuildExecutorTest {
             Files.copy(dependencies.get("step1").folder().resolve("result"), target.resolve("final"));
             return CompletableFuture.completedStage(true);
         }, "step1");
-        Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step1", "step2");
         Path result = root.resolve("step2").resolve("final");
         assertThat(result).isRegularFile();
@@ -141,7 +142,7 @@ public class BuildExecutorTest {
             }
             return CompletableFuture.completedStage(true);
         }, "source1", "source2");
-        Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source1", "source2", "step");
         Path result = root.resolve("step").resolve("result");
         assertThat(result).isRegularFile();
@@ -185,7 +186,7 @@ public class BuildExecutorTest {
             Files.copy(dependencies.get("step2").folder().resolve("result"), target.resolve("result2"));
             return CompletableFuture.completedStage(true);
         }, "step1", "step2");
-        Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step1", "step2", "step3");
         Path result1 = root.resolve("step3").resolve("result1");
         assertThat(result1).isRegularFile();

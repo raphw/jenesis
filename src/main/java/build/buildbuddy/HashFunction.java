@@ -51,4 +51,23 @@ public interface HashFunction {
             }
         }
     }
+
+    static boolean areConsistent(Path folder, Path file, HashFunction hash) throws IOException {
+        Map<Path, byte[]> checksums = read(file);
+        Queue<Path> queue = new ArrayDeque<>(List.of(folder));
+        do {
+            Path current = queue.remove();
+            if (Files.isDirectory(current)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(current)) {
+                    stream.forEach(queue::add);
+                }
+            } else {
+                byte[] checksum = checksums.remove(folder.relativize(current));
+                if (checksum == null || !Arrays.equals(checksum, hash.hash(current))) {
+                    return false;
+                }
+            }
+        } while (!queue.isEmpty());
+        return checksums.isEmpty();
+    }
 }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -17,15 +18,15 @@ import java.util.stream.Stream;
 public class BuildExecutor {
 
     private final Path root;
-    private final HashFunction hashFunction;
+    private final HashFunction hash;
 
     private final TaskGraph<String, Map<String, BuildStatus>> taskGraph = new TaskGraph<>((left, right) -> Stream
             .concat(left.entrySet().stream(), right.entrySet().stream())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
-    public BuildExecutor(Path root, HashFunction hashFunction) {
+    public BuildExecutor(Path root, HashFunction hash) {
         this.root = root;
-        this.hashFunction = hashFunction;
+        this.hash = hash;
     }
 
     public void addSource(String identity, Path path) {
@@ -43,7 +44,7 @@ public class BuildExecutor {
             CompletableFuture<Map<String, BuildStatus>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
-                    future.complete(Map.of(identity, new BuildStatus(path, HashFunction.read(path))));
+                    future.complete(Map.of(identity, new BuildStatus(path, HashFunction.read(path, hash))));
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
@@ -83,7 +84,11 @@ public class BuildExecutor {
                             ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
                             : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
-                if (step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildResult::isChanged)) {
+                // TODO: special handling if output folder is not present?
+                if (step.isAlwaysRun()
+                        || dependencies.values().stream().anyMatch(BuildResult::isChanged)
+                        || !Files.exists(checksum.resolve("checksums"))
+                        || !HashFunction.areConsistent(output, checksum.resolve("checksums"), hash)) {
                     Path target = Files.createTempDirectory(identity);
                     return step.apply(executor, output, target, dependencies).handleAsync((handled, throwable) -> {
                         try {
@@ -101,7 +106,7 @@ public class BuildExecutor {
                                         root.resolve(entry.getKey() + "/checksum/checksums"),
                                         checksum.resolve("checksums." + entry.getKey()));
                             }
-                            Map<Path, byte[]> checksums = HashFunction.read(output, hashFunction);
+                            Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
                             return Map.of(identity, new BuildStatus(output, checksums));
                         } catch (Throwable t) {
@@ -119,9 +124,14 @@ public class BuildExecutor {
         };
     }
 
-    public CompletionStage<Map<String, BuildResult>> execute(Executor executor) {
-        taskGraph.execute(executor, CompletableFuture.completedStage(Map.of()));
-        return null;
+    public CompletionStage<Map<String, Path>> execute(Executor executor) {
+        return taskGraph.execute(executor, CompletableFuture.completedStage(Map.of())).thenApplyAsync(results -> {
+            Map<String, Path> folders = new LinkedHashMap<>(); // TODO: return more complex result.
+            for (Map.Entry<String, BuildStatus> entry : results.entrySet()) {
+                folders.put(entry.getKey(), entry.getValue().folder());
+            }
+            return folders;
+        }, executor);
     }
 
     private record BuildStatus(Path folder, Map<Path, byte[]> checksums) { }
