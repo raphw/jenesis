@@ -1,5 +1,6 @@
 package build.buildbuddy.maven;
 
+import build.buildbuddy.Repository;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -260,14 +261,14 @@ public class MavenPomResolver {
         UnresolvedPom pom = poms.get(coordinates);
         if (pom == null) {
             try {
-                Optional<InputStream> inputStream = repository.fetch(groupId,
+                Optional<Repository.InputStreamSource> source = repository.fetch(groupId,
                         artifactId,
                         version,
                         "pom",
                         null,
-                        null).toInputStream();
-                pom = inputStream.isPresent()
-                        ? assemble(inputStream.get(), children, poms)
+                        null);
+                pom = source.isPresent()
+                        ? assemble(source.get().toInputStream(), children, poms)
                         : new UnresolvedPom(Map.of(), Map.of(), Collections.emptyNavigableMap());
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);

@@ -145,8 +145,8 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         if (metadata == null) {
             Document document;
             try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null)
-                    .toInputStream()
-                    .orElseThrow(() -> new IllegalStateException("No metadata for " + groupId + ":" + artifactId))) {
+                    .orElseThrow(() -> new IllegalStateException("No metadata for " + groupId + ":" + artifactId))
+                    .toInputStream()) {
                 document = factory.newDocumentBuilder().parse(inputStream);
             } catch (SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException(e);

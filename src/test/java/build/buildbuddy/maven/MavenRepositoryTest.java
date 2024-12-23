@@ -42,7 +42,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream().orElseThrow();
+                null).orElseThrow().toInputStream();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -61,7 +61,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream().orElseThrow();
+                null).orElseThrow().toInputStream();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -90,7 +90,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream().orElseThrow();
+                null).orElseThrow().toInputStream();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -145,7 +145,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream().orElseThrow();
+                null).orElseThrow().toInputStream();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -175,7 +175,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream().orElseThrow();
+                null).orElseThrow().toInputStream();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -204,7 +204,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream()).isEmpty();
+                null).orElseThrow().toInputStream());
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
     }
@@ -217,7 +217,7 @@ public class MavenRepositoryTest {
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
                 "artifact",
-                null).toInputStream().orElseThrow();
+                null).orElseThrow().toInputStream();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }

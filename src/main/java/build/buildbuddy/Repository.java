@@ -8,7 +8,7 @@ import java.util.Optional;
 @FunctionalInterface
 public interface Repository {
 
-    InputStreamSource fetch(String coordinate) throws IOException;
+    Optional<InputStreamSource> fetch(String coordinate) throws IOException;
 
     @FunctionalInterface
     interface InputStreamSource {
@@ -17,6 +17,6 @@ public interface Repository {
             return Optional.empty();
         }
 
-        Optional<InputStream> toInputStream() throws IOException;
+        InputStream toInputStream() throws IOException;
     }
 }

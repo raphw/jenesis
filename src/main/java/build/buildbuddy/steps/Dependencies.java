@@ -70,13 +70,13 @@ public class Dependencies implements BuildStep {
                         CompletableFuture<?> future = new CompletableFuture<>();
                         executor.execute(() -> {
                             try {
-                                Repository.InputStreamSource source = repository.fetch(segments[segments.length == 1 ? 0 : 1]);
+                                Repository.InputStreamSource source = repository
+                                        .fetch(segments[segments.length == 1 ? 0 : 1])
+                                        .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
                                     try (
-                                            DigestInputStream inputStream = new DigestInputStream(source
-                                                    .toInputStream()
-                                                    .orElseThrow(), digest);
+                                            DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest);
                                             OutputStream outputStream = Files.newOutputStream(dependencies.resolve(dependency))
                                     ) {
                                         inputStream.transferTo(outputStream);
