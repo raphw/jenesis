@@ -57,7 +57,7 @@ public class MavenPomResolver {
                         case null -> false;
                         default -> throw new IllegalStateException("Unexpected value: " + value);
                     };
-                    if (optional && current.pom().main()) {
+                    if (optional && current.pom().transitive()) {
                         continue;
                     }
                     MavenDependencyScope actual = toScope(value.scope()), derived = switch (current.scope()) {
@@ -75,18 +75,18 @@ public class MavenPomResolver {
                     if (derived == null) {
                         continue;
                     }
-                    DependencyInclusion previous = dependencies.get(entry.getKey()), next;
+                    DependencyInclusion previous = dependencies.get(entry.getKey());
                     if (previous == null) {
-                        next = new DependencyInclusion(value.version(),
+                        dependencies.put(entry.getKey(), new DependencyInclusion(value.version(),
                                 optional,
                                 derived,
-                                value.systemPath() == null ? null : Path.of(value.systemPath()));
-                    } else if (derived != previous.scope() && previous.scope() == MavenDependencyScope.TEST) {
-                        next = new DependencyInclusion(previous.version(), previous.optional(), derived, previous.path());
-                    } else {
-                        continue;
+                                value.systemPath() == null ? null : Path.of(value.systemPath())));
+                    } else if (previous.scope() != derived) {
+                        dependencies.replace(entry.getKey(), new DependencyInclusion(previous.version(),
+                                previous.optional(),
+                                MavenDependencyScope.values()[Math.min(previous.scope().ordinal(), derived.ordinal())],
+                                previous.path()));
                     }
-                    dependencies.put(entry.getKey(), next);
                     Set<DependencyExclusion> exclusions;
                     if (value.exclusions() == null || value.exclusions().isEmpty()) {
                         exclusions = current.exclusions();
@@ -374,7 +374,7 @@ public class MavenPomResolver {
 
     private record ResolvedPom(Map<DependencyKey, DependencyValue> managedDependencies,
                                SequencedMap<DependencyKey, DependencyValue> dependencies,
-                               boolean main) {
+                               boolean transitive) {
     }
 
     private record ContextualPom(ResolvedPom pom,
