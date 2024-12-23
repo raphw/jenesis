@@ -20,10 +20,10 @@ import java.util.concurrent.Executor;
 
 public class Copy implements BuildStep {
 
-    private final Map<URI, Path> copies;
+    private final Map<Path, URI> copies;
     private final Duration cached;
 
-    public Copy(Map<URI, Path> copies, Duration cached) {
+    public Copy(Map<Path, URI> copies, Duration cached) {
         this.copies = copies;
         this.cached = cached;
     }
@@ -39,13 +39,13 @@ public class Copy implements BuildStep {
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
         Instant expiry = cached == null ? null : Instant.now().minus(cached);
         boolean altered = false;
-        for (Map.Entry<URI, Path> entry : copies.entrySet()) {
-            Path next = context.next().resolve(entry.getValue());
+        for (Map.Entry<Path, URI> entry : copies.entrySet()) {
+            Path next = context.next().resolve(entry.getKey());
             if (!next.getParent().equals(context.next())) {
                 Files.createDirectories(next.getParent());
             }
             if (context.previous() != null) {
-                Path previous = context.previous().resolve(entry.getValue());
+                Path previous = context.previous().resolve(entry.getKey());
                 if (expiry != null && Files.exists(previous) && Files.readAttributes(
                         previous,
                         BasicFileAttributes.class).creationTime().toInstant().isAfter(expiry)) {
@@ -53,7 +53,7 @@ public class Copy implements BuildStep {
                     continue;
                 }
             }
-            try (InputStream inputStream = entry.getKey().toURL().openStream()) {
+            try (InputStream inputStream = entry.getValue().toURL().openStream()) {
                 Files.copy(inputStream, next);
             }
             altered = true;
