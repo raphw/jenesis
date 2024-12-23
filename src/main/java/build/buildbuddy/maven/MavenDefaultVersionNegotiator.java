@@ -26,7 +26,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         this.factory = factory;
     }
 
-    public static Supplier<MavenVersionNegotiator> maven(MavenRepository repository) {
+    static DocumentBuilderFactory toDocumentBuilderFactory() {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
         try {
@@ -34,44 +34,70 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         } catch (ParserConfigurationException e) {
             throw new IllegalStateException(e);
         }
-        return () -> new MavenDefaultVersionNegotiator(repository, factory);
+        return factory;
+    }
+
+    public static Supplier<MavenVersionNegotiator> maven(MavenRepository repository) {
+        DocumentBuilderFactory factory = toDocumentBuilderFactory();
+        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
+            @Override
+            public String resolve(String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
+                String lower = null, upper = null;
+                for (String version : versions) {
+                    if ((version.startsWith("[") || version.startsWith("(")) && (version.endsWith("]") || version.endsWith(")"))) {
+                        String value = version.substring(1, version.length() - 1), minimum, maximum;
+                        int includeMinimum = version.startsWith("[") ? 1 : 0, includeMaximum = version.endsWith("]") ? 1 : 0, index = value.indexOf(',');
+                        if (index == -1) {
+                            minimum = maximum = value.trim();
+                        } else {
+                            minimum = value.substring(0, index).trim();
+                            maximum = value.substring(index + 1).trim();
+                        }
+                        if (lower != null && compare(lower, minimum) < 0) {
+                            throw new IllegalStateException("Cannot resolve common minimum for " + groupId + ":" + artifactId);
+                        } else {
+                            lower = minimum;
+                        }
+                        if (upper != null && compare(upper, maximum) > 0) {
+                            throw new IllegalStateException("Cannot resolve common maximum for " + groupId + ":" + artifactId);
+                        } else {
+                            upper = maximum;
+                        }
+                        current = toMetadata(groupId, artifactId).versions().stream()
+                                .filter(candidate -> compare(minimum, candidate) < includeMinimum)
+                                .filter(candidate -> compare(candidate, maximum) < includeMaximum)
+                                .reduce((left, right) -> right)
+                                .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
+                    }
+                }
+                return current;
+            }
+        };
     }
 
     public static Supplier<MavenVersionNegotiator> latest(MavenRepository repository) {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true);
-        try {
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        } catch (ParserConfigurationException e) {
-            throw new IllegalStateException(e);
-        }
+        DocumentBuilderFactory factory = toDocumentBuilderFactory();
         return () -> new MavenDefaultVersionNegotiator(repository, factory) {
             @Override
             public String resolve(String groupId, String artifactId, String type, String classifier, String version) throws IOException {
                 return toMetadata(groupId, artifactId).latest();
             }
+        };
+    }
 
+    public static Supplier<MavenVersionNegotiator> release(MavenRepository repository) {
+        DocumentBuilderFactory factory = toDocumentBuilderFactory();
+        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
             @Override
-            public String resolve(String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
-                return current;
+            public String resolve(String groupId, String artifactId, String type, String classifier, String version) throws IOException {
+                return toMetadata(groupId, artifactId).release();
             }
         };
     }
 
     public static Supplier<MavenVersionNegotiator> closest(MavenRepository repository) {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true);
-        try {
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        } catch (ParserConfigurationException e) {
-            throw new IllegalStateException(e);
-        }
-        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
-            @Override
-            public String resolve(String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
-                return current;
-            }
-        };
+        DocumentBuilderFactory factory = toDocumentBuilderFactory();
+        return () -> new MavenDefaultVersionNegotiator(repository, factory);
     }
 
     @Override
@@ -100,44 +126,6 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             }
             default -> version;
         };
-    }
-
-    @Override
-    public String resolve(String groupId,
-                          String artifactId,
-                          String type,
-                          String classifier,
-                          String current,
-                          SequencedSet<String> versions) throws IOException {
-        String lower = null, upper = null;
-        for (String version : versions) {
-            if ((version.startsWith("[") || version.startsWith("(")) && (version.endsWith("]") || version.endsWith(")"))) {
-                String value = version.substring(1, version.length() - 1), minimum, maximum;
-                int includeMinimum = version.startsWith("[") ? 1 : 0, includeMaximum = version.endsWith("]") ? 1 : 0, index = value.indexOf(',');
-                if (index == -1) {
-                    minimum = maximum = value.trim();
-                } else {
-                    minimum = value.substring(0, index).trim();
-                    maximum = value.substring(index + 1).trim();
-                }
-                if (lower != null && compare(lower, minimum) < 0) {
-                    throw new IllegalStateException("Cannot resolve common minimum for " + groupId + ":" + artifactId);
-                } else {
-                    lower = minimum;
-                }
-                if (upper != null && compare(upper, maximum) > 0) {
-                    throw new IllegalStateException("Cannot resolve common maximum for " + groupId + ":" + artifactId);
-                } else {
-                    upper = maximum;
-                }
-                current = toMetadata(groupId, artifactId).versions().stream()
-                        .filter(candidate -> compare(minimum, candidate) < includeMinimum)
-                        .filter(candidate -> compare(candidate, maximum) < includeMaximum)
-                        .reduce((left, right) -> right)
-                        .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
-            }
-        }
-        return current;
     }
 
     Metadata toMetadata(String groupId, String artifactId) throws IOException {

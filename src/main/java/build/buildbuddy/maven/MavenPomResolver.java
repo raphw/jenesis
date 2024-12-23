@@ -26,17 +26,11 @@ public class MavenPomResolver {
 
     private final MavenRepository repository;
     private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
-    private final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    private final DocumentBuilderFactory factory = MavenDefaultVersionNegotiator.toDocumentBuilderFactory();
 
     public MavenPomResolver(MavenRepository repository, Supplier<MavenVersionNegotiator> negotiatorSupplier) {
         this.repository = repository;
         this.negotiatorSupplier = negotiatorSupplier;
-        factory.setNamespaceAware(true);
-        try {
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        } catch (ParserConfigurationException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     public List<MavenDependency> dependencies(String groupId,
