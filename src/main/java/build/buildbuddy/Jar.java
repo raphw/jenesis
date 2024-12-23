@@ -8,16 +8,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
-public class Javac implements ProcessBuildStep {
+public class Jar implements ProcessBuildStep {
 
-    private final String javac;
+    private final String jar;
 
-    public Javac() {
-        javac = ProcessBuildStep.ofJavaHome("bin/javac");
+    public Jar() {
+        jar = ProcessBuildStep.ofJavaHome("bin/jar");
     }
 
-    public Javac(String javac) {
-        this.javac = javac;
+    public Jar(String jar) {
+        this.jar = jar;
     }
 
     @Override
@@ -26,13 +26,11 @@ public class Javac implements ProcessBuildStep {
                                                    Path target,
                                                    Map<String, BuildResult> dependencies) {
         List<String> commands = new ArrayList<>(List.of(
-                javac,
-                "--release", Integer.toString(Runtime.version().version().getFirst()),
-                "-d", target.toString()
+                jar,
+                "cf",
+                target.resolve("artifact.jar").toString()
         ));
-        dependencies.values().stream().flatMap(result -> result.files().keySet().stream()
-                .filter(path -> path.getFileName().toString().endsWith(".java"))
-                .map(path -> result.folder().resolve(path).toString())).forEach(commands::add);
+        dependencies.values().forEach(result -> commands.add(result.folder().toString()));
         return CompletableFuture.completedStage(new ProcessBuilder(commands));
     }
 }

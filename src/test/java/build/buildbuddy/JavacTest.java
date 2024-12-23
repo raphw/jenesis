@@ -31,7 +31,10 @@ public class JavacTest {
 
     @Test
     public void name() throws IOException, ExecutionException, InterruptedException {
-        try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("Sample.java"))) {
+        Path folder = Files.createDirectory(sources.resolve("sample"));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
+            writer.append("package sample;");
+            writer.newLine();
             writer.append("public class Sample { }");
             writer.newLine();
         }
@@ -39,6 +42,6 @@ public class JavacTest {
                 sources,
                 new ChecksumNopDiff().read(root.resolve("checksums"), sources)))).toCompletableFuture().get();
         assertThat(result).isNotNull();
-        assertThat(target.resolve("Sample.class")).isNotEmptyFile();
+        assertThat(target.resolve("sample/Sample.class")).isNotEmptyFile();
     }
 }
