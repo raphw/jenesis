@@ -28,30 +28,31 @@ public class MavenPomResolver {
     public List<MavenDependency> dependencies(String groupId, String artifactId, String version) throws IOException {
         SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
-        Map.Entry<ResolvedPom, Set<DependencyExclusion>> root = Map.entry(doResolve(repository.download(groupId,
+        ResolvedPom root = doResolve(repository.download(groupId,
                 artifactId,
                 version,
                 null,
-                "pom"), new HashSet<>()), Set.of()), current = root;
-        Queue<Map.Entry<ResolvedPom, Set<DependencyExclusion>>> queue = new ArrayDeque<>();
+                "pom"), new HashSet<>());
+        Queue<DependencyElement> queue = new ArrayDeque<>();
+        DependencyElement current = new DependencyElement(root, Set.of(), Map.of());
         do {
-            for (Map.Entry<DependencyKey, DependencyValue> entry : current.getKey().dependencies().entrySet()) {
-                if (!current.getValue().contains(new DependencyExclusion(
+            for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
+                if (!current.exclusions().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
                     dependencies.put(entry.getKey(), entry.getValue());
                     Set<DependencyExclusion> exclusions;
                     if (entry.getValue().exclusions() == null || entry.getValue().exclusions().isEmpty()) {
-                        exclusions = current.getValue();
+                        exclusions = current.exclusions();
                     } else {
-                        exclusions = new HashSet<>(current.getValue());
+                        exclusions = new HashSet<>(current.exclusions());
                         exclusions.addAll(entry.getValue().exclusions());
                     }
-                    queue.add(Map.entry(doResolve(repository.download(entry.getKey().groupId(),
+                    queue.add(new DependencyElement(doResolve(repository.download(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
                             entry.getValue().version(),
                             null,
-                            "pom"), new HashSet<>()), exclusions));
+                            "pom"), new HashSet<>()), exclusions, Map.of())); // TODO: dependency management
                 }
             }
         } while ((current = queue.poll()) != null);
@@ -67,8 +68,7 @@ public class MavenPomResolver {
     private ResolvedPom doResolve(InputStream inputStream, Set<DependencyCoordinates> children) throws IOException {
         // TODO: implicit properties.
         // TODO: resolve properties
-        // TODO: lazy resolution of dependencies and their configurations
-        // TODO: cache and circularity detection
+        // TODO: cache resolved poms
         // TODO: order of dependencies?
         Document document;
         try (inputStream) {
@@ -90,7 +90,7 @@ public class MavenPomResolver {
                 SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
                 if (parent != null) {
                     if (!children.add(new DependencyCoordinates(parent.groupId(), parent.artifactId(), parent.version()))) {
-                        throw new IllegalStateException();
+                        throw new IllegalStateException("Circular dependency to " + parent);
                     }
                     ResolvedPom resolution = doResolve(repository.download(parent.groupId(),
                             parent.artifactId(),
@@ -187,5 +187,10 @@ public class MavenPomResolver {
     private record ResolvedPom(Map<String, String> properties,
                                Map<DependencyKey, DependencyValue> managedDependencies,
                                Map<DependencyKey, DependencyValue> dependencies) {
+    }
+
+    private record DependencyElement(ResolvedPom pom,
+                                     Set<DependencyExclusion> exclusions,
+                                     Map<DependencyKey, DependencyValue> managedDependencies) {
     }
 }
