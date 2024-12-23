@@ -22,13 +22,14 @@ public class JavaTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path previous, next, classes;
+    private Path previous, next, supplement, classes;
 
     @Before
     public void setUp() throws Exception {
         Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
+        supplement = Files.createDirectory(root.resolve("supplement"));
         classes = Files.createDirectory(root.resolve("classes"));
     }
 
@@ -40,12 +41,12 @@ public class JavaTest {
             requireNonNull(input).transferTo(output);
         }
         BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,
-                new BuildStepContext(previous, next),
+                new BuildStepContext(previous, next, supplement),
                 Map.of("classes", new BuildStepArgument(
                         classes,
                         Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve("output")).content().isEqualTo("Hello world!");
-        assertThat(next.resolve("error")).isEmptyFile();
+        assertThat(supplement.resolve("output")).content().isEqualTo("Hello world!");
+        assertThat(supplement.resolve("error")).isEmptyFile();
     }
 }

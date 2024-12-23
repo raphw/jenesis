@@ -19,13 +19,14 @@ public class JavacTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path previous, next, sources;
+    private Path previous, next, supplement, sources;
 
     @Before
     public void setUp() throws Exception {
         Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
+        supplement = Files.createDirectory(root.resolve("supplement"));
         sources = Files.createDirectory(root.resolve("sources"));
     }
 
@@ -39,7 +40,7 @@ public class JavacTest {
             writer.newLine();
         }
         BuildStepResult result = new Javac().apply(Runnable::run,
-                new BuildStepContext(previous, next),
+                new BuildStepContext(previous, next, supplement),
                 Map.of("sources", new BuildStepArgument(
                         sources,
                         Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();

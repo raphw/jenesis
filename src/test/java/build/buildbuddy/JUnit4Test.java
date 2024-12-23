@@ -25,15 +25,16 @@ public class JUnit4Test {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path previous, next, dependencies, classes;
+    private Path previous, next, supplement, dependencies, classes;
 
     @Before
     public void setUp() throws Exception {
         Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
-        dependencies = Files.createDirectory(root.resolve("dependencies"));
-        classes = Files.createDirectory(root.resolve("classes"));
+        supplement = Files.createDirectory(root.resolve("supplement"));
+        dependencies = Files.createDirectories(root.resolve("dependencies/" + Dependencies.FOLDER));
+        classes = Files.createDirectories(root.resolve("classes/" + Javac.FOLDER));
     }
 
     @Test
@@ -50,16 +51,16 @@ public class JUnit4Test {
             requireNonNull(input).transferTo(output);
         }
         BuildStepResult result = new JUnit4().apply(Runnable::run,
-                new BuildStepContext(previous, next),
+                new BuildStepContext(previous, next, supplement),
                 Map.of(
                         "dependencies", new BuildStepArgument(
                                 dependencies,
                                 Map.of(
-                                        Path.of("junit.jar"), ChecksumStatus.ADDED,
-                                        Path.of("hamcrest-core.jar"), ChecksumStatus.ADDED)),
+                                        Path.of(Dependencies.FOLDER + "junit.jar"), ChecksumStatus.ADDED,
+                                        Path.of(Dependencies.FOLDER + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of("sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                                Map.of(Path.of(Javac.FOLDER + "sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("output")).content()
                 .contains("JUnit")

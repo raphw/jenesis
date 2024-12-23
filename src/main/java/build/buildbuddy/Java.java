@@ -48,7 +48,7 @@ public abstract class Java implements ProcessBuildStep {
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
         List<String> classPath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String folder : List.of(Javac.FOLDER, Dependencies.FOLDER)) {
+            for (String folder : List.of(Javac.FOLDER, "resources/", Dependencies.FOLDER, Jar.FOLDER)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.exists(candidate)) {
                     classPath.add(candidate.toString());
@@ -66,7 +66,7 @@ public abstract class Java implements ProcessBuildStep {
                                   BuildStepContext context,
                                   Map<String, BuildStepArgument> arguments) {
         return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
-                .redirectOutput(context.next().resolve("output").toFile())
-                .redirectError(context.next().resolve("error").toFile());
+                .redirectOutput(context.supplement().resolve("output").toFile())
+                .redirectError(context.supplement().resolve("error").toFile());
     }
 }

@@ -25,13 +25,14 @@ public class DependenciesTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path previous, next, classes;
+    private Path previous, next, supplement, classes;
 
     @Before
     public void setUp() throws Exception {
         Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
+        supplement = Files.createDirectory(root.resolve("supplement"));
         classes = Files.createDirectory(root.resolve("classes"));
     }
 
@@ -47,7 +48,7 @@ public class DependenciesTest {
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
                 coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
-        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
@@ -82,7 +83,7 @@ public class DependenciesTest {
                         }
                     };
                 }
-        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
@@ -101,7 +102,7 @@ public class DependenciesTest {
         assertThatThrownBy(() -> new Dependencies(Map.of(
                 "sample",
                 coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
-        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
@@ -126,7 +127,7 @@ public class DependenciesTest {
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
                 coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
-        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();

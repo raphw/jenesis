@@ -99,7 +99,8 @@ public class BuildExecutor {
                     return step.apply(executor,
                             new BuildStepContext(
                                     consistent ? output : null,
-                                    Files.createDirectory(next.resolve("output"))),
+                                    Files.createDirectory(next.resolve("output")),
+                                    Files.createDirectory(next.resolve("supplement"))),
                             arguments).handleAsync((result, throwable) -> {
                         try {
                             if (throwable != null) {
