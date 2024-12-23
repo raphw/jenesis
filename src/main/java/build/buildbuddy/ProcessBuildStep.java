@@ -44,7 +44,6 @@ public interface ProcessBuildStep extends BuildStep {
                                           Path target,
                                           Map<String, BuildResult> dependencies) throws IOException {
         return process(executor, previous, target, dependencies).thenComposeAsync(builder -> {
-            System.out.println(String.join(" ", builder.command()));
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             try {
                 Process process = prepare(builder, executor, previous, target, dependencies).start();

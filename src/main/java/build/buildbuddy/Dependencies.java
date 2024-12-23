@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +32,7 @@ public class Dependencies implements BuildStep {
                                           Path previous,
                                           Path target,
                                           Map<String, BuildResult> dependencies) throws IOException {
+        List<CompletionStage<Boolean>> stages = new ArrayList<>();
         for (BuildResult result : dependencies.values()) {
             for (Path path : result.files().keySet()) {
                 if (path.toString().endsWith(".dependencies")) {
@@ -42,17 +45,26 @@ public class Dependencies implements BuildStep {
                         Repository repository = requireNonNull(
                                 repositories.get(segments.length == 1 ? "" : segments[0]),
                                 "Could not resolve dependency: " + dependency);
-                        try (
-                                InputStream inputStream = repository.download(segments[segments.length == 1 ? 0 : 1]);
-                                OutputStream outputStream = Files.newOutputStream(target.resolve(dependency))
-                        ) {
-                            inputStream.transferTo(outputStream);
-                            // TODO: checksum validation of value, easy to do in parallel.
-                        }
+                        CompletableFuture<Boolean> future = new CompletableFuture<>();
+                        executor.execute(() -> {
+                            try (
+                                    InputStream inputStream = repository.download(segments[segments.length == 1 ? 0 : 1]);
+                                    OutputStream outputStream = Files.newOutputStream(target.resolve(dependency))
+                            ) {
+                                inputStream.transferTo(outputStream);
+                                // TODO: checksum validation of value
+                                future.complete(true);
+                            } catch (Throwable t) {
+                                future.completeExceptionally(t);
+                            }
+                        });
+                        stages.add(future);
                     }
                 }
             }
         }
-        return CompletableFuture.completedStage(true);
+        return stages.stream()
+                .reduce((left, right) -> left.thenCombine(right, Boolean::logicalAnd))
+                .orElseGet(() -> CompletableFuture.completedStage(true));
     }
 }
