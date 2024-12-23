@@ -30,6 +30,14 @@ public interface ProcessBuildStep extends BuildStep {
                                             Path target,
                                             Map<String, BuildResult> dependencies) throws IOException;
 
+    default ProcessBuilder prepare(ProcessBuilder builder,
+                                   Executor executor,
+                                   Path previous,
+                                   Path target,
+                                   Map<String, BuildResult> dependencies) {
+        return builder.inheritIO();
+    }
+
     @Override
     default CompletionStage<String> apply(Executor executor,
                                           Path previous,
@@ -39,7 +47,7 @@ public interface ProcessBuildStep extends BuildStep {
             System.out.println(String.join(" ", builder.command()));
             CompletableFuture<String> future = new CompletableFuture<>();
             try {
-                Process process = builder.inheritIO().start();
+                Process process = prepare(builder, executor, previous, target, dependencies).start();
                 executor.execute(() -> {
                     try {
                         if (process.waitFor() == 0) {

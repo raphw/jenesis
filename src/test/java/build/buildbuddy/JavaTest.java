@@ -17,7 +17,7 @@ import java.util.concurrent.ExecutionException;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class JarTest {
+public class JavaTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -33,7 +33,7 @@ public class JarTest {
     }
 
     @Test
-    public void can_execute_jar() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
         Path folder = Files.createDirectory(classes.resolve("sample"));
         try (
                 InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
@@ -41,10 +41,13 @@ public class JarTest {
         ) {
             requireNonNull(input).transferTo(output);
         }
-        String result = new Jar().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
+        String result = Java.ofArguments(
+                "sample.Sample"
+        ).apply(Runnable::run, previous, target, Map.of("classes", new BuildResult(
                 classes,
                 new ChecksumNopDiff().read(root.resolve("checksums"), classes)))).toCompletableFuture().get();
         assertThat(result).isNotNull();
-        assertThat(target.resolve("artifact.jar")).isNotEmptyFile();
+        assertThat(target.resolve("output")).content().isEqualTo("Hello world!");
+        assertThat(target.resolve("error")).isEmptyFile();
     }
 }

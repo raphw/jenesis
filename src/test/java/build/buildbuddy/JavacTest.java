@@ -30,7 +30,7 @@ public class JavacTest {
     }
 
     @Test
-    public void name() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_javac() throws IOException, ExecutionException, InterruptedException {
         Path folder = Files.createDirectory(sources.resolve("sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
