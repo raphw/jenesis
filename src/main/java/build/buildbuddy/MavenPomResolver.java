@@ -45,10 +45,11 @@ public class MavenPomResolver {
         Map<DependencyCoordinate, UnresolvedPom> poms = new HashMap<>();
         List<DependencyEntry> dependencies = new ArrayList<>();
         Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>();
-        ResolvedPom initial = new ResolvedPom(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
+        ResolvedPom initial = resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
                 true,
                 scope,
-                Set.of());
+                Set.of(),
+                poms);
         Queue<DependencyKey> queue = new ArrayDeque<>(traverse(poms,
                 resolutions,
                 initial.managedDependencies(),
@@ -93,11 +94,11 @@ public class MavenPomResolver {
                     initial.managedDependencies(),
                     dependencies,
                     offset,
-                    new ResolvedPom(assembleOrCached(current.groupId(),
+                    resolve(assembleOrCached(current.groupId(),
                             current.artifactId(),
                             negotiated,
                             new HashSet<>(),
-                            poms), false, resolution.scope(), resolution.exclusions())));
+                            poms), false, resolution.scope(), resolution.exclusions(), poms)));
             System.out.println("Dependencies: " + dependencies);
         }
         return dependencies.stream().map(DependencyEntry::key).distinct().map(key -> {
@@ -144,7 +145,6 @@ public class MavenPomResolver {
                 if (mergedScope == null) {
                     continue;
                 }
-                System.out.println("Dependency: " + entry.getKey().groupId() + ":" + entry.getKey().artifactId() + ":" + value.version());
                 DependencyResolution previous = resolutions.get(entry.getKey());
                 if (previous == null) {
                     Set<DependencyName> exclusions = current.exclusions();
@@ -168,7 +168,7 @@ public class MavenPomResolver {
                             version,
                             new HashSet<>(),
                             poms);
-                    queue.add(new ResolvedPom(pom, false, mergedScope, exclusions));
+                    queue.add(resolve(pom, false, mergedScope, exclusions, poms));
                     dependencies.add(index++, new DependencyEntry(entry.getKey(),
                             pom.dependencies().size(),
                             value.version(),
@@ -282,6 +282,38 @@ public class MavenPomResolver {
             poms.put(coordinates, pom);
         }
         return pom;
+    }
+
+    private ResolvedPom resolve(UnresolvedPom pom,
+                                boolean root,
+                                MavenDependencyScope scope,
+                                Set<DependencyName> exclusions,
+                                Map<DependencyCoordinate, UnresolvedPom> poms) throws IOException {
+        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
+        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+        for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
+            DependencyKey key = entry.getKey().resolve(pom.properties());
+            DependencyValue value = entry.getValue().resolve(pom.properties());
+            if (Objects.equals("import", value.scope())) {
+                UnresolvedPom imported = assembleOrCached(key.groupId(),
+                        key.artifactId(),
+                        value.version(),
+                        new HashSet<>(),
+                        poms);
+                imported.managedDependencies().forEach((importKey, importValue) -> {
+                    DependencyValue resolved = importValue.resolve(imported.properties());
+                    if (!Objects.equals("import", resolved.scope())) {
+                        managedDependencies.putIfAbsent(importKey.resolve(imported.properties()), resolved);
+                    }
+                });
+            } else {
+                managedDependencies.put(key, value);
+            }
+        }
+        pom.dependencies().forEach((key, value) -> dependencies.put(
+                key.resolve(pom.properties()),
+                value.resolve(pom.properties())));
+        return new ResolvedPom(managedDependencies, dependencies, root, scope, exclusions);
     }
 
     private static Stream<Node> toChildren(Node node) {
@@ -468,16 +500,6 @@ public class MavenPomResolver {
                                boolean root,
                                MavenDependencyScope scope,
                                Set<DependencyName> exclusions) {
-        private ResolvedPom(UnresolvedPom pom, boolean root, MavenDependencyScope scope, Set<DependencyName> exclusions) {
-            this(new HashMap<>(), new LinkedHashMap<>(), root, scope, exclusions);
-            // TODO: resolve BOM imports!
-            pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
-            pom.dependencies().forEach((key, value) -> dependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
-        }
     }
 
     private record DependencyResolution(String version,
