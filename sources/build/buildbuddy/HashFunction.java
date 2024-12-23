@@ -53,6 +53,7 @@ public interface HashFunction {
     }
 
     static boolean areConsistent(Path folder, Map<Path, byte[]> checksums, HashFunction hash) throws IOException {
+        Map<Path, byte[]> remaining = new HashMap<>(checksums);
         Queue<Path> queue = new ArrayDeque<>(List.of(folder));
         do {
             Path current = queue.remove();
@@ -61,12 +62,12 @@ public interface HashFunction {
                     stream.forEach(queue::add);
                 }
             } else {
-                byte[] checksum = checksums.remove(folder.relativize(current));
+                byte[] checksum = remaining.remove(folder.relativize(current));
                 if (checksum == null || !Arrays.equals(checksum, hash.hash(current))) {
                     return false;
                 }
             }
         } while (!queue.isEmpty());
-        return checksums.isEmpty();
+        return remaining.isEmpty();
     }
 }
