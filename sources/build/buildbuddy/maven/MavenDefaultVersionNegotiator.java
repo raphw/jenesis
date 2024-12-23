@@ -66,7 +66,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                         current = toMetadata(groupId, artifactId).versions().stream()
                                 .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                                 .filter(candidate -> compare(candidate, maximum) < includeMaximum)
-                                .reduce((left, right) -> right)
+                                .reduce((_, right) -> right)
                                 .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
                     }
                 }
@@ -121,7 +121,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                 yield toMetadata(groupId, artifactId).versions().stream()
                         .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                         .filter(candidate -> compare(candidate, maximum) < includeMaximum)
-                        .reduce((left, right) -> right)
+                        .reduce((_, right) -> right)
                         .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
             }
             default -> version;

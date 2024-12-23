@@ -38,7 +38,7 @@ public class BuildExecutor {
     private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapSource(
             String identity,
             Path path) {
-        return (executor, states) -> {
+        return (executor, _) -> {
             CompletableFuture<Map<String, StepSummary>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
@@ -138,7 +138,7 @@ public class BuildExecutor {
                             }
                             for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
                                 HashFunction.write(
-                                        checksum.resolve("checksum." + entry.getKey()),
+                                        checksum.resolve("checksums." + entry.getKey()),
                                         entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
