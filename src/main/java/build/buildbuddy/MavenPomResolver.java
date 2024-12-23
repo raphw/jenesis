@@ -125,12 +125,20 @@ public class MavenPomResolver {
                 DependencyResolution resolution = resolutions.computeIfAbsent(
                         entry.getKey(),
                         key -> new DependencyResolution());
-                MavenDependencyScope currentScope = resolution.currentScope == null
-                        ? current.scope()
+                MavenDependencyScope declaredScope = toScope(value.scope()), resolvedScope = switch (current.scope()) {
+                    case null -> declaredScope;
+                    case COMPILE -> switch (declaredScope) {
+                        case COMPILE, RUNTIME -> declaredScope;
+                        default -> null;
+                    };
+                    case PROVIDED, RUNTIME, TEST -> switch (declaredScope) {
+                        case COMPILE, RUNTIME -> current.scope();
+                        default -> null;
+                    };
+                    case SYSTEM, IMPORT -> null;
+                }, mergedScope = resolution.currentScope == null || !resolution.currentScope.implies(resolvedScope)
+                        ? resolvedScope
                         : resolution.currentScope;
-                MavenDependencyScope mergedScope = currentScope == null
-                        ? toScope(value.scope())
-                        : currentScope.merge(toScope(value.scope()));
                 if (mergedScope == null) {
                     continue;
                 }
