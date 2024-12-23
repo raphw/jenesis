@@ -17,7 +17,7 @@ public class MavenPomResolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
 
-    private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version");
+    private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
 
     private final MavenRepository repository;
     private final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -100,6 +100,13 @@ public class MavenPomResolver {
                             children,
                             poms);
                     properties.putAll(resolution.properties());
+                    IMPLICITS.forEach(property -> {
+                        String value = resolution.properties().get(property);
+                        if (value != null) {
+                            properties.put("parent." + property, value);
+                            properties.put("project.parent." + property, value);
+                        }
+                    });
                     managedDependencies.putAll(resolution.managedDependencies());
                     dependencies.putAll(resolution.dependencies());
                 }
