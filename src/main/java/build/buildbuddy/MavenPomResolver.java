@@ -36,8 +36,8 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
         SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
         ResolvedPom root = doResolveOrCached(groupId, artifactId, version, new HashSet<>(), poms);
-        Queue<DependencyElement> queue = new ArrayDeque<>();
-        DependencyElement current = new DependencyElement(root, Set.of(), Map.of());
+        Queue<ContextualPom> queue = new ArrayDeque<>();
+        ContextualPom current = new ContextualPom(root, Set.of(), Map.of());
         do {
             Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
             managedDependencies.putAll(current.managedDependencies());
@@ -53,7 +53,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                         exclusions = new HashSet<>(current.exclusions());
                         exclusions.addAll(entry.getValue().exclusions());
                     }
-                    queue.add(new DependencyElement(doResolveOrCached(entry.getKey().groupId(),
+                    queue.add(new ContextualPom(doResolveOrCached(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
                             entry.getValue().version(),
                             new HashSet<>(),
@@ -253,8 +253,8 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                                Map<DependencyKey, DependencyValue> dependencies) {
     }
 
-    private record DependencyElement(ResolvedPom pom,
-                                     Set<DependencyExclusion> exclusions,
-                                     Map<DependencyKey, DependencyValue> managedDependencies) {
+    private record ContextualPom(ResolvedPom pom,
+                                 Set<DependencyExclusion> exclusions,
+                                 Map<DependencyKey, DependencyValue> managedDependencies) {
     }
 }
