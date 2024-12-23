@@ -235,6 +235,89 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_dependencies_from_parent_before_transitive() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """); // TODO: delete next when lazy parsing is reestablished
+        toFile("other", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>2</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("other",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false),
+                new MavenDependency("transitive",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false));
+    }
+
+    @Test
     public void can_resolve_duplicate_dependencies_from_parent() throws IOException {
         toFile("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
