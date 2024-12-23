@@ -38,10 +38,10 @@ public class JavacTest {
             writer.append("public class Sample { }");
             writer.newLine();
         }
-        boolean result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
+        BuildStepResult result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildStepArgument(
                 sources,
                 Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result).isTrue();
+        assertThat(result.useTarget()).isTrue();
         assertThat(target.resolve("sample/Sample.class")).isNotEmptyFile();
     }
 }

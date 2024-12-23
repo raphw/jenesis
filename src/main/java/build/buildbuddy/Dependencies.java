@@ -28,12 +28,12 @@ public class Dependencies implements BuildStep {
     }
 
     @Override
-    public CompletionStage<Boolean> apply(Executor executor,
-                                          Path previous,
-                                          Path target,
-                                          Map<String, BuildResult> dependencies) throws IOException {
+    public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                  Path previous,
+                                                  Path target,
+                                                  Map<String, BuildStepArgument> dependencies) throws IOException {
         List<CompletionStage<Boolean>> stages = new ArrayList<>();
-        for (BuildResult result : dependencies.values()) {
+        for (BuildStepArgument result : dependencies.values()) {
             for (Path path : result.files().keySet()) {
                 if (path.toString().endsWith(".dependencies")) {
                     Properties properties = new Properties();
@@ -63,8 +63,10 @@ public class Dependencies implements BuildStep {
                 }
             }
         }
+        // TODO: proper completion handling.
         return stages.stream()
                 .reduce((left, right) -> left.thenCombine(right, Boolean::logicalAnd))
-                .orElseGet(() -> CompletableFuture.completedStage(true));
+                .map(stage -> stage.thenApply(BuildStepResult::new))
+                .orElseGet(() -> CompletableFuture.completedStage(new BuildStepResult(true)));
     }
 }

@@ -40,13 +40,13 @@ public class DependenciesTest {
         try (OutputStream output = Files.newOutputStream(folder.resolve("sample.dependencies"))) {
             properties.storeToXML(output, "Sample dependencies");
         }
-        boolean result = new Dependencies(Map.of(
+        BuildStepResult result = new Dependencies(Map.of(
                 "sample",
                 coordinate -> new ByteArrayInputStream("foo".getBytes(StandardCharsets.UTF_8))
-        )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildResult(
+        )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result).isTrue();
+        assertThat(result.useTarget()).isTrue();
         assertThat(target.resolve("sample:coordinate")).content().isEqualTo("foo");
     }
 }

@@ -13,8 +13,8 @@ public interface BuildStep {
         return false;
     }
 
-    CompletionStage<Boolean> apply(Executor executor,
-                                   Path previous,
-                                   Path target,
-                                   Map<String, BuildResult> dependencies) throws IOException;
+    CompletionStage<BuildStepResult> apply(Executor executor,
+                                           Path previous,
+                                           Path target,
+                                           Map<String, BuildStepArgument> dependencies) throws IOException;
 }

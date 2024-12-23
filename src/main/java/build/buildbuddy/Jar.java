@@ -24,7 +24,7 @@ public class Jar implements ProcessBuildStep {
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    Path previous,
                                                    Path target,
-                                                   Map<String, BuildResult> dependencies) {
+                                                   Map<String, BuildStepArgument> dependencies) {
         List<String> commands = new ArrayList<>(List.of(
                 jar,
                 "cf",

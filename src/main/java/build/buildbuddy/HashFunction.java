@@ -52,8 +52,7 @@ public interface HashFunction {
         }
     }
 
-    static boolean areConsistent(Path folder, Path file, HashFunction hash) throws IOException {
-        Map<Path, byte[]> checksums = read(file);
+    static boolean areConsistent(Path folder, Map<Path, byte[]> checksums, HashFunction hash) throws IOException {
         Queue<Path> queue = new ArrayDeque<>(List.of(folder));
         do {
             Path current = queue.remove();

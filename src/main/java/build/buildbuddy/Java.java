@@ -32,7 +32,7 @@ public abstract class Java implements ProcessBuildStep {
             protected CompletionStage<List<String>> arguments(Executor executor,
                                                               Path previous,
                                                               Path target,
-                                                              Map<String, BuildResult> dependencies) {
+                                                              Map<String, BuildStepArgument> dependencies) {
                 return CompletableFuture.completedStage(arguments);
             }
         };
@@ -41,13 +41,13 @@ public abstract class Java implements ProcessBuildStep {
     protected abstract CompletionStage<List<String>> arguments(Executor executor,
                                                                Path previous,
                                                                Path target,
-                                                               Map<String, BuildResult> dependencies) throws IOException;
+                                                               Map<String, BuildStepArgument> dependencies) throws IOException;
 
     @Override
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    Path previous,
                                                    Path target,
-                                                   Map<String, BuildResult> dependencies) throws IOException {
+                                                   Map<String, BuildStepArgument> dependencies) throws IOException {
         return arguments(executor, previous, target, dependencies).thenApplyAsync(arguments -> {
             List<String> commands = new ArrayList<>(List.of(
                     java,
@@ -65,7 +65,7 @@ public abstract class Java implements ProcessBuildStep {
                                   Executor executor,
                                   Path previous,
                                   Path target,
-                                  Map<String, BuildResult> dependencies) {
+                                  Map<String, BuildStepArgument> dependencies) {
         return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
                 .redirectOutput(target.resolve("output").toFile())
                 .redirectError(target.resolve("error").toFile());

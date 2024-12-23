@@ -28,29 +28,29 @@ public interface ProcessBuildStep extends BuildStep {
     CompletionStage<ProcessBuilder> process(Executor executor,
                                             Path previous,
                                             Path target,
-                                            Map<String, BuildResult> dependencies) throws IOException;
+                                            Map<String, BuildStepArgument> dependencies) throws IOException;
 
     default ProcessBuilder prepare(ProcessBuilder builder,
                                    Executor executor,
                                    Path previous,
                                    Path target,
-                                   Map<String, BuildResult> dependencies) {
+                                   Map<String, BuildStepArgument> dependencies) {
         return builder.inheritIO();
     }
 
     @Override
-    default CompletionStage<Boolean> apply(Executor executor,
-                                          Path previous,
-                                          Path target,
-                                          Map<String, BuildResult> dependencies) throws IOException {
+    default CompletionStage<BuildStepResult> apply(Executor executor,
+                                                   Path previous,
+                                                   Path target,
+                                                   Map<String, BuildStepArgument> dependencies) throws IOException {
         return process(executor, previous, target, dependencies).thenComposeAsync(builder -> {
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
                 Process process = prepare(builder, executor, previous, target, dependencies).start();
                 executor.execute(() -> {
                     try {
                         if (process.waitFor() == 0) {
-                            future.complete(true);
+                            future.complete(new BuildStepResult(true));
                         } else {
                             throw new IllegalStateException("Unexpected exit code: " + process.exitValue());
                         }

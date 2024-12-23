@@ -41,10 +41,10 @@ public class JarTest {
         ) {
             requireNonNull(input).transferTo(output);
         }
-        boolean result = new Jar().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
+        BuildStepResult result = new Jar().apply(Runnable::run, previous, target, Map.of("sources", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result).isTrue();
+        assertThat(result.useTarget()).isTrue();
         assertThat(target.resolve("artifact.jar")).isNotEmptyFile();
     }
 }

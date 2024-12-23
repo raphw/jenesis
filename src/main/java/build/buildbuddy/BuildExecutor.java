@@ -1,7 +1,10 @@
 package build.buildbuddy;
 
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -74,49 +77,54 @@ public class BuildExecutor {
             BuildStep step) {
         return (executor, states) -> {
             try {
-                Path current = Files.createDirectory(root.resolve(identity)),
-                        output = Files.createDirectory(current.resolve("output")),
-                        checksum = Files.createDirectory(current.resolve("checksum"));
-                Map<String, BuildResult> dependencies = new HashMap<>();
+                Path current = root.resolve(identity),
+                        checksum = current.resolve("checksum"),
+                        self = checksum.resolve("checksums"),
+                        output = current.resolve("output");
+                Map<Path, byte[]> previous = Files.exists(self) ? HashFunction.read(self) : null;
+                boolean consistent = previous != null && HashFunction.areConsistent(output, previous, hash);
+                Map<String, BuildStepArgument> dependencies = new HashMap<>();
                 for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + entry.getKey());
-                    dependencies.put(entry.getKey(), new BuildResult(entry.getValue().folder(), Files.exists(checksums)
+                    dependencies.put(entry.getKey(), new BuildStepArgument(entry.getValue().folder(), consistent && Files.exists(checksums)
                             ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
                             : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
-                // TODO: special handling if output folder is not present?
-                if (step.isAlwaysRun()
-                        || dependencies.values().stream().anyMatch(BuildResult::isChanged)
-                        || !Files.exists(checksum.resolve("checksums"))
-                        || !HashFunction.areConsistent(output, checksum.resolve("checksums"), hash)) {
+                if (!consistent || step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildStepArgument::isChanged)) {
                     Path target = Files.createTempDirectory(identity);
-                    return step.apply(executor, output, target, dependencies).handleAsync((handled, throwable) -> {
+                    return step.apply(executor,
+                            output,
+                            Files.createDirectory(target.resolve("output")),
+                            dependencies).handleAsync((result, throwable) -> {
                         try {
-                            Files.walkFileTree(checksum, new RecursiveFileDeletion());
+                            if (Files.exists(checksum)) {
+                                Files.walkFileTree(checksum, new RecursiveFileDeletion());
+                            } else {
+                                Files.createDirectory(checksum);
+                            }
                             if (throwable != null) {
                                 Files.delete(Files.walkFileTree(target, new RecursiveFileDeletion()));
                                 throw throwable;
-                            } else if (handled) {
-                                Files.move(target, output, StandardCopyOption.REPLACE_EXISTING);
+                            } else if (result.useTarget()) {
+                                Files.delete(Files.walkFileTree(current, new RecursiveFileDeletion()));
+                                Files.copy(target, current);
                             } else {
-                                Files.delete(target);
+                                Files.delete(Files.walkFileTree(target, new RecursiveFileDeletion()));
                             }
-                            for (Map.Entry<String, BuildResult> entry : dependencies.entrySet()) {
-                                Files.copy(
-                                        root.resolve(entry.getKey() + "/checksum/checksums"),
-                                        checksum.resolve("checksums." + entry.getKey()));
+                            for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
+                                HashFunction.write(
+                                        checksum.resolve("checksum." + entry.getKey()),
+                                        entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
-                            HashFunction.write(checksum.resolve("checksums"), checksums);
+                            HashFunction.write(self, checksums);
                             return Map.of(identity, new BuildStatus(output, checksums));
                         } catch (Throwable t) {
                             throw new CompletionException(t);
                         }
                     }, executor);
                 } else {
-                    return CompletableFuture.completedStage(Map.of(identity, new BuildStatus(
-                            output,
-                            HashFunction.read(output))));
+                    return CompletableFuture.completedStage(Map.of(identity, new BuildStatus(output, previous)));
                 }
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
@@ -134,7 +142,8 @@ public class BuildExecutor {
         }, executor);
     }
 
-    private record BuildStatus(Path folder, Map<Path, byte[]> checksums) { }
+    private record BuildStatus(Path folder, Map<Path, byte[]> checksums) {
+    }
 
     private static class RecursiveFileDeletion extends SimpleFileVisitor<Path> {
 

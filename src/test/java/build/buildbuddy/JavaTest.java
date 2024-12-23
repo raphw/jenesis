@@ -41,12 +41,12 @@ public class JavaTest {
         ) {
             requireNonNull(input).transferTo(output);
         }
-        boolean result = Java.ofArguments(
+        BuildStepResult result = Java.ofArguments(
                 "sample.Sample"
-        ).apply(Runnable::run, previous, target, Map.of("classes", new BuildResult(
+        ).apply(Runnable::run, previous, target, Map.of("classes", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result).isTrue();
+        assertThat(result.useTarget()).isTrue();
         assertThat(target.resolve("output")).content().isEqualTo("Hello world!");
         assertThat(target.resolve("error")).isEmptyFile();
     }
