@@ -5,6 +5,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
@@ -29,6 +30,11 @@ public class MavenPomResolver {
     public MavenPomResolver(MavenRepository repository) {
         this.repository = repository;
         factory.setNamespaceAware(true);
+        try {
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        } catch (ParserConfigurationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public List<MavenDependency> dependencies(String groupId,
@@ -37,9 +43,10 @@ public class MavenPomResolver {
                                               MavenDependencyScope scope) throws IOException {
         SequencedMap<DependencyKey, DependencyInclusion> dependencies = new LinkedHashMap<>();
         Map<DependencyKey, MavenDependencyScope> overrides = new HashMap<>();
-        Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
+        Map<DependencyCoordinate, UnresolvedPom> poms = new HashMap<>();
+        Map<DependencyName, Metadata> metadata = new HashMap<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
-                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, null),
+                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, metadata, null),
                 scope,
                 Set.of(),
                 Map.of())));
@@ -48,7 +55,7 @@ public class MavenPomResolver {
             Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
             managedDependencies.putAll(current.managedDependencies());
             for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
-                if (!current.exclusions().contains(new DependencyExclusion(
+                if (!current.exclusions().contains(new DependencyName(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId()))) {
                     DependencyValue primary = current.managedDependencies().get(entry.getKey()), value = primary == null
@@ -85,7 +92,11 @@ public class MavenPomResolver {
                         }
                         continue;
                     }
-                    dependencies.put(entry.getKey(), new DependencyInclusion(value.version(),
+                    String resolved = toVersion(metadata,
+                            entry.getKey().groupId(),
+                            entry.getKey().artifactId(),
+                            value.version());
+                    dependencies.put(entry.getKey(), new DependencyInclusion(resolved,
                             optional,
                             derived,
                             value.systemPath() == null ? null : Path.of(value.systemPath()),
@@ -93,7 +104,7 @@ public class MavenPomResolver {
                     if (current.pom().origin() != null) {
                         dependencies.get(current.pom().origin()).transitives().add(entry.getKey());
                     }
-                    Set<DependencyExclusion> exclusions;
+                    Set<DependencyName> exclusions;
                     if (value.exclusions() == null || value.exclusions().isEmpty()) {
                         exclusions = current.exclusions();
                     } else {
@@ -102,9 +113,9 @@ public class MavenPomResolver {
                     }
                     queue.add(new ContextualPom(resolve(assembleOrCached(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
-                            value.version(),
+                            resolved,
                             new HashSet<>(),
-                            poms), poms, entry.getKey()), derived, exclusions, managedDependencies));
+                            poms), poms, metadata, entry.getKey()), derived, exclusions, managedDependencies));
                 }
             }
         } while (!queue.isEmpty());
@@ -131,8 +142,8 @@ public class MavenPomResolver {
     }
 
     private UnresolvedPom assemble(InputStream inputStream,
-                                   Set<DependencyCoordinates> children,
-                                   Map<DependencyCoordinates, UnresolvedPom> poms) throws IOException,
+                                   Set<DependencyCoordinate> children,
+                                   Map<DependencyCoordinate, UnresolvedPom> poms) throws IOException,
             SAXException,
             ParserConfigurationException {
         Document document;
@@ -141,9 +152,9 @@ public class MavenPomResolver {
         }
         return switch (document.getDocumentElement().getNamespaceURI()) {
             case NAMESPACE_4_0_0 -> {
-                DependencyCoordinates parent = toChildren400(document.getDocumentElement(), "parent")
+                DependencyCoordinate parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
-                        .map(node -> new DependencyCoordinates(
+                        .map(node -> new DependencyCoordinate(
                                 toTextChild400(node, "groupId").orElseThrow(missing("parent.groupId")),
                                 toTextChild400(node, "artifactId").orElseThrow(missing("parent.artifactId")),
                                 toTextChild400(node, "version").orElseThrow(missing("parent.version"))))
@@ -152,7 +163,7 @@ public class MavenPomResolver {
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
                 SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
                 if (parent != null) {
-                    if (!children.add(new DependencyCoordinates(parent.groupId(), parent.artifactId(), parent.version()))) {
+                    if (!children.add(new DependencyCoordinate(parent.groupId(), parent.artifactId(), parent.version()))) {
                         throw new IllegalStateException("Circular dependency to "
                                 + parent.groupId() + ":" + parent.artifactId() + ":" + parent.version());
                     }
@@ -205,12 +216,12 @@ public class MavenPomResolver {
     private UnresolvedPom assembleOrCached(String groupId,
                                            String artifactId,
                                            String version,
-                                           Set<DependencyCoordinates> children,
-                                           Map<DependencyCoordinates, UnresolvedPom> poms) throws IOException {
+                                           Set<DependencyCoordinate> children,
+                                           Map<DependencyCoordinate, UnresolvedPom> poms) throws IOException {
         if (version == null) {
             throw new IllegalArgumentException("No version specified for " + groupId + ":" + artifactId);
         }
-        DependencyCoordinates coordinates = new DependencyCoordinates(groupId, artifactId, version);
+        DependencyCoordinate coordinates = new DependencyCoordinate(groupId, artifactId, version);
         UnresolvedPom pom = poms.get(coordinates);
         if (pom == null) {
             try {
@@ -229,7 +240,8 @@ public class MavenPomResolver {
     }
 
     private ResolvedPom resolve(UnresolvedPom pom,
-                                Map<DependencyCoordinates, UnresolvedPom> poms,
+                                Map<DependencyCoordinate, UnresolvedPom> poms,
+                                Map<DependencyName, Metadata> metadata,
                                 DependencyKey origin) throws IOException {
         Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
@@ -238,7 +250,7 @@ public class MavenPomResolver {
             if (Objects.equals(value.scope(), "import") && Objects.equals(key.type(), "pom")) {
                 UnresolvedPom imported = assembleOrCached(key.groupId(),
                         key.artifactId(),
-                        value.version(),
+                        toVersion(metadata, key.groupId(), key.artifactId(), value.version()),
                         new HashSet<>(),
                         poms);
                 imported.managedDependencies().forEach((importedKey, importedValue) -> managedDependencies.putIfAbsent(
@@ -285,7 +297,7 @@ public class MavenPomResolver {
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
-                                        .map(child -> new DependencyExclusion(
+                                        .map(child -> new DependencyName(
                                                 toTextChild400(child, "groupId").orElseThrow(missing("exclusion.groupId")),
                                                 toTextChild400(child, "artifactId").orElseThrow(missing("exclusion.artifactId"))))
                                         .toList())
@@ -340,6 +352,57 @@ public class MavenPomResolver {
         return () -> new IllegalStateException("Property not defined: " + property);
     }
 
+    private String toVersion(Map<DependencyName, Metadata> cache, String groupId, String artifactId, String version) throws IOException {
+        return switch (version) { // TODO: what to do with version ranges?
+            case "RELEASE" -> toMetadata(cache, groupId, artifactId).release();
+            case "LATEST" -> toMetadata(cache, groupId, artifactId).latest();
+            default -> version;
+        };
+    }
+
+    private Metadata toMetadata(Map<DependencyName, Metadata> cache, String groupId, String artifactId) throws IOException {
+        Metadata metadata = cache.get(new DependencyName(groupId, artifactId));
+        if (metadata == null) {
+            Document document;
+            try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null).toInputStream()) {
+                document = factory.newDocumentBuilder().parse(inputStream);
+            } catch (SAXException | ParserConfigurationException e) {
+                throw new IllegalStateException(e);
+            }
+            metadata = switch (document.getDocumentElement().getAttribute("modelVersion")) {
+                case "1.1.0" -> {
+                    Node versioning = toChildren(document.getDocumentElement())
+                            .filter(node -> Objects.equals(node.getLocalName(), "versioning"))
+                            .findFirst()
+                            .orElseThrow(missing("versioning"));
+                    yield new Metadata(
+                            toChildren(versioning)
+                                    .filter(node -> Objects.equals(node.getLocalName(), "latest"))
+                                    .findFirst()
+                                    .map(Node::getTextContent)
+                                    .orElseThrow(missing("latest")),
+                            toChildren(versioning)
+                                    .filter(node -> Objects.equals(node.getLocalName(), "release"))
+                                    .findFirst()
+                                    .map(Node::getTextContent)
+                                    .orElseThrow(missing("release")),
+                            toChildren(versioning)
+                                    .filter(node -> Objects.equals(node.getLocalName(), "versions"))
+                                    .findFirst()
+                                    .stream()
+                                    .flatMap(MavenPomResolver::toChildren)
+                                    .filter(node -> Objects.equals(node.getLocalName(), "version"))
+                                    .map(Node::getTextContent)
+                                    .toList());
+                }
+                case null, default -> throw new IllegalStateException("Unknown model version: " +
+                        document.getDocumentElement().getAttribute("modelVersion"));
+            };
+            cache.put(new DependencyName(groupId, artifactId), metadata);
+        }
+        return metadata;
+    }
+
     private record DependencyKey(String groupId,
                                  String artifactId,
                                  String type,
@@ -355,13 +418,13 @@ public class MavenPomResolver {
     private record DependencyValue(String version,
                                    String scope,
                                    String systemPath,
-                                   List<DependencyExclusion> exclusions,
+                                   List<DependencyName> exclusions,
                                    String optional) {
         private DependencyValue resolve(Map<String, String> properties) {
             return new DependencyValue(property(version, properties),
                     property(scope, properties),
                     property(systemPath, properties),
-                    exclusions == null ? null : exclusions.stream().map(exclusion -> new DependencyExclusion(
+                    exclusions == null ? null : exclusions.stream().map(exclusion -> new DependencyName(
                             property(exclusion.groupId(), properties),
                             property(exclusion.artifactId(), properties))).toList(),
                     property(optional, properties)
@@ -387,10 +450,10 @@ public class MavenPomResolver {
                                        Set<DependencyKey> transitives) {
     }
 
-    private record DependencyExclusion(String groupId, String artifactId) {
+    private record DependencyName(String groupId, String artifactId) {
     }
 
-    private record DependencyCoordinates(String groupId, String artifactId, String version) {
+    private record DependencyCoordinate(String groupId, String artifactId, String version) {
     }
 
     private record UnresolvedPom(Map<String, String> properties,
@@ -405,7 +468,10 @@ public class MavenPomResolver {
 
     private record ContextualPom(ResolvedPom pom,
                                  MavenDependencyScope scope,
-                                 Set<DependencyExclusion> exclusions,
+                                 Set<DependencyName> exclusions,
                                  Map<DependencyKey, DependencyValue> managedDependencies) {
+    }
+
+    private record Metadata(String latest, String release, List<String> versions) {
     }
 }

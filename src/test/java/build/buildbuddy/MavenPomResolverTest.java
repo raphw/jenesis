@@ -1242,6 +1242,112 @@ public class MavenPomResolverTest {
                         false));
     }
 
+    @Test
+    public void can_resolve_release_version() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>RELEASE</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>1</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("transitive",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false));
+    }
+
+    @Test
+    public void can_resolve_latest_version() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>LATEST</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("transitive", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>1</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("transitive",
+                        "artifact",
+                        "2",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false));
+    }
+
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
