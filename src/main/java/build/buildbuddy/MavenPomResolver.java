@@ -26,8 +26,35 @@ public class MavenPomResolver {
     }
 
     public List<MavenDependency> resolve(String groupId, String artifactId, String version) throws IOException {
-        ResolvedPom pom = doResolve(repository.download(groupId, artifactId, version, null, "pom"), new HashSet<>());
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>(pom.dependencies());
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        Set<MavenDependencyKey> previous = new HashSet<>();
+        Queue<Map.Entry<PomVersion, Set<ExcludedDependency>>> queue = new ArrayDeque<>(Set.of(Map.entry(
+                new PomVersion(groupId, artifactId, version),
+                Set.of())));
+        do {
+            Map.Entry<PomVersion, Set<ExcludedDependency>> current = queue.remove();
+            ResolvedPom pom = doResolve(repository.download(current.getKey().groupId(),
+                    current.getKey().artifactId(),
+                    current.getKey().version(),
+                    null,
+                    "pom"), new HashSet<>());
+            for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : pom.dependencies().entrySet()) {
+                if (!current.getValue().contains(new ExcludedDependency(
+                        entry.getKey().groupId(),
+                        entry.getKey().artifactId())) && previous.add(entry.getKey())) {
+                    dependencies.put(entry.getKey(), entry.getValue());
+                    Set<ExcludedDependency> exclusions;
+                    if (entry.getValue().exclusions() == null || entry.getValue().exclusions().isEmpty()) {
+                        exclusions = current.getValue();
+                    } else {
+                        exclusions = new HashSet<>(current.getValue());
+                        exclusions.addAll(entry.getValue().exclusions());
+                    }
+                    queue.add(Map.entry(new PomVersion(entry.getKey().groupId(),
+                            entry.getKey().artifactId(),
+                            entry.getValue().version()), exclusions));
+                }
+            }
         for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : pom.dependencies().entrySet()) {
             ResolvedPom pom1 = doResolve(repository.download(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
@@ -45,6 +72,7 @@ public class MavenPomResolver {
                             dependency.getValue()));
             // TODO: as queue, with dependency configuration propagation
         }
+        } while (!queue.isEmpty());
         return dependencies.entrySet().stream().map(entry -> new MavenDependency(
                 entry.getKey().groupId(),
                 entry.getKey().artifactId(),
@@ -76,7 +104,7 @@ public class MavenPomResolver {
                                 toChildren400(node, "version").map(Node::getTextContent).findFirst().orElseThrow()))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
-                SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+                Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new HashMap<>();
                 SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
                 if (parent != null) {
                     if (!children.add(new PomVersion(parent.groupId(), parent.artifactId(), parent.version()))) {
@@ -106,7 +134,7 @@ public class MavenPomResolver {
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
-                        .forEach(entry -> dependencies.put(
+                        .forEach(entry -> dependencies.putLast(
                                 entry.getKey(),
                                 managedDependencies.getOrDefault(entry.getKey(), entry.getValue()).merge(entry.getValue())));
                 yield new ResolvedPom(properties, managedDependencies, dependencies);
