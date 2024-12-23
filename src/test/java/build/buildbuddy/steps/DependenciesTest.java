@@ -133,4 +133,75 @@ public class DependenciesTest {
         assertThat(previous.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("other");
         assertThat(next.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("other");
     }
+
+    @Test
+    public void can_resolve_dependencies_without_hash() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
+        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Properties properties = new Properties();
+        properties.setProperty("foo/bar", "");
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
+            properties.store(writer, null);
+        }
+        BuildStepResult result = new Dependencies(Map.of(
+                "foo",
+                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
+                flattened,
+                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("bar");
+    }
+
+    @Test
+    public void can_resolve_dependencies_from_file_without_hash() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
+        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Properties properties = new Properties();
+        properties.setProperty("foo/bar", "");
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
+            properties.store(writer, null);
+        }
+        BuildStepResult result = new Dependencies(Map.of(
+                "foo",
+                bar -> {
+                    Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
+                    return Optional.of(new RepositoryItem() {
+                        @Override
+                        public InputStream toInputStream() {
+                            throw new AssertionError();
+                        }
+
+                        @Override
+                        public Optional<Path> getFile() {
+                            return Optional.of(file);
+                        }
+                    });
+                }
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
+                flattened,
+                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("bar");
+    }
+
+    @Test
+    public void can_retain_dependency_from_previous_run_no_hash() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
+        Files.writeString(Files
+                .createDirectory(Files.createDirectory(previous).resolve(Dependencies.LIBS))
+                .resolve("foo:bar"), "other");
+        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Properties properties = new Properties();
+        properties.setProperty("foo/bar", "");
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
+            properties.store(writer, null);
+        }
+        BuildStepResult result = new Dependencies(Map.of(
+                "foo",
+                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
+                flattened,
+                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        assertThat(result.next()).isTrue();
+        assertThat(previous.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("other");
+        assertThat(next.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("other");
+    }
 }
