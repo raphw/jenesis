@@ -43,6 +43,7 @@ public class MavenPomResolver {
         Map<DependencyCoordinate, UnresolvedPom> poms = new HashMap<>();
         Queue<ResolvedPom> queue = new ArrayDeque<>();
         List<DependencyKey> dependencies = new ArrayList<>(); // TODO: add included/excluded marks
+        Set<DependencyKey> unresolved = new HashSet<>();
         Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>();
         ResolvedPom current = new ResolvedPom(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
                 true,
@@ -50,54 +51,65 @@ public class MavenPomResolver {
                 Set.of());
         Map<DependencyKey, DependencyValue> managedDependencies = current.managedDependencies();
         do {
-            for (Map.Entry<DependencyKey, DependencyValue> entry : current.dependencies().entrySet()) {
-                if (current.exclusions().contains(new DependencyName(
-                        entry.getKey().groupId(),
-                        entry.getKey().artifactId()))) {
-                    continue;
-                } // TODO: do not apply dependency management on top pom.
-                DependencyValue override = managedDependencies.get(entry.getKey()), value;
-                if (current.root()) {
-                    value = entry.getValue().with(override);
-                } else if (override == null) {
-                    value = entry.getValue();
-                } else {
-                    value = override.with(entry.getValue()).with(current.managedDependencies().get(entry.getKey()));
+            do {
+                for (Map.Entry<DependencyKey, DependencyValue> entry : current.dependencies().entrySet()) {
+                    if (current.exclusions().contains(new DependencyName(
+                            entry.getKey().groupId(),
+                            entry.getKey().artifactId()))) {
+                        continue;
+                    }
+                    DependencyValue override = managedDependencies.get(entry.getKey()), value;
+                    if (current.root()) {
+                        value = entry.getValue().with(override);
+                    } else {
+                        value = override == null ? entry.getValue() : override.with(entry.getValue());
+                        value = value.with(current.managedDependencies().get(entry.getKey()));
+                    }
+                    if (!current.root() && Boolean.parseBoolean(value.optional())) {
+                        continue;
+                    }
+                    MavenDependencyScope mergedScope = current.scope() == null
+                            ? toScope(value.scope())
+                            : current.scope().merge(toScope(value.scope()));
+                    if (mergedScope == null) {
+                        continue;
+                    }
+                    DependencyResolution previous = resolutions.get(entry.getKey());
+                    if (previous == null) {
+                        dependencies.add(entry.getKey());
+                        resolutions.put(entry.getKey(), new DependencyResolution(
+                                new LinkedHashSet<>(Set.of(value.version())),
+                                mergedScope));
+                        Set<DependencyName> exclusions = current.exclusions();
+                        if (value.exclusions() != null) {
+                            exclusions = new HashSet<>(exclusions);
+                            exclusions.addAll(value.exclusions());
+                        }
+                        if (switch (value.version()) {
+                            case "RELEASE", "LATEST" -> true;
+                            case String candidate when candidate.startsWith("(") || candidate.startsWith("[") -> true;
+                            default -> false;
+                        }) {
+                            unresolved.add(entry.getKey());
+                        } else {
+                            queue.add(new ResolvedPom(assembleOrCached(entry.getKey().groupId(),
+                                    entry.getKey().artifactId(),
+                                    value.version(),
+                                    new HashSet<>(),
+                                    poms), false, mergedScope, exclusions));
+                        }
+                    } else if (!previous.versions().contains(value.version()) || previous.scope() != mergedScope) {
+                        unresolved.add(entry.getKey());
+                        SequencedSet<String> versions = new LinkedHashSet<>(previous.versions());
+                        versions.add(value.version());
+                        resolutions.put(entry.getKey(), new DependencyResolution(
+                                versions,
+                                mergedScope.ordinal() < previous.scope().ordinal() ? mergedScope : previous.scope()));
+                    }
                 }
-                if (!current.root() && Boolean.parseBoolean(value.optional())) {
-                    continue;
-                }
-                MavenDependencyScope mergedScope = current.scope() == null
-                        ? toScope(value.scope())
-                        : current.scope().merge(toScope(value.scope()));
-                if (mergedScope == null) {
-                    continue;
-                }
-                DependencyResolution previous = resolutions.get(entry.getKey());
-                if (previous == null) {
-                    dependencies.add(entry.getKey());
-                    resolutions.put(entry.getKey(), new DependencyResolution(
-                            new LinkedHashSet<>(Set.of(value.version())),
-                            mergedScope));
-                    Set<DependencyName> exclusions = current.exclusions();
-                    if (value.exclusions() != null) {
-                        exclusions = new HashSet<>(exclusions);
-                        exclusions.addAll(value.exclusions());
-                    } // TODO: skip on non-specified version
-                    queue.add(new ResolvedPom(assembleOrCached(entry.getKey().groupId(),
-                            entry.getKey().artifactId(),
-                            value.version(),
-                            new HashSet<>(),
-                            poms), false, mergedScope, exclusions));
-                } else if (!previous.versions().contains(value.version()) || previous.scope() != mergedScope) {
-                    SequencedSet<String> versions = new LinkedHashSet<>(previous.versions());
-                    versions.add(value.version());
-                    resolutions.put(entry.getKey(), new DependencyResolution(
-                            versions,
-                            mergedScope.ordinal() < previous.scope().ordinal() ? mergedScope : previous.scope()));
-                }
-            }
-        } while ((current = queue.poll()) != null);
+                // TODO: fix.
+            } while ((current = queue.poll()) != null);
+        } while (!unresolved.isEmpty());
         return dependencies.stream().map(key -> {
             DependencyResolution resolution = resolutions.get(key);
             return new MavenDependency(key.groupId(),
