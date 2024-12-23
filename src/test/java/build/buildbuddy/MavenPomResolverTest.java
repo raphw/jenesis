@@ -418,8 +418,7 @@ public class MavenPomResolverTest {
                         "1",
                         "jar",
                         null,
-                        false)
-        );
+                        false));
     }
 
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {

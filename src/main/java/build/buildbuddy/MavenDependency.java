@@ -5,5 +5,6 @@ public record MavenDependency(String groupId,
                               String version,
                               String type,
                               String classifier,
+                              MavenDependencyScope scope,
                               boolean optional) {
 }

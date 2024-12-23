@@ -19,7 +19,6 @@ import java.util.stream.Stream;
 public class MavenPomResolver { // TODO: scope resolution, BOMs
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
-
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
     private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
 
@@ -37,6 +36,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
         Set<DependencyKey> previous = new HashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
                 doResolveOrCached(groupId, artifactId, version, new HashSet<>(), poms),
+                MavenDependencyScope.COMPILE,
                 Set.of(),
                 Map.of())));
         do {
@@ -59,7 +59,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                             entry.getKey().artifactId(),
                             entry.getValue().version(),
                             new HashSet<>(),
-                            poms), exclusions, managedDependencies));
+                            poms), entry.getValue().scope(), exclusions, managedDependencies));
                 }
             }
         } while (!queue.isEmpty());
@@ -69,18 +69,18 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                 entry.getValue().version(),
                 entry.getKey().type(),
                 entry.getKey().classifier(),
+                entry.getValue().scope(),
                 Objects.equals(entry.getValue().optional(), true))).toList();
     }
 
     private ResolvedPom doResolve(InputStream inputStream,
                                   Set<DependencyCoordinates> children,
-                                  Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
-        // TODO: order of dependencies?
+                                  Map<DependencyCoordinates, ResolvedPom> poms) throws IOException,
+            SAXException,
+            ParserConfigurationException {
         Document document;
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
-        } catch (SAXException | ParserConfigurationException e) {
-            throw new IllegalStateException(e);
         }
         return switch (document.getDocumentElement().getNamespaceURI()) {
             case NAMESPACE_4_0_0 -> {
@@ -137,7 +137,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(node -> toDependency400(node, properties))
-                        .forEach(entry -> dependencies.put(
+                        .forEach(entry -> dependencies.putLast(
                                 entry.getKey(),
                                 managedDependencies.getOrDefault(entry.getKey(), entry.getValue())));
                 yield new ResolvedPom(properties, managedDependencies, dependencies);
@@ -161,7 +161,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                         version,
                         null,
                         "pom"), children, poms);
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
             }
             poms.put(coordinates, pom);
@@ -177,7 +177,8 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     }
 
     private static Stream<Node> toChildren400(Node node, String localName) {
-        return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName) && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
+        return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName)
+                && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
     }
 
     private static Optional<String> toTextChild400(Node node, String localName, Map<String, String> properties) {
@@ -193,7 +194,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                         toTextChild400(node, "classifier", properties).orElse(null)),
                 new DependencyValue(
                         toTextChild400(node, "version", properties).orElse(null),
-                        toTextChild400(node, "scope", properties).orElse("compile"),
+                        toTextChild400(node, "scope", properties).map(MavenDependencyScope::parse).orElse(MavenDependencyScope.COMPILE),
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
@@ -244,7 +245,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     }
 
     private record DependencyValue(String version,
-                                   String scope,
+                                   MavenDependencyScope scope,
                                    List<DependencyExclusion> exclusions,
                                    Boolean optional) {
     }
@@ -257,10 +258,11 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
 
     private record ResolvedPom(Map<String, String> properties,
                                Map<DependencyKey, DependencyValue> managedDependencies,
-                               Map<DependencyKey, DependencyValue> dependencies) {
+                               SequencedMap<DependencyKey, DependencyValue> dependencies) {
     }
 
     private record ContextualPom(ResolvedPom pom,
+                                 MavenDependencyScope scope,
                                  Set<DependencyExclusion> exclusions,
                                  Map<DependencyKey, DependencyValue> managedDependencies) {
     }
