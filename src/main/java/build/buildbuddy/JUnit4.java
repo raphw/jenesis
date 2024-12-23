@@ -1,6 +1,5 @@
 package build.buildbuddy;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -19,7 +18,7 @@ public class JUnit4 extends Java {
     @Override
     protected CompletionStage<List<String>> commands(Executor executor,
                                                      BuildStepContext context,
-                                                     Map<String, BuildStepArgument> arguments) throws IOException {
+                                                     Map<String, BuildStepArgument> arguments) {
         return CompletableFuture.completedFuture(List.of(
                 "org.junit.runner.JUnitCore",
                 "sample.SampleTest"));
