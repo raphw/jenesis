@@ -113,7 +113,7 @@ public class BuildExecutor {
                 }
                 if (!consistent
                         || step.isAlwaysRun()
-                        || arguments.values().stream().anyMatch(BuildStepArgument::isChanged)) {
+                        || arguments.values().stream().anyMatch(BuildStepArgument::hasChanged)) {
                     Path next = Files.createTempDirectory(identity);
                     return step.apply(executor,
                             new BuildStepContext(

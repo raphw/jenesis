@@ -34,7 +34,7 @@ public interface BuildStep {
                 Stream.of(identities).forEach(reduction.keySet()::remove);
                 return BuildStep.this.isAlwaysRun()
                         || context.previous() == null
-                        || reduction.values().stream().anyMatch(BuildStepArgument::isChanged)
+                        || reduction.values().stream().anyMatch(BuildStepArgument::hasChanged)
                         ? BuildStep.this.apply(executor, context, reduction)
                         : CompletableFuture.completedStage(new BuildStepResult(false));
             }
