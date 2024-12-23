@@ -48,4 +48,12 @@ public class TaskGraphTest {
             () -> taskGraph.add("2", (executor, state) -> CompletableFuture.completedStage(state + "2"), "1")
         ).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    public void requires_unique_identifier() {
+        taskGraph.add("1", (executor, state) -> CompletableFuture.completedStage(state + "1"));
+        assertThatThrownBy(
+                () -> taskGraph.add("1", (executor, state) -> CompletableFuture.completedStage(state + "1"))
+        ).isInstanceOf(IllegalArgumentException.class);
+    }
 }
