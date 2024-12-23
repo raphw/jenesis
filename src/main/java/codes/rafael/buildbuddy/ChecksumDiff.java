@@ -2,9 +2,7 @@ package codes.rafael.buildbuddy;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,11 +11,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 
 public class ChecksumDiff {
 
-    public Map<Path, State> diff(Path target, Path file) {
+    public Map<Path, State> diff(Path target, Path file) throws IOException {
         Map<Path, State> states = new LinkedHashMap<>();
         if (Files.exists(target)) {
             Map<Path, byte[]> checksums = new LinkedHashMap<>();
@@ -26,8 +23,6 @@ public class ChecksumDiff {
                 while (it.hasNext()) {
                     checksums.put(Paths.get(it.next()), Base64.getDecoder().decode(it.next()));
                 }
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
             }
             traverse(file, (path, bytes) -> {
                 byte[] previous = checksums.remove(path);
@@ -46,7 +41,7 @@ public class ChecksumDiff {
         return states;
     }
 
-    private static void traverse(Path root, BiConsumer<Path, byte[]> callback) {
+    private static void traverse(Path root, BiConsumer<Path, byte[]> callback) throws IOException {
         Queue<Path> queue = new ArrayDeque<>(List.of(root));
         try {
             MessageDigest digest = MessageDigest.getInstance("MD5");
@@ -66,8 +61,6 @@ public class ChecksumDiff {
             } while (!queue.isEmpty());
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 
