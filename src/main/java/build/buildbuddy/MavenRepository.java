@@ -3,6 +3,7 @@ package build.buildbuddy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Path;
 
 public class MavenRepository implements Repository {
 
@@ -10,7 +11,10 @@ public class MavenRepository implements Repository {
 
     public MavenRepository() {
         String environment = System.getenv("MAVEN_REPOSITORY_URI");
-        root = URI.create(environment == null ? "https://repo1.maven.org/maven2" : environment);
+        if (environment != null && !environment.endsWith("/")) {
+            environment += "/";
+        }
+        root = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
     }
 
     public MavenRepository(URI root) {
@@ -33,8 +37,7 @@ public class MavenRepository implements Repository {
                                 String version,
                                 String classifier,
                                 String extension) throws IOException {
-        return root.resolve(root.getPath()
-                + (root.getPath().endsWith("/") ? "" : "/") + groupId.replace('.', '/')
+        return root.resolve(groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
