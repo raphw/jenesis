@@ -44,7 +44,7 @@ public class DependenciesTest {
     public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
+        properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.properties"))) {
             properties.store(writer, null);
@@ -56,14 +56,14 @@ public class DependenciesTest {
                 dependencies,
                 Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
+        properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.properties"))) {
             properties.store(writer, null);
@@ -88,14 +88,14 @@ public class DependenciesTest {
                 dependencies,
                 Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
+        properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.properties"))) {
             properties.store(writer, null);
@@ -107,18 +107,18 @@ public class DependenciesTest {
                 dependencies,
                 Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Mismatched digest for sample:coordinate");
-        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
+                .hasMessageContaining("Mismatched digest for sample|coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Files.writeString(Files.createDirectory(Files.createDirectory(previous)
                         .resolve(Dependencies.LIBS))
-                .resolve("sample:coordinate"), "other");
+                .resolve("sample|coordinate"), "other");
         Path folder = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
+        properties.setProperty("sample|coordinate", "SHA256|" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.properties"))) {
             properties.store(writer, null);
@@ -130,7 +130,7 @@ public class DependenciesTest {
                 dependencies,
                 Map.of(Path.of(Dependencies.FOLDER, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("other");
-        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("other");
+        assertThat(previous.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("other");
+        assertThat(next.resolve(Dependencies.LIBS + "sample|coordinate")).content().isEqualTo("other");
     }
 }

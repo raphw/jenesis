@@ -51,20 +51,22 @@ public class Dependencies implements BuildStep {
                         properties.load(inputStream);
                     }
                     for (String dependency : properties.stringPropertyNames()) {
-                        String[] segments = dependency.split(":", 2);
+                        int index = dependency.indexOf('|');
                         Repository repository = requireNonNull(
-                                repositories.get(segments.length == 1 ? "" : segments[0]),
+                                repositories.get(index == -1 ? "" : dependency.substring(0, index)),
                                 "Could not resolve dependency: " + dependency);
-                        String[] expectation = properties.getProperty(dependency).split(":", 2);
+                        String expectation = properties.getProperty(dependency);
+                        int algorithm = expectation.indexOf('|');
                         MessageDigest digest;
                         try {
-                            digest = MessageDigest.getInstance(expectation.length == 1 ? "SHA256" : expectation[0]);
+                            digest = MessageDigest.getInstance(algorithm == -1 ? "SHA256" : expectation.substring(0, algorithm));
                         } catch (NoSuchAlgorithmException e) {
                             throw new IllegalStateException(e);
                         }
+                        String checksum = algorithm == -1 ? expectation : expectation.substring(algorithm + 1);
                         if (context.previous() != null && Files.exists(context.previous().resolve(LIBS + dependency))) {
                             Path file = context.previous().resolve(LIBS + dependency);
-                            if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
+                            if (validateAndLinkFile(digest, file, checksum)) {
                                 Files.createLink(libs.resolve(dependency), file);
                                 continue;
                             } else {
@@ -75,7 +77,7 @@ public class Dependencies implements BuildStep {
                         executor.execute(() -> {
                             try {
                                 RepositoryItem source = repository
-                                        .fetch(segments[segments.length == 1 ? 0 : 1])
+                                        .fetch((index == -1 ? dependency : dependency.substring(index + 1)).replace('|', ':'))
                                         .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
@@ -83,12 +85,12 @@ public class Dependencies implements BuildStep {
                                         Files.copy(inputStream, libs.resolve(dependency));
                                         if (!Arrays.equals(
                                                 inputStream.getMessageDigest().digest(),
-                                                Base64.getDecoder().decode(expectation[expectation.length == 1 ? 0 : 1]))) {
+                                                Base64.getDecoder().decode(checksum))) {
                                             throw new IllegalStateException("Mismatched digest for " + dependency);
                                         }
                                     }
                                 } else {
-                                    if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
+                                    if (validateAndLinkFile(digest, file, checksum)) {
                                         Files.createLink(context.next().resolve(LIBS + dependency), file);
                                     } else {
                                         throw new IllegalStateException("Mismatched digest for " + dependency);
