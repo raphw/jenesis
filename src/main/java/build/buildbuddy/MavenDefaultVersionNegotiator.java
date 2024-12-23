@@ -26,7 +26,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         this.factory = factory;
     }
 
-    public static Supplier<MavenVersionNegotiator> mavenRules(MavenRepository repository) {
+    public static Supplier<MavenVersionNegotiator> maven(MavenRepository repository) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
         try {
@@ -35,6 +35,43 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             throw new IllegalStateException(e);
         }
         return () -> new MavenDefaultVersionNegotiator(repository, factory);
+    }
+
+    public static Supplier<MavenVersionNegotiator> latest(MavenRepository repository) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        try {
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        } catch (ParserConfigurationException e) {
+            throw new IllegalStateException(e);
+        }
+        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
+            @Override
+            public String resolve(String groupId, String artifactId, String type, String classifier, String version) throws IOException {
+                return toMetadata(groupId, artifactId).latest();
+            }
+
+            @Override
+            public String resolve(String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
+                return current;
+            }
+        };
+    }
+
+    public static Supplier<MavenVersionNegotiator> closest(MavenRepository repository) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        try {
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        } catch (ParserConfigurationException e) {
+            throw new IllegalStateException(e);
+        }
+        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
+            @Override
+            public String resolve(String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
+                return current;
+            }
+        };
     }
 
     @Override
@@ -103,7 +140,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         return current;
     }
 
-    private Metadata toMetadata(String groupId, String artifactId) throws IOException {
+    Metadata toMetadata(String groupId, String artifactId) throws IOException {
         Metadata metadata = cache.get(new MavenPomResolver.DependencyName(groupId, artifactId));
         if (metadata == null) {
             Document document;
