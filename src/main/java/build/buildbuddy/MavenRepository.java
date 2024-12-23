@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 public class MavenRepository implements Repository {
 
-    private final URI root;
+    private final URI repository;
     private final Path local;
     private final Map<String, URI> validations;
 
@@ -27,14 +27,14 @@ public class MavenRepository implements Repository {
         if (environment != null && !environment.endsWith("/")) {
             environment += "/";
         }
-        root = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
+        repository = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
         Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
         this.local = Files.isDirectory(local) ? local : null;
-        validations = Map.of("SHA1", root);
+        validations = Map.of("SHA1", repository);
     }
 
-    public MavenRepository(URI root, Path local, Map<String, URI> validations) {
-        this.root = root;
+    public MavenRepository(URI repository, Path local, Map<String, URI> validations) {
+        this.repository = repository;
         this.local = local;
         this.validations = validations;
     }
@@ -63,12 +63,48 @@ public class MavenRepository implements Repository {
         Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {
-                return new PathInputStreamSource(cached);
+                boolean validated = true;
+                for (Map.Entry<String, URI> validation : validations.entrySet()) {
+                    Path hash = local.resolve(path + "." + validation.getKey().toLowerCase());
+                    byte[] expected;
+                    if (Files.exists(hash)) {
+                        expected = Files.readAllBytes(hash);
+                    } else {
+                        try (InputStream inputStream = validation.getValue()
+                                .resolve(path + "." + validation.getKey().toLowerCase())
+                                .toURL()
+                                .openConnection()
+                                .getInputStream()) {
+                            expected = inputStream.readAllBytes();
+                        }
+                        try (OutputStream outputStream = Files.newOutputStream(hash)) {
+                            outputStream.write(expected);
+                        }
+                    }
+                    MessageDigest digest;
+                    try {
+                        digest = MessageDigest.getInstance(validation.getKey());
+                    } catch (NoSuchAlgorithmException e) {
+                        throw new IllegalStateException(e);
+                    }
+                    try (FileChannel channel = FileChannel.open(cached)) {
+                        digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
+                    }
+                    if (!Arrays.equals(Base64.getDecoder().decode(expected), digest.digest())) {
+                        Files.delete(cached);
+                        Files.delete(hash);
+                        validated = false;
+                        break;
+                    }
+                }
+                if (validated) {
+                    return new PathInputStreamSource(cached);
+                }
             }
             Files.createDirectories(cached.getParent());
         }
         Function<InputStream, InputStream> decorator = Function.identity();
-        URI uri = root.resolve(path);
+        URI uri = repository.resolve(path);
         if (!validations.isEmpty()) {
             for (Map.Entry<String, URI> validation : validations.entrySet()) {
                 MessageDigest digest;
