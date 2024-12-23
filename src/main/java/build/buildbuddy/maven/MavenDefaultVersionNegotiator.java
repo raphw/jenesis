@@ -19,7 +19,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 
     private final MavenRepository repository;
     private final DocumentBuilderFactory factory;
-    private final Map<MavenPomResolver.DependencyName, Metadata> cache = new HashMap<>();
+    private final Map<MavenDependencyName, Metadata> cache = new HashMap<>();
 
     private MavenDefaultVersionNegotiator(MavenRepository repository, DocumentBuilderFactory factory) {
         this.repository = repository;
@@ -129,7 +129,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
     }
 
     Metadata toMetadata(String groupId, String artifactId) throws IOException {
-        Metadata metadata = cache.get(new MavenPomResolver.DependencyName(groupId, artifactId));
+        Metadata metadata = cache.get(new MavenDependencyName(groupId, artifactId));
         if (metadata == null) {
             Document document;
             try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null)
@@ -168,7 +168,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                 case null, default -> throw new IllegalStateException("Unknown model version: " +
                         document.getDocumentElement().getAttribute("modelVersion"));
             };
-            cache.put(new MavenPomResolver.DependencyName(groupId, artifactId), metadata);
+            cache.put(new MavenDependencyName(groupId, artifactId), metadata);
         }
         return metadata;
     }
