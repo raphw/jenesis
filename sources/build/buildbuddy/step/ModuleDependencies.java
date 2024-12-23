@@ -54,7 +54,7 @@ public class ModuleDependencies implements BuildStep {
         }
         Path dependencies = Files.createDirectory(context.next().resolve(PropertyDependencies.DEPENDENCIES));
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            Path moduleInfo = entry.getValue().folder().resolve(Resolve.SOURCES + "module-info.java");
+            Path moduleInfo = entry.getValue().folder().resolve(Bind.SOURCES + "module-info.java");
             if (Files.exists(moduleInfo)) {
                 Properties properties = new SequencedProperties();
                 JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),

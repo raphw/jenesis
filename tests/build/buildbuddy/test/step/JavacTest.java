@@ -5,7 +5,7 @@ import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.Javac;
-import build.buildbuddy.step.Resolve;
+import build.buildbuddy.step.Bind;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,7 +38,7 @@ public class JavacTest {
 
     @Test
     public void can_execute_javac() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectories(sources.resolve(Resolve.SOURCES + "sample"));
+        Path folder = Files.createDirectories(sources.resolve(Bind.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
             writer.newLine();

@@ -6,7 +6,7 @@ import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.ModuleDependencies;
 import build.buildbuddy.step.PropertyDependencies;
-import build.buildbuddy.step.Resolve;
+import build.buildbuddy.step.Bind;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,7 +43,7 @@ public class ModuleDependenciesTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException {
-        Files.writeString(Files.createDirectory(sources.resolve(Resolve.SOURCES)).resolve("module-info.java"), """
+        Files.writeString(Files.createDirectory(sources.resolve(Bind.SOURCES)).resolve("module-info.java"), """
                 module Sample {
                   requires foo;
                 }
@@ -65,7 +65,7 @@ public class ModuleDependenciesTest {
                         "sources", new BuildStepArgument(
                                 sources,
                                 Map.of(
-                                        Path.of(Resolve.SOURCES, "module-info.java"),
+                                        Path.of(Bind.SOURCES, "module-info.java"),
                                         ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();

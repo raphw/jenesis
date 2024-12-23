@@ -17,26 +17,26 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
-public class Resolve implements BuildStep {
+public class Bind implements BuildStep {
 
     public static final String SOURCES = "sources/", RESOURCES = "resources/";
 
     private final Map<Path, Path> paths;
 
-    public Resolve(Map<Path, Path> paths) {
+    public Bind(Map<Path, Path> paths) {
         this.paths = paths;
     }
 
     public static BuildStep asSources() {
-        return new Resolve(Map.of(Path.of("."), Path.of(SOURCES)));
+        return new Bind(Map.of(Path.of("."), Path.of(SOURCES)));
     }
 
     public static BuildStep asResources() {
-        return new Resolve(Map.of(Path.of("."), Path.of(RESOURCES)));
+        return new Bind(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
     public static BuildStep asDependencies() {
-        return new Resolve(Map.of(Path.of("."), Path.of(PropertyDependencies.DEPENDENCIES)));
+        return new Bind(Map.of(Path.of("."), Path.of(PropertyDependencies.DEPENDENCIES)));
     }
 
     @Override

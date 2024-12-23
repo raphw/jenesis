@@ -36,7 +36,7 @@ public class Javac implements ProcessBuildStep {
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
                 "-d", Files.createDirectory(context.next().resolve(CLASSES)).toString()));
         for (BuildStepArgument argument : arguments.values()) {
-            Path sources = argument.folder().resolve(Resolve.SOURCES);
+            Path sources = argument.folder().resolve(Bind.SOURCES);
             Files.walkFileTree(sources, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {

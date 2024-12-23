@@ -4,7 +4,7 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.step.Resolve;
+import build.buildbuddy.step.Bind;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ResolveTest {
+public class BindTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -38,7 +38,7 @@ public class ResolveTest {
     public void can_link_values() throws IOException, ExecutionException, InterruptedException {
         Files.writeString(original.resolve("file"), "foo");
         Files.writeString(Files.createDirectories(original.resolve("folder/sub")).resolve("file"), "bar");
-        BuildStepResult result = new Resolve(Map.of(
+        BuildStepResult result = new Bind(Map.of(
                 Path.of("file"), Path.of("other/copied"),
                 Path.of("folder"), Path.of("other"))).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),

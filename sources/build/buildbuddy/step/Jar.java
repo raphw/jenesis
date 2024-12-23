@@ -36,7 +36,7 @@ public class Jar implements ProcessBuildStep {
                 "cf",
                 Files.createDirectory(context.next().resolve(JARS)).resolve("artifact.jar").toString()));
         for (BuildStepArgument argument : arguments.values()) {
-            for (String name : List.of(Javac.CLASSES, Resolve.RESOURCES)) {
+            for (String name : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path folder = argument.folder().resolve(name);
                 if (Files.exists(folder)) {
                     commands.add(folder.toString());

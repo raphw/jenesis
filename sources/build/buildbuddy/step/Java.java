@@ -53,7 +53,7 @@ public abstract class Java implements ProcessBuildStep {
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
         List<String> classPath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String folder : List.of(Javac.CLASSES, Resolve.RESOURCES)) {
+            for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.exists(candidate)) {
                     classPath.add(candidate.toString());
