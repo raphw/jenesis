@@ -22,11 +22,7 @@ document the use of this tool within its own source.
 The POC is currently missing:
 - Task for JUnit (4 first, keep it simple, with feedback).
 - Refactor this project to use itself as build tool. (Retain POM for IDE support.)
-- Some form of qualifier information for results (see need in Java step).
-- Mechanism for logging and "non-build output", structured result in executor.
 - Builder class for a BuildExecutor that offers convenient defaults.
-- Task to create a dependencies file from a POM file.
-- Task to create a POM file from dependencies.
 - Task for javadoc tool.
 - Task for source jars.
 - Task to add GPG signatures of artifacts.
