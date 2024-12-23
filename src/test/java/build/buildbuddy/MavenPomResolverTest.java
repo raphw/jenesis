@@ -364,25 +364,33 @@ public class MavenPomResolverTest {
                             <version>1</version>
                             <scope>test</scope>
                         </dependency>
-                        <dependency>
-                            <groupId>runtime</groupId>
-                            <artifactId>artifact</artifactId>
-                            <version>1</version>
-                            <scope>runtime</scope>
-                        </dependency>
                     </dependencies>
+                </project>
+                """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
                 "1");
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.TEST,
-                false));
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("other",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.TEST,
+                        false),
+                new MavenDependency("transitive",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.TEST,
+                        false));
     }
 
     @Test
@@ -412,6 +420,60 @@ public class MavenPomResolverTest {
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+                "artifact",
+                "1");
+        assertThat(dependencies).containsExactly(new MavenDependency("other",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                MavenDependencyScope.COMPILE,
+                false));
+    }
+
+    @Test
+    public void can_resolve_dependency_bom_configuration() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                        <dependency>
+                            <groupId>import</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>import</scope>
+                            <packaging>bom</packaging>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("import", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
                 </project>
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
