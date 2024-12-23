@@ -29,6 +29,14 @@ public class TaskGraph<IDENTITY, STATE> {
         }
     }
 
+    public void replace(IDENTITY identity, BiFunction<Executor, STATE, CompletionStage<STATE>> step) {
+        Registration<IDENTITY, STATE> registration = registrations.get(identity);
+        if (registration == null) {
+            throw new IllegalArgumentException("Unknown step: " + identity);
+        }
+        registrations.replace(identity, new Registration<>(step, registration.dependencies()));
+    }
+
     public CompletionStage<STATE> execute(Executor executor, CompletionStage<STATE> initial) {
         Map<IDENTITY, Registration<IDENTITY, STATE>> pending = new LinkedHashMap<>(registrations);
         Map<IDENTITY, CompletionStage<STATE>> dispatched = new HashMap<>();
