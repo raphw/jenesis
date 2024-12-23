@@ -1,5 +1,8 @@
 package build.buildbuddy;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +11,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 public class Jar implements ProcessBuildStep {
+
+    public static final String FOLDER = "jars/";
 
     private final String jar;
 
@@ -22,13 +27,18 @@ public class Jar implements ProcessBuildStep {
     @Override
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    BuildStepContext context,
-                                                   Map<String, BuildStepArgument> arguments) {
-        List<String> commands = new ArrayList<>(List.of(
-                jar,
+                                                   Map<String, BuildStepArgument> arguments) throws IOException {
+        List<String> commands = new ArrayList<>(List.of(jar,
                 "cf",
-                context.next().resolve("artifact.jar").toString()
-        ));
-        arguments.values().forEach(result -> commands.add(result.folder().toString()));
+                Files.createDirectory(context.next().resolve(FOLDER)).resolve("artifact.jar").toString()));
+        for (BuildStepArgument argument : arguments.values()) {
+            for (String name : List.of(Javac.FOLDER, "resources/")) {
+                Path folder = argument.folder().resolve(name);
+                if (Files.exists(folder)) {
+                    commands.add(folder.toString());
+                }
+            }
+        }
         return CompletableFuture.completedStage(new ProcessBuilder(commands));
     }
 }

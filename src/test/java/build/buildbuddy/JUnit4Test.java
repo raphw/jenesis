@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -46,10 +45,8 @@ public class JUnit4Test {
                 Path.of(CoreMatchers.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
                 dependencies.resolve("hamcrest-core.jar"));
         Path folder = Files.createDirectory(classes.resolve("sample"));
-        try (
-                InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
-                OutputStream output = Files.newOutputStream(folder.resolve("SampleTest.class"))
-        ) {
+        try (InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
+             OutputStream output = Files.newOutputStream(folder.resolve("SampleTest.class"))) {
             requireNonNull(input).transferTo(output);
         }
         BuildStepResult result = new JUnit4().apply(Runnable::run,

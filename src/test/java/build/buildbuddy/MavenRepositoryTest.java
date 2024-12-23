@@ -40,15 +40,13 @@ public class MavenRepositoryTest {
             writer.write("foo");
         }
         Path dependency = temporaryFolder.newFile("dependency").toPath();
-        try (
-                InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetch("group",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        null).toInputStream();
-                OutputStream outputStream = Files.newOutputStream(dependency)
-        ) {
+        try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetch("group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).toInputStream();
+             OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
         assertThat(dependency).content().isEqualTo("foo");
@@ -63,15 +61,13 @@ public class MavenRepositoryTest {
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFile("dependency").toPath();
-        try (
-                InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).fetch("group",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        null).toInputStream();
-                OutputStream outputStream = Files.newOutputStream(dependency)
-        ) {
+        try (InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).fetch("group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).toInputStream();
+             OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
         assertThat(dependency).content().isEqualTo("foo");
@@ -94,17 +90,15 @@ public class MavenRepositoryTest {
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFile("dependency").toPath();
-        try (
-                InputStream inputStream = new MavenRepository(repository.toUri(),
-                        local,
-                        Map.of("MD5", repository.toUri())).fetch("group",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        null).toInputStream();
-                OutputStream outputStream = Files.newOutputStream(dependency)
-        ) {
+        try (InputStream inputStream = new MavenRepository(repository.toUri(),
+                local,
+                Map.of("MD5", repository.toUri())).fetch("group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).toInputStream();
+             OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
         assertThat(dependency).content().isEqualTo("foo");
@@ -155,17 +149,15 @@ public class MavenRepositoryTest {
             outputStream.write(Base64.getEncoder().encode(hash));
         }
         Path dependency = temporaryFolder.newFile("dependency").toPath();
-        try (
-                InputStream inputStream = new MavenRepository(repository.toUri(),
-                        local,
-                        Map.of("MD5", repository.toUri())).fetch("group",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        null).toInputStream();
-                OutputStream outputStream = Files.newOutputStream(dependency)
-        ) {
+        try (InputStream inputStream = new MavenRepository(repository.toUri(),
+                local,
+                Map.of("MD5", repository.toUri())).fetch("group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).toInputStream();
+             OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
         assertThat(dependency).content().isEqualTo("foo");
@@ -189,17 +181,15 @@ public class MavenRepositoryTest {
             outputStream.write(Base64.getEncoder().encode(hash));
         }
         Path dependency = temporaryFolder.newFile("dependency").toPath();
-        try (
-                InputStream inputStream = new MavenRepository(repository.toUri(),
-                        local,
-                        Map.of("MD5", repository.toUri())).fetch("group",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        null).toInputStream();
-                OutputStream outputStream = Files.newOutputStream(dependency)
-        ) {
+        try (InputStream inputStream = new MavenRepository(repository.toUri(),
+                local,
+                Map.of("MD5", repository.toUri())).fetch("group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).toInputStream();
+             OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
         assertThat(dependency).content().isEqualTo("foo");

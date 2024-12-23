@@ -44,6 +44,6 @@ public class JavacTest {
                         sources,
                         Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve("sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.FOLDER + "sample/Sample.class")).isNotEmptyFile();
     }
 }
