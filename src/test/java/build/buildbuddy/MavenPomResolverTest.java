@@ -1563,7 +1563,7 @@ public class MavenPomResolverTest {
                         <dependency>
                             <groupId>transitive</groupId>
                             <artifactId>artifact</artifactId>
-                            <version>[1,2]</version>
+                            <version>[2]</version>
                         </dependency>
                     </dependencies>
                 </project>
@@ -1581,7 +1581,7 @@ public class MavenPomResolverTest {
                 <metadata modelVersion="1.1.0">
                   <versioning>
                     <latest>2</latest>
-                    <release>1</release>
+                    <release>2</release>
                     <versions>
                       <version>1</version>
                       <version>2</version>
@@ -1605,6 +1605,113 @@ public class MavenPomResolverTest {
                 new MavenDependency("other",
                         "artifact",
                         "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false));
+    }
+
+    @Test
+    public void can_resolve_divergent_ranges() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>first</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>2</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>second</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>2</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("first", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                        <dependency>
+                            <groupId>second</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1]</version>
+                        </dependency>
+                </project>
+                """);
+        toFile("second", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                        <dependency>
+                            <groupId>first</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1]</version>
+                        </dependency>
+                </project>
+                """);
+        toFile("first", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("second", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>2</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>2</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("first",
+                        "artifact",
+                        "2",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        false),
+                new MavenDependency("second",
+                        "artifact",
+                        "2",
                         "jar",
                         null,
                         MavenDependencyScope.COMPILE,
