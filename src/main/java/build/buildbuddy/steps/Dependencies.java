@@ -6,6 +6,7 @@ import build.buildbuddy.maven.MavenRepository;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
@@ -20,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    public static final String LIBS = "libs/";
+    public static final String FOLDER = "dependencies/", LIBS = "libs/";
 
     private final Map<String, Repository> repositories;
 
@@ -37,10 +38,14 @@ public class Dependencies implements BuildStep {
                                                   BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        Path dependencies = Files.createDirectory(context.next().resolve(LIBS));
+        Path libs = Files.createDirectory(context.next().resolve(LIBS));
         for (BuildStepArgument result : arguments.values()) {
-            for (Path path : result.files().keySet()) {
-                if (path.toString().endsWith(".dependencies")) {
+            Path dependencies = result.folder().resolve(FOLDER);
+            if (!Files.exists(dependencies)) {
+                continue;
+            }
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dependencies, "*.properties")) {
+                for (Path path : stream) {
                     Properties properties = new Properties();
                     try (InputStream inputStream = Files.newInputStream(result.folder().resolve(path))) {
                         properties.load(inputStream);
@@ -60,7 +65,7 @@ public class Dependencies implements BuildStep {
                         if (context.previous() != null && Files.exists(context.previous().resolve(LIBS + dependency))) {
                             Path file = context.previous().resolve(LIBS + dependency);
                             if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
-                                Files.createLink(dependencies.resolve(dependency), file);
+                                Files.createLink(libs.resolve(dependency), file);
                                 continue;
                             } else {
                                 digest.reset();
@@ -75,7 +80,7 @@ public class Dependencies implements BuildStep {
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
                                     try (DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest)) {
-                                        Files.copy(inputStream, dependencies.resolve(dependency));
+                                        Files.copy(inputStream, libs.resolve(dependency));
                                         if (!Arrays.equals(
                                                 inputStream.getMessageDigest().digest(),
                                                 Base64.getDecoder().decode(expectation[expectation.length == 1 ? 0 : 1]))) {
@@ -102,7 +107,7 @@ public class Dependencies implements BuildStep {
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).thenApply(ignored -> new BuildStepResult(true));
     }
 
-    private boolean validateAndLinkFile(MessageDigest digest, Path file, String expected) throws IOException{
+    private boolean validateAndLinkFile(MessageDigest digest, Path file, String expected) throws IOException {
         try (FileChannel channel = FileChannel.open(file)) {
             digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
         }
