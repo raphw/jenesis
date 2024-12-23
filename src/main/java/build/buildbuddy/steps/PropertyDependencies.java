@@ -56,13 +56,14 @@ public class PropertyDependencies implements BuildStep {
                             case 3 -> new MavenDependencyKey(elements[0], elements[1], elements[2], null);
                             case 4 -> new MavenDependencyKey(elements[0], elements[1], elements[3], elements[2]);
                             default -> throw new IllegalStateException("Invalid coordinate: " + dependency);
-                        }, new MavenDependencyValue(properties.getProperty(dependency), null, null, null, null));
+                        }, new MavenDependencyValue(properties.getProperty(dependency), MavenDependencyScope.COMPILE, null, null, null));
                     }
                 }
             }
             Properties properties = new Properties();
             for (MavenDependency dependency : resolver.dependencies(Map.of(), dependencies)) {
-                String coordinate = dependency.groupId()
+                String coordinate = "maven"
+                        + "|" + dependency.groupId()
                         + "|" + dependency.artifactId()
                         + "|" + dependency.artifactId()
                         + "|" + dependency.version()
@@ -80,7 +81,7 @@ public class PropertyDependencies implements BuildStep {
                             dependency.version(),
                             dependency.type(),
                             dependency.classifier(),
-                            null).orElseThrow();
+                            null).orElseThrow(() -> new IllegalStateException("Cannot resolve " + dependency));
                     Path file = item.getFile().orElse(null);
                     if (file == null) {
                         try (InputStream inputStream = item.toInputStream()) {
@@ -100,7 +101,7 @@ public class PropertyDependencies implements BuildStep {
                             algorithm + "|" + Base64.getEncoder().encodeToString(digest.digest()));
 
                 } else {
-                    properties.setProperty(coordinate, null);
+                    properties.setProperty(coordinate, "");
                 }
             }
             try (Writer writer = Files.newBufferedWriter(flattened.resolve(entry.getKey() + ".properties"))) {

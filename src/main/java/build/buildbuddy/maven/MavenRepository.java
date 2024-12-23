@@ -6,7 +6,6 @@ import build.buildbuddy.RepositoryItem;
 import java.io.*;
 import java.net.URI;
 import java.nio.channels.FileChannel;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;

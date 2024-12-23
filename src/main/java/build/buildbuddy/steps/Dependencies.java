@@ -57,6 +57,7 @@ public class Dependencies implements BuildStep {
                                 repositories.get(dependency.substring(0, index)),
                                 "Could not resolve dependency: " + dependency);
                         String expectation = properties.getProperty(dependency);
+                        // TODO: make digest optional.
                         int algorithm = expectation.indexOf('|');
                         MessageDigest digest;
                         try {
