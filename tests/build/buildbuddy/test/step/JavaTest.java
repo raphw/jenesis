@@ -10,7 +10,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import build.buildbuddy.sample.Sample;
+import sample.Sample;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,7 +44,7 @@ public class JavaTest {
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
             Files.copy(requireNonNull(input), folder.resolve("Sample.class"));
         }
-        BuildStepResult result = Java.of("buiild.buildbuddy.sample.Sample").apply(Runnable::run,
+        BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 Map.of("classes", new BuildStepArgument(
                         classes,

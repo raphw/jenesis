@@ -10,7 +10,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import build.buildbuddy.sample.Sample;
+import sample.Sample;
 
 import java.io.IOException;
 import java.io.InputStream;
