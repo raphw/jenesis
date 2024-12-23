@@ -13,7 +13,7 @@ public interface Repository {
     @FunctionalInterface
     interface InputStreamSource {
 
-        default Optional<Path> getPath() {
+        default Optional<Path> getFile() {
             return Optional.empty();
         }
 

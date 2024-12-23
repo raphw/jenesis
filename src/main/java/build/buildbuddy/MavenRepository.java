@@ -182,7 +182,7 @@ public class MavenRepository implements Repository {
         }
 
         @Override
-        public Optional<Path> getPath() {
+        public Optional<Path> getFile() {
             return Optional.of(path);
         }
     }

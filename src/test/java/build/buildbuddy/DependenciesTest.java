@@ -5,10 +5,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
@@ -49,6 +47,41 @@ public class DependenciesTest {
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
                 coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
+                classes,
+                Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("coordinate");
+    }
+
+    @Test
+    public void can_resolve_dependencies_from_file() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
+        Path folder = Files.createDirectory(classes.resolve("sample"));
+        Properties properties = new Properties();
+        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
+                MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
+            properties.store(writer, null);
+        }
+        BuildStepResult result = new Dependencies(Map.of(
+                "sample",
+                coordinate -> {
+                    Path file = temporaryFolder.newFile(coordinate).toPath();
+                    try (Writer writer = Files.newBufferedWriter(file)) {
+                        writer.write(coordinate);
+                    }
+                    return new Repository.InputStreamSource() {
+                        @Override
+                        public InputStream toInputStream() {
+                            throw new AssertionError();
+                        }
+
+                        @Override
+                        public Optional<Path> getFile() {
+                            return Optional.of(file);
+                        }
+                    };
+                }
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
@@ -96,6 +129,7 @@ public class DependenciesTest {
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        assertThat(result.next()).isTrue();
         assertThat(previous.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("other");
         assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("other");
     }

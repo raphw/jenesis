@@ -68,7 +68,7 @@ public class Dependencies implements BuildStep {
                         executor.execute(() -> {
                             try {
                                 Repository.InputStreamSource source = repository.fetch(segments[segments.length == 1 ? 0 : 1]);
-                                Path file = source.getPath().orElse(null);
+                                Path file = source.getFile().orElse(null);
                                 if (file == null) {
                                     try (
                                             DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest);
