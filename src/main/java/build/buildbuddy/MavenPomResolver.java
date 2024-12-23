@@ -60,29 +60,29 @@ public class MavenPomResolver {
                     if (optional && current.pom().main()) {
                         continue;
                     }
-                    MavenDependencyScope base = toScope(value.scope()), transitive = switch (current.scope()) {
-                        case null -> base == MavenDependencyScope.IMPORT ? null : base;
-                        case COMPILE -> switch (base) {
-                            case COMPILE, RUNTIME -> base;
+                    MavenDependencyScope actual = toScope(value.scope()), derived = switch (current.scope()) {
+                        case null -> actual == MavenDependencyScope.IMPORT ? null : actual;
+                        case COMPILE -> switch (actual) {
+                            case COMPILE, RUNTIME -> actual;
                             default -> null;
                         };
-                        case PROVIDED, RUNTIME, TEST -> switch (base) {
+                        case PROVIDED, RUNTIME, TEST -> switch (actual) {
                             case COMPILE, RUNTIME -> current.scope();
                             default -> null;
                         };
                         case SYSTEM, IMPORT -> null;
                     };
-                    if (transitive == null) {
+                    if (derived == null) {
                         continue;
                     }
                     DependencyInclusion previous = dependencies.get(entry.getKey()), next;
                     if (previous == null) {
                         next = new DependencyInclusion(value.version(),
                                 optional,
-                                transitive,
+                                derived,
                                 value.systemPath() == null ? null : Path.of(value.systemPath()));
-                    } else if (transitive != previous.scope() && previous.scope() == MavenDependencyScope.TEST) {
-                        next = new DependencyInclusion(previous.version(), previous.optional(), transitive, previous.path());
+                    } else if (derived != previous.scope() && previous.scope() == MavenDependencyScope.TEST) {
+                        next = new DependencyInclusion(previous.version(), previous.optional(), derived, previous.path());
                     } else {
                         continue;
                     }
@@ -98,7 +98,7 @@ public class MavenPomResolver {
                             entry.getKey().artifactId(),
                             value.version(),
                             new HashSet<>(),
-                            poms), poms, true), transitive, exclusions, managedDependencies));
+                            poms), poms, true), derived, exclusions, managedDependencies));
                 }
             }
         } while (!queue.isEmpty());
