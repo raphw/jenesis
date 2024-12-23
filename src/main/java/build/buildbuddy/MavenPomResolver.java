@@ -174,7 +174,9 @@ public class MavenPomResolver {
                             value.version(),
                             mergedScope));
                 } else {
-                    if (!previous.versions().contains(value.version()) || mergedScope.implies(previous.scope())) {
+                    if (!previous.versions().contains(value.version())
+                            && !previous.version().equals(value.version())
+                            || mergedScope.implies(previous.scope())) {
                         unresolved.add(entry.getKey());
                         previous.versions().add(value.version());
                         previous.scopes().add(mergedScope);
