@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class MavenPomResolver { // TODO: scope resolution, BOMs
+public class MavenPomResolver { // TODO: resolve BOMs
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
@@ -48,18 +48,31 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
                     dependencies.put(entry.getKey(), managedDependencies.getOrDefault(entry.getKey(), entry.getValue()));
-                    Set<DependencyExclusion> exclusions;
-                    if (entry.getValue().exclusions() == null || entry.getValue().exclusions().isEmpty()) {
-                        exclusions = current.exclusions();
-                    } else {
-                        exclusions = new HashSet<>(current.exclusions());
-                        exclusions.addAll(entry.getValue().exclusions());
+                    MavenDependencyScope scope = switch (current.scope()) {
+                        case COMPILE -> switch (entry.getValue().scope()) {
+                            case COMPILE, RUNTIME -> entry.getValue().scope();
+                            default -> null;
+                        };
+                        case PROVIDED, RUNTIME, TEST -> switch (entry.getValue().scope()) {
+                            case COMPILE, RUNTIME -> current.scope();
+                            default -> null;
+                        };
+                        case SYSTEM, IMPORT -> null;
+                    };
+                    if (scope != null) {
+                        Set<DependencyExclusion> exclusions;
+                        if (entry.getValue().exclusions() == null || entry.getValue().exclusions().isEmpty()) {
+                            exclusions = current.exclusions();
+                        } else {
+                            exclusions = new HashSet<>(current.exclusions());
+                            exclusions.addAll(entry.getValue().exclusions());
+                        }
+                        queue.add(new ContextualPom(doResolveOrCached(entry.getKey().groupId(),
+                                entry.getKey().artifactId(),
+                                entry.getValue().version(),
+                                new HashSet<>(),
+                                poms), scope, exclusions, managedDependencies));
                     }
-                    queue.add(new ContextualPom(doResolveOrCached(entry.getKey().groupId(),
-                            entry.getKey().artifactId(),
-                            entry.getValue().version(),
-                            new HashSet<>(),
-                            poms), entry.getValue().scope(), exclusions, managedDependencies));
                 }
             }
         } while (!queue.isEmpty());
@@ -182,7 +195,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     }
 
     private static Optional<String> toTextChild400(Node node, String localName, Map<String, String> properties) {
-        return toChildren400(node, localName).map(Node::getTextContent).findFirst().map(value -> toValue(value, properties));
+        return toChildren400(node, localName).map(Node::getTextContent).findFirst().map(value -> property(value, properties));
     }
 
     private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node, Map<String, String> properties) {
@@ -194,7 +207,12 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                         toTextChild400(node, "classifier", properties).orElse(null)),
                 new DependencyValue(
                         toTextChild400(node, "version", properties).orElse(null),
-                        toTextChild400(node, "scope", properties).map(MavenDependencyScope::parse).orElse(MavenDependencyScope.COMPILE),
+                        toTextChild400(node, "scope", properties).map(scope -> {
+                            if (!scope.toLowerCase().endsWith(scope.toLowerCase())) {
+                                throw new IllegalArgumentException("Unknown scope " + scope);
+                            }
+                            return MavenDependencyScope.valueOf(scope.toUpperCase());
+                        }).orElse(MavenDependencyScope.COMPILE),
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
@@ -207,11 +225,11 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     }
 
 
-    private static String toValue(String text, Map<String, String> properties) {
-        return toValue(text, properties, Set.of());
+    private static String property(String text, Map<String, String> properties) {
+        return property(text, properties, Set.of());
     }
 
-    private static String toValue(String text, Map<String, String> properties, Set<String> previous) {
+    private static String property(String text, Map<String, String> properties, Set<String> previous) {
         if (text.contains("$")) {
             Matcher matcher = PROPERTY.matcher(text);
             StringBuilder sb = new StringBuilder();
@@ -225,7 +243,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                     if (!duplicates.add(property)) {
                         throw new IllegalStateException("Circular property definition of: " + property);
                     }
-                    matcher.appendReplacement(sb, toValue(replacement, properties, duplicates));
+                    matcher.appendReplacement(sb, property(replacement, properties, duplicates));
                 }
             }
             return matcher.appendTail(sb).toString();

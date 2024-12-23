@@ -54,6 +54,7 @@ public class MavenPomResolverTest {
                 "1",
                 "jar",
                 null,
+                MavenDependencyScope.COMPILE,
                 false));
     }
 
@@ -89,6 +90,7 @@ public class MavenPomResolverTest {
                 "1",
                 "jar",
                 null,
+                MavenDependencyScope.COMPILE,
                 false));
     }
 
@@ -132,6 +134,7 @@ public class MavenPomResolverTest {
                 "1",
                 "jar",
                 null,
+                MavenDependencyScope.COMPILE,
                 false));
     }
 
@@ -188,6 +191,7 @@ public class MavenPomResolverTest {
                 "2",
                 "jar",
                 null,
+                MavenDependencyScope.COMPILE,
                 false));
     }
 
@@ -234,12 +238,14 @@ public class MavenPomResolverTest {
                         "1",
                         "jar",
                         null,
+                        MavenDependencyScope.COMPILE,
                         false),
                 new MavenDependency("transitive",
                         "artifact",
                         "1",
                         "jar",
                         null,
+                        MavenDependencyScope.COMPILE,
                         false));
     }
 
@@ -285,6 +291,7 @@ public class MavenPomResolverTest {
                 "1",
                 "jar",
                 null,
+                MavenDependencyScope.COMPILE,
                 false));
     }
 
@@ -325,6 +332,7 @@ public class MavenPomResolverTest {
                 "1",
                 "jar",
                 null,
+                MavenDependencyScope.COMPILE,
                 false));
     }
 
@@ -400,24 +408,28 @@ public class MavenPomResolverTest {
                         "1",
                         "jar",
                         null,
+                        MavenDependencyScope.COMPILE,
                         false),
                 new MavenDependency("second",
                         "artifact",
                         "1",
                         "jar",
                         null,
+                        MavenDependencyScope.COMPILE,
                         false),
                 new MavenDependency("transitive",
                         "artifact",
                         "1",
                         "jar",
                         null,
+                        MavenDependencyScope.COMPILE,
                         false),
                 new MavenDependency("intermediate",
                         "artifact",
                         "1",
                         "jar",
                         null,
+                        MavenDependencyScope.COMPILE,
                         false));
     }
 
