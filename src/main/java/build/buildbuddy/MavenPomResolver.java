@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class MavenPomResolver { // TODO: resolve BOMs
+public class MavenPomResolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
@@ -35,7 +35,7 @@ public class MavenPomResolver { // TODO: resolve BOMs
         Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
-                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms)),
+                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms),
                 null,
                 Set.of(),
                 Map.of())));
@@ -80,7 +80,7 @@ public class MavenPomResolver { // TODO: resolve BOMs
                                 entry.getKey().artifactId(),
                                 value.version(),
                                 new HashSet<>(),
-                                poms)), transitive, exclusions, managedDependencies));
+                                poms), poms), transitive, exclusions, managedDependencies));
                     }
                 }
             }
@@ -191,17 +191,35 @@ public class MavenPomResolver { // TODO: resolve BOMs
         return pom;
     }
 
-    private ResolvedPom resolve(UnresolvedPom pom) {
-        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
+    private ResolvedPom resolve(UnresolvedPom pom, Map<DependencyCoordinates, UnresolvedPom> poms) throws IOException {
+        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(), importedDependencies = new HashMap<>();
         pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                 key.resolve(pom.properties()),
                 value.resolve(pom.properties())));
         SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
-        pom.dependencies().forEach((key, value) -> {
-            DependencyKey resolvedKey = key.resolve(pom.properties());
+        for (Map.Entry<DependencyKey, DependencyValue> entry : pom.dependencies().entrySet()) {
+            DependencyKey resolvedKey = entry.getKey().resolve(pom.properties());
             DependencyValue managed = managedDependencies.get(resolvedKey);
-            dependencies.putLast(resolvedKey, managed == null ? value.resolve(pom.properties()) : managed);
-        });
+            DependencyValue resolvedValue = managed == null ? entry.getValue().resolve(pom.properties()) : managed;
+            dependencies.putLast(resolvedKey, resolvedValue);
+            if (Objects.equals(resolvedValue.scope(), "import")) {
+                UnresolvedPom imported = assembleOrCached(resolvedKey.groupId(),
+                        resolvedKey.artifactId(),
+                        resolvedValue.version(),
+                        new HashSet<>(),
+                        poms);
+                imported.managedDependencies().forEach((key, value) -> importedDependencies.putIfAbsent(
+                        key.resolve(imported.properties()),
+                        value.resolve(imported.properties())));
+            }
+        }
+        for (Map.Entry<DependencyKey, DependencyValue> entry : dependencies.entrySet()) {
+            DependencyValue imported = importedDependencies.get(entry.getKey());
+            if (imported != null) {
+                entry.setValue(imported);
+            }
+        }
+        managedDependencies.putAll(importedDependencies);
         return new ResolvedPom(managedDependencies, dependencies);
     }
 
