@@ -6,8 +6,10 @@ import build.buildbuddy.RepositoryItem;
 import java.io.*;
 import java.net.URI;
 import java.nio.channels.FileChannel;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -222,7 +224,7 @@ public class MavenRepository implements Repository {
                 return Optional.empty();
             }
             try (InputStream inputStream = candidate.get()) {
-                Files.copy(inputStream, temporary);
+                Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
             } catch (Throwable t) {
                 Files.delete(temporary);
                 throw t;

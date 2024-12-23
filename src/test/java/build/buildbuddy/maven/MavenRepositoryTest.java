@@ -35,7 +35,7 @@ public class MavenRepositoryTest {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
-        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetch("group",
                 "artifact",
                 "1",
@@ -53,7 +53,7 @@ public class MavenRepositoryTest {
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         Path local = temporaryFolder.newFolder("cache").toPath();
-        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).fetch("group",
                 "artifact",
                 "1",
@@ -79,7 +79,7 @@ public class MavenRepositoryTest {
             outputStream.write(Base64.getEncoder().encode(hash));
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
-        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch("group",
@@ -133,7 +133,7 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             outputStream.write(Base64.getEncoder().encode(hash));
         }
-        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch("group",
@@ -162,7 +162,7 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             outputStream.write(Base64.getEncoder().encode(hash));
         }
-        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch("group",
@@ -208,7 +208,7 @@ public class MavenRepositoryTest {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact"))
                 .resolve("maven-metadata.xml"), "foo");
-        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
                 "artifact",
                 null).orElseThrow().toInputStream()) {

@@ -33,19 +33,34 @@ public class MavenPomResolver {
         this.negotiatorSupplier = negotiatorSupplier;
     }
 
+    public List<MavenDependency> dependencies(
+            Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
+            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) throws IOException {
+        return dependencies(new ContextualPom(new ResolvedPom(managedDependencies, dependencies),
+                true,
+                null,
+                Set.of()), new HashMap<>(), new HashMap<>());
+    }
+
     public List<MavenDependency> dependencies(String groupId,
                                               String artifactId,
                                               String version,
                                               MavenDependencyScope scope) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
+        return dependencies(new ContextualPom(resolveOrCached(groupId, artifactId, version, resolved, unresolved),
+                true,
+                scope,
+                Set.of()), unresolved, resolved);
+
+    }
+
+    private List<MavenDependency> dependencies(ContextualPom initial,
+                                               Map<DependencyCoordinate, UnresolvedPom> unresolved,
+                                               Map<DependencyCoordinate, ResolvedPom> resolved) throws IOException {
         Map<MavenDependencyKey, DependencyResolution> resolutions = new HashMap<>();
         SequencedSet<MavenDependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
         MavenVersionNegotiator negotiator = negotiatorSupplier.get();
-        ContextualPom initial = new ContextualPom(resolveOrCached(groupId, artifactId, version, resolved, unresolved),
-                true,
-                scope,
-                Set.of());
         do {
             dependencies.clear();
             conflicts = traverse(negotiator,
@@ -95,12 +110,12 @@ public class MavenPomResolver {
     }
 
     private SequencedSet<MavenDependencyKey> traverse(MavenVersionNegotiator negotiator,
-                                                 Map<DependencyCoordinate, ResolvedPom> resolved,
-                                                 Map<DependencyCoordinate, UnresolvedPom> unresolved,
-                                                 Map<MavenDependencyKey, DependencyResolution> resolutions,
-                                                 Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
-                                                 SequencedSet<MavenDependencyKey> dependencies,
-                                                 ContextualPom current) throws IOException {
+                                                      Map<DependencyCoordinate, ResolvedPom> resolved,
+                                                      Map<DependencyCoordinate, UnresolvedPom> unresolved,
+                                                      Map<MavenDependencyKey, DependencyResolution> resolutions,
+                                                      Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
+                                                      SequencedSet<MavenDependencyKey> dependencies,
+                                                      ContextualPom current) throws IOException {
         SequencedSet<MavenDependencyKey> conflicting = new LinkedHashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>();
         do {
