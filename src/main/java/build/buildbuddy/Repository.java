@@ -7,4 +7,11 @@ import java.util.Optional;
 public interface Repository {
 
     Optional<RepositoryItem> fetch(String coordinate) throws IOException;
+
+    default Repository andThen(Repository repository) {
+        return coordinate -> {
+            Optional<RepositoryItem> candidate = fetch(coordinate);
+            return candidate.isPresent() ? candidate : repository.fetch(coordinate);
+        };
+    }
 }
