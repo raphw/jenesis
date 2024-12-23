@@ -42,12 +42,12 @@ public class MavenPomResolver {
                 scope,
                 Set.of(),
                 Map.of())));
-        do { // TODO: detect cyclic dependencies
+        do {
             ContextualPom current = queue.remove();
             Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
             managedDependencies.putAll(current.managedDependencies());
             for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
-                if (!current.exclusions().contains(new DependencyExclusion(
+                if (!dependencies.containsKey(entry.getKey()) && !current.exclusions().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId()))) {
                     DependencyValue value = managedDependencies.getOrDefault(entry.getKey(), entry.getValue());
