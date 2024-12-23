@@ -18,7 +18,7 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    public static final String FOLDER = "dependencies/";
+    public static final String FOLDER = "libs/";
 
     private final Map<String, Repository> repositories;
 
@@ -58,7 +58,7 @@ public class Dependencies implements BuildStep {
                         if (context.previous() != null && Files.exists(context.previous().resolve(FOLDER + dependency))) {
                             Path file = context.previous().resolve(FOLDER + dependency);
                             if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
-                                Files.createLink(file, dependencies.resolve(FOLDER + dependency));
+                                Files.createLink(dependencies.resolve(dependency), file);
                                 continue;
                             } else {
                                 digest.reset();
@@ -83,7 +83,7 @@ public class Dependencies implements BuildStep {
                                     }
                                 } else {
                                     if (validateAndLinkFile(digest, file, expectation[expectation.length == 1 ? 0 : 1])) {
-                                        Files.createLink(file, context.next().resolve(FOLDER + dependency));
+                                        Files.createLink(context.next().resolve(FOLDER + dependency), file);
                                     } else {
                                         throw new IllegalStateException("Mismatched digest for " + dependency);
                                     }
