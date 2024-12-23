@@ -42,7 +42,7 @@ public class MavenPomResolver {
                                               MavenDependencyScope scope) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> poms = new HashMap<>();
         Queue<ResolvedPom> queue = new ArrayDeque<>();
-        List<DependencyKey> dependencies = new ArrayList<>(); // TODO: add included/excluded marks
+        List<DependencyEntry> dependencies = new ArrayList<>(); // TODO: add included/excluded marks
         Set<DependencyKey> unresolved = new HashSet<>();
         Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>();
         ResolvedPom current = new ResolvedPom(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms),
@@ -50,7 +50,8 @@ public class MavenPomResolver {
                 scope,
                 Set.of());
         Map<DependencyKey, DependencyValue> managedDependencies = current.managedDependencies();
-        do {
+        //do {
+            // TODO: unresolved dependencies should be fixed to a version.
             do {
                 for (Map.Entry<DependencyKey, DependencyValue> entry : current.dependencies().entrySet()) {
                     if (current.exclusions().contains(new DependencyName(
@@ -76,7 +77,6 @@ public class MavenPomResolver {
                     }
                     DependencyResolution previous = resolutions.get(entry.getKey());
                     if (previous == null) {
-                        dependencies.add(entry.getKey());
                         resolutions.put(entry.getKey(), new DependencyResolution(
                                 new LinkedHashSet<>(Set.of(value.version())),
                                 mergedScope));
@@ -85,32 +85,29 @@ public class MavenPomResolver {
                             exclusions = new HashSet<>(exclusions);
                             exclusions.addAll(value.exclusions());
                         }
-                        if (switch (value.version()) {
-                            case "RELEASE", "LATEST" -> true;
-                            case String candidate when candidate.startsWith("(") || candidate.startsWith("[") -> true;
-                            default -> false;
-                        }) {
+                        // TODO: first attempt to resolve dependency from version.
+                        UnresolvedPom pom = assembleOrCached(entry.getKey().groupId(),
+                                entry.getKey().artifactId(),
+                                value.version(),
+                                new HashSet<>(),
+                                poms);
+                        queue.add(new ResolvedPom(pom, false, mergedScope, exclusions));
+                        dependencies.add(new DependencyEntry(entry.getKey(), pom.dependencies().size()));
+                    } else  { // TODO: better handling of scope to avoid reiteration.
+                        if (!previous.versions().contains(value.version()) || mergedScope.overrides(previous.scope())) {
                             unresolved.add(entry.getKey());
-                        } else {
-                            queue.add(new ResolvedPom(assembleOrCached(entry.getKey().groupId(),
-                                    entry.getKey().artifactId(),
-                                    value.version(),
-                                    new HashSet<>(),
-                                    poms), false, mergedScope, exclusions));
+                            SequencedSet<String> versions = new LinkedHashSet<>(previous.versions());
+                            versions.add(value.version());
+                            resolutions.put(entry.getKey(), new DependencyResolution(
+                                    versions,
+                                    mergedScope.overrides(previous.scope()) ? mergedScope : previous.scope()));
                         }
-                    } else if (!previous.versions().contains(value.version()) || previous.scope() != mergedScope) {
-                        unresolved.add(entry.getKey());
-                        SequencedSet<String> versions = new LinkedHashSet<>(previous.versions());
-                        versions.add(value.version());
-                        resolutions.put(entry.getKey(), new DependencyResolution(
-                                versions,
-                                mergedScope.ordinal() < previous.scope().ordinal() ? mergedScope : previous.scope()));
+                        dependencies.add(new DependencyEntry(entry.getKey(), 0));
                     }
                 }
-                // TODO: fix.
             } while ((current = queue.poll()) != null);
-        } while (!unresolved.isEmpty());
-        return dependencies.stream().map(key -> {
+        //} while (!unresolved.isEmpty());
+        return dependencies.stream().map(DependencyEntry::key).distinct().map(key -> {
             DependencyResolution resolution = resolutions.get(key);
             return new MavenDependency(key.groupId(),
                     key.artifactId(),
@@ -413,12 +410,13 @@ public class MavenPomResolver {
             pom.dependencies().forEach((key, value) -> dependencies.put(
                     key.resolve(pom.properties()),
                     value.resolve(pom.properties())));
-
         }
     }
 
-    private record DependencyResolution(SequencedSet<String> versions,
-                                        MavenDependencyScope scope) {
+    private record DependencyResolution(SequencedSet<String> versions, MavenDependencyScope scope) {
+    }
+
+    private record DependencyEntry(DependencyKey key, int size) {
     }
 
     private record Metadata(String latest, String release, List<String> versions) {

@@ -1,7 +1,12 @@
 package build.buildbuddy;
 
 public enum MavenDependencyScope {
+
     COMPILE, RUNTIME, PROVIDED, TEST, SYSTEM, IMPORT;
+
+    public boolean overrides(MavenDependencyScope scope) {
+        return ordinal() < scope.ordinal();
+    }
 
     public MavenDependencyScope merge(MavenDependencyScope scope) {
         return switch (this) {
