@@ -18,9 +18,9 @@ public class ChecksumDigestDiff implements ChecksumDiff {
     }
 
     @Override
-    public Map<Path, ChecksumStatus> read(Path checksums, Path root) throws IOException {
+    public Map<Path, ChecksumStatus> read(Path checksums, Path folder) throws IOException {
         Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
-        diff(checksums, root, (path, state) -> status.put(path, state.status()));
+        diff(checksums, folder, (path, state) -> status.put(path, state.status()));
         return status;
     }
 
