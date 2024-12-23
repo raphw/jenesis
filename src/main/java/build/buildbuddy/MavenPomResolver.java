@@ -63,8 +63,8 @@ public class MavenPomResolver {
                 DependencyKey key = it.next();
                 DependencyResolution resolution = resolutions.get(key);
                 boolean converged = true;
-                if (!resolution.broadestScope.implies(resolution.initialScope)) {
-                    resolution.initialScope = resolution.broadestScope;
+                if (!resolution.widestScope.implies(resolution.currentScope)) {
+                    resolution.currentScope = resolution.widestScope;
                     converged = false;
                 }
                 if (resolution.observedVersions.size() > 1) {
@@ -91,7 +91,7 @@ public class MavenPomResolver {
                     resolution.currentVersion,
                     key.type(),
                     key.classifier(),
-                    resolution.broadestScope,
+                    resolution.widestScope,
                     null,
                     false);
         }).toList();
@@ -136,9 +136,9 @@ public class MavenPomResolver {
                         default -> null;
                     };
                     case SYSTEM, IMPORT -> null;
-                }, scope = resolution.broadestScope == null || !resolution.broadestScope.implies(resolvedScope)
+                }, scope = resolution.widestScope == null || !resolution.widestScope.implies(resolvedScope)
                         ? resolvedScope
-                        : resolution.broadestScope;
+                        : resolution.widestScope;
                 if (scope == null) {
                     continue;
                 }
@@ -150,11 +150,11 @@ public class MavenPomResolver {
                             entry.getKey().classifier(),
                             value.version());
                     resolution.observedVersions.add(value.version());
-                    resolution.initialScope = resolution.broadestScope = scope;
+                    resolution.currentScope = resolution.widestScope = scope;
                 } else {
                     version = resolution.currentVersion;
-                    if (resolution.observedVersions.add(value.version()) || !resolution.broadestScope.implies(scope)) {
-                        resolution.broadestScope = scope;
+                    if (resolution.observedVersions.add(value.version()) || !resolution.widestScope.implies(scope)) {
+                        resolution.widestScope = scope;
                         conflicting.add(entry.getKey());
                     }
                 }
@@ -513,7 +513,7 @@ public class MavenPomResolver {
     private static class DependencyResolution {
         private final SequencedSet<String> observedVersions = new LinkedHashSet<>();
         private String currentVersion;
-        private MavenDependencyScope broadestScope, initialScope;
+        private MavenDependencyScope widestScope, currentScope;
     }
 
     private record Metadata(String latest, String release, List<String> versions) {
