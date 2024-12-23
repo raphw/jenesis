@@ -1,4 +1,4 @@
-package build.buildbuddy;
+package build.buildbuddy.maven;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -12,8 +12,8 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static build.buildbuddy.MavenPomResolver.missing;
-import static build.buildbuddy.MavenPomResolver.toChildren;
+import static build.buildbuddy.maven.MavenPomResolver.missing;
+import static build.buildbuddy.maven.MavenPomResolver.toChildren;
 
 public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 

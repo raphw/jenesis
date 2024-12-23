@@ -1,4 +1,6 @@
-package build.buildbuddy;
+package build.buildbuddy.maven;
+
+import build.buildbuddy.Repository;
 
 import java.io.FilterInputStream;
 import java.io.IOException;

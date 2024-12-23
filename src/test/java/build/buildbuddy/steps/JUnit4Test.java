@@ -1,5 +1,9 @@
-package build.buildbuddy;
+package build.buildbuddy.steps;
 
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.ChecksumStatus;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;

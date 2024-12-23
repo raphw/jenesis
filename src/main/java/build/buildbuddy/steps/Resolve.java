@@ -1,4 +1,9 @@
-package build.buildbuddy;
+package build.buildbuddy.steps;
+
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;

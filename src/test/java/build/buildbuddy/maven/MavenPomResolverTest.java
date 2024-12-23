@@ -1,4 +1,4 @@
-package build.buildbuddy;
+package build.buildbuddy.maven;
 
 import org.junit.Before;
 import org.junit.Rule;

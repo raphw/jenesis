@@ -1,4 +1,7 @@
-package build.buildbuddy;
+package build.buildbuddy.steps;
+
+import build.buildbuddy.*;
+import build.buildbuddy.maven.MavenRepository;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,4 +1,4 @@
-package build.buildbuddy;
+package build.buildbuddy.maven;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;

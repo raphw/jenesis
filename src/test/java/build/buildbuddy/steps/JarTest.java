@@ -1,5 +1,9 @@
-package build.buildbuddy;
+package build.buildbuddy.steps;
 
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.ChecksumStatus;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -17,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class JavaTest {
+public class JarTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -34,19 +38,20 @@ public class JavaTest {
     }
 
     @Test
-    public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectories(classes.resolve(Javac.CLASSES + "sample"));
+    public void can_execute_jar() throws IOException, ExecutionException, InterruptedException {
+        Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
-             OutputStream output = Files.newOutputStream(folder.resolve("Sample.class"))) {
+             OutputStream output = Files.newOutputStream(Files
+                     .createDirectory(folder.resolve("sample"))
+                     .resolve("Sample.class"))) {
             requireNonNull(input).transferTo(output);
         }
-        BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,
+        BuildStepResult result = new Jar().apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of("classes", new BuildStepArgument(
+                Map.of("sources", new BuildStepArgument(
                         classes,
                         Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(supplement.resolve("output")).content().isEqualTo("Hello world!");
-        assertThat(supplement.resolve("error")).isEmptyFile();
+        assertThat(next.resolve(Jar.JARS + "artifact.jar")).isNotEmptyFile();
     }
 }
