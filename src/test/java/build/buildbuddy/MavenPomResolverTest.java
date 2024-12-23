@@ -355,6 +355,50 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_transitive_dependencies_with_optional() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <optional>true</optional>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(new MavenDependency("other",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                MavenDependencyScope.COMPILE,
+                false));
+    }
+
+    @Test
     public void can_resolve_transitive_dependencies_with_scope() throws IOException {
         toFile("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>

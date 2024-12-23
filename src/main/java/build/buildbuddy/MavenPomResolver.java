@@ -38,7 +38,7 @@ public class MavenPomResolver {
         Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
-                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms),
+                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, true),
                 scope,
                 Set.of(),
                 Map.of())));
@@ -51,6 +51,15 @@ public class MavenPomResolver {
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
                     DependencyValue value = managedDependencies.getOrDefault(entry.getKey(), entry.getValue());
+                    boolean optional = switch (value.optional()) {
+                        case "true" -> true;
+                        case "false" -> false;
+                        case null -> false;
+                        default -> throw new IllegalStateException("Unexpected value: " + value);
+                    };
+                    if (optional && !current.pom().main()) {
+                        continue;
+                    }
                     MavenDependencyScope base = toScope(value.scope()), transitive = switch (current.scope()) {
                         case null -> base == MavenDependencyScope.IMPORT ? null : base;
                         case COMPILE -> switch (base) {
@@ -63,28 +72,22 @@ public class MavenPomResolver {
                         };
                         case SYSTEM, IMPORT -> null;
                     };
-                    if (transitive != null) {
-                        dependencies.put(entry.getKey(), new DependencyInclusion(value.version(),
-                                switch (value.optional()) {
-                                    case "true" -> true;
-                                    case "false" -> false;
-                                    case null -> false;
-                                    default -> throw new IllegalStateException("Unexpected value: " + value);
-                                },
-                                transitive));
-                        Set<DependencyExclusion> exclusions;
-                        if (value.exclusions() == null || value.exclusions().isEmpty()) {
-                            exclusions = current.exclusions();
-                        } else {
-                            exclusions = new HashSet<>(current.exclusions());
-                            exclusions.addAll(value.exclusions());
-                        }
-                        queue.add(new ContextualPom(resolve(assembleOrCached(entry.getKey().groupId(),
-                                entry.getKey().artifactId(),
-                                value.version(),
-                                new HashSet<>(),
-                                poms), poms), transitive, exclusions, managedDependencies));
+                    if (transitive == null) {
+                        continue;
                     }
+                    dependencies.put(entry.getKey(), new DependencyInclusion(value.version(), optional, transitive));
+                    Set<DependencyExclusion> exclusions;
+                    if (value.exclusions() == null || value.exclusions().isEmpty()) {
+                        exclusions = current.exclusions();
+                    } else {
+                        exclusions = new HashSet<>(current.exclusions());
+                        exclusions.addAll(value.exclusions());
+                    }
+                    queue.add(new ContextualPom(resolve(assembleOrCached(entry.getKey().groupId(),
+                            entry.getKey().artifactId(),
+                            value.version(),
+                            new HashSet<>(),
+                            poms), poms, false), transitive, exclusions, managedDependencies));
                 }
             }
         } while (!queue.isEmpty());
@@ -194,7 +197,7 @@ public class MavenPomResolver {
         return pom;
     }
 
-    private ResolvedPom resolve(UnresolvedPom pom, Map<DependencyCoordinates, UnresolvedPom> poms) throws IOException {
+    private ResolvedPom resolve(UnresolvedPom pom, Map<DependencyCoordinates, UnresolvedPom> poms, boolean main) throws IOException {
         Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(), importedDependencies = new HashMap<>();
         pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                 key.resolve(pom.properties()),
@@ -223,7 +226,7 @@ public class MavenPomResolver {
             }
         }
         managedDependencies.putAll(importedDependencies);
-        return new ResolvedPom(managedDependencies, dependencies);
+        return new ResolvedPom(managedDependencies, dependencies, main);
     }
 
     private static Stream<Node> toChildren(Node node) {
@@ -350,7 +353,8 @@ public class MavenPomResolver {
     }
 
     private record ResolvedPom(Map<DependencyKey, DependencyValue> managedDependencies,
-                               SequencedMap<DependencyKey, DependencyValue> dependencies) {
+                               SequencedMap<DependencyKey, DependencyValue> dependencies,
+                               boolean main) {
     }
 
     private record ContextualPom(ResolvedPom pom,
