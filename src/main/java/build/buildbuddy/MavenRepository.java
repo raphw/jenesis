@@ -72,9 +72,9 @@ public class MavenRepository implements Repository {
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
                 + "." + type + (checksum == null ? "" : ("." + checksum));
         Path cached = local != null ? local.resolve(path) : null;
+        caching:
         if (cached != null) {
             if (Files.exists(cached)) {
-                boolean validated = true;
                 if (checksum == null) {
                     for (Map.Entry<String, URI> validation : validations.entrySet()) {
                         MessageDigest digest;
@@ -98,19 +98,16 @@ public class MavenRepository implements Repository {
                             expected = inputStream.readAllBytes();
                         }
                         if (!Arrays.equals(Base64.getDecoder().decode(expected), digest.digest())) {
-                            Files.delete(cached);
-                            Path hash = source.getPath().orElse(null);
-                            if (hash != null) {
-                                Files.delete(hash);
+                            Path file = source.getPath().orElse(null);
+                            if (file != null) {
+                                Files.delete(file);
                             }
-                            validated = false;
-                            break;
+                            Files.delete(cached);
+                            break caching;
                         }
                     }
                 }
-                if (validated) {
-                    return new PathInputStreamSource(cached);
-                }
+                return new PathInputStreamSource(cached);
             } else {
                 Files.createDirectories(cached.getParent());
             }
@@ -141,11 +138,11 @@ public class MavenRepository implements Repository {
                         digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
                     }
                     if (!Arrays.equals(Base64.getDecoder().decode(expected), digest.digest())) {
-                        Path hash = source.getPath().orElse(null);
-                        if (hash != null) {
-                            Files.delete(hash);
+                        Path file = source.getPath().orElse(null);
+                        if (file != null) {
+                            Files.delete(file);
                         }
-                        throw new IOException("Digest did not match expectation");
+                        throw new IOException("Digest did not match expectation for " + uri);
                     }
                 } else {
                     decorator = decorator.andThen(inputStream -> new ValidationInputStream(digest,
