@@ -613,11 +613,13 @@ public class MavenPomResolverTest {
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
                         <dependency>
                             <groupId>transitive</groupId>
                             <artifactId>artifact</artifactId>
                             <version>2</version>
                         </dependency>
+                    </dependencies>
                 </project>
                 """);
         toFile("transitive", "artifact", "1", """
@@ -718,11 +720,13 @@ public class MavenPomResolverTest {
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
                         <dependency>
                             <groupId>transitive</groupId>
                             <artifactId>artifact</artifactId>
                             <version>2</version>
                         </dependency>
+                    </dependencies>
                 </project>
                 """);
         toFile("transitive", "artifact", "1", """

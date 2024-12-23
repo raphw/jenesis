@@ -42,7 +42,7 @@ public class MavenPomResolver {
                 scope,
                 Set.of(),
                 Map.of())));
-        do {
+        do { // TODO: detect cyclic dependencies
             ContextualPom current = queue.remove();
             Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
             managedDependencies.putAll(current.managedDependencies());
