@@ -1,6 +1,6 @@
 package build.buildbuddy;
 
-import java.util.List;
+import java.util.SequencedSet;
 
 public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 
@@ -16,7 +16,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
     }
 
     @Override
-    public String resolve(String groupId, String artifactId, String type, String classifier, List<String> versions) {
-        return versions.getFirst(); // TODO
+    public String resolve(String groupId, String artifactId, String type, String classifier, String version, SequencedSet<String> versions) {
+        return version; // TODO
     }
 }

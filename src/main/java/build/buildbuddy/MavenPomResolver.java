@@ -44,72 +44,54 @@ public class MavenPomResolver {
                                               MavenDependencyScope scope) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
-        List<DependencyEntry> dependencies = new ArrayList<>();
         Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>();
+        SequencedSet<DependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
         ContextualPom initial = new ContextualPom(resolveOrCached(groupId, artifactId, version, resolved, unresolved),
                 true,
                 scope,
                 Set.of());
-        Queue<DependencyKey> queue = new ArrayDeque<>(traverse(resolved,
-                unresolved,
-                resolutions,
-                initial.pom().managedDependencies(),
-                dependencies,
-                0,
-                initial));
-        while (!queue.isEmpty()) { // TODO: avoid cycles? maybe already within dependency resolution?
-            DependencyKey current = queue.remove();
-            DependencyResolution resolution = resolutions.get(current);
-            String negotiated = negotiator.resolve(current.groupId(),
-                    current.artifactId(),
-                    current.type(),
-                    current.classifier(),
-                    resolution.versions());
-            if (negotiated.equals(resolution.version()) && resolution.scopes().stream().allMatch(resolution.scope()::implies)) {
-                continue;
-            }
-            System.out.println("Reconsider: " + current.groupId() + ":" + current.artifactId() + ":" + negotiated);
-            int offset = (int) dependencies.stream()
-                    .takeWhile(entry -> !entry.key().equals(current))
-                    .count();
-            int remaining = 1; // TODO: short cut with no actual change after negotiation? (consider scope)
-            do {
-                DependencyEntry entry = dependencies.remove(offset);
-                DependencyResolution transitive = resolutions.get(entry.key());
-                int index = (int) dependencies.stream()
-                        .limit(offset)
-                        .filter(value -> value.key().equals(entry.key()))
-                        .count();
-                transitive.versions().remove(index);
-                transitive.scopes().remove(index);
-                if (transitive.versions().isEmpty()) {
-                    resolutions.remove(entry.key()); // TODO: does this require special handling?
-                } else if (!transitive.scopes().contains(entry.scope()) || !transitive.versions().contains(entry.version())) {
-                    queue.add(entry.key());
-                }
-                remaining += entry.children() - 1;
-            } while (remaining > 0);
-            queue.addAll(traverse(resolved,
+        do {
+            dependencies.clear();
+            conflicts = traverse(resolved,
                     unresolved,
                     resolutions,
                     initial.pom().managedDependencies(),
                     dependencies,
-                    offset,
-                    new ContextualPom(resolveOrCached(current.groupId(),
-                            current.artifactId(),
-                            negotiated,
-                            resolved,
-                            unresolved), false, resolution.scope(), resolution.exclusions())));
-            System.out.println("Dependencies: " + dependencies);
-        }
-        return dependencies.stream().map(DependencyEntry::key).distinct().map(key -> {
+                    initial);
+            Iterator<DependencyKey> it = conflicts.iterator();
+            while (it.hasNext()) {
+                DependencyKey key = it.next();
+                DependencyResolution resolution = resolutions.get(key);
+                boolean converged = true;
+                if (!resolution.currentScope.implies(resolution.initialScope)) {
+                    resolution.currentScope = resolution.initialScope;
+                    converged = false;
+                }
+                if (resolution.observedVersions.size() > 1) {
+                    String candidate = negotiator.resolve(key.groupId(),
+                            key.artifactId(),
+                            key.type(),
+                            key.classifier(),
+                            resolution.currentVersion,
+                            resolution.observedVersions);
+                    if (!resolution.currentVersion.equals(candidate)) {
+                        resolution.currentVersion = candidate;
+                        converged = false;
+                    }
+                }
+                if (converged) {
+                    it.remove();
+                }
+            }
+        } while (!conflicts.isEmpty());
+        return dependencies.stream().map(key -> {
             DependencyResolution resolution = resolutions.get(key);
             return new MavenDependency(key.groupId(),
                     key.artifactId(),
-                    resolution.version(),
+                    resolution.currentVersion,
                     key.type(),
                     key.classifier(),
-                    resolution.scope(),
+                    resolution.currentScope,
                     null,
                     false);
         }).toList();
@@ -119,8 +101,7 @@ public class MavenPomResolver {
                                                  Map<DependencyCoordinate, UnresolvedPom> unresolved,
                                                  Map<DependencyKey, DependencyResolution> resolutions,
                                                  Map<DependencyKey, DependencyValue> managedDependencies,
-                                                 List<DependencyEntry> dependencies,
-                                                 int index,
+                                                 SequencedSet<DependencyKey> dependencies,
                                                  ContextualPom current) throws IOException {
         SequencedSet<DependencyKey> conflicting = new LinkedHashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>();
@@ -147,46 +128,37 @@ public class MavenPomResolver {
                 if (mergedScope == null) {
                     continue;
                 }
-                DependencyResolution previous = resolutions.get(entry.getKey());
-                if (previous == null) {
-                    Set<DependencyName> exclusions = current.exclusions();
-                    if (value.exclusions() != null) {
-                        exclusions = new HashSet<>(exclusions);
-                        exclusions.addAll(value.exclusions());
-                    }
-                    String version = negotiator.resolve(entry.getKey().groupId(),
+                DependencyResolution resolution = resolutions.computeIfAbsent(
+                        entry.getKey(),
+                        key -> new DependencyResolution()); // TODO: scope override before continue above.
+                String version;
+                if (resolution.currentVersion == null) {
+                    version = resolution.currentVersion = negotiator.resolve(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
                             entry.getKey().type(),
                             entry.getKey().classifier(),
                             value.version());
-                    resolutions.put(entry.getKey(), new DependencyResolution(
-                            version,
-                            new ArrayList<>(List.of(value.version())),
-                            mergedScope,
-                            new ArrayList<>(List.of(mergedScope)),
-                            exclusions));
+                    resolution.observedVersions.add(value.version());
+                    resolution.initialScope = resolution.currentScope = mergedScope;
+                } else {
+                    version = resolution.currentVersion;
+                    if (resolution.observedVersions.add(value.version()) || !resolution.currentScope.implies(mergedScope)) {
+                        resolution.currentScope = mergedScope;
+                        conflicting.add(entry.getKey());
+                    }
+                }
+                if (dependencies.add(entry.getKey())) {
                     ResolvedPom pom = resolveOrCached(entry.getKey().groupId(),
                             entry.getKey().artifactId(),
                             version,
                             resolved,
                             unresolved);
-                    queue.add(new ContextualPom(pom, false, mergedScope, exclusions));
-                    dependencies.add(index++, new DependencyEntry(entry.getKey(),
-                            pom.dependencies().size(),
-                            value.version(),
-                            mergedScope));
-                } else {
-                    if (!previous.versions().contains(value.version())
-                            && !previous.version().equals(value.version())
-                            || mergedScope.implies(previous.scope())) {
-                        conflicting.add(entry.getKey());
-                        previous.versions().add(value.version());
-                        previous.scopes().add(mergedScope);
+                    Set<DependencyName> exclusions = current.exclusions();
+                    if (value.exclusions() != null) {
+                        exclusions = new HashSet<>(exclusions);
+                        exclusions.addAll(value.exclusions());
                     }
-                    dependencies.add(index++, new DependencyEntry(entry.getKey(),
-                            0,
-                            value.version(),
-                            mergedScope));
+                    queue.add(new ContextualPom(pom, false, mergedScope, exclusions));
                 }
             }
         } while ((current = queue.poll()) != null);
@@ -527,14 +499,10 @@ public class MavenPomResolver {
                                  Set<DependencyName> exclusions) {
     }
 
-    private record DependencyResolution(String version,
-                                        List<String> versions,
-                                        MavenDependencyScope scope,
-                                        List<MavenDependencyScope> scopes,
-                                        Set<DependencyName> exclusions) {
-    }
-
-    private record DependencyEntry(DependencyKey key, int children, String version, MavenDependencyScope scope) {
+    private static class DependencyResolution {
+        private final SequencedSet<String> observedVersions = new LinkedHashSet<>();
+        private String currentVersion;
+        private MavenDependencyScope currentScope, initialScope;
     }
 
     private record Metadata(String latest, String release, List<String> versions) {
