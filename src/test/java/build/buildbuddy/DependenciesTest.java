@@ -52,7 +52,7 @@ public class DependenciesTest {
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve("sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
@@ -72,7 +72,7 @@ public class DependenciesTest {
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Mismatched digest for sample:coordinate");
-        assertThat(next.resolve("sample:coordinate")).doesNotExist();
+        assertThat(next.resolve(Dependencies.FOLDER + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
