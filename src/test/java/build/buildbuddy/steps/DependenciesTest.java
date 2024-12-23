@@ -72,7 +72,7 @@ public class DependenciesTest {
                 "sample",
                 coordinate -> {
                     Path file = Files.writeString(temporaryFolder.newFile(coordinate).toPath(), coordinate);
-                    return Optional.of(new Repository.InputStreamSource() {
+                    return Optional.of(new RepositoryItem() {
                         @Override
                         public InputStream toInputStream() {
                             throw new AssertionError();

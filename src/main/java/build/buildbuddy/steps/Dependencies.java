@@ -70,7 +70,7 @@ public class Dependencies implements BuildStep {
                         CompletableFuture<?> future = new CompletableFuture<>();
                         executor.execute(() -> {
                             try {
-                                Repository.InputStreamSource source = repository
+                                RepositoryItem source = repository
                                         .fetch(segments[segments.length == 1 ? 0 : 1])
                                         .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
                                 Path file = source.getFile().orElse(null);

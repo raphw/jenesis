@@ -1,6 +1,7 @@
 package build.buildbuddy.maven;
 
 import build.buildbuddy.Repository;
+import build.buildbuddy.RepositoryItem;
 
 import java.io.*;
 import java.net.URI;
@@ -36,7 +37,7 @@ public class MavenRepository implements Repository {
     }
 
     @Override
-    public Optional<InputStreamSource> fetch(String coordinate) throws IOException {
+    public Optional<RepositoryItem> fetch(String coordinate) throws IOException {
         String[] elements = coordinate.split(":");
         return switch (elements.length) {
             case 4 -> fetch(elements[0], elements[1], elements[2], "jar", null, null);
@@ -46,12 +47,12 @@ public class MavenRepository implements Repository {
         };
     }
 
-    public Optional<InputStreamSource> fetch(String groupId,
-                                             String artifactId,
-                                             String version,
-                                             String type,
-                                             String classifier,
-                                             String checksum) throws IOException {
+    public Optional<RepositoryItem> fetch(String groupId,
+                                          String artifactId,
+                                          String version,
+                                          String type,
+                                          String classifier,
+                                          String checksum) throws IOException {
         return fetch(repository, groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
@@ -59,23 +60,23 @@ public class MavenRepository implements Repository {
                 + "." + type + (checksum == null ? "" : ("." + checksum)), checksum == null).materialize();
     }
 
-    public Optional<InputStreamSource> fetchMetadata(String groupId,
-                                                     String artifactId,
-                                                     String checksum) throws IOException {
+    public Optional<RepositoryItem> fetchMetadata(String groupId,
+                                                  String artifactId,
+                                                  String checksum) throws IOException {
         return fetch(repository, groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum), checksum == null).materialize();
     }
 
-    private LazyInputStreamSource fetch(URI repository, String path, boolean validate) throws IOException {
+    private LazyRepositoryItem fetch(URI repository, String path, boolean validate) throws IOException {
         Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {
                 boolean valid = true;
                 if (validate) {
-                    Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
+                    Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
-                        LazyInputStreamSource source = fetch(
+                        LazyRepositoryItem item = fetch(
                                 entry.getValue(),
                                 path + "." + entry.getKey().toLowerCase(),
                                 false);
@@ -89,41 +90,41 @@ public class MavenRepository implements Repository {
                             try (FileChannel channel = FileChannel.open(cached)) {
                                 digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
                             }
-                            Optional<InputStreamSource> candidate = source.materialize();
+                            Optional<RepositoryItem> candidate = item.materialize();
                             if (candidate.isPresent()) {
                                 byte[] expected;
                                 try (InputStream inputStream = candidate.get().toInputStream()) {
                                     expected = inputStream.readAllBytes();
                                 }
-                                results.put(source, expected);
+                                results.put(item, expected);
                                 valid = Arrays.equals(Base64.getDecoder().decode(expected), digest.digest());
                             }
                         } else {
-                            results.put(source, null);
+                            results.put(item, null);
                         }
                     }
                     if (valid) {
-                        for (Map.Entry<LazyInputStreamSource, byte[]> entry : results.entrySet()) {
+                        for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                             entry.getKey().storeIfNotPresent(entry.getValue());
                         }
                     } else {
                         Files.delete(cached);
-                        for (LazyInputStreamSource source : results.keySet()) {
-                            source.deleteIfPresent();
+                        for (LazyRepositoryItem item : results.keySet()) {
+                            item.deleteIfPresent();
                         }
                     }
                 }
                 if (valid) {
-                    return new StoredInputStreamSource(cached);
+                    return new StoredRepositoryItem(cached);
                 }
             } else {
                 Files.createDirectories(cached.getParent());
             }
         }
-        Map<LazyInputStreamSource, MessageDigest> digests = new HashMap<>();
+        Map<LazyRepositoryItem, MessageDigest> digests = new HashMap<>();
         if (validate) {
             for (Map.Entry<String, URI> entry : validations.entrySet()) {
-                LazyInputStreamSource source = fetch(entry.getValue(),
+                LazyRepositoryItem item = fetch(entry.getValue(),
                         path + "." + entry.getKey().toLowerCase(),
                         false);
                 MessageDigest digest;
@@ -132,14 +133,14 @@ public class MavenRepository implements Repository {
                 } catch (NoSuchAlgorithmException e) {
                     throw new IllegalStateException(e);
                 }
-                digests.put(source, digest);
+                digests.put(item, digest);
             }
         }
         URI uri = repository.resolve(path);
         if (cached == null) {
             return () -> ValidatingInputStream.of(uri, digests).map(inputStream -> () -> inputStream);
         } else {
-            return new LatentInputStreamSource(cached,
+            return new LatentRepositoryItem(cached,
                     uri,
                     digests,
                     path.substring(path.lastIndexOf('/') + 1, path.indexOf('.')),
@@ -148,7 +149,7 @@ public class MavenRepository implements Repository {
     }
 
     @FunctionalInterface
-    private interface LazyInputStreamSource {
+    private interface LazyRepositoryItem {
 
         default void deleteIfPresent() throws IOException {
         }
@@ -156,10 +157,10 @@ public class MavenRepository implements Repository {
         default void storeIfNotPresent(byte[] bytes) throws IOException {
         }
 
-        Optional<InputStreamSource> materialize() throws IOException;
+        Optional<RepositoryItem> materialize() throws IOException;
     }
 
-    record StoredInputStreamSource(Path path) implements LazyInputStreamSource, InputStreamSource {
+    record StoredRepositoryItem(Path path) implements LazyRepositoryItem, RepositoryItem {
 
         @Override
         public void deleteIfPresent() throws IOException {
@@ -167,7 +168,7 @@ public class MavenRepository implements Repository {
         }
 
         @Override
-        public Optional<InputStreamSource> materialize() {
+        public Optional<RepositoryItem> materialize() {
             return Optional.of(this);
         }
 
@@ -182,11 +183,11 @@ public class MavenRepository implements Repository {
         }
     }
 
-    record LatentInputStreamSource(Path path,
-                                   URI uri,
-                                   Map<LazyInputStreamSource, MessageDigest> digests,
-                                   String prefix,
-                                   String suffix) implements LazyInputStreamSource {
+    record LatentRepositoryItem(Path path,
+                                URI uri,
+                                Map<LazyRepositoryItem, MessageDigest> digests,
+                                String prefix,
+                                String suffix) implements LazyRepositoryItem {
 
         @Override
         public void storeIfNotPresent(byte[] bytes) throws IOException {
@@ -201,7 +202,7 @@ public class MavenRepository implements Repository {
         }
 
         @Override
-        public Optional<InputStreamSource> materialize() throws IOException {
+        public Optional<RepositoryItem> materialize() throws IOException {
             Path temporary = Files.createTempFile(prefix, suffix);
             Optional<InputStream> candidate = ValidatingInputStream.of(uri, digests);
             if (candidate.isEmpty()) {
@@ -214,20 +215,20 @@ public class MavenRepository implements Repository {
                 Files.delete(temporary);
                 throw t;
             }
-            return Optional.of(new StoredInputStreamSource(Files.move(temporary, path)));
+            return Optional.of(new StoredRepositoryItem(Files.move(temporary, path)));
         }
     }
 
     private static class ValidatingInputStream extends FilterInputStream {
 
-        private final Map<LazyInputStreamSource, MessageDigest> digests;
+        private final Map<LazyRepositoryItem, MessageDigest> digests;
 
-        private ValidatingInputStream(InputStream inputStream, Map<LazyInputStreamSource, MessageDigest> digests) {
+        private ValidatingInputStream(InputStream inputStream, Map<LazyRepositoryItem, MessageDigest> digests) {
             super(inputStream);
             this.digests = digests;
         }
 
-        private static Optional<InputStream> of(URI uri, Map<LazyInputStreamSource, MessageDigest> digests) throws IOException {
+        private static Optional<InputStream> of(URI uri, Map<LazyRepositoryItem, MessageDigest> digests) throws IOException {
             InputStream inputStream;
             try {
                 inputStream = uri.toURL().openStream();
@@ -247,9 +248,9 @@ public class MavenRepository implements Repository {
         public void close() throws IOException {
             super.close();
             boolean valid = true;
-            Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
-            for (Map.Entry<LazyInputStreamSource, MessageDigest> entry : digests.entrySet()) {
-                Optional<InputStreamSource> candidate = entry.getKey().materialize();
+            Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
+            for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
+                Optional<RepositoryItem> candidate = entry.getKey().materialize();
                 if (candidate.isPresent()) {
                     byte[] expected;
                     try (InputStream inputStream = candidate.get().toInputStream()) {
@@ -262,12 +263,12 @@ public class MavenRepository implements Repository {
                 }
             }
             if (valid) {
-                for (Map.Entry<LazyInputStreamSource, byte[]> entry : results.entrySet()) {
+                for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                     entry.getKey().storeIfNotPresent(entry.getValue());
                 }
             } else {
-                for (LazyInputStreamSource source : digests.keySet()) {
-                    source.deleteIfPresent();
+                for (LazyRepositoryItem item : digests.keySet()) {
+                    item.deleteIfPresent();
                 }
                 throw new IOException("Failed checksum validation");
             }
