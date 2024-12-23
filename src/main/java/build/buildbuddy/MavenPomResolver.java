@@ -49,7 +49,7 @@ public class MavenPomResolver { // TODO: resolve BOMs
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
                     DependencyValue value = managedDependencies.getOrDefault(entry.getKey(), entry.getValue());
                     MavenDependencyScope scope = toScope(value.scope()), transitive = switch (current.scope()) {
-                        case null -> scope;
+                        case null -> scope == MavenDependencyScope.IMPORT ? null : scope;
                         case COMPILE -> switch (scope) {
                             case COMPILE, RUNTIME -> scope;
                             default -> null;
