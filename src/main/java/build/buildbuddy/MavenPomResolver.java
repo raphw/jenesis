@@ -36,9 +36,11 @@ public class MavenPomResolver {
                                               String version,
                                               MavenDependencyScope scope) throws IOException {
         SequencedMap<DependencyKey, DependencyInclusion> dependencies = new LinkedHashMap<>();
+        Map<DependencyKey, Set<DependencyKey>> transitives = new HashMap<>();
+        Map<DependencyKey, MavenDependencyScope> scopes = new HashMap<>();
         Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
-                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, false),
+                resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, null),
                 scope,
                 Set.of(),
                 Map.of())));
@@ -59,7 +61,7 @@ public class MavenPomResolver {
                         case null -> false;
                         default -> throw new IllegalStateException("Unexpected value: " + value);
                     };
-                    if (optional && current.pom().transitive()) {
+                    if (optional && current.pom().origin() != null) {
                         continue;
                     }
                     MavenDependencyScope actual = toScope(value.scope()), derived = switch (current.scope()) {
@@ -79,8 +81,13 @@ public class MavenPomResolver {
                     }
                     DependencyInclusion previous = dependencies.get(entry.getKey());
                     if (previous != null) {
-                        if (current.pom().transitive()) {
-                            // TODO: fix scope of already included dependencies and their transitives.
+                        if (previous.scope().ordinal() > derived.ordinal()) {
+                            Queue<DependencyKey> keys = new ArrayDeque<>(List.of(entry.getKey()));
+                            do {
+                                DependencyKey key = keys.remove();
+                                scopes.put(key, derived);
+                                keys.addAll(transitives.getOrDefault(key, Set.of()));
+                            } while (!keys.isEmpty());
                         }
                         continue;
                     }
@@ -88,6 +95,11 @@ public class MavenPomResolver {
                             optional,
                             derived,
                             value.systemPath() == null ? null : Path.of(value.systemPath())));
+                    if (current.pom().origin() != null) {
+                        transitives.computeIfAbsent(
+                                current.pom().origin(),
+                                ignored -> new HashSet<>()).add(entry.getKey());
+                    }
                     Set<DependencyExclusion> exclusions;
                     if (value.exclusions() == null || value.exclusions().isEmpty()) {
                         exclusions = current.exclusions();
@@ -99,7 +111,7 @@ public class MavenPomResolver {
                             entry.getKey().artifactId(),
                             value.version(),
                             new HashSet<>(),
-                            poms), poms, true), derived, exclusions, managedDependencies));
+                            poms), poms, entry.getKey()), derived, exclusions, managedDependencies));
                 }
             }
         } while (!queue.isEmpty());
@@ -108,7 +120,7 @@ public class MavenPomResolver {
                 entry.getValue().version(),
                 entry.getKey().type(),
                 entry.getKey().classifier(),
-                entry.getValue().scope(),
+                scopes.getOrDefault(entry.getKey(), entry.getValue().scope()),
                 entry.getValue().path(),
                 entry.getValue().optional())).toList();
     }
@@ -212,7 +224,7 @@ public class MavenPomResolver {
 
     private ResolvedPom resolve(UnresolvedPom pom,
                                 Map<DependencyCoordinates, UnresolvedPom> poms,
-                                boolean transitive) throws IOException {
+                                DependencyKey origin) throws IOException {
         Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
             DependencyKey key = entry.getKey().resolve(pom.properties());
@@ -234,7 +246,7 @@ public class MavenPomResolver {
         pom.dependencies().forEach((key, value) -> dependencies.putLast(
                 key.resolve(pom.properties()),
                 value.resolve(pom.properties())));
-        return new ResolvedPom(managedDependencies, dependencies, transitive);
+        return new ResolvedPom(managedDependencies, dependencies, origin);
     }
 
     private static Stream<Node> toChildren(Node node) {
@@ -379,7 +391,7 @@ public class MavenPomResolver {
 
     private record ResolvedPom(Map<DependencyKey, DependencyValue> managedDependencies,
                                SequencedMap<DependencyKey, DependencyValue> dependencies,
-                               boolean transitive) {
+                               DependencyKey origin) {
     }
 
     private record ContextualPom(ResolvedPom pom,
