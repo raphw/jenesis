@@ -78,7 +78,7 @@ public class MavenPomResolver {
                     } else if (!transitive.scopes().contains(entry.scope()) || !transitive.versions().contains(entry.version())) {
                         queue.add(entry.key());
                     }
-                    remaining += entry.size() - 1;
+                    remaining += entry.children() - 1;
                 } while (remaining > 0);
                 queue.addAll(traverse(poms,
                         resolutions,
@@ -477,7 +477,7 @@ public class MavenPomResolver {
                                         Set<DependencyName> exclusions) {
     }
 
-    private record DependencyEntry(DependencyKey key, int size, String version, MavenDependencyScope scope) {
+    private record DependencyEntry(DependencyKey key, int children, String version, MavenDependencyScope scope) {
     }
 
     private record Metadata(String latest, String release, List<String> versions) {
