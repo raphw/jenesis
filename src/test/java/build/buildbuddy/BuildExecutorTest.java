@@ -23,7 +23,7 @@ public class BuildExecutorTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path root, log;
+    private Path root;
     private BuildExecutor buildExecutor;
 
     @Before
@@ -123,7 +123,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_define_diverging_steps() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_diverging_steps() throws IOException, ExecutionException, InterruptedException {
         Path source = temporaryFolder.newFolder().toPath();
         try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
             writer.append("foo");
