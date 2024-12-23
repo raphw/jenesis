@@ -93,7 +93,7 @@ public class MavenRepository implements Repository {
                                 type,
                                 classifier,
                                 validation.getKey().toLowerCase(),
-                                false);
+                                true);
                         byte[] expected;
                         try (InputStream inputStream = source.toInputStream()) {
                             expected = inputStream.readAllBytes();
