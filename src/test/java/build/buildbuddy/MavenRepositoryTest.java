@@ -46,8 +46,8 @@ public class MavenRepositoryTest {
                 InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).download("junit",
                         "junit",
                         "4.13.2",
-                        null,
-                        "jar").toInputStream();
+                        "jar",
+                        null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
@@ -68,8 +68,8 @@ public class MavenRepositoryTest {
                 InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).download("junit",
                         "junit",
                         "4.13.2",
-                        null,
-                        "jar").toInputStream();
+                        "jar",
+                        null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
@@ -99,8 +99,8 @@ public class MavenRepositoryTest {
                         Map.of("MD5", repository.toUri())).download("junit",
                         "junit",
                         "4.13.2",
-                        null,
-                        "jar").toInputStream();
+                        "jar",
+                        null).toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
@@ -129,7 +129,7 @@ public class MavenRepositoryTest {
         assertThatThrownBy(() -> repopository.download("junit",
                 "junit",
                 "4.13.2",
-                null,
-                "jar")).isInstanceOf(IOException.class);
+                "jar",
+                null)).isInstanceOf(IOException.class);
     }
 }

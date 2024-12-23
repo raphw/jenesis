@@ -43,9 +43,9 @@ public class MavenRepository implements Repository {
     public InputStreamSource fetch(String coordinate) throws IOException {
         String[] elements = coordinate.split(":");
         return switch (elements.length) {
-            case 4 -> download(elements[0], elements[1], elements[2], null, "jar");
-            case 5 -> download(elements[0], elements[1], elements[2], null, elements[3]);
-            case 6 -> download(elements[0], elements[1], elements[2], elements[3], elements[4]);
+            case 4 -> download(elements[0], elements[1], elements[2], "jar", null);
+            case 5 -> download(elements[0], elements[1], elements[2], elements[3], null);
+            case 6 -> download(elements[0], elements[1], elements[2], elements[4], elements[3]);
             default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
         };
     }
@@ -53,13 +53,13 @@ public class MavenRepository implements Repository {
     public InputStreamSource download(String groupId,
                                       String artifactId,
                                       String version,
-                                      String classifier,
-                                      String extension) throws IOException {
+                                      String type,
+                                      String classifier) throws IOException {
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
-                + "." + extension;
+                + "." + type;
         Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {

@@ -47,7 +47,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
-                coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+                coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
@@ -66,7 +66,7 @@ public class DependenciesTest {
         }
         assertThatThrownBy(() -> new Dependencies(Map.of(
                 "sample",
-                coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+                coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
@@ -86,7 +86,7 @@ public class DependenciesTest {
         }
         assertThatThrownBy(() -> new Dependencies(Map.of(
                 "sample",
-                coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+                coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())

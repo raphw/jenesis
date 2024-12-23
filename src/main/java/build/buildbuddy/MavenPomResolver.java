@@ -184,8 +184,8 @@ public class MavenPomResolver {
                 pom = assemble(repository.download(groupId,
                         artifactId,
                         version,
-                        null,
-                        "pom").toInputStream(), children, poms);
+                        "pom",
+                        null).toInputStream(), children, poms);
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
             }
