@@ -23,7 +23,7 @@ public class BuildExecutor {
     private final Path root;
     private final HashFunction hash;
 
-    private final TaskGraph<String, Map<String, BuildStatus>> taskGraph = new TaskGraph<>((left, right) -> Stream
+    private final TaskGraph<String, Map<String, StepSummary>> taskGraph = new TaskGraph<>((left, right) -> Stream
             .concat(left.entrySet().stream(), right.entrySet().stream())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
@@ -40,14 +40,14 @@ public class BuildExecutor {
         taskGraph.replace(identity, wrapSource(identity, path));
     }
 
-    private BiFunction<Executor, Map<String, BuildStatus>, CompletionStage<Map<String, BuildStatus>>> wrapSource(
+    private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapSource(
             String identity,
             Path path) {
         return (executor, states) -> {
-            CompletableFuture<Map<String, BuildStatus>> future = new CompletableFuture<>();
+            CompletableFuture<Map<String, StepSummary>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
-                    future.complete(Map.of(identity, new BuildStatus(path, HashFunction.read(path, hash))));
+                    future.complete(Map.of(identity, new StepSummary(path, HashFunction.read(path, hash))));
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
@@ -72,7 +72,7 @@ public class BuildExecutor {
         taskGraph.replace(identity, wrapStep(identity, step));
     }
 
-    private BiFunction<Executor, Map<String, BuildStatus>, CompletionStage<Map<String, BuildStatus>>> wrapStep(
+    private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapStep(
             String identity,
             BuildStep step) {
         return (executor, states) -> {
@@ -82,7 +82,7 @@ public class BuildExecutor {
                 Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
                 boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
                 Map<String, BuildStepArgument> dependencies = new HashMap<>();
-                for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
+                for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + entry.getKey());
                     dependencies.put(entry.getKey(), new BuildStepArgument(entry.getValue().folder(), consistent && Files.exists(checksums)
                             ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
@@ -96,33 +96,33 @@ public class BuildExecutor {
                             dependencies).handleAsync((result, throwable) -> {
                         try {
                             if (throwable != null) {
-                                Files.delete(Files.walkFileTree(next, new RecursiveFileDeletion()));
+                                Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
                                 throw throwable;
                             } else if (result.next()) {
                                 Files.move(next, exists
-                                        ? Files.walkFileTree(previous, new RecursiveFileDeletion())
+                                        ? Files.walkFileTree(previous, new RecursiveFolderDeletion(next))
                                         : previous);
                                 Files.createDirectory(checksum);
                             } else if (consistent) {
-                                Files.delete(Files.walkFileTree(next, new RecursiveFileDeletion()));
-                                Files.walkFileTree(checksum, new RecursiveFileDeletion());
+                                Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
+                                Files.walkFileTree(checksum, new RecursiveFolderDeletion(checksum));
                             } else {
                                 throw new IllegalStateException("Cannot reuse non-existing location for " + identity);
                             }
-                            for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
+                            for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
                                 HashFunction.write(
                                         checksum.resolve("checksum." + entry.getKey()),
                                         entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
-                            return Map.of(identity, new BuildStatus(output, checksums));
+                            return Map.of(identity, new StepSummary(output, checksums));
                         } catch (Throwable t) {
                             throw new CompletionException(t);
                         }
                     }, executor);
                 } else {
-                    return CompletableFuture.completedStage(Map.of(identity, new BuildStatus(output, current)));
+                    return CompletableFuture.completedStage(Map.of(identity, new StepSummary(output, current)));
                 }
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
@@ -133,17 +133,22 @@ public class BuildExecutor {
     public CompletionStage<Map<String, Path>> execute(Executor executor) {
         return taskGraph.execute(executor, CompletableFuture.completedStage(Map.of())).thenApplyAsync(results -> {
             Map<String, Path> folders = new LinkedHashMap<>(); // TODO: return more complex result.
-            for (Map.Entry<String, BuildStatus> entry : results.entrySet()) {
+            for (Map.Entry<String, StepSummary> entry : results.entrySet()) {
                 folders.put(entry.getKey(), entry.getValue().folder());
             }
             return folders;
         }, executor);
     }
 
-    private record BuildStatus(Path folder, Map<Path, byte[]> checksums) {
-    }
+    private record StepSummary(Path folder, Map<Path, byte[]> checksums) { }
 
-    private static class RecursiveFileDeletion extends SimpleFileVisitor<Path> {
+    private static class RecursiveFolderDeletion extends SimpleFileVisitor<Path> {
+
+        private final Path root;
+
+        private RecursiveFolderDeletion(Path root) {
+            this.root = root;
+        }
 
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -153,7 +158,9 @@ public class BuildExecutor {
 
         @Override
         public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-            Files.delete(dir);
+            if (!dir.equals(root)) {
+                Files.delete(dir);
+            }
             return FileVisitResult.CONTINUE;
         }
     }
