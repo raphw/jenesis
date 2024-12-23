@@ -9,7 +9,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -26,7 +25,7 @@ public class MavenPomResolver {
         factory.setNamespaceAware(true);
     }
 
-    public List<MavenDependency> resolve(String groupId, String artifactId, String version) throws IOException {
+    public List<MavenDependency> dependencies(String groupId, String artifactId, String version) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         Set<MavenDependencyKey> previous = new HashSet<>();
         Map.Entry<ResolvedPom, Set<ExcludedDependency>> root = Map.entry(doResolve(
@@ -67,8 +66,7 @@ public class MavenPomResolver {
                                 dependency.getKey(),
                                 dependency.getValue()));
             }
-            current = queue.poll();
-        } while (current != null);
+        } while ((current = queue.poll()) != null);
         return dependencies.entrySet().stream().map(entry -> new MavenDependency(
                 entry.getKey().groupId(),
                 entry.getKey().artifactId(),

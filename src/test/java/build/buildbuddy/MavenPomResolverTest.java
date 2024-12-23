@@ -27,39 +27,31 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("group/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1.0.0");
+                "1");
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
-                "1.0.0",
+                "1",
                 "jar",
                 null,
                 false));
@@ -67,54 +59,42 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies_from_parent() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("group/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <parent>
-                            <groupId>parent</groupId>
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                </project>
+                """);
+        toFile("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
                             <artifactId>artifact</artifactId>
-                            <version>1.0.0</version>
-                        </parent>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("parent/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1.0.0");
+                "1");
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
-                "1.0.0",
+                "1",
                 "jar",
                 null,
                 false));
@@ -122,71 +102,55 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_duplicate_dependencies_from_parent() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("group/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <parent>
-                            <groupId>parent</groupId>
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
                             <artifactId>artifact</artifactId>
-                            <version>1.0.0</version>
-                        </parent>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>2.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("parent/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/2.0.0"))
-                .resolve("artifact-2.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+                            <version>2</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1.0.0");
+                "1");
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
-                "2.0.0",
+                "2",
                 "jar",
                 null,
                 false));
@@ -194,63 +158,51 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_transitive_dependencies() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("group/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>transitive</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("transitive/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1.0.0");
+                "1");
         assertThat(dependencies).containsExactly(
                 new MavenDependency("other",
                         "artifact",
-                        "1.0.0",
+                        "1",
                         "jar",
                         null,
                         false),
                 new MavenDependency("transitive",
                         "artifact",
-                        "1.0.0",
+                        "1",
                         "jar",
                         null,
                         false));
@@ -258,62 +210,44 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_transitive_dependencies_with_exclusion() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("group/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                                <exclusions>
-                                    <exclusion>
-                                        <groupId>transitive</groupId>
-                                        <artifactId>artifact</artifactId>
-                                    </exclusion>
-                                </exclusions>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <dependencies>
-                            <dependency>
-                                <groupId>transitive</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1.0.0</version>
-                            </dependency>
-                        </dependencies>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("transitive/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>transitive</groupId>
+                                    <artifactId>artifact</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1.0.0");
+                "1");
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
-                "1.0.0",
+                "1",
                 "jar",
                 null,
                 false));
@@ -321,49 +255,143 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_configuration() throws IOException {
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("group/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
                         <dependencies>
                             <dependency>
                                 <groupId>other</groupId>
                                 <artifactId>artifact</artifactId>
+                                <version>1</version>
                             </dependency>
                         </dependencies>
-                        <dependencyManagement>
-                            <dependencies>
-                                <dependency>
-                                    <groupId>other</groupId>
-                                    <artifactId>artifact</artifactId>
-                                    <version>1.0.0</version>
-                                </dependency>
-                            </dependencies>
-                        </dependencyManagement>
-                    </project>
-                    """);
-        }
-        try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectories(repository.resolve("other/artifact/1.0.0"))
-                .resolve("artifact-1.0.0.pom"))) {
-            writer.write("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                    </project>
-                    """);
-        }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+                    </dependencyManagement>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1.0.0");
+                "1");
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
-                "1.0.0",
+                "1",
                 "jar",
                 null,
                 false));
+    }
+
+    @Test
+    public void can_resolve_lowest_depth_version() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>first</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>second</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("first", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("second", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>intermediate</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("intermediate", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>2.0.0</version>
+                        </dependency>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+                "artifact",
+                "1");
+        assertThat(dependencies).containsExactly(
+                new MavenDependency("first",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        false),
+                new MavenDependency("second",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        false),
+                new MavenDependency("transitive",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        false),
+                new MavenDependency("intermediate",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        false)
+        );
+    }
+
+    private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
+        try (Writer writer = Files.newBufferedWriter(Files
+                .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
+                .resolve(artifactId + "-" + version + ".pom"))) {
+            writer.write(pom);
+        }
     }
 }
