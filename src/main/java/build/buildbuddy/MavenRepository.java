@@ -170,11 +170,6 @@ public class MavenRepository implements Repository {
                 } catch (Exception e) {
                     t.addSuppressed(e);
                 }
-                try {
-                    Files.delete(temp);
-                } catch (Exception e) {
-                    t.addSuppressed(e);
-                }
                 throw t;
             }
             return new PathInputStreamSource(Files.move(temp, cached));
