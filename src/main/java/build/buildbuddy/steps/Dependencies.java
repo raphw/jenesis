@@ -1,10 +1,8 @@
 package build.buildbuddy.steps;
 
 import build.buildbuddy.*;
-import build.buildbuddy.maven.MavenRepository;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Reader;
 import java.nio.channels.FileChannel;
 import java.nio.file.DirectoryStream;
@@ -25,10 +23,6 @@ public class Dependencies implements BuildStep {
     public static final String FLATTENED = "flattened/", LIBS = "libs/";
 
     private final Map<String, Repository> repositories;
-
-    public Dependencies() {
-        repositories = Map.of("maven", new MavenRepository());
-    }
 
     public Dependencies(Map<String, Repository> repositories) {
         this.repositories = repositories;
