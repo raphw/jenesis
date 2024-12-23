@@ -30,7 +30,6 @@ public class TaskGraph<IDENTITY, STATE> {
     public CompletionStage<STATE> execute(Executor executor, CompletionStage<STATE> initial) {
         Map<IDENTITY, Registration<IDENTITY, STATE>> pending = new LinkedHashMap<>(registrations);
         Map<IDENTITY, CompletionStage<STATE>> dispatched = new HashMap<>();
-        Set<IDENTITY> independents = new LinkedHashSet<>();
         while (!pending.isEmpty()) {
             Iterator<Map.Entry<IDENTITY, Registration<IDENTITY, STATE>>> it = pending.entrySet().iterator();
             while (it.hasNext()) {
@@ -39,15 +38,15 @@ public class TaskGraph<IDENTITY, STATE> {
                     CompletionStage<STATE> completionStage = initial;
                     for (IDENTITY dependency : entry.getValue().dependencies()) {
                         completionStage = completionStage.thenCombineAsync(dispatched.get(dependency), merge, executor);
-                        independents.remove(dependency);
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(input -> entry.getValue().step().apply(executor, input), executor));
-                    independents.add(entry.getKey());
                     it.remove();
                 }
             }
         }
-        return independents.stream().map(dispatched::get).reduce(initial, (left, right) -> left.thenCombineAsync(right, merge, executor));
+        return registrations.keySet().stream()
+                .map(dispatched::get)
+                .reduce(initial, (left, right) -> left.thenCombineAsync(right, merge, executor));
     }
 
     record Registration<IDENTITY, STATE>(BiFunction<Executor, STATE, CompletionStage<STATE>> step, Set<IDENTITY> dependencies) { }

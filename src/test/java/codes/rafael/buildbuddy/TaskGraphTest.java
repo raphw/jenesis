@@ -31,7 +31,7 @@ public class TaskGraphTest {
         taskGraph.add("1", (executor, state) -> CompletableFuture.completedStage(state + "1"));
         taskGraph.add("2", (executor, state) -> CompletableFuture.completedStage(state + "2"), "1");
         CompletionStage<String> completion = taskGraph.execute(Runnable::run, CompletableFuture.completedStage("s"));
-        assertThat(completion).succeedsWithin(Duration.ofSeconds(3)).isEqualTo("sss12");
+        assertThat(completion).succeedsWithin(Duration.ofSeconds(3)).isEqualTo("ss1ss12");
     }
 
     @Test

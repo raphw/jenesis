@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,12 +29,13 @@ public class ChecksumDiffTest {
         Path first = toFile(sources, "first", "foo"), second = toFile(sources, "second", "bar");
         Path checksums = temporaryFolder.newFile("checksums.diff").toPath();
         Files.delete(checksums);
-        Map<Path, ChecksumDiff.State> diffs = checksumDiff.diff(checksums, sources);
+        Map<Path, ChecksumDiff.State> diffs = new LinkedHashMap<>();
+        checksumDiff.diff(checksums, sources, diffs::put);
         assertThat(diffs).containsOnlyKeys(sources.relativize(first), sources.relativize(second));
-        assertThat(diffs.get(sources.relativize(first)).status()).isEqualTo(ChecksumDiff.Status.ADDED);
+        assertThat(diffs.get(sources.relativize(first)).status()).isEqualTo(ChecksumStatus.ADDED);
         assertThat(diffs.get(sources.relativize(first)).checksum()).isEqualTo(toMd5("foo"));
         assertThat(diffs.get(sources.relativize(first)).previous()).isNull();
-        assertThat(diffs.get(sources.relativize(second)).status()).isEqualTo(ChecksumDiff.Status.ADDED);
+        assertThat(diffs.get(sources.relativize(second)).status()).isEqualTo(ChecksumStatus.ADDED);
         assertThat(diffs.get(sources.relativize(second)).checksum()).isEqualTo(toMd5("bar"));
         assertThat(diffs.get(sources.relativize(second)).previous()).isNull();
     }
@@ -59,21 +61,22 @@ public class ChecksumDiffTest {
             writer.append(toMd5String("removed"));
             writer.newLine();
         }
-        Map<Path, ChecksumDiff.State> diffs = checksumDiff.diff(checksums, sources);
+        Map<Path, ChecksumDiff.State> diffs = new LinkedHashMap<>();
+        checksumDiff.diff(checksums, sources, diffs::put);
         assertThat(diffs).containsOnlyKeys(sources.relativize(first),
                 sources.relativize(second),
                 sources.relativize(third),
                 Path.of("forth"));
-        assertThat(diffs.get(sources.relativize(first)).status()).isEqualTo(ChecksumDiff.Status.RETAINED);
+        assertThat(diffs.get(sources.relativize(first)).status()).isEqualTo(ChecksumStatus.RETAINED);
         assertThat(diffs.get(sources.relativize(first)).checksum()).isEqualTo(toMd5("foo"));
         assertThat(diffs.get(sources.relativize(first)).previous()).isEqualTo(toMd5("foo"));
-        assertThat(diffs.get(sources.relativize(second)).status()).isEqualTo(ChecksumDiff.Status.ALTERED);
+        assertThat(diffs.get(sources.relativize(second)).status()).isEqualTo(ChecksumStatus.ALTERED);
         assertThat(diffs.get(sources.relativize(second)).checksum()).isEqualTo(toMd5("bar"));
         assertThat(diffs.get(sources.relativize(second)).previous()).isEqualTo(toMd5("altered"));
-        assertThat(diffs.get(sources.relativize(third)).status()).isEqualTo(ChecksumDiff.Status.ADDED);
+        assertThat(diffs.get(sources.relativize(third)).status()).isEqualTo(ChecksumStatus.ADDED);
         assertThat(diffs.get(sources.relativize(third)).checksum()).isEqualTo(toMd5("qux"));
         assertThat(diffs.get(sources.relativize(third)).previous()).isNull();
-        assertThat(diffs.get(Path.of("forth")).status()).isEqualTo(ChecksumDiff.Status.REMOVED);
+        assertThat(diffs.get(Path.of("forth")).status()).isEqualTo(ChecksumStatus.REMOVED);
         assertThat(diffs.get(Path.of("forth")).checksum()).isNull();
         assertThat(diffs.get(Path.of("forth")).previous()).isEqualTo(toMd5("removed"));
     }
