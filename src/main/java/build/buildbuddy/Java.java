@@ -17,7 +17,7 @@ public abstract class Java implements ProcessBuildStep {
     private final String java;
 
     protected Java() {
-        java = ProcessBuildStep.ofJavaHome("bin/java");
+        java = ProcessBuildStep.ofJavaHome("bin/java" + (WINDOWS ? ".exe" : ""));
     }
 
     protected Java(String java) {

@@ -17,7 +17,7 @@ public class Jar implements ProcessBuildStep {
     private final String jar;
 
     public Jar() {
-        jar = ProcessBuildStep.ofJavaHome("bin/jar");
+        jar = ProcessBuildStep.ofJavaHome("bin/jar" + (WINDOWS ? ".exe" : ""));
     }
 
     public Jar(String jar) {

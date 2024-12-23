@@ -17,7 +17,7 @@ public class Javac implements ProcessBuildStep {
     private final String javac;
 
     public Javac() {
-        javac = ProcessBuildStep.ofJavaHome("bin/javac");
+        javac = ProcessBuildStep.ofJavaHome("bin/javac" + (WINDOWS ? ".exe" : ""));
     }
 
     public Javac(String javac) {
