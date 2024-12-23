@@ -60,7 +60,7 @@ public class MavenRepository implements Repository {
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
                 + "." + type;
-        Path cached = local == null ? null : local.resolve(path);
+        Path cached = local != null ? local.resolve(path) : null;
         if (cached != null) {
             if (Files.exists(cached)) {
                 boolean validated = true;
@@ -133,7 +133,7 @@ public class MavenRepository implements Repository {
                             inputStream,
                             Base64.getDecoder().decode(expected)));
                 }
-                if (local != null) {
+                if (cached != null) {
                     try (OutputStream outputStream = Files.newOutputStream(local.resolve(path
                             + "."
                             + validation.getKey().toLowerCase()))) {
@@ -142,21 +142,24 @@ public class MavenRepository implements Repository {
                 }
             }
         }
-        InputStream inputStream = decorator.apply(uri.toURL().openConnection().getInputStream());
-        if (cached != null) {
-            try (inputStream; OutputStream outputStream = Files.newOutputStream(cached)) {
+        if (cached == null) {
+            Function<InputStream, InputStream> fixture = decorator;
+            return () -> fixture.apply(uri.toURL().openConnection().getInputStream());
+        } else {
+            Path temp = Files.createTempFile(artifactId + "-" + version + (classifier == null ? "" : "-" + classifier), type);
+            try (InputStream inputStream = decorator.apply(uri.toURL().openConnection().getInputStream());
+                 OutputStream outputStream = Files.newOutputStream(temp)) {
                 inputStream.transferTo(outputStream);
             } catch (Throwable t) {
                 try {
-                    Files.deleteIfExists(cached);
+                    Files.delete(temp);
                 } catch (Exception e) {
                     t.addSuppressed(e);
                 }
                 throw t;
             }
-            return new PathInputStreamSource(cached);
+            return new PathInputStreamSource(Files.move(temp, cached));
         }
-        return () -> inputStream;
     }
 
     private static class ValidationInputStream extends DigestInputStream {
