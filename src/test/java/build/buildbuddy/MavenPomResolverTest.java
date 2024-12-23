@@ -54,7 +54,7 @@ public class MavenPomResolverTest {
                     </project>
                     """);
         }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri())).resolve("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
                 "artifact",
                 "1.0.0");
         assertThat(dependencies).hasSize(1);
@@ -110,7 +110,7 @@ public class MavenPomResolverTest {
                     </project>
                     """);
         }
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri())).resolve("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
                 "artifact",
                 "1.0.0");
         assertThat(dependencies).hasSize(1);
