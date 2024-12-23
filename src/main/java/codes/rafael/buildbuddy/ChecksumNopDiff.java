@@ -18,7 +18,7 @@ public class ChecksumNopDiff implements ChecksumDiff {
         return traverse(root);
     }
 
-    private static Map<Path, ChecksumStatus> traverse(Path root) throws IOException {
+    static Map<Path, ChecksumStatus> traverse(Path root) throws IOException {
         Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
         Queue<Path> queue = new ArrayDeque<>(List.of(root));
         do {
