@@ -158,7 +158,9 @@ public class MavenRepository implements Repository {
             Function<InputStream, InputStream> fixture = decorator;
             return () -> fixture.apply(uri.toURL().openConnection().getInputStream());
         } else {
-            Path temp = Files.createTempFile(artifactId + "-" + version + (classifier == null ? "" : "-" + classifier), type);
+            Path temp = Files.createTempFile(
+                    artifactId + "-" + version + (classifier == null ? "" : "-" + classifier),
+                    type + (checksum == null ? "" : "." + checksum));
             try (InputStream inputStream = decorator.apply(uri.toURL().openConnection().getInputStream());
                  OutputStream outputStream = Files.newOutputStream(temp)) {
                 inputStream.transferTo(outputStream);
