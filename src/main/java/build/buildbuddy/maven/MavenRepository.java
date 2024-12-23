@@ -90,10 +90,10 @@ public class MavenRepository implements Repository {
                             try (FileChannel channel = FileChannel.open(cached)) {
                                 digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
                             }
-                            Optional<RepositoryItem> candidate = item.materialize();
+                            Optional<InputStream> candidate = item.toLazyInputStream();
                             if (candidate.isPresent()) {
                                 byte[] expected;
-                                try (InputStream inputStream = candidate.get().toInputStream()) {
+                                try (InputStream inputStream = candidate.get()) {
                                     expected = inputStream.readAllBytes();
                                 }
                                 results.put(item, expected);
@@ -138,7 +138,7 @@ public class MavenRepository implements Repository {
         }
         URI uri = repository.resolve(path);
         if (cached == null) {
-            return () -> ValidatingInputStream.of(uri, digests).map(inputStream -> () -> inputStream);
+            return () -> ValidatingInputStream.of(uri, digests);
         } else {
             return new LatentRepositoryItem(cached,
                     uri,
@@ -148,7 +148,6 @@ public class MavenRepository implements Repository {
         }
     }
 
-    @FunctionalInterface
     private interface LazyRepositoryItem {
 
         default void deleteIfPresent() throws IOException {
@@ -157,7 +156,11 @@ public class MavenRepository implements Repository {
         default void storeIfNotPresent(byte[] bytes) throws IOException {
         }
 
-        Optional<RepositoryItem> materialize() throws IOException;
+        default Optional<RepositoryItem> materialize() throws IOException {
+            return toLazyInputStream().map(inputStream -> () -> inputStream);
+        }
+
+        Optional<InputStream> toLazyInputStream() throws IOException;
     }
 
     record StoredRepositoryItem(Path path) implements LazyRepositoryItem, RepositoryItem {
@@ -170,6 +173,11 @@ public class MavenRepository implements Repository {
         @Override
         public Optional<RepositoryItem> materialize() {
             return Optional.of(this);
+        }
+
+        @Override
+        public Optional<InputStream> toLazyInputStream() throws IOException {
+            return Optional.of(toInputStream());
         }
 
         @Override
@@ -199,6 +207,11 @@ public class MavenRepository implements Repository {
                 throw t;
             }
             Files.move(temporary, path);
+        }
+
+        @Override
+        public Optional<InputStream> toLazyInputStream() throws IOException {
+            return ValidatingInputStream.of(uri, digests);
         }
 
         @Override
@@ -250,10 +263,10 @@ public class MavenRepository implements Repository {
             boolean valid = true;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
             for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
-                Optional<RepositoryItem> candidate = entry.getKey().materialize();
+                Optional<InputStream> candidate = entry.getKey().toLazyInputStream();
                 if (candidate.isPresent()) {
                     byte[] expected;
-                    try (InputStream inputStream = candidate.get().toInputStream()) {
+                    try (InputStream inputStream = candidate.get()) {
                         expected = inputStream.readAllBytes();
                     }
                     results.put(entry.getKey(), expected);

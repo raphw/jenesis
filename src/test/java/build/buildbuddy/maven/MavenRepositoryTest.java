@@ -204,7 +204,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).orElseThrow().toInputStream());
+                null)).isEmpty();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
     }
