@@ -20,9 +20,14 @@ public class MavenPomResolverTest {
 
     private Path repository;
 
+    private MavenPomResolver mavenPomResolver;
+
     @Before
     public void setUp() throws Exception {
         repository = temporaryFolder.newFolder("repository").toPath();
+        mavenPomResolver = new MavenPomResolver(
+                new MavenRepository(repository.toUri(), null, Map.of()),
+                new MavenDefaultVersionNegotiator(new MavenRepository(repository.toUri(), null, Map.of())));
     }
 
     @Test
@@ -46,9 +51,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -86,9 +89,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -127,9 +128,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -158,9 +157,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -200,9 +197,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -248,9 +243,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -322,9 +315,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -392,9 +383,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -442,9 +431,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -501,9 +488,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -546,9 +531,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -603,9 +586,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -657,9 +638,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -729,9 +708,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -792,9 +769,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -854,9 +829,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -938,9 +911,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -1005,9 +976,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -1086,9 +1055,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -1193,9 +1160,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -1313,9 +1278,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -1398,9 +1361,7 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -1451,9 +1412,7 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
-                null,
-                Map.of())).dependencies("group",
+        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
