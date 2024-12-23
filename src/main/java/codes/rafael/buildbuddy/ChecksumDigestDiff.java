@@ -9,14 +9,27 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
-public class ChecksumMd5Diff implements ChecksumDiff {
+public class ChecksumDigestDiff implements ChecksumDiff {
+
+    private final String algorithm;
+
+    public ChecksumDigestDiff(String algorithm) {
+        this.algorithm = algorithm;
+    }
 
     @Override
-    public Map<Path, ChecksumStatus> update(Path checksum, Path root) throws IOException {
+    public Map<Path, ChecksumStatus> read(Path checksums, Path root) throws IOException {
         Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
-        Path updated = Files.createTempFile("checksum", ".diff");
+        diff(checksums.resolve("checksums." + algorithm), root, (path, state) -> status.put(path, state.status()));
+        return status;
+    }
+
+    @Override
+    public Map<Path, ChecksumStatus> update(Path checksums, Path root) throws IOException {
+        Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
+        Path updated = Files.createTempFile("checksums", "." + algorithm);
         try (BufferedWriter writer = Files.newBufferedWriter(updated)) {
-            diff(checksum, root, (path, state) -> {
+            diff(checksums.resolve("checksums." + algorithm), root, (path, state) -> {
                 writer.append(path.toString());
                 writer.newLine();
                 writer.append(Base64.getEncoder().encodeToString(state.checksum()));
@@ -24,18 +37,17 @@ public class ChecksumMd5Diff implements ChecksumDiff {
                 status.put(path, state.status());
             });
         }
-        Files.move(updated, checksum, StandardCopyOption.REPLACE_EXISTING);
-        return status;
-    }
-
-    @Override
-    public Map<Path, ChecksumStatus> read(Path checksum, Path root) throws IOException {
-        Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
-        diff(checksum, root, (path, state) -> status.put(path, state.status()));
+        Files.move(checksums.resolve("checksums." + algorithm), updated, StandardCopyOption.REPLACE_EXISTING);
         return status;
     }
 
     void diff(Path checksum, Path root, IOConsumer<State> consumer) throws IOException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance(algorithm);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
         if (Files.exists(checksum)) {
             Map<Path, byte[]> checksums = new LinkedHashMap<>();
             try (BufferedReader reader = Files.newBufferedReader(checksum)) {
@@ -44,7 +56,7 @@ public class ChecksumMd5Diff implements ChecksumDiff {
                     checksums.put(Paths.get(it.next()), Base64.getDecoder().decode(it.next()));
                 }
             }
-            traverse(root, (path, bytes) -> {
+            traverse(root, digest, (path, bytes) -> {
                 byte[] previous = checksums.remove(path);
                 if (previous == null) {
                     consumer.accept(path, new State(ChecksumStatus.ADDED, bytes, null));
@@ -58,31 +70,26 @@ public class ChecksumMd5Diff implements ChecksumDiff {
                 consumer.accept(entry.getKey(), new State(ChecksumStatus.REMOVED, null, entry.getValue()));
             }
         } else {
-            traverse(root, (path, bytes) -> consumer.accept(path, new State(ChecksumStatus.ADDED, bytes, null)));
+            traverse(root, digest, (path, bytes) -> consumer.accept(path, new State(ChecksumStatus.ADDED, bytes, null)));
         }
     }
 
-    private static void traverse(Path root, IOConsumer<byte[]> consumer) throws IOException {
+    private static void traverse(Path root, MessageDigest digest, IOConsumer<byte[]> consumer) throws IOException {
         Queue<Path> queue = new ArrayDeque<>(List.of(root));
-        try {
-            MessageDigest digest = MessageDigest.getInstance("MD5");
-            do {
-                Path current = queue.remove();
-                if (Files.isDirectory(current)) {
-                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(current)) {
-                        stream.forEach(queue::add);
-                    }
-                } else {
-                    digest.reset();
-                    try (FileChannel channel = FileChannel.open(current)) {
-                        digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
-                    }
-                    consumer.accept(root.relativize(current), digest.digest());
+        do {
+            Path current = queue.remove();
+            if (Files.isDirectory(current)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(current)) {
+                    stream.forEach(queue::add);
                 }
-            } while (!queue.isEmpty());
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+            } else {
+                try (FileChannel channel = FileChannel.open(current)) {
+                    digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
+                }
+                consumer.accept(root.relativize(current), digest.digest());
+                digest.reset();
+            }
+        } while (!queue.isEmpty());
     }
 
     @FunctionalInterface

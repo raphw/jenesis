@@ -16,21 +16,21 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ChecksumMd5DiffTest {
+public class ChecksumDigestDiffTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private ChecksumMd5Diff md5ChecksumDiff = new ChecksumMd5Diff();
+    private ChecksumDigestDiff md5 = new ChecksumDigestDiff("MD5");
 
     @Test
     public void can_diff_empty() throws IOException, NoSuchAlgorithmException {
         Path sources = temporaryFolder.newFolder("sources").toPath();
         Path first = toFile(sources, "first", "foo"), second = toFile(sources, "second", "bar");
-        Path checksums = temporaryFolder.newFile("checksums.diff").toPath();
+        Path checksums = temporaryFolder.newFile("checksums.MD5").toPath();
         Files.delete(checksums);
-        Map<Path, ChecksumMd5Diff.State> diffs = new LinkedHashMap<>();
-        md5ChecksumDiff.diff(checksums, sources, diffs::put);
+        Map<Path, ChecksumDigestDiff.State> diffs = new LinkedHashMap<>();
+        md5.diff(checksums, sources, diffs::put);
         assertThat(diffs).containsOnlyKeys(sources.relativize(first), sources.relativize(second));
         assertThat(diffs.get(sources.relativize(first)).status()).isEqualTo(ChecksumStatus.ADDED);
         assertThat(diffs.get(sources.relativize(first)).checksum()).isEqualTo(toMd5("foo"));
@@ -46,7 +46,7 @@ public class ChecksumMd5DiffTest {
         Path first = toFile(sources, "first", "foo"),
                 second = toFile(sources, "second", "bar"),
                 third = toFile(sources, "third", "qux");
-        Path checksums = temporaryFolder.newFile("checksums.diff").toPath();
+        Path checksums = temporaryFolder.newFile("checksums.MD5").toPath();
         try (BufferedWriter writer = Files.newBufferedWriter(checksums)) {
             writer.append("first");
             writer.newLine();
@@ -61,8 +61,8 @@ public class ChecksumMd5DiffTest {
             writer.append(toMd5String("removed"));
             writer.newLine();
         }
-        Map<Path, ChecksumMd5Diff.State> diffs = new LinkedHashMap<>();
-        md5ChecksumDiff.diff(checksums, sources, diffs::put);
+        Map<Path, ChecksumDigestDiff.State> diffs = new LinkedHashMap<>();
+        md5.diff(checksums, sources, diffs::put);
         assertThat(diffs).containsOnlyKeys(sources.relativize(first),
                 sources.relativize(second),
                 sources.relativize(third),
