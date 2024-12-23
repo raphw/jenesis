@@ -57,7 +57,6 @@ public class MavenPomResolver {
                 dependencies,
                 0,
                 initial));
-        System.out.println("Dependencies: " + dependencies);
         while (!queue.isEmpty()) { // TODO: avoid cycles? maybe already within dependency resolution?
             DependencyKey current = queue.remove();
             DependencyResolution resolution = resolutions.get(current);
