@@ -223,7 +223,7 @@ public class MavenPomResolver {
             DependencyKey resolvedKey = entry.getKey().resolve(pom.properties());
             DependencyValue resolvedValue = entry.getValue().resolve(pom.properties());
             dependencies.putLast(resolvedKey, resolvedValue);
-            if (Objects.equals(resolvedValue.scope(), "import")) {
+            if (Objects.equals(resolvedValue.scope(), "import") && Objects.equals(resolvedKey.type(), "pom")) {
                 UnresolvedPom imported = assembleOrCached(resolvedKey.groupId(),
                         resolvedKey.artifactId(),
                         resolvedValue.version(),

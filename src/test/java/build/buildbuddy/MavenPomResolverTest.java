@@ -704,8 +704,8 @@ public class MavenPomResolverTest {
                             <groupId>import</groupId>
                             <artifactId>artifact</artifactId>
                             <version>1</version>
+                            <type>pom</type>
                             <scope>import</scope>
-                            <packaging>bom</packaging>
                         </dependency>
                     </dependencies>
                 </project>
