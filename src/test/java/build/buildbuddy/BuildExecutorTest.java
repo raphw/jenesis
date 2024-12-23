@@ -1,4 +1,4 @@
-package codes.rafael.buildbuddy;
+package build.buildbuddy;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -7,7 +7,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;

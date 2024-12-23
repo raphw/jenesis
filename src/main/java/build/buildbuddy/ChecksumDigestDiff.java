@@ -1,4 +1,4 @@
-package codes.rafael.buildbuddy;
+package build.buildbuddy;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

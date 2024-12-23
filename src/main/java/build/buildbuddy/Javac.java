@@ -1,4 +1,4 @@
-package codes.rafael.buildbuddy;
+package build.buildbuddy;
 
 import java.io.IOException;
 import java.nio.file.Path;

@@ -1,4 +1,4 @@
-package codes.rafael.buildbuddy;
+package build.buildbuddy;
 
 import org.junit.Rule;
 import org.junit.Test;
