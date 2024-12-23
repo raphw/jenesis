@@ -218,11 +218,11 @@ public class MavenRepository implements Repository {
 
         @Override
         public Optional<RepositoryItem> materialize() throws IOException {
-            Path temporary = Files.createTempFile(prefix, suffix);
             Optional<InputStream> candidate = ValidatingInputStream.of(uri, digests);
             if (candidate.isEmpty()) {
                 return Optional.empty();
             }
+            Path temporary = Files.createTempFile(prefix, suffix);
             try (InputStream inputStream = candidate.get()) {
                 Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
             } catch (Throwable t) {
