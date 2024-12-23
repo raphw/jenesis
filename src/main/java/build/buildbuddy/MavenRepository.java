@@ -12,9 +12,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
 
 public class MavenRepository implements Repository {
 
@@ -56,7 +55,7 @@ public class MavenRepository implements Repository {
                                    String type,
                                    String classifier,
                                    String checksum) throws IOException {
-        return fetch(repository, groupId, artifactId, version, type, classifier, checksum);
+        return fetch(repository, groupId, artifactId, version, type, classifier, checksum, false);
     }
 
     private InputStreamSource fetch(URI repository,
@@ -65,7 +64,8 @@ public class MavenRepository implements Repository {
                                     String version,
                                     String type,
                                     String classifier,
-                                    String checksum) throws IOException {
+                                    String checksum,
+                                    boolean latent) throws IOException {
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
@@ -92,7 +92,8 @@ public class MavenRepository implements Repository {
                                 version,
                                 type,
                                 classifier,
-                                validation.getKey().toLowerCase());
+                                validation.getKey().toLowerCase(),
+                                false);
                         byte[] expected;
                         try (InputStream inputStream = source.toInputStream()) {
                             expected = inputStream.readAllBytes();
@@ -104,6 +105,8 @@ public class MavenRepository implements Repository {
                             }
                             Files.delete(cached);
                             break caching;
+                        } else if (source instanceof CachableInputStreamSource cachable) {
+                            Files.write(cachable.file(), expected);
                         }
                     }
                 }
@@ -113,7 +116,7 @@ public class MavenRepository implements Repository {
             }
         }
         URI uri = repository.resolve(path);
-        Function<InputStream, InputStream> decorator = Function.identity();
+        Map<MessageDigest, InputStreamSource> digests = new HashMap<>();
         if (checksum == null) {
             for (Map.Entry<String, URI> validation : validations.entrySet()) {
                 MessageDigest digest;
@@ -122,45 +125,27 @@ public class MavenRepository implements Repository {
                 } catch (NoSuchAlgorithmException e) {
                     throw new IllegalStateException(e);
                 }
-                InputStreamSource source = fetch(validation.getValue(),
+                digests.put(digest, fetch(validation.getValue(),
                         groupId,
                         artifactId,
                         version,
                         type,
                         classifier,
-                        validation.getKey().toLowerCase());
-                byte[] expected;
-                try (InputStream inputStream = source.toInputStream()) {
-                    expected = inputStream.readAllBytes();
-                }
-                if (Objects.equals(uri.getScheme(), "file")) {
-                    try (FileChannel channel = FileChannel.open(Path.of(uri))) {
-                        digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
-                    }
-                    if (!Arrays.equals(Base64.getDecoder().decode(expected), digest.digest())) {
-                        Path file = source.getPath().orElse(null);
-                        if (file != null) {
-                            Files.delete(file);
-                        }
-                        throw new IOException("Digest did not match expectation");
-                    }
-                } else {
-                    decorator = decorator.andThen(inputStream -> new ValidationInputStream(digest,
-                            inputStream,
-                            Base64.getDecoder().decode(expected),
-                            source.getPath().orElse(null)));
-                }
+                        validation.getKey().toLowerCase(),
+                        true));
             }
         }
         if (cached == null) {
-            Function<InputStream, InputStream> fixture = decorator;
-            return () -> fixture.apply(uri.toURL().openConnection().getInputStream());
+            return () -> ValidationInputStream.wrap(uri.toURL().openConnection().getInputStream(), digests);
+        } else if (latent) {
+            return new CachableInputStreamSource(cached, uri);
         } else {
             Path temp = Files.createTempFile(
                     artifactId + "-" + version + (classifier == null ? "" : "-" + classifier),
                     type + (checksum == null ? "" : "." + checksum));
-            try (InputStream inputStream = decorator.apply(uri.toURL().openConnection().getInputStream());
-                 OutputStream outputStream = Files.newOutputStream(temp)) {
+            try (InputStream inputStream = ValidationInputStream.wrap(
+                    uri.toURL().openConnection().getInputStream(),
+                    digests); OutputStream outputStream = Files.newOutputStream(temp)) {
                 inputStream.transferTo(outputStream);
             } catch (Throwable t) {
                 try {
@@ -174,25 +159,46 @@ public class MavenRepository implements Repository {
         }
     }
 
+    private record CachableInputStreamSource(Path file, URI uri) implements InputStreamSource {
+
+        @Override
+        public InputStream toInputStream() throws IOException {
+            return uri.toURL().openStream();
+        }
+    }
+
     private static class ValidationInputStream extends DigestInputStream {
 
-        private final byte[] expected;
-        private final Path file;
+        private final InputStreamSource source;
 
-        private ValidationInputStream(MessageDigest digest, InputStream inputStream, byte[] expected, Path file) {
+        private ValidationInputStream(InputStream inputStream, MessageDigest digest, InputStreamSource source) {
             super(inputStream, digest);
-            this.expected = expected;
-            this.file = file;
+            this.source = source;
+        }
+
+        private static InputStream wrap(InputStream inputStream,
+                                        Map<MessageDigest, InputStreamSource> sources) throws IOException {
+            for (Map.Entry<MessageDigest, InputStreamSource> entry : sources.entrySet()) {
+                inputStream = new ValidationInputStream(inputStream, entry.getKey(), entry.getValue());
+            }
+            return inputStream;
         }
 
         @Override
         public void close() throws IOException {
             super.close();
-            if (!Arrays.equals(expected, getMessageDigest().digest())) {
+            byte[] expected;
+            try (InputStream inputStream = source.toInputStream()) {
+                expected = inputStream.readAllBytes();
+            }
+            if (!Arrays.equals(Base64.getDecoder().decode(expected), getMessageDigest().digest())) {
+                Path file = source.getPath().orElse(null);
                 if (file != null) {
                     Files.delete(file);
                 }
                 throw new IOException("Digest did not match expectation");
+            } else if (source instanceof CachableInputStreamSource cachable) {
+                Files.write(cachable.file(), expected);
             }
         }
     }
