@@ -16,16 +16,13 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    private final String algorithm;
     private final Map<String, Repository> repositories;
 
     public Dependencies() {
-        algorithm = "SHA256";
         repositories = Map.of("maven", new MavenRepository());
     }
 
-    public Dependencies(String algorithm, Map<String, Repository> repositories) {
-        this.algorithm = algorithm;
+    public Dependencies(Map<String, Repository> repositories) {
         this.repositories = repositories;
     }
 
@@ -50,16 +47,17 @@ public class Dependencies implements BuildStep {
                         if (context.previous() != null && Files.exists(context.previous().resolve(dependency))) {
                             Files.copy(context.previous().resolve(dependency), context.next().resolve(dependency));
                         } else {
+                            String[] expectation = properties.getProperty(dependency).split(":", 2);
                             executor.execute(() -> {
                                 try (
                                         DigestInputStream inputStream = new DigestInputStream(
                                                 repository.download(segments[segments.length == 1 ? 0 : 1]),
-                                                MessageDigest.getInstance(algorithm));
+                                                MessageDigest.getInstance(expectation.length == 1 ? "SHA256" : expectation[0]));
                                         OutputStream outputStream = Files.newOutputStream(context.next().resolve(dependency))
                                 ) {
                                     inputStream.transferTo(outputStream);
                                     String digest = Base64.getEncoder().encodeToString(inputStream.getMessageDigest().digest());
-                                    if (!digest.equals(properties.getProperty(dependency))) {
+                                    if (!digest.equals(expectation[expectation.length == 1 ? 0 : 1])) {
                                         Files.delete(context.next().resolve(dependency));
                                         throw new IllegalStateException("Mismatched digest for " + dependency);
                                     }

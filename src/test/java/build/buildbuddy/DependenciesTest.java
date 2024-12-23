@@ -40,12 +40,12 @@ public class DependenciesTest {
     public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(classes.resolve("sample"));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", Base64.getEncoder().encodeToString(
+        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies("SHA256", Map.of(
+        BuildStepResult result = new Dependencies(Map.of(
                 "sample",
                 coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
@@ -59,12 +59,12 @@ public class DependenciesTest {
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(classes.resolve("sample"));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", Base64.getEncoder().encodeToString(
+        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
             properties.store(writer, null);
         }
-        assertThatThrownBy(() -> new Dependencies("SHA256", Map.of(
+        assertThatThrownBy(() -> new Dependencies(Map.of(
                 "sample",
                 coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
@@ -79,12 +79,12 @@ public class DependenciesTest {
     public void can_retain_dependency_from_previous_run() throws IOException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(classes.resolve("sample"));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", Base64.getEncoder().encodeToString(
+        properties.setProperty("sample:coordinate", "SHA256:" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
             properties.store(writer, null);
         }
-        assertThatThrownBy(() -> new Dependencies("SHA256", Map.of(
+        assertThatThrownBy(() -> new Dependencies(Map.of(
                 "sample",
                 coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
