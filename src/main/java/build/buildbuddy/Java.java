@@ -1,6 +1,7 @@
 package build.buildbuddy;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -48,15 +49,27 @@ public abstract class Java implements ProcessBuildStep {
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
         List<String> classPath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String folder : List.of(Javac.FOLDER, "resources/", Dependencies.FOLDER, Jar.FOLDER)) {
+            for (String folder : List.of(Javac.FOLDER, "resources/")) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.exists(candidate)) {
                     classPath.add(candidate.toString());
                 }
             }
+            for (String folder : List.of(Dependencies.FOLDER, Jar.FOLDER)) {
+                Path candidate = argument.folder().resolve(folder);
+                if (Files.exists(candidate)) {
+                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(candidate)) {
+                        for (Path path : stream) {
+                            classPath.add(path.toString());
+                        }
+                    }
+                }
+            }
         }
         return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
-                Stream.of(java, "--class-path", String.join(":", classPath)),
+                classPath.isEmpty()
+                        ? Stream.of(java)
+                        : Stream.of(java, "--class-path", String.join(":", classPath)),
                 commands.stream()).toList()), executor);
     }
 

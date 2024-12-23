@@ -33,21 +33,23 @@ public class JUnit4Test {
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
         supplement = Files.createDirectory(root.resolve("supplement"));
-        dependencies = Files.createDirectories(root.resolve("dependencies/" + Dependencies.FOLDER));
-        classes = Files.createDirectories(root.resolve("classes/" + Javac.FOLDER));
+        dependencies = Files.createDirectories(root.resolve("dependencies"));
+        classes = Files.createDirectories(root.resolve("classes"));
     }
 
     @Test
     public void can_execute_java() throws IOException, ExecutionException, InterruptedException, URISyntaxException {
+        Path libs = Files.createDirectory(dependencies.resolve(Dependencies.FOLDER));
         Files.copy(
                 Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
-                dependencies.resolve("junit.jar"));
+                libs.resolve("junit.jar"));
         Files.copy(
                 Path.of(CoreMatchers.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
-                dependencies.resolve("hamcrest-core.jar"));
-        Path folder = Files.createDirectory(classes.resolve("sample"));
+                libs.resolve("hamcrest-core.jar"));
         try (InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
-             OutputStream output = Files.newOutputStream(folder.resolve("SampleTest.class"))) {
+             OutputStream output = Files.newOutputStream(Files
+                     .createDirectories(classes.resolve(Javac.FOLDER + "sample"))
+                     .resolve("SampleTest.class"))) {
             requireNonNull(input).transferTo(output);
         }
         BuildStepResult result = new JUnit4().apply(Runnable::run,
@@ -62,10 +64,10 @@ public class JUnit4Test {
                                 classes,
                                 Map.of(Path.of(Javac.FOLDER + "sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve("output")).content()
+        assertThat(supplement.resolve("output")).content()
                 .contains("JUnit")
                 .contains(".Hello world!")
                 .contains("OK (1 test)");
-        assertThat(next.resolve("error")).isEmptyFile();
+        assertThat(supplement.resolve("error")).isEmptyFile();
     }
 }
