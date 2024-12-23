@@ -2,7 +2,6 @@ package build.buildbuddy;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -26,27 +25,24 @@ public interface ProcessBuildStep extends BuildStep {
     }
 
     CompletionStage<ProcessBuilder> process(Executor executor,
-                                            Path previous,
-                                            Path target,
-                                            Map<String, BuildStepArgument> dependencies) throws IOException;
+                                            BuildStepContext context,
+                                            Map<String, BuildStepArgument> arguments) throws IOException;
 
     default ProcessBuilder prepare(ProcessBuilder builder,
                                    Executor executor,
-                                   Path previous,
-                                   Path target,
-                                   Map<String, BuildStepArgument> dependencies) {
+                                   BuildStepContext context,
+                                   Map<String, BuildStepArgument> arguments) {
         return builder.inheritIO();
     }
 
     @Override
     default CompletionStage<BuildStepResult> apply(Executor executor,
-                                                   Path previous,
-                                                   Path next,
+                                                   BuildStepContext context,
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
-        return process(executor, previous, next, arguments).thenComposeAsync(builder -> {
+        return process(executor, context, arguments).thenComposeAsync(builder -> {
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
-                Process process = prepare(builder, executor, previous, next, arguments).start();
+                Process process = prepare(builder, executor, context, arguments).start();
                 executor.execute(() -> {
                     try {
                         if (process.waitFor() == 0) {

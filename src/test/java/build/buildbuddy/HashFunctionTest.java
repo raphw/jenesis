@@ -19,7 +19,7 @@ public class HashFunctionTest {
 
     @Test
     public void can_write_file_and_read_file() throws IOException {
-        Path file = temporaryFolder.newFile().toPath();
+        Path file = temporaryFolder.newFile("file").toPath();
         HashFunction.write(file, Map.of(Path.of("foo"), new byte[]{1, 2, 3}));
         Map<Path, byte[]> checksums = HashFunction.read(file);
         assertThat(checksums).containsOnlyKeys(Path.of("foo"));
@@ -28,7 +28,7 @@ public class HashFunctionTest {
 
     @Test
     public void can_extract_folder() throws IOException {
-        Path folder = temporaryFolder.newFolder().toPath();
+        Path folder = temporaryFolder.newFolder("folder").toPath();
         try (Writer writer = Files.newBufferedWriter(folder.resolve("foo"))) {
             writer.append("bar");
         }
@@ -39,7 +39,7 @@ public class HashFunctionTest {
 
     @Test
     public void can_extract_nested_folder() throws IOException {
-        Path folder = temporaryFolder.newFolder().toPath();
+        Path folder = temporaryFolder.newFolder("folder").toPath();
         try (Writer writer = Files.newBufferedWriter(Files.createDirectory(folder.resolve("bar")).resolve("foo"))) {
             writer.append("bar");
         }
@@ -50,7 +50,7 @@ public class HashFunctionTest {
 
     @Test
     public void can_extract_empty_folder() throws IOException {
-        Path folder = temporaryFolder.newFolder().toPath();
+        Path folder = temporaryFolder.newFolder("folder").toPath();
         Map<Path, byte[]> checksums = HashFunction.read(folder, file -> {
             throw new UnsupportedOperationException();
         });

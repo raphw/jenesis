@@ -1,6 +1,5 @@
 package build.buildbuddy;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,15 +21,14 @@ public class Javac implements ProcessBuildStep {
 
     @Override
     public CompletionStage<ProcessBuilder> process(Executor executor,
-                                                   Path previous,
-                                                   Path target,
-                                                   Map<String, BuildStepArgument> dependencies) {
+                                                   BuildStepContext context,
+                                                   Map<String, BuildStepArgument> arguments) {
         List<String> commands = new ArrayList<>(List.of(
                 javac,
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
-                "-d", target.toString()
+                "-d", context.next().toString()
         ));
-        dependencies.values().stream().flatMap(result -> result.files().keySet().stream()
+        arguments.values().stream().flatMap(result -> result.files().keySet().stream()
                 .filter(path -> path.getFileName().toString().endsWith(".java"))
                 .map(path -> result.folder().resolve(path).toString())).forEach(commands::add);
         return CompletableFuture.completedStage(new ProcessBuilder(commands));

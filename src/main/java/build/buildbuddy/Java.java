@@ -1,14 +1,13 @@
 package build.buildbuddy;
 
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class Java implements ProcessBuildStep {
 
@@ -22,52 +21,47 @@ public abstract class Java implements ProcessBuildStep {
         this.java = java;
     }
 
-    public static Java ofArguments(String... arguments) {
-        return ofArguments(List.of(arguments));
+    public static Java of(String... commands) {
+        return of(List.of(commands));
     }
 
-    public static Java ofArguments(List<String> arguments) {
+    public static Java of(List<String> commands) {
         return new Java() {
             @Override
-            protected CompletionStage<List<String>> arguments(Executor executor,
-                                                              Path previous,
-                                                              Path target,
-                                                              Map<String, BuildStepArgument> dependencies) {
-                return CompletableFuture.completedStage(arguments);
+            protected CompletionStage<List<String>> commands(Executor executor,
+                                                             BuildStepContext context,
+                                                             Map<String, BuildStepArgument> arguments) {
+                return CompletableFuture.completedStage(commands);
             }
         };
     }
 
-    protected abstract CompletionStage<List<String>> arguments(Executor executor,
-                                                               Path previous,
-                                                               Path target,
-                                                               Map<String, BuildStepArgument> dependencies) throws IOException;
+    protected abstract CompletionStage<List<String>> commands(Executor executor,
+                                                              BuildStepContext context,
+                                                              Map<String, BuildStepArgument> arguments) throws IOException;
 
     @Override
     public CompletionStage<ProcessBuilder> process(Executor executor,
-                                                   Path previous,
-                                                   Path target,
-                                                   Map<String, BuildStepArgument> dependencies) throws IOException {
-        return arguments(executor, previous, target, dependencies).thenApplyAsync(arguments -> {
-            List<String> commands = new ArrayList<>(List.of(
-                    java,
-                    "--class-path", dependencies.values().stream()
-                            .map(result -> result.folder().toString())
-                            .collect(Collectors.joining(":"))
-            ));
-            commands.addAll(arguments);
-            return new ProcessBuilder(commands);
-        }, executor);
+                                                   BuildStepContext context,
+                                                   Map<String, BuildStepArgument> arguments) throws IOException {
+        return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
+                Stream.of(
+                        java,
+                        "--class-path", arguments.values().stream()
+                                .map(result -> result.folder().toString())
+                                .collect(Collectors.joining(":"))
+                ),
+                commands.stream()
+        ).toList()), executor);
     }
 
     @Override
     public ProcessBuilder prepare(ProcessBuilder builder,
                                   Executor executor,
-                                  Path previous,
-                                  Path target,
-                                  Map<String, BuildStepArgument> dependencies) {
+                                  BuildStepContext context,
+                                  Map<String, BuildStepArgument> arguments) {
         return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
-                .redirectOutput(target.resolve("output").toFile())
-                .redirectError(target.resolve("error").toFile());
+                .redirectOutput(context.next().resolve("output").toFile())
+                .redirectError(context.next().resolve("error").toFile());
     }
 }

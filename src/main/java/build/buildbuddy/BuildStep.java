@@ -14,7 +14,6 @@ public interface BuildStep {
     }
 
     CompletionStage<BuildStepResult> apply(Executor executor,
-                                           Path previous,
-                                           Path next,
+                                           BuildStepContext context,
                                            Map<String, BuildStepArgument> arguments) throws IOException;
 }

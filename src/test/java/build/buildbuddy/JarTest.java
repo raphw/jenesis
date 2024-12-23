@@ -22,13 +22,13 @@ public class JarTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path root, previous, target, classes;
+    private Path previous, next, classes;
 
     @Before
     public void setUp() throws Exception {
-        root = temporaryFolder.newFolder().toPath();
+        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
-        target = Files.createDirectory(root.resolve("target"));
+        next = Files.createDirectory(root.resolve("next"));
         classes = Files.createDirectory(root.resolve("classes"));
     }
 
@@ -41,10 +41,12 @@ public class JarTest {
         ) {
             requireNonNull(input).transferTo(output);
         }
-        BuildStepResult result = new Jar().apply(Runnable::run, previous, target, Map.of("sources", new BuildStepArgument(
-                classes,
-                Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        BuildStepResult result = new Jar().apply(Runnable::run,
+                new BuildStepContext(previous, next),
+                Map.of("sources", new BuildStepArgument(
+                        classes,
+                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(target.resolve("artifact.jar")).isNotEmptyFile();
+        assertThat(next.resolve("artifact.jar")).isNotEmptyFile();
     }
 }

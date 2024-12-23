@@ -22,13 +22,13 @@ public class JavaTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path root, previous, target, classes;
+    private Path previous, next, classes;
 
     @Before
     public void setUp() throws Exception {
-        root = temporaryFolder.newFolder().toPath();
+        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
-        target = Files.createDirectory(root.resolve("target"));
+        next = Files.createDirectory(root.resolve("next"));
         classes = Files.createDirectory(root.resolve("classes"));
     }
 
@@ -41,13 +41,13 @@ public class JavaTest {
         ) {
             requireNonNull(input).transferTo(output);
         }
-        BuildStepResult result = Java.ofArguments(
-                "sample.Sample"
-        ).apply(Runnable::run, previous, target, Map.of("classes", new BuildStepArgument(
-                classes,
-                Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,
+                new BuildStepContext(previous, next),
+                Map.of("classes", new BuildStepArgument(
+                        classes,
+                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(target.resolve("output")).content().isEqualTo("Hello world!");
-        assertThat(target.resolve("error")).isEmptyFile();
+        assertThat(next.resolve("output")).content().isEqualTo("Hello world!");
+        assertThat(next.resolve("error")).isEmptyFile();
     }
 }

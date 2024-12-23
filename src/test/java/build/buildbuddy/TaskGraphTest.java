@@ -1,5 +1,6 @@
 package build.buildbuddy;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -12,7 +13,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TaskGraphTest {
 
-    private TaskGraph<String, String> taskGraph = new TaskGraph<>((left, right) -> left + right);
+    private TaskGraph<String, String> taskGraph;
+
+    @Before
+    public void setUp() {
+        taskGraph = new TaskGraph<>((left, right) -> left + right);
+    }
 
     @Test
     public void executes_empty() {

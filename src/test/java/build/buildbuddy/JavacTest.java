@@ -19,13 +19,13 @@ public class JavacTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path root, previous, target, sources;
+    private Path previous, next, sources;
 
     @Before
     public void setUp() throws Exception {
-        root = temporaryFolder.newFolder().toPath();
+        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
-        target = Files.createDirectory(root.resolve("target"));
+        next = Files.createDirectory(root.resolve("next"));
         sources = Files.createDirectory(root.resolve("sources"));
     }
 
@@ -38,10 +38,12 @@ public class JavacTest {
             writer.append("public class Sample { }");
             writer.newLine();
         }
-        BuildStepResult result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildStepArgument(
-                sources,
-                Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+        BuildStepResult result = new Javac().apply(Runnable::run,
+                new BuildStepContext(previous, next),
+                Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(target.resolve("sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve("sample/Sample.class")).isNotEmptyFile();
     }
 }

@@ -77,23 +77,30 @@ public class BuildExecutor {
             BuildStep step) {
         return (executor, states) -> {
             try {
-                Path previous = root.resolve(identity), checksum = previous.resolve("checksum"), output = previous.resolve("output");
+                Path previous = root.resolve(identity),
+                        checksum = previous.resolve("checksum"),
+                        output = previous.resolve("output");
                 boolean exists = Files.exists(previous);
                 Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
                 boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
-                Map<String, BuildStepArgument> dependencies = new HashMap<>();
+                Map<String, BuildStepArgument> arguments = new HashMap<>();
                 for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + entry.getKey());
-                    dependencies.put(entry.getKey(), new BuildStepArgument(entry.getValue().folder(), consistent && Files.exists(checksums)
-                            ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
-                            : ChecksumStatus.added(entry.getValue().checksums().keySet())));
+                    arguments.put(entry.getKey(), new BuildStepArgument(
+                            entry.getValue().folder(),
+                            consistent && Files.exists(checksums)
+                                    ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
+                                    : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
-                if (!consistent || step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildStepArgument::isChanged)) {
+                if (!consistent
+                        || step.isAlwaysRun()
+                        || arguments.values().stream().anyMatch(BuildStepArgument::isChanged)) {
                     Path next = Files.createTempDirectory(identity);
                     return step.apply(executor,
-                            consistent ? output : null,
-                            Files.createDirectory(next.resolve("output")),
-                            dependencies).handleAsync((result, throwable) -> {
+                            new BuildStepContext(
+                                    consistent ? output : null,
+                                    Files.createDirectory(next.resolve("output"))),
+                            arguments).handleAsync((result, throwable) -> {
                         try {
                             if (throwable != null) {
                                 Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
@@ -140,7 +147,8 @@ public class BuildExecutor {
         }, executor);
     }
 
-    private record StepSummary(Path folder, Map<Path, byte[]> checksums) { }
+    private record StepSummary(Path folder, Map<Path, byte[]> checksums) {
+    }
 
     private static class RecursiveFolderDeletion extends SimpleFileVisitor<Path> {
 

@@ -26,13 +26,13 @@ public class DependenciesTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path root, previous, target, classes;
+    private Path previous, next, classes;
 
     @Before
     public void setUp() throws Exception {
-        root = temporaryFolder.newFolder().toPath();
+        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
-        target = Files.createDirectory(root.resolve("target"));
+        next = Files.createDirectory(root.resolve("next"));
         classes = Files.createDirectory(root.resolve("classes"));
     }
 
@@ -48,11 +48,11 @@ public class DependenciesTest {
         BuildStepResult result = new Dependencies("SHA256", Map.of(
                 "sample",
                 coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
-        )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildStepArgument(
+        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(target.resolve("sample:coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve("sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
@@ -67,11 +67,31 @@ public class DependenciesTest {
         assertThatThrownBy(() -> new Dependencies("SHA256", Map.of(
                 "sample",
                 coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
-        )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildStepArgument(
+        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Mismatched digest for sample:coordinate");
-        assertThat(target.resolve("sample:coordinate")).doesNotExist();
+        assertThat(next.resolve("sample:coordinate")).doesNotExist();
+    }
+
+    @Test
+    public void can_retain_dependency_from_previous_run() throws IOException, NoSuchAlgorithmException {
+        Path folder = Files.createDirectory(classes.resolve("sample"));
+        Properties properties = new Properties();
+        properties.setProperty("sample:coordinate", Base64.getEncoder().encodeToString(
+                MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
+            properties.store(writer, null);
+        }
+        assertThatThrownBy(() -> new Dependencies("SHA256", Map.of(
+                "sample",
+                coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+        )).apply(Runnable::run, new BuildStepContext(previous, next), Map.of("dependencies", new BuildStepArgument(
+                classes,
+                Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
+                .hasCauseInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Mismatched digest for sample:coordinate");
+        assertThat(next.resolve("sample:coordinate")).doesNotExist();
     }
 }

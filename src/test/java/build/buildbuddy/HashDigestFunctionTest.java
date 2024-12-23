@@ -21,7 +21,7 @@ public class HashDigestFunctionTest {
 
     @Test
     public void can_compute_hash() throws IOException, NoSuchAlgorithmException {
-        Path file = temporaryFolder.newFile().toPath();
+        Path file = temporaryFolder.newFile("file").toPath();
         try (Writer writer = Files.newBufferedWriter(file)) {
             writer.append("bar");
         }

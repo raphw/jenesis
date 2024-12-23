@@ -25,8 +25,8 @@ public class MavenRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        repository = temporaryFolder.newFolder().toPath();
-        mavenRepository = new MavenRepository(repository.toUri()); // comment out to test against Maven Central.
+        repository = temporaryFolder.newFolder("repository").toPath();
+        mavenRepository = new MavenRepository(repository.toUri()); // comment out argument to test against Maven Central.
     }
 
     @Test
@@ -36,13 +36,13 @@ public class MavenRepositoryTest {
                 .resolve("junit-4.13.2.jar"))) {
             writer.write("foo");
         }
-        Path target = temporaryFolder.newFile().toPath();
+        Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (
                 InputStream inputStream = mavenRepository.download("junit", "junit", "4.13.2", null, "jar");
-                OutputStream outputStream = Files.newOutputStream(target)
+                OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
         }
-        assertThat(target).content().isEqualTo("foo");
+        assertThat(dependency).content().isEqualTo("foo");
     }
 }

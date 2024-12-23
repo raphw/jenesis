@@ -31,10 +31,9 @@ public class Dependencies implements BuildStep {
 
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
-                                                  Path previous,
-                                                  Path next,
+                                                  BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
-        List<CompletionStage<Boolean>> stages = new ArrayList<>();
+        List<CompletableFuture<?>> futures = new ArrayList<>();
         for (BuildStepArgument result : arguments.values()) {
             for (Path path : result.files().keySet()) {
                 if (path.toString().endsWith(".dependencies")) {
@@ -47,34 +46,34 @@ public class Dependencies implements BuildStep {
                         Repository repository = requireNonNull(
                                 repositories.get(segments.length == 1 ? "" : segments[0]),
                                 "Could not resolve dependency: " + dependency);
-                        CompletableFuture<Boolean> future = new CompletableFuture<>();
-                        executor.execute(() -> {
-                            try (
-                                    DigestInputStream inputStream = new DigestInputStream(
-                                            repository.download(segments[segments.length == 1 ? 0 : 1]),
-                                            MessageDigest.getInstance(algorithm));
-                                    OutputStream outputStream = Files.newOutputStream(next.resolve(dependency));
-                            ) {
-                                inputStream.transferTo(outputStream);
-                                String digest = Base64.getEncoder().encodeToString(inputStream.getMessageDigest().digest());
-                                if (!digest.equals(properties.getProperty(dependency))) {
-                                    Files.delete(next.resolve(dependency));
-                                    throw new IllegalStateException("Mismatched digest for " + dependency);
+                        CompletableFuture<?> future = new CompletableFuture<>();
+                        if (context.previous() != null && Files.exists(context.previous().resolve(dependency))) {
+                            Files.copy(context.previous().resolve(dependency), context.next().resolve(dependency));
+                        } else {
+                            executor.execute(() -> {
+                                try (
+                                        DigestInputStream inputStream = new DigestInputStream(
+                                                repository.download(segments[segments.length == 1 ? 0 : 1]),
+                                                MessageDigest.getInstance(algorithm));
+                                        OutputStream outputStream = Files.newOutputStream(context.next().resolve(dependency))
+                                ) {
+                                    inputStream.transferTo(outputStream);
+                                    String digest = Base64.getEncoder().encodeToString(inputStream.getMessageDigest().digest());
+                                    if (!digest.equals(properties.getProperty(dependency))) {
+                                        Files.delete(context.next().resolve(dependency));
+                                        throw new IllegalStateException("Mismatched digest for " + dependency);
+                                    }
+                                    future.complete(null);
+                                } catch (Throwable t) {
+                                    future.completeExceptionally(t);
                                 }
-                                future.complete(true);
-                            } catch (Throwable t) {
-                                future.completeExceptionally(t);
-                            }
-                        });
-                        stages.add(future);
+                            });
+                        }
+                        futures.add(future);
                     }
                 }
             }
         }
-        // TODO: proper completion handling.
-        return stages.stream()
-                .reduce((left, right) -> left.thenCombine(right, Boolean::logicalAnd))
-                .map(stage -> stage.thenApply(BuildStepResult::new))
-                .orElseGet(() -> CompletableFuture.completedStage(new BuildStepResult(true)));
+        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).thenApply(ignored -> new BuildStepResult(true));
     }
 }

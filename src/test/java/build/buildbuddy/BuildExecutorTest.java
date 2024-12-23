@@ -42,13 +42,13 @@ public class BuildExecutorTest {
             writer.append("foo");
         }
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
@@ -59,19 +59,19 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void rejects_use_of_previous_if_not_exists() throws IOException {
+    public void rejects_use_of_context_if_not_exists() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
             writer.append("foo");
         }
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(false));
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().get())
@@ -87,13 +87,13 @@ public class BuildExecutorTest {
             writer.append("foo");
         }
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             throw new RuntimeException("baz");
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().get())
@@ -117,7 +117,7 @@ public class BuildExecutorTest {
         }
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
             throw new AssertionError("Did not expect that step is executed");
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
@@ -142,13 +142,13 @@ public class BuildExecutorTest {
         }
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).exists().isEqualTo(output);
-            assertThat(next).isNotEqualTo(output).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).exists().isEqualTo(output);
+            assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ALTERED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
@@ -159,7 +159,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_build_with_changed_source_and_use_of_previous() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build_with_changed_source_and_use_of_context() throws IOException, ExecutionException, InterruptedException {
         Path source = temporaryFolder.newFolder("source").toPath(),
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
@@ -173,13 +173,13 @@ public class BuildExecutorTest {
         }
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).exists().isEqualTo(output);
-            assertThat(next).isNotEqualTo(output).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).exists().isEqualTo(output);
+            assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ALTERED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(false));
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
@@ -204,13 +204,13 @@ public class BuildExecutorTest {
         }
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, file -> new byte[0]));
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isNotEqualTo(output).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
@@ -227,22 +227,22 @@ public class BuildExecutorTest {
             writer.append("foo");
         }
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step1", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step1", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
-        buildExecutor.addStep("step2", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step2", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1");
             assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
             assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("step1").folder().resolve("result"), next.resolve("final"));
+            Files.copy(arguments.get("step1").folder().resolve("result"), context.next().resolve("final"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "step1");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
@@ -263,16 +263,16 @@ public class BuildExecutorTest {
         }
         buildExecutor.addSource("source1", source1);
         buildExecutor.addSource("source2", source2);
-        buildExecutor.addStep("step", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source1", "source2");
             assertThat(arguments.get("source1").folder()).isEqualTo(source1);
             assertThat(arguments.get("source2").folder()).isEqualTo(source2);
             assertThat(arguments.get("source1").files()).isEqualTo(Map.of(Path.of("sample1"), ChecksumStatus.ADDED));
             assertThat(arguments.get("source2").files()).isEqualTo(Map.of(Path.of("sample2"), ChecksumStatus.ADDED));
             try (
-                    Writer writer = Files.newBufferedWriter(next.resolve("result"));
+                    Writer writer = Files.newBufferedWriter(context.next().resolve("result"));
                     BufferedReader reader1 = Files.newBufferedReader(arguments.get("source1").folder().resolve("sample1"));
                     BufferedReader reader2 = Files.newBufferedReader(arguments.get("source2").folder().resolve("sample2"))
             ) {
@@ -294,34 +294,34 @@ public class BuildExecutorTest {
             writer.append("foo");
         }
         buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step1", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step1", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
-        buildExecutor.addStep("step2", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step2", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
             assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("source").folder().resolve("sample"), next.resolve("result"));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
-        buildExecutor.addStep("step3", (executor, previous, next, arguments) -> {
-            assertThat(previous).isNull();
-            assertThat(next).isDirectory();
+        buildExecutor.addStep("step3", (executor, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1", "step2");
             assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
             assertThat(arguments.get("step2").folder()).isEqualTo(root.resolve("step2").resolve("output"));
             assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("step1").folder().resolve("result"), next.resolve("result1"));
+            Files.copy(arguments.get("step1").folder().resolve("result"), context.next().resolve("result1"));
             assertThat(arguments.get("step2").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
-            Files.copy(arguments.get("step2").folder().resolve("result"), next.resolve("result2"));
+            Files.copy(arguments.get("step2").folder().resolve("result"), context.next().resolve("result2"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "step1", "step2");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
