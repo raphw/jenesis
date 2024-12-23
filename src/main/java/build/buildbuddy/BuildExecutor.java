@@ -77,12 +77,9 @@ public class BuildExecutor {
             BuildStep step) {
         return (executor, states) -> {
             try {
-                Path current = root.resolve(identity),
-                        checksum = current.resolve("checksum"),
-                        self = checksum.resolve("checksums"),
-                        output = current.resolve("output");
-                boolean exists = Files.exists(self);
-                Map<Path, byte[]> previous = exists ? HashFunction.read(self) : null;
+                Path current = root.resolve(identity), checksum = current.resolve("checksum"), output = current.resolve("output");
+                boolean exists = Files.exists(current);
+                Map<Path, byte[]> previous = exists ? HashFunction.read(checksum.resolve("checksums")) : null;
                 boolean consistent = previous != null && HashFunction.areConsistent(output, previous, hash);
                 Map<String, BuildStepArgument> dependencies = new HashMap<>();
                 for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
@@ -118,7 +115,7 @@ public class BuildExecutor {
                                         entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
-                            HashFunction.write(self, checksums);
+                            HashFunction.write(checksum.resolve("checksums"), checksums);
                             return Map.of(identity, new BuildStatus(output, checksums));
                         } catch (Throwable t) {
                             throw new CompletionException(t);
