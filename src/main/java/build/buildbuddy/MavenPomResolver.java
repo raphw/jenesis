@@ -55,6 +55,7 @@ public class MavenPomResolver {
                 dependencies,
                 0,
                 initial));
+        System.out.println("Dependencies: " + dependencies);
         while (!queue.isEmpty()) { // TODO: avoid cycles? maybe already within dependency resolution?
             DependencyKey current = queue.remove();
             DependencyResolution resolution = resolutions.get(current);
@@ -63,6 +64,10 @@ public class MavenPomResolver {
                     current.type(),
                     current.classifier(),
                     resolution.versions());
+            if (negotiated.equals(resolution.version()) && resolution.scopes().stream().allMatch(resolution.scope()::implies)) {
+                continue;
+            }
+            System.out.println("Reconsider: " + current.groupId() + ":" + current.artifactId() + ":" + negotiated);
             int offset = (int) dependencies.stream()
                     .takeWhile(entry -> !entry.key().equals(current))
                     .count();
@@ -70,8 +75,12 @@ public class MavenPomResolver {
             do {
                 DependencyEntry entry = dependencies.remove(offset);
                 DependencyResolution transitive = resolutions.get(entry.key());
-                transitive.versions().remove(entry.version());
-                transitive.scopes().remove(entry.scope());
+                int index = (int) dependencies.stream()
+                        .limit(offset)
+                        .filter(value -> value.key().equals(entry.key()))
+                        .count();
+                transitive.versions().remove(index);
+                transitive.scopes().remove(index);
                 if (transitive.versions().isEmpty()) {
                     resolutions.remove(entry.key()); // TODO: does this require special handling?
                 } else if (!transitive.scopes().contains(entry.scope()) || !transitive.versions().contains(entry.version())) {
@@ -89,6 +98,7 @@ public class MavenPomResolver {
                             negotiated,
                             new HashSet<>(),
                             poms), false, resolution.scope(), resolution.exclusions())));
+            System.out.println("Dependencies: " + dependencies);
         }
         return dependencies.stream().map(DependencyEntry::key).distinct().map(key -> {
             DependencyResolution resolution = resolutions.get(key);
@@ -134,6 +144,7 @@ public class MavenPomResolver {
                 if (mergedScope == null) {
                     continue;
                 }
+                System.out.println("Dependency: " + entry.getKey().groupId() + ":" + entry.getKey().artifactId() + ":" + value.version());
                 DependencyResolution previous = resolutions.get(entry.getKey());
                 if (previous == null) {
                     Set<DependencyName> exclusions = current.exclusions();
@@ -163,7 +174,7 @@ public class MavenPomResolver {
                             value.version(),
                             mergedScope));
                 } else {
-                    if (!previous.versions().contains(value.version()) || mergedScope.overrides(previous.scope())) {
+                    if (!previous.versions().contains(value.version()) || mergedScope.implies(previous.scope())) {
                         unresolved.add(entry.getKey());
                         previous.versions().add(value.version());
                         previous.scopes().add(mergedScope);
@@ -459,6 +470,7 @@ public class MavenPomResolver {
                                Set<DependencyName> exclusions) {
         private ResolvedPom(UnresolvedPom pom, boolean root, MavenDependencyScope scope, Set<DependencyName> exclusions) {
             this(new HashMap<>(), new LinkedHashMap<>(), root, scope, exclusions);
+            // TODO: resolve BOM imports!
             pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                     key.resolve(pom.properties()),
                     value.resolve(pom.properties())));
