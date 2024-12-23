@@ -37,7 +37,7 @@ public class ChecksumDigestDiff implements ChecksumDiff {
                 status.put(path, state.status());
             });
         }
-        Files.move(checksums, updated, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(updated, checksums, StandardCopyOption.REPLACE_EXISTING);
         return status;
     }
 
