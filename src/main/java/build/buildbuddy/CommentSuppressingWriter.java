@@ -4,11 +4,11 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
 
-class CommentSuppressingWriter extends BufferedWriter {
+public class CommentSuppressingWriter extends BufferedWriter {
 
     private boolean skipNextNewLine;
 
-    CommentSuppressingWriter(Writer out) {
+    public CommentSuppressingWriter(Writer out) {
         super(out);
     }
 

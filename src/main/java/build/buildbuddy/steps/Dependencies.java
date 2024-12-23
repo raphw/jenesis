@@ -54,7 +54,7 @@ public class Dependencies implements BuildStep {
                     for (String dependency : properties.stringPropertyNames()) {
                         int index = dependency.indexOf('|');
                         Repository repository = requireNonNull(
-                                repositories.get(index == -1 ? "" : dependency.substring(0, index)),
+                                repositories.get(dependency.substring(0, index)),
                                 "Could not resolve dependency: " + dependency);
                         String expectation = properties.getProperty(dependency);
                         int algorithm = expectation.indexOf('|');
@@ -78,7 +78,7 @@ public class Dependencies implements BuildStep {
                         executor.execute(() -> {
                             try {
                                 RepositoryItem source = repository
-                                        .fetch((index == -1 ? dependency : dependency.substring(index + 1)).replace('|', ':'))
+                                        .fetch((dependency.substring(index + 1)).replace('|', ':'))
                                         .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
