@@ -95,6 +95,43 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_dependencies_with_nested_property() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <properties>
+                        <my.version>${intermediate.version}</my.version>
+                        <intermediate.version>1</intermediate.version>
+                    </properties>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>${my.version}</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+                "artifact",
+                "1");
+        assertThat(dependencies).containsExactly(new MavenDependency("other",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                MavenDependencyScope.COMPILE,
+                false));
+    }
+
+    @Test
     public void can_resolve_dependencies_from_parent() throws IOException {
         toFile("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -296,6 +333,59 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_transitive_dependencies_with_scope() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>test</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>test</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>test</scope>
+                        </dependency>
+                        <dependency>
+                            <groupId>runtime</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>runtime</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+                "artifact",
+                "1");
+        assertThat(dependencies).containsExactly(new MavenDependency("other",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                MavenDependencyScope.TEST,
+                false));
+    }
+
+    @Test
     public void can_resolve_dependency_configuration() throws IOException {
         toFile("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -344,38 +434,19 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                     <dependencies>
                         <dependency>
-                            <groupId>first</groupId>
+                            <groupId>deep</groupId>
                             <artifactId>artifact</artifactId>
                             <version>1</version>
                         </dependency>
                         <dependency>
-                            <groupId>second</groupId>
+                            <groupId>shallow</groupId>
                             <artifactId>artifact</artifactId>
                             <version>1</version>
                         </dependency>
                     </dependencies>
                 </project>
                 """);
-        toFile("first", "artifact", "1", """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                    <modelVersion>4.0.0</modelVersion>
-                    <dependencies>
-                        <dependency>
-                            <groupId>transitive</groupId>
-                            <artifactId>artifact</artifactId>
-                            <version>1</version>
-                        </dependency>
-                    </dependencies>
-                </project>
-                """);
-        toFile("transitive", "artifact", "1", """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                    <modelVersion>4.0.0</modelVersion>
-                </project>
-                """);
-        toFile("second", "artifact", "1", """
+        toFile("deep", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -399,25 +470,37 @@ public class MavenPomResolverTest {
                         </dependency>
                 </project>
                 """);
+        toFile("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        toFile("shallow", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
                 "1");
         assertThat(dependencies).containsExactly(
-                new MavenDependency("first",
+                new MavenDependency("deep",
                         "artifact",
                         "1",
                         "jar",
                         null,
                         MavenDependencyScope.COMPILE,
                         false),
-                new MavenDependency("second",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        false),
-                new MavenDependency("transitive",
+                new MavenDependency("shallow",
                         "artifact",
                         "1",
                         "jar",
@@ -425,6 +508,13 @@ public class MavenPomResolverTest {
                         MavenDependencyScope.COMPILE,
                         false),
                 new MavenDependency("intermediate",
+                        "artifact",
+                        "1",
+                        "jar",
+                        null,
+                        MavenDependencyScope.COMPILE,
+                        false),
+                new MavenDependency("transitive",
                         "artifact",
                         "1",
                         "jar",
