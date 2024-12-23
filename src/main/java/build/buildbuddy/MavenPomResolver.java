@@ -41,6 +41,7 @@ public class MavenPomResolver {
         // TODO: resolve transitives
         // TODO: consider excludes
         // TODO: resolve configurations
+        // TODO: resolve conflicts
         Document document;
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
@@ -85,6 +86,18 @@ public class MavenPomResolver {
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
                         .forEach(entry -> dependencies.put(entry.getKey(), entry.getValue()));
+                for (Map.Entry<MavenDependencyKey, MavenDependencyValue> dependency : dependencies.entrySet()) {
+                    ResolvedPom dependent = doResolve(repository.download(dependency.getKey().groupId(),
+                            dependency.getKey().artifactId(),
+                            dependency.getValue().version(),
+                            null,
+                            "pom"));
+                    dependent.dependencies().entrySet().stream()
+                            .filter(entry -> !dependency.getValue().exclusions().contains(new Exclusion(
+                                    entry.getKey().groupId(),
+                                    entry.getKey().artifactId())))
+                            .forEach(entry -> dependencies.put(entry.getKey(), entry.getValue()));
+                }
                 yield new ResolvedPom(properties, managedDependencies, dependencies);
             }
             case null, default ->
