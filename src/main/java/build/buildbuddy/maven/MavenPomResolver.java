@@ -139,7 +139,7 @@ public class MavenPomResolver {
                         default -> null;
                     };
                     case SYSTEM, IMPORT -> null;
-                }, scope = resolution.currentScope == null || !resolution.currentScope.implies(resolvedScope)
+                }, scope = resolution.currentScope == null || resolution.currentScope.reduces(resolvedScope)
                         ? resolvedScope
                         : resolution.currentScope;
                 if (scope == null) {
@@ -156,7 +156,7 @@ public class MavenPomResolver {
                     resolution.currentScope = resolution.widestScope = scope;
                 } else {
                     version = resolution.currentVersion;
-                    if (resolution.observedVersions.add(value.version()) || !resolution.widestScope.implies(scope)) {
+                    if (resolution.observedVersions.add(value.version()) || resolution.widestScope.reduces(scope)) {
                         resolution.widestScope = scope;
                         conflicting.add(entry.getKey());
                     }
