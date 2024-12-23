@@ -95,7 +95,7 @@ public class MavenRepository implements Repository {
                 } else {
                     decorator = decorator.andThen(inputStream -> new ValidationInputStream(digest,
                             inputStream,
-                            expected));
+                            Base64.getDecoder().decode(expected)));
                 }
                 if (local != null) {
                     try (OutputStream outputStream = Files.newOutputStream(local.resolve(path
@@ -135,7 +135,7 @@ public class MavenRepository implements Repository {
         @Override
         public void close() throws IOException {
             super.close();
-            if (!Arrays.equals(Base64.getDecoder().decode(expected), getMessageDigest().digest())) {
+            if (!Arrays.equals(expected, getMessageDigest().digest())) {
                 throw new IOException("Digest did not match expectation");
             }
         }
