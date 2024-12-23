@@ -63,7 +63,7 @@ public class MavenPomResolver {
                 DependencyKey key = it.next();
                 DependencyResolution resolution = resolutions.get(key);
                 boolean converged = true;
-                if (!resolution.widestScope.implies(resolution.currentScope)) {
+                if (resolution.widestScope != resolution.currentScope) {
                     resolution.currentScope = resolution.widestScope;
                     converged = false;
                 }
@@ -136,9 +136,9 @@ public class MavenPomResolver {
                         default -> null;
                     };
                     case SYSTEM, IMPORT -> null;
-                }, scope = resolution.widestScope == null || !resolution.widestScope.implies(resolvedScope)
+                }, scope = resolution.currentScope == null || !resolution.currentScope.implies(resolvedScope)
                         ? resolvedScope
-                        : resolution.widestScope;
+                        : resolution.currentScope;
                 if (scope == null) {
                     continue;
                 }
