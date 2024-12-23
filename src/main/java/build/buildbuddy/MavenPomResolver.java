@@ -24,12 +24,12 @@ public class MavenPomResolver {
     private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
 
     private final MavenRepository repository;
-    private final MavenVersionNegotiator negotiator;
+    private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
     private final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
-    public MavenPomResolver(MavenRepository repository, MavenVersionNegotiator negotiator) {
+    public MavenPomResolver(MavenRepository repository, Supplier<MavenVersionNegotiator> negotiatorSupplier) {
         this.repository = repository;
-        this.negotiator = negotiator;
+        this.negotiatorSupplier = negotiatorSupplier;
         factory.setNamespaceAware(true);
         try {
             factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
@@ -46,13 +46,15 @@ public class MavenPomResolver {
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         Map<DependencyKey, DependencyResolution> resolutions = new HashMap<>();
         SequencedSet<DependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
+        MavenVersionNegotiator negotiator = negotiatorSupplier.get();
         ContextualPom initial = new ContextualPom(resolveOrCached(groupId, artifactId, version, resolved, unresolved),
                 true,
                 scope,
                 Set.of());
         do {
             dependencies.clear();
-            conflicts = traverse(resolved,
+            conflicts = traverse(negotiator,
+                    resolved,
                     unresolved,
                     resolutions,
                     initial.pom().managedDependencies(),
@@ -97,7 +99,8 @@ public class MavenPomResolver {
         }).toList();
     }
 
-    private SequencedSet<DependencyKey> traverse(Map<DependencyCoordinate, ResolvedPom> resolved,
+    private SequencedSet<DependencyKey> traverse(MavenVersionNegotiator negotiator,
+                                                 Map<DependencyCoordinate, ResolvedPom> resolved,
                                                  Map<DependencyCoordinate, UnresolvedPom> unresolved,
                                                  Map<DependencyKey, DependencyResolution> resolutions,
                                                  Map<DependencyKey, DependencyValue> managedDependencies,
@@ -321,7 +324,7 @@ public class MavenPomResolver {
         return pom;
     }
 
-    private static Stream<Node> toChildren(Node node) {
+    static Stream<Node> toChildren(Node node) {
         NodeList children = node.getChildNodes();
         return IntStream.iterate(0,
                 index -> index < children.getLength(),
@@ -402,51 +405,8 @@ public class MavenPomResolver {
         };
     }
 
-    private static Supplier<IllegalStateException> missing(String property) {
+    static Supplier<IllegalStateException> missing(String property) {
         return () -> new IllegalStateException("Property not defined: " + property);
-    }
-
-    private Metadata toMetadata(Map<DependencyName, Metadata> cache, String groupId, String artifactId) throws IOException {
-        Metadata metadata = cache.get(new DependencyName(groupId, artifactId));
-        if (metadata == null) {
-            Document document;
-            try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null).toInputStream()) {
-                document = factory.newDocumentBuilder().parse(inputStream);
-            } catch (SAXException | ParserConfigurationException e) {
-                throw new IllegalStateException(e);
-            }
-            metadata = switch (document.getDocumentElement().getAttribute("modelVersion")) {
-                case "1.1.0" -> {
-                    Node versioning = toChildren(document.getDocumentElement())
-                            .filter(node -> Objects.equals(node.getLocalName(), "versioning"))
-                            .findFirst()
-                            .orElseThrow(missing("versioning"));
-                    yield new Metadata(
-                            toChildren(versioning)
-                                    .filter(node -> Objects.equals(node.getLocalName(), "latest"))
-                                    .findFirst()
-                                    .map(Node::getTextContent)
-                                    .orElseThrow(missing("latest")),
-                            toChildren(versioning)
-                                    .filter(node -> Objects.equals(node.getLocalName(), "release"))
-                                    .findFirst()
-                                    .map(Node::getTextContent)
-                                    .orElseThrow(missing("release")),
-                            toChildren(versioning)
-                                    .filter(node -> Objects.equals(node.getLocalName(), "versions"))
-                                    .findFirst()
-                                    .stream()
-                                    .flatMap(MavenPomResolver::toChildren)
-                                    .filter(node -> Objects.equals(node.getLocalName(), "version"))
-                                    .map(Node::getTextContent)
-                                    .toList());
-                }
-                case null, default -> throw new IllegalStateException("Unknown model version: " +
-                        document.getDocumentElement().getAttribute("modelVersion"));
-            };
-            cache.put(new DependencyName(groupId, artifactId), metadata);
-        }
-        return metadata;
     }
 
     private record DependencyKey(String groupId,
@@ -489,7 +449,7 @@ public class MavenPomResolver {
         }
     }
 
-    private record DependencyName(String groupId, String artifactId) {
+    record DependencyName(String groupId, String artifactId) {
     }
 
     private record DependencyCoordinate(String groupId, String artifactId, String version) {
@@ -514,8 +474,5 @@ public class MavenPomResolver {
         private final SequencedSet<String> observedVersions = new LinkedHashSet<>();
         private String currentVersion;
         private MavenDependencyScope widestScope, currentScope;
-    }
-
-    private record Metadata(String latest, String release, List<String> versions) {
     }
 }
