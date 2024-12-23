@@ -17,7 +17,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static java.util.Objects.*;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class JarTest {

@@ -68,7 +68,7 @@ public class PropertyDependenciesTest {
                         dependencies,
                         Map.of(
                                 Path.of(PropertyDependencies.DEPENDENCIES, "dependencies.properties"),
-                                ChecksumStatus.ALTERED)))).toCompletableFuture().get();
+                                ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
@@ -110,7 +110,7 @@ public class PropertyDependenciesTest {
                         dependencies,
                         Map.of(
                                 Path.of(PropertyDependencies.DEPENDENCIES, "dependencies.properties"),
-                                ChecksumStatus.ALTERED)))).toCompletableFuture().get();
+                                ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
@@ -149,7 +149,7 @@ public class PropertyDependenciesTest {
                         dependencies,
                         Map.of(
                                 Path.of(PropertyDependencies.DEPENDENCIES, "dependencies.properties"),
-                                ChecksumStatus.ALTERED)))).toCompletableFuture().get();
+                                ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
