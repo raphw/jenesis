@@ -214,33 +214,27 @@ public class MavenPomResolver {
     private ResolvedPom resolve(UnresolvedPom pom,
                                 Map<DependencyCoordinates, UnresolvedPom> poms,
                                 boolean transitive) throws IOException {
-        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(), importedDependencies = new HashMap<>();
-        pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
-                key.resolve(pom.properties()),
-                value.resolve(pom.properties())));
-        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
-        for (Map.Entry<DependencyKey, DependencyValue> entry : pom.dependencies().entrySet()) {
-            DependencyKey resolvedKey = entry.getKey().resolve(pom.properties());
-            DependencyValue resolvedValue = entry.getValue().resolve(pom.properties());
-            dependencies.putLast(resolvedKey, resolvedValue);
-            if (Objects.equals(resolvedValue.scope(), "import") && Objects.equals(resolvedKey.type(), "pom")) {
-                UnresolvedPom imported = assembleOrCached(resolvedKey.groupId(),
-                        resolvedKey.artifactId(),
-                        resolvedValue.version(),
+        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
+        for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
+            DependencyKey key = entry.getKey().resolve(pom.properties());
+            DependencyValue value = entry.getValue().resolve(pom.properties());
+            if (Objects.equals(value.scope(), "import") && Objects.equals(key.type(), "pom")) {
+                UnresolvedPom imported = assembleOrCached(key.groupId(),
+                        key.artifactId(),
+                        value.version(),
                         new HashSet<>(),
                         poms);
-                imported.managedDependencies().forEach((key, value) -> importedDependencies.putIfAbsent(
-                        key.resolve(imported.properties()),
-                        value.resolve(imported.properties())));
+                imported.managedDependencies().forEach((importedKey, importedValue) -> managedDependencies.putIfAbsent(
+                        importedKey.resolve(imported.properties()),
+                        importedValue.resolve(imported.properties())));
+            } else {
+                managedDependencies.put(key, value);
             }
         }
-        for (Map.Entry<DependencyKey, DependencyValue> entry : dependencies.entrySet()) {
-            DependencyValue imported = importedDependencies.get(entry.getKey());
-            if (imported != null) {
-                entry.setValue(imported);
-            }
-        }
-        managedDependencies.putAll(importedDependencies);
+        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+        pom.dependencies().forEach((key, value) -> dependencies.putLast(
+                key.resolve(pom.properties()),
+                value.resolve(pom.properties())));
         return new ResolvedPom(managedDependencies, dependencies, transitive);
     }
 
