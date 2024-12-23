@@ -43,7 +43,7 @@ public class Resolve implements BuildStep {
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
-        for (BuildStepArgument argument : arguments.values()) { // TODO: better incremental support
+        for (BuildStepArgument argument : arguments.values()) {
             for (Map.Entry<Path, Path> entry : paths.entrySet()) {
                 Path source = argument.folder().resolve(entry.getKey());
                 if (Files.exists(source)) {
