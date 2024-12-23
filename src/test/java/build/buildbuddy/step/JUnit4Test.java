@@ -1,4 +1,4 @@
-package build.buildbuddy.steps;
+package build.buildbuddy.step;
 
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
