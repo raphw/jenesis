@@ -68,7 +68,7 @@ public class BuildExecutor {
                 return step.apply(executor, source, target, states).thenComposeAsync(result -> {
                     try {
                         System.out.println(identity + " -> " + result);
-                        return CompletableFuture.completedStage(Map.of(identity, new BuildResult(root, diff.update(
+                        return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.update(
                                 root.resolve(identity + ".diff"),
                                 Files.move(target, source, StandardCopyOption.REPLACE_EXISTING)))));
                     } catch (Throwable t) {
