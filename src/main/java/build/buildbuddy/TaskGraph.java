@@ -8,23 +8,22 @@ import java.util.function.BiFunction;
 public class TaskGraph<IDENTITY, STATE> {
 
     private final BiFunction<STATE, STATE, STATE> merge;
-    private final Map<IDENTITY, Registration<IDENTITY, STATE>> registrations = new LinkedHashMap<>();
+    final Map<IDENTITY, Registration<IDENTITY, STATE>> registrations = new LinkedHashMap<>();
 
     public TaskGraph(BiFunction<STATE, STATE, STATE> merge) {
         this.merge = merge;
     }
 
-    @SafeVarargs
-    public final void add(IDENTITY identity,
-                          BiFunction<Executor, STATE, CompletionStage<STATE>> step,
-                          IDENTITY... dependencies) {
-        if (!registrations.keySet().containsAll(List.of(dependencies))) {
-            throw new IllegalArgumentException("Unknown dependencies: " + Arrays.stream(dependencies)
+    public void add(IDENTITY identity,
+                    BiFunction<Executor, STATE, CompletionStage<STATE>> step,
+                    Set<IDENTITY> dependencies) {
+        if (!registrations.keySet().containsAll(dependencies)) {
+            throw new IllegalArgumentException("Unknown dependencies: " + dependencies.stream()
                     .filter(dependency -> !registrations.containsKey(dependency))
                     .distinct()
                     .toList());
         }
-        if (registrations.putIfAbsent(identity, new Registration<>(step, Set.of(dependencies))) != null) {
+        if (registrations.putIfAbsent(identity, new Registration<>(step, dependencies)) != null) {
             throw new IllegalArgumentException("Step already registered: " + identity);
         }
     }
@@ -62,5 +61,6 @@ public class TaskGraph<IDENTITY, STATE> {
     }
 
     record Registration<IDENTITY, STATE>(BiFunction<Executor, STATE, CompletionStage<STATE>> step,
-                                         Set<IDENTITY> dependencies) { }
+                                         Set<IDENTITY> dependencies) {
+    }
 }

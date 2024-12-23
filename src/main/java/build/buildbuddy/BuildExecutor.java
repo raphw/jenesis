@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -26,7 +27,7 @@ public class BuildExecutor {
     }
 
     public void addSource(String identity, Path path) {
-        taskGraph.add(identity, wrapSource(identity, path));
+        taskGraph.add(identity, wrapSource(identity, path), Set.of());
     }
 
     public void replaceSource(String identity, Path path) {
@@ -52,7 +53,15 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, String... dependencies) {
-        taskGraph.add(identity, wrapStep(identity, step) , dependencies);
+        addStep(identity, step, Set.of(dependencies));
+    }
+
+    public void addStep(String identity, BuildStep step, Set<String> dependencies) {
+        taskGraph.add(identity, wrapStep(identity, step), dependencies);
+    }
+
+    public void addStepAtEnd(String identity, BuildStep step) {
+        addStep(identity, step, taskGraph.registrations.keySet());
     }
 
     public void replaceStep(String identity, BuildStep step) {
