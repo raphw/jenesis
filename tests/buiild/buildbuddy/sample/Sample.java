@@ -1,4 +1,4 @@
-package sample;
+package buiild.buildbuddy.sample;
 
 public class Sample {
 

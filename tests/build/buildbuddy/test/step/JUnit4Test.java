@@ -13,7 +13,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.JUnitCore;
-import sample.SampleTest;
+import buiild.buildbuddy.sample.SampleTest;
 
 import java.io.IOException;
 import java.io.InputStream;
