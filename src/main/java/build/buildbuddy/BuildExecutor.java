@@ -6,10 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -23,9 +20,7 @@ public class BuildExecutor {
     private final Path root;
     private final HashFunction hash;
 
-    private final TaskGraph<String, Map<String, StepSummary>> taskGraph = new TaskGraph<>((left, right) -> Stream
-            .concat(left.entrySet().stream(), right.entrySet().stream())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    final Map<String, Registration> registrations = new LinkedHashMap<>();
 
     public BuildExecutor(Path root, HashFunction hash) {
         this.root = root;
@@ -33,11 +28,11 @@ public class BuildExecutor {
     }
 
     public void addSource(String identity, Path path) {
-        taskGraph.add(identity, wrapSource(identity, path), Set.of());
+        add(identity, wrapSource(identity, path), Set.of());
     }
 
     public void replaceSource(String identity, Path path) {
-        taskGraph.replace(identity, wrapSource(identity, path));
+        replace(identity, wrapSource(identity, path));
     }
 
     private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapSource(
@@ -61,15 +56,39 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, Set<String> dependencies) {
-        taskGraph.add(identity, wrapStep(identity, step), dependencies);
+        add(identity, wrapStep(identity, step), dependencies);
     }
 
     public void addStepAtEnd(String identity, BuildStep step) {
-        addStep(identity, step, taskGraph.registrations.keySet());
+        addStep(identity, step, registrations.keySet());
     }
 
     public void replaceStep(String identity, BuildStep step) {
-        taskGraph.replace(identity, wrapStep(identity, step));
+        replace(identity, wrapStep(identity, step));
+    }
+
+    private void add(String identity,
+                     BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> step,
+                     Set<String> dependencies) {
+        if (!registrations.keySet().containsAll(dependencies)) {
+            throw new IllegalArgumentException("Unknown dependencies: " + dependencies.stream()
+                    .filter(dependency -> !registrations.containsKey(dependency))
+                    .distinct()
+                    .toList());
+        }
+        if (registrations.putIfAbsent(identity, new Registration(step, dependencies)) != null) {
+            throw new IllegalArgumentException("Step already registered: " + identity);
+        }
+    }
+
+    private void replace(String identity, BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> step) {
+        Registration registration = registrations.get(identity);
+        if (registration == null) {
+            throw new IllegalArgumentException("Unknown step: " + identity);
+        }
+        registrations.replace(identity, new Registration(step, registration.dependencies()));
     }
 
     private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapStep(
@@ -139,13 +158,46 @@ public class BuildExecutor {
     }
 
     public CompletionStage<Map<String, Path>> execute(Executor executor) {
-        return taskGraph.execute(executor, CompletableFuture.completedStage(Map.of())).thenApplyAsync(results -> {
-            Map<String, Path> folders = new LinkedHashMap<>(); // TODO: return more complex result.
-            for (Map.Entry<String, StepSummary> entry : results.entrySet()) {
-                folders.put(entry.getKey(), entry.getValue().folder());
+        CompletionStage<Map<String, StepSummary>> initial = CompletableFuture.completedStage(Map.of());
+        Map<String, Registration> pending = new LinkedHashMap<>(registrations);
+        Map<String, CompletionStage<Map<String, StepSummary>>> dispatched = new HashMap<>();
+        while (!pending.isEmpty()) {
+            Iterator<Map.Entry<String, Registration>> it = pending.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Registration> entry = it.next();
+                if (dispatched.keySet().containsAll(entry.getValue().dependencies())) {
+                    CompletionStage<Map<String, StepSummary>> completionStage = initial;
+                    for (String dependency : entry.getValue().dependencies()) {
+                        completionStage = completionStage.thenCombineAsync(
+                                dispatched.get(dependency),
+                                (left, right) -> Stream
+                                        .concat(left.entrySet().stream(), right.entrySet().stream())
+                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
+                                executor);
+                    }
+                    dispatched.put(entry.getKey(), completionStage.thenComposeAsync(input -> entry.getValue()
+                            .step()
+                            .apply(executor, input), executor));
+                    it.remove();
+                }
             }
-            return folders;
-        }, executor);
+        }
+        CompletionStage<Map<String, Path>> result = CompletableFuture.completedStage(Map.of());
+        for (String identity : registrations.keySet()) {
+            result = result.thenCombineAsync(dispatched.get(identity), (left, right) -> {
+                Map<String, Path> folders = new LinkedHashMap<>(left); // TODO: return more complex result.
+                for (Map.Entry<String, StepSummary> entry : right.entrySet()) {
+                    folders.put(entry.getKey(), entry.getValue().folder());
+                }
+                return folders;
+            }, executor);
+        }
+        return result;
+    }
+
+    private record Registration(BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> step, Set<String> dependencies) {
     }
 
     private record StepSummary(Path folder, Map<Path, byte[]> checksums) {
