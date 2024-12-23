@@ -17,6 +17,8 @@ public class MavenPomResolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
 
+    private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version");
+
     private final MavenRepository repository;
     private final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
@@ -67,7 +69,6 @@ public class MavenPomResolver {
     private ResolvedPom doResolveOrCached(InputStream inputStream,
                                           Set<DependencyCoordinates> children,
                                           Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
-        // TODO: implicit properties.
         // TODO: resolve properties
         // TODO: order of dependencies?
         // TODO: scope resolution, BOMs
@@ -102,6 +103,12 @@ public class MavenPomResolver {
                     managedDependencies.putAll(resolution.managedDependencies());
                     dependencies.putAll(resolution.dependencies());
                 }
+                IMPLICITS.forEach(property -> toChildren400(document.getDocumentElement(), property)
+                        .findFirst()
+                        .ifPresent(node -> {
+                            properties.put(property, node.getTextContent());
+                            properties.put("project." + property, node.getTextContent());
+                        }));
                 toChildren400(document.getDocumentElement(), "properties")
                         .limit(1)
                         .flatMap(MavenPomResolver::toChildren)
