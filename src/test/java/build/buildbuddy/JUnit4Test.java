@@ -71,5 +71,4 @@ public class JUnit4Test {
                 .contains("OK (1 test)");
         assertThat(next.resolve("error")).isEmptyFile();
     }
-
 }
