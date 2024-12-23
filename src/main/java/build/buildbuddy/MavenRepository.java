@@ -42,7 +42,7 @@ public class MavenRepository implements Repository {
                                 String artifactId,
                                 String version,
                                 String classifier,
-                                String extension) throws IOException {
+                                String extension) throws IOException { // TODO: validate against .md5 or .sha1 files?
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
