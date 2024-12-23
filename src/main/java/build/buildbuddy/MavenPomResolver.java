@@ -42,6 +42,8 @@ public class MavenPomResolver {
         // TODO: consider excludes
         // TODO: resolve configurations
         // TODO: resolve conflicts
+        // TODO: lazy resolution of dependencies and their configurations
+        // TODO: cache and circularity detection
         Document document;
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
