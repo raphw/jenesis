@@ -19,11 +19,7 @@ public class MavenRepository implements Repository {
         }
         root = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
         Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        if (Files.isDirectory(local)) {
-            this.local = local;
-        } else {
-            this.local = null;
-        }
+        this.local = Files.isDirectory(local) ? local : null;
     }
 
     public MavenRepository(URI root, Path local) {
