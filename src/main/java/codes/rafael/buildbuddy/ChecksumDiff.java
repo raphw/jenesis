@@ -15,31 +15,36 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-public class ChecksumDiff implements BiFunction<Path, Path, Map<Path, ChecksumDiff.State>> {
+public class ChecksumDiff {
 
-    @Override
-    public Map<Path, State> apply(Path target, Path file) {
+    public Map<Path, State> diff(Path target, Path file) {
         Map<Path, State> states = new LinkedHashMap<>();
-        if (Files.exists(file)) {
+        if (Files.exists(target)) {
             Map<Path, byte[]> checksums = new LinkedHashMap<>();
             try (BufferedReader reader = Files.newBufferedReader(target)) {
-                checksums.put(Paths.get(reader.readLine()), reader.readLine().getBytes(StandardCharsets.UTF_8));
+                Iterator<String> it = reader.lines().iterator();
+                while (it.hasNext()) {
+                    Path path = Paths.get(it.next());
+                    String s = it.next();
+                    byte[] bytes = Base64.getDecoder().decode(s);
+                    checksums.put(path, bytes);
+                }
             } catch (IOException e) {
-                throw new IllegalStateException(e);
+                throw new UncheckedIOException(e);
             }
             traverse(file, (path, bytes) -> {
                 byte[] previous = checksums.remove(path);
                 if (previous == null) {
                     states.put(path, new State(Status.ADDED, bytes, null));
                 } else if (Arrays.equals(previous, bytes)) {
-                    states.put(path, new State(Status.UNCHANGED, bytes, bytes));
+                    states.put(path, new State(Status.RETAINED, bytes, bytes));
                 } else {
-                    states.put(path, new State(Status.CHANGED, bytes, previous));
+                    states.put(path, new State(Status.ALTERED, bytes, previous));
                 }
             });
             checksums.forEach((path, bytes) -> states.put(path, new State(Status.REMOVED, null, bytes)));
         } else {
-            traverse(file, (path, bytes) -> states.put(path, new State(Status.REMOVED, bytes, null)));
+            traverse(file, (path, bytes) -> states.put(path, new State(Status.ADDED, bytes, null)));
         }
         return states;
     }
@@ -54,21 +59,22 @@ public class ChecksumDiff implements BiFunction<Path, Path, Map<Path, ChecksumDi
                     try (DirectoryStream<Path> stream = Files.newDirectoryStream(current)) {
                         stream.forEach(queue::add);
                     }
-                } else {digest.reset();
+                } else {
+                    digest.reset();
                     try (FileChannel channel = FileChannel.open(current)) {
                         digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
                     }
                     callback.accept(root.relativize(current), digest.digest());
                 }
             } while (!queue.isEmpty());
-        } catch (IOException | NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
     public record State(Status status, byte[] checksum, byte[] previous) { }
 
-    public enum Status { ADDED, REMOVED, CHANGED, UNCHANGED }
+    public enum Status { ADDED, REMOVED, ALTERED, RETAINED }
 }
