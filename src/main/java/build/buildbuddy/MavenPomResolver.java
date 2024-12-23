@@ -26,21 +26,21 @@ public class MavenPomResolver {
     }
 
     public List<MavenDependency> dependencies(String groupId, String artifactId, String version) throws IOException {
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-        Set<MavenDependencyKey> previous = new HashSet<>();
-        Map.Entry<ResolvedPom, Set<ExcludedDependency>> root = Map.entry(doResolve(repository.download(groupId,
+        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+        Set<DependencyKey> previous = new HashSet<>();
+        Map.Entry<ResolvedPom, Set<DependencyExclusion>> root = Map.entry(doResolve(repository.download(groupId,
                 artifactId,
                 version,
                 null,
                 "pom"), new HashSet<>()), Set.of()), current = root;
-        Queue<Map.Entry<ResolvedPom, Set<ExcludedDependency>>> queue = new ArrayDeque<>();
+        Queue<Map.Entry<ResolvedPom, Set<DependencyExclusion>>> queue = new ArrayDeque<>();
         do {
-            for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : current.getKey().dependencies().entrySet()) {
-                if (!current.getValue().contains(new ExcludedDependency(
+            for (Map.Entry<DependencyKey, DependencyValue> entry : current.getKey().dependencies().entrySet()) {
+                if (!current.getValue().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
                     dependencies.put(entry.getKey(), entry.getValue());
-                    Set<ExcludedDependency> exclusions;
+                    Set<DependencyExclusion> exclusions;
                     if (entry.getValue().exclusions() == null || entry.getValue().exclusions().isEmpty()) {
                         exclusions = current.getValue();
                     } else {
@@ -64,7 +64,7 @@ public class MavenPomResolver {
                 Objects.equals(entry.getValue().optional(), true))).toList();
     }
 
-    private ResolvedPom doResolve(InputStream inputStream, Set<PomVersion> children) throws IOException {
+    private ResolvedPom doResolve(InputStream inputStream, Set<DependencyCoordinates> children) throws IOException {
         // TODO: implicit properties.
         // TODO: resolve properties
         // TODO: lazy resolution of dependencies and their configurations
@@ -78,18 +78,18 @@ public class MavenPomResolver {
         }
         return switch (document.getDocumentElement().getNamespaceURI()) {
             case NAMESPACE_4_0_0 -> {
-                PomVersion parent = toChildren400(document.getDocumentElement(), "parent")
+                DependencyCoordinates parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
-                        .map(node -> new PomVersion(
+                        .map(node -> new DependencyCoordinates(
                                 toChildren400(node, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
                                 toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().orElseThrow(),
                                 toChildren400(node, "version").map(Node::getTextContent).findFirst().orElseThrow()))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
-                Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new HashMap<>();
-                SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+                Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
+                SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
                 if (parent != null) {
-                    if (!children.add(new PomVersion(parent.groupId(), parent.artifactId(), parent.version()))) {
+                    if (!children.add(new DependencyCoordinates(parent.groupId(), parent.artifactId(), parent.version()))) {
                         throw new IllegalStateException();
                     }
                     ResolvedPom resolution = doResolve(repository.download(parent.groupId(),
@@ -138,20 +138,20 @@ public class MavenPomResolver {
                 && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
     }
 
-    private static Map.Entry<MavenDependencyKey, MavenDependencyValue> toDependency400(Node node) {
+    private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node) {
         return Map.entry(
-                new MavenDependencyKey(
+                new DependencyKey(
                         toChildren400(node, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
                         toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().orElseThrow(),
                         toChildren400(node, "type").map(Node::getTextContent).findFirst().orElse("jar"),
                         toChildren400(node, "classifier").map(Node::getTextContent).findFirst().orElse(null)),
-                new MavenDependencyValue(
+                new DependencyValue(
                         toChildren400(node, "version").map(Node::getTextContent).findFirst().orElse(null),
                         toChildren400(node, "scope").map(Node::getTextContent).findFirst().orElse("compile"),
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
-                                        .map(child -> new ExcludedDependency(
+                                        .map(child -> new DependencyExclusion(
                                                 toChildren400(child, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
                                                 toChildren400(child, "artifactId").map(Node::getTextContent).findAny().orElseThrow()))
                                         .toList())
@@ -159,18 +159,18 @@ public class MavenPomResolver {
                         toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(Boolean::valueOf).orElse(null)));
     }
 
-    private record MavenDependencyKey(String groupId,
-                                      String artifactId,
-                                      String type,
-                                      String classifier) {
+    private record DependencyKey(String groupId,
+                                 String artifactId,
+                                 String type,
+                                 String classifier) {
     }
 
-    private record MavenDependencyValue(String version,
-                                        String scope,
-                                        List<ExcludedDependency> exclusions,
-                                        Boolean optional) {
-        MavenDependencyValue merge(MavenDependencyValue value) {
-            return value.equals(this) ? this : new MavenDependencyValue(
+    private record DependencyValue(String version,
+                                   String scope,
+                                   List<DependencyExclusion> exclusions,
+                                   Boolean optional) {
+        DependencyValue merge(DependencyValue value) {
+            return value.equals(this) ? this : new DependencyValue(
                     value.version() == null ? version : value.version(),
                     value.scope() == null ? scope : value.scope(),
                     value.exclusions() == null ? exclusions : value.exclusions(),
@@ -178,14 +178,14 @@ public class MavenPomResolver {
         }
     }
 
-    private record ExcludedDependency(String groupId, String artifactId) {
+    private record DependencyExclusion(String groupId, String artifactId) {
     }
 
-    private record PomVersion(String groupId, String artifactId, String version) {
+    private record DependencyCoordinates(String groupId, String artifactId, String version) {
     }
 
     private record ResolvedPom(Map<String, String> properties,
-                               Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
-                               Map<MavenDependencyKey, MavenDependencyValue> dependencies) {
+                               Map<DependencyKey, DependencyValue> managedDependencies,
+                               Map<DependencyKey, DependencyValue> dependencies) {
     }
 }
