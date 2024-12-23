@@ -32,7 +32,7 @@ public class MavenPomResolver {
                 entry.getValue().version(),
                 entry.getKey().type(),
                 entry.getKey().classifier(),
-                entry.getValue().optional())).toList();
+                Objects.equals(entry.getValue().optional(), true))).toList();
     }
 
     private ResolvedPom doResolve(InputStream inputStream) throws IOException {
@@ -87,7 +87,9 @@ public class MavenPomResolver {
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
-                        .forEach(entry -> dependencies.put(entry.getKey(), entry.getValue()));
+                        .forEach(entry -> dependencies.put(
+                                entry.getKey(),
+                                managedDependencies.getOrDefault(entry.getKey(), entry.getValue()).merge(entry.getValue())));
                 for (Map.Entry<MavenDependencyKey, MavenDependencyValue> dependency : dependencies.entrySet()) {
                     ResolvedPom dependent = doResolve(repository.download(dependency.getKey().groupId(),
                             dependency.getKey().artifactId(),
@@ -130,28 +132,33 @@ public class MavenPomResolver {
                         toChildren400(node, "version").map(Node::getTextContent).findFirst().orElse(null),
                         toChildren400(node, "scope").map(Node::getTextContent).findFirst().orElse("compile"),
                         toChildren400(node, "exclusions")
-                                .flatMap(child -> toChildren400(child, "exclusion"))
-                                .map(child -> new Exclusion(
-                                        toChildren400(child, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
-                                        toChildren400(child, "artifactId").map(Node::getTextContent).findAny().orElseThrow()))
-                                .toList(),
-                        toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(Boolean::valueOf).orElse(false)));
+                                .findFirst()
+                                .map(exclusions -> toChildren400(exclusions, "exclusion")
+                                        .map(child -> new Exclusion(
+                                                toChildren400(child, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
+                                                toChildren400(child, "artifactId").map(Node::getTextContent).findAny().orElseThrow()))
+                                        .toList())
+                                .orElse(null),
+                        toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(Boolean::valueOf).orElse(null)));
     }
 
-    private record MavenDependencyKey(
-            String groupId,
-            String artifactId,
-            String type,
-            String classifier
-    ) {
+    private record MavenDependencyKey(String groupId,
+                                      String artifactId,
+                                      String type,
+                                      String classifier) {
     }
 
-    private record MavenDependencyValue(
-            String version,
-            String scope,
-            List<Exclusion> exclusions,
-            boolean optional
-    ) {
+    private record MavenDependencyValue(String version,
+                                        String scope,
+                                        List<Exclusion> exclusions,
+                                        Boolean optional) {
+        MavenDependencyValue merge(MavenDependencyValue value) {
+            return value.equals(this) ? this : new MavenDependencyValue(
+                    value.version() == null ? version : value.version(),
+                    value.scope() == null ? scope : value.scope(),
+                    value.exclusions() == null ? exclusions : value.exclusions(),
+                    value.optional() == null ? optional : value.optional());
+        }
     }
 
     private record Exclusion(String groupId, String artifactId) {

@@ -318,4 +318,52 @@ public class MavenPomResolverTest {
                 null,
                 false));
     }
+
+    @Test
+    public void can_resolve_dependency_configuration() throws IOException {
+        try (Writer writer = Files.newBufferedWriter(Files
+                .createDirectories(repository.resolve("group/artifact/1.0.0"))
+                .resolve("artifact-1.0.0.pom"))) {
+            writer.write("""
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                        <modelVersion>4.0.0</modelVersion>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                            </dependency>
+                        </dependencies>
+                        <dependencyManagement>
+                            <dependencies>
+                                <dependency>
+                                    <groupId>other</groupId>
+                                    <artifactId>artifact</artifactId>
+                                    <version>1.0.0</version>
+                                </dependency>
+                            </dependencies>
+                        </dependencyManagement>
+                    </project>
+                    """);
+        }
+        try (Writer writer = Files.newBufferedWriter(Files
+                .createDirectories(repository.resolve("other/artifact/1.0.0"))
+                .resolve("artifact-1.0.0.pom"))) {
+            writer.write("""
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                        <modelVersion>4.0.0</modelVersion>
+                    </project>
+                    """);
+        }
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).resolve("group",
+                "artifact",
+                "1.0.0");
+        assertThat(dependencies).containsExactly(new MavenDependency("other",
+                "artifact",
+                "1.0.0",
+                "jar",
+                null,
+                false));
+    }
 }
