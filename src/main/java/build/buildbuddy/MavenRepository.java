@@ -57,35 +57,25 @@ public class MavenRepository implements Repository {
                                    String type,
                                    String classifier,
                                    String checksum) throws IOException {
-        return fetch(repository, groupId, artifactId, version, type, classifier, checksum).materialize();
-    }
-
-    private LazyInputStreamSource fetch(URI repository,
-                                        String groupId,
-                                        String artifactId,
-                                        String version,
-                                        String type,
-                                        String classifier,
-                                        String checksum) throws IOException {
-        String path = groupId.replace('.', '/')
+        return fetch(repository, groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
-                + "." + type + (checksum == null ? "" : ("." + checksum));
+                + "." + type + (checksum == null ? "" : ("." + checksum)), checksum == null).materialize();
+    }
+
+    private LazyInputStreamSource fetch(URI repository, String path, boolean checksum) throws IOException {
         Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {
                 boolean valid = true;
-                if (checksum == null) {
+                if (checksum) {
                     Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
-                        LazyInputStreamSource source = fetch(entry.getValue(),
-                                groupId,
-                                artifactId,
-                                version,
-                                type,
-                                classifier,
-                                entry.getKey().toLowerCase());
+                        LazyInputStreamSource source = fetch(
+                                entry.getValue(),
+                                path + "." + entry.getKey().toLowerCase(),
+                                false);
                         if (valid) {
                             MessageDigest digest;
                             try {
@@ -125,15 +115,11 @@ public class MavenRepository implements Repository {
             }
         }
         Map<LazyInputStreamSource, MessageDigest> digests = new HashMap<>();
-        if (checksum == null) {
+        if (checksum) {
             for (Map.Entry<String, URI> entry : validations.entrySet()) {
                 LazyInputStreamSource source = fetch(entry.getValue(),
-                        groupId,
-                        artifactId,
-                        version,
-                        type,
-                        classifier,
-                        entry.getKey().toLowerCase());
+                        path + "." + entry.getKey().toLowerCase(),
+                        false);
                 MessageDigest digest;
                 try {
                     digest = MessageDigest.getInstance(entry.getKey());
@@ -150,8 +136,8 @@ public class MavenRepository implements Repository {
             return new LatentInputStreamSource(cached,
                     uri,
                     digests,
-                    artifactId + "-" + version + (classifier == null ? "" : "-" + classifier),
-                    type + (checksum == null ? "" : ("." + checksum)));
+                    "prefix",
+                    "suffix"); // TODO
         }
     }
 
