@@ -7,7 +7,6 @@ import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.Dependencies;
 import build.buildbuddy.step.JUnit4;
 import build.buildbuddy.step.Javac;
-import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,13 +44,13 @@ public class JUnit4Test {
     }
 
     @Test
-    public void can_execute_java() throws IOException, ExecutionException, InterruptedException, URISyntaxException {
+    public void can_execute_java() throws IOException, ExecutionException, InterruptedException, URISyntaxException, ClassNotFoundException {
         Path libs = Files.createDirectory(dependencies.resolve(Dependencies.LIBS));
         Files.copy(
                 Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
                 libs.resolve("junit.jar"));
         Files.copy(
-                Path.of(CoreMatchers.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
                 libs.resolve("hamcrest-core.jar"));
         try (InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files
