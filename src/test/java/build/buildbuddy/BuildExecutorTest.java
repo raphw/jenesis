@@ -46,7 +46,7 @@ public class BuildExecutorTest {
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
             assertThat(dependencies.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("source").folder().resolve("sample"), target.resolve("result"));
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "source");
         Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step");
@@ -69,7 +69,7 @@ public class BuildExecutorTest {
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
             assertThat(dependencies.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("source").folder().resolve("sample"), target.resolve("result"));
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "source");
         buildExecutor.addStep("step2", (executor, previous, target, dependencies) -> {
             assertThat(previous).doesNotExist();
@@ -78,7 +78,7 @@ public class BuildExecutorTest {
             assertThat(dependencies.get("step1").folder()).isEqualTo(root.resolve("step1"));
             assertThat(dependencies.get("step1").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("step1").folder().resolve("result"), target.resolve("final"));
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "step1");
         Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step1", "step2");
@@ -113,7 +113,7 @@ public class BuildExecutorTest {
             ) {
                 writer.write(Stream.concat(reader1.lines(), reader2.lines()).collect(Collectors.joining()));
             }
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "source1", "source2");
         Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source1", "source2", "step");
@@ -136,7 +136,7 @@ public class BuildExecutorTest {
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
             assertThat(dependencies.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("source").folder().resolve("sample"), target.resolve("result"));
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "source");
         buildExecutor.addStep("step2", (executor, previous, target, dependencies) -> {
             assertThat(previous).doesNotExist();
@@ -145,7 +145,7 @@ public class BuildExecutorTest {
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
             assertThat(dependencies.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("source").folder().resolve("sample"), target.resolve("result"));
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "source");
         buildExecutor.addStep("step3", (executor, previous, target, dependencies) -> {
             assertThat(previous).doesNotExist();
@@ -157,7 +157,7 @@ public class BuildExecutorTest {
             Files.copy(dependencies.get("step1").folder().resolve("result"), target.resolve("result1"));
             assertThat(dependencies.get("step2").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("step2").folder().resolve("result"), target.resolve("result2"));
-            return CompletableFuture.completedStage("Success");
+            return CompletableFuture.completedStage(true);
         }, "step1", "step2");
         Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
         assertThat(build).containsOnlyKeys("source", "step1", "step2", "step3");

@@ -9,8 +9,8 @@ import java.util.concurrent.Executor;
 @FunctionalInterface
 public interface BuildStep {
 
-    CompletionStage<String> apply(Executor executor,
-                                  Path previous,
-                                  Path target,
-                                  Map<String, BuildResult> dependencies) throws IOException;
+    CompletionStage<Boolean> apply(Executor executor,
+                                   Path previous,
+                                   Path target,
+                                   Map<String, BuildResult> dependencies) throws IOException;
 }

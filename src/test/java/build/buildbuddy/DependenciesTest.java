@@ -6,18 +6,21 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import sample.Sample;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class JavaTest {
+public class DependenciesTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -33,21 +36,20 @@ public class JavaTest {
     }
 
     @Test
-    public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
+    public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException {
         Path folder = Files.createDirectory(classes.resolve("sample"));
-        try (
-                InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
-                OutputStream output = Files.newOutputStream(folder.resolve("Sample.class"))
-        ) {
-            requireNonNull(input).transferTo(output);
+        Properties properties = new Properties();
+        properties.setProperty("sample:coordinate", "");
+        try (OutputStream output = Files.newOutputStream(folder.resolve("sample.dependencies"))) {
+            properties.storeToXML(output, "Sample dependencies");
         }
-        boolean result = Java.ofArguments(
-                "sample.Sample"
-        ).apply(Runnable::run, previous, target, Map.of("classes", new BuildResult(
+        boolean result = new Dependencies(Map.of(
+                "sample",
+                coordinate -> new ByteArrayInputStream("foo".getBytes(StandardCharsets.UTF_8))
+        )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildResult(
                 classes,
-                new ChecksumNopDiff().read(root.resolve("checksums"), classes)))).toCompletableFuture().get();
+                new ChecksumNopDiff().read(root.resolve("dependencies"), classes)))).toCompletableFuture().get();
         assertThat(result).isTrue();
-        assertThat(target.resolve("output")).content().isEqualTo("Hello world!");
-        assertThat(target.resolve("error")).isEmptyFile();
+        assertThat(target.resolve("sample:coordinate")).content().isEqualTo("foo");
     }
 }

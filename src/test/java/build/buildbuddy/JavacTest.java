@@ -38,10 +38,10 @@ public class JavacTest {
             writer.append("public class Sample { }");
             writer.newLine();
         }
-        String result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
+        boolean result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
                 sources,
                 new ChecksumNopDiff().read(root.resolve("checksums"), sources)))).toCompletableFuture().get();
-        assertThat(result).isNotNull();
+        assertThat(result).isTrue();
         assertThat(target.resolve("sample/Sample.class")).isNotEmptyFile();
     }
 }

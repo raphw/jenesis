@@ -39,19 +39,19 @@ public interface ProcessBuildStep extends BuildStep {
     }
 
     @Override
-    default CompletionStage<String> apply(Executor executor,
+    default CompletionStage<Boolean> apply(Executor executor,
                                           Path previous,
                                           Path target,
                                           Map<String, BuildResult> dependencies) throws IOException {
         return process(executor, previous, target, dependencies).thenComposeAsync(builder -> {
             System.out.println(String.join(" ", builder.command()));
-            CompletableFuture<String> future = new CompletableFuture<>();
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
             try {
                 Process process = prepare(builder, executor, previous, target, dependencies).start();
                 executor.execute(() -> {
                     try {
                         if (process.waitFor() == 0) {
-                            future.complete("Compiled from " + dependencies);
+                            future.complete(true);
                         } else {
                             throw new IllegalStateException("Unexpected exit code: " + process.exitValue());
                         }
