@@ -47,8 +47,8 @@ public class PropertyDependenciesTest {
     @Test
     public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Properties properties = new Properties();
-        properties.setProperty("foo|bar", "1");
-        properties.setProperty("qux|baz", "2");
+        properties.setProperty("foo/bar", "1");
+        properties.setProperty("qux/baz", "2");
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectory(dependencies.resolve(PropertyDependencies.DEPENDENCIES))
                 .resolve("dependencies.properties"))) {
@@ -103,19 +103,19 @@ public class PropertyDependenciesTest {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactly(
-                "maven|transitive|artifact|artifact|1|jar",
-                "maven|foo|bar|bar|1|jar",
-                "maven|qux|baz|baz|2|jar");
-        assertThat(dependencies.getProperty("maven|transitive|artifact|artifact|1|jar")).isEqualTo(
-                "SHA256|" + Base64.getEncoder().encodeToString(MessageDigest
+                "maven/transitive/artifact/artifact/1/jar",
+                "maven/foo/bar/bar/1/jar",
+                "maven/qux/baz/baz/2/jar");
+        assertThat(dependencies.getProperty("maven/transitive/artifact/artifact/1/jar")).isEqualTo(
+                "SHA256/" + Base64.getEncoder().encodeToString(MessageDigest
                         .getInstance("SHA256")
                         .digest("qux".getBytes(StandardCharsets.UTF_8))));
-        assertThat(dependencies.getProperty("maven|foo|bar|bar|1|jar")).isEqualTo(
-                "SHA256|" + Base64.getEncoder().encodeToString(MessageDigest
+        assertThat(dependencies.getProperty("maven/foo/bar/bar/1/jar")).isEqualTo(
+                "SHA256/" + Base64.getEncoder().encodeToString(MessageDigest
                         .getInstance("SHA256")
                         .digest("foo".getBytes(StandardCharsets.UTF_8))));
-        assertThat(dependencies.getProperty("maven|qux|baz|baz|2|jar")).isEqualTo(
-                "SHA256|" + Base64.getEncoder().encodeToString(MessageDigest
+        assertThat(dependencies.getProperty("maven/qux/baz/baz/2/jar")).isEqualTo(
+                "SHA256/" + Base64.getEncoder().encodeToString(MessageDigest
                         .getInstance("SHA256")
                         .digest("bar".getBytes(StandardCharsets.UTF_8))));
     }
@@ -123,8 +123,8 @@ public class PropertyDependenciesTest {
     @Test
     public void can_resolve_dependencies_without_checksum() throws IOException, ExecutionException, InterruptedException {
         Properties properties = new Properties();
-        properties.setProperty("foo|bar", "1");
-        properties.setProperty("qux|baz", "2");
+        properties.setProperty("foo/bar", "1");
+        properties.setProperty("qux/baz", "2");
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectory(dependencies.resolve(PropertyDependencies.DEPENDENCIES))
                 .resolve("dependencies.properties"))) {
@@ -179,12 +179,12 @@ public class PropertyDependenciesTest {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactly(
-                "maven|transitive|artifact|artifact|1|jar",
-                "maven|foo|bar|bar|1|jar",
-                "maven|qux|baz|baz|2|jar");
-        assertThat(dependencies.getProperty("maven|transitive|artifact|artifact|1|jar")).isEmpty();
-        assertThat(dependencies.getProperty("maven|foo|bar|bar|1|jar")).isEmpty();
-        assertThat(dependencies.getProperty("maven|qux|baz|baz|2|jar")).isEmpty();
+                "maven/transitive/artifact/artifact/jar/1",
+                "maven/foo/bar/bar/2",
+                "maven/qux/baz/baz/2");
+        assertThat(dependencies.getProperty("maven/transitive/artifact/artifact/1/jar")).isEmpty();
+        assertThat(dependencies.getProperty("maven/foo/bar/bar/1/jar")).isEmpty();
+        assertThat(dependencies.getProperty("maven/qux/baz/baz/2/jar")).isEmpty();
     }
 
     private void toFile(String groupId, String artifactId, String version, String pom, String jar) throws IOException {

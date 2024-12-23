@@ -52,13 +52,13 @@ public class Dependencies implements BuildStep {
                         properties.load(reader);
                     }
                     for (String dependency : properties.stringPropertyNames()) {
-                        int index = dependency.indexOf('|');
+                        int index = dependency.indexOf('/');
                         Repository repository = requireNonNull(
                                 repositories.get(dependency.substring(0, index)),
                                 "Could not resolve dependency: " + dependency);
                         String expectation = properties.getProperty(dependency);
                         // TODO: make digest optional.
-                        int algorithm = expectation.indexOf('|');
+                        int algorithm = expectation.indexOf('/');
                         MessageDigest digest;
                         try {
                             digest = MessageDigest.getInstance(algorithm == -1 ? "SHA256" : expectation.substring(0, algorithm));
@@ -79,7 +79,7 @@ public class Dependencies implements BuildStep {
                         executor.execute(() -> {
                             try {
                                 RepositoryItem source = repository
-                                        .fetch((dependency.substring(index + 1)).replace('|', ':'))
+                                        .fetch((dependency.substring(index + 1)).replace('/', ':'))
                                         .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {

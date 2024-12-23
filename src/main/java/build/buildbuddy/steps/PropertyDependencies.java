@@ -1,7 +1,6 @@
 package build.buildbuddy.steps;
 
 import build.buildbuddy.*;
-import build.buildbuddy.maven.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,11 +21,11 @@ public class PropertyDependencies implements BuildStep {
 
     public static final String DEPENDENCIES = "dependencies/";
 
-    private final MavenPomResolver resolver;
-    private final MavenRepository repository;
+    private final Resolver resolver;
+    private final Repository repository;
     private final String algorithm;
 
-    public PropertyDependencies(MavenPomResolver resolver, MavenRepository repository, String algorithm) {
+    public PropertyDependencies(Resolver resolver, Repository repository, String algorithm) {
         this.resolver = resolver;
         this.repository = repository;
         this.algorithm = algorithm;
@@ -42,33 +41,18 @@ public class PropertyDependencies implements BuildStep {
             if (!Files.exists(folder)) {
                 continue;
             }
-            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+            List<String> dependencies = new ArrayList<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.properties")) {
                 for (Path path : stream) {
                     Properties properties = new Properties();
                     try (Reader reader = Files.newBufferedReader(folder.resolve(path))) {
                         properties.load(reader);
                     }
-                    for (String dependency : properties.stringPropertyNames()) {
-                        String[] elements = dependency.split("\\|");
-                        dependencies.put(switch (elements.length) {
-                            case 2 -> new MavenDependencyKey(elements[0], elements[1], "jar", null);
-                            case 3 -> new MavenDependencyKey(elements[0], elements[1], elements[2], null);
-                            case 4 -> new MavenDependencyKey(elements[0], elements[1], elements[3], elements[2]);
-                            default -> throw new IllegalStateException("Invalid coordinate: " + dependency);
-                        }, new MavenDependencyValue(properties.getProperty(dependency), MavenDependencyScope.COMPILE, null, null, null));
-                    }
+                    dependencies.addAll(properties.stringPropertyNames());
                 }
             }
             Properties properties = new Properties();
-            for (MavenDependency dependency : resolver.dependencies(Map.of(), dependencies)) {
-                String coordinate = "maven"
-                        + "|" + dependency.groupId()
-                        + "|" + dependency.artifactId()
-                        + "|" + dependency.artifactId()
-                        + "|" + dependency.version()
-                        + "|" + dependency.type()
-                        + (dependency.classifier() == null ? "" : "|" + dependency.classifier());
+            for (String coordinate : resolver.dependencies(dependencies)) {
                 if (algorithm != null) {
                     MessageDigest digest;
                     try {
@@ -76,12 +60,9 @@ public class PropertyDependencies implements BuildStep {
                     } catch (NoSuchAlgorithmException e) {
                         throw new RuntimeException(e);
                     }
-                    RepositoryItem item = repository.fetch(dependency.groupId(),
-                            dependency.artifactId(),
-                            dependency.version(),
-                            dependency.type(),
-                            dependency.classifier(),
-                            null).orElseThrow(() -> new IllegalStateException("Cannot resolve " + dependency));
+                    RepositoryItem item = repository
+                            .fetch(coordinate)
+                            .orElseThrow(() -> new IllegalStateException("Cannot resolve " + coordinate));
                     Path file = item.getFile().orElse(null);
                     if (file == null) {
                         try (InputStream inputStream = item.toInputStream()) {

@@ -1,6 +1,7 @@
 package build.buildbuddy.maven;
 
 import build.buildbuddy.RepositoryItem;
+import build.buildbuddy.Resolver;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -18,7 +19,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class MavenPomResolver {
+public class MavenPomResolver implements Resolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
@@ -31,6 +32,31 @@ public class MavenPomResolver {
     public MavenPomResolver(MavenRepository repository, Supplier<MavenVersionNegotiator> negotiatorSupplier) {
         this.repository = repository;
         this.negotiatorSupplier = negotiatorSupplier;
+    }
+
+    @Override
+    public List<String> dependencies(List<String> descriptors) throws IOException {
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        descriptors.forEach(coordinate -> {
+            String[] elements = coordinate.split("/");
+            switch (elements.length) {
+                case 3 -> dependencies.put(
+                        new MavenDependencyKey(elements[0], elements[1], "jar", null),
+                        new MavenDependencyValue(elements[2], MavenDependencyScope.COMPILE, null, null, null));
+                case 4 -> dependencies.put(
+                        new MavenDependencyKey(elements[0], elements[1], elements[2], null),
+                        new MavenDependencyValue(elements[3], MavenDependencyScope.COMPILE, null, null, null));
+                case 5 -> dependencies.put(
+                        new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]),
+                        new MavenDependencyValue(elements[4], MavenDependencyScope.COMPILE, null, null, null));
+                default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
+            };
+        });
+        return dependencies(Map.of(), dependencies).stream().map(dependency -> dependency.groupId()
+                + ":" + dependency.artifactId()
+                + (Objects.equals(dependency.type(), "jar") ? "" : ":" + dependency.type())
+                + (dependency.classifier() == null ? "" : ":" + dependency.classifier())
+                + ":" + dependency.version()).toList();
     }
 
     public List<MavenDependency> dependencies(

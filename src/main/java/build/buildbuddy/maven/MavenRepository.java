@@ -39,11 +39,11 @@ public class MavenRepository implements Repository {
 
     @Override
     public Optional<RepositoryItem> fetch(String coordinate) throws IOException {
-        String[] elements = coordinate.split(":");
+        String[] elements = coordinate.split(":", 5);
         return switch (elements.length) {
-            case 4 -> fetch(elements[0], elements[1], elements[2], "jar", null, null);
-            case 5 -> fetch(elements[0], elements[1], elements[2], elements[3], null, null);
-            case 6 -> fetch(elements[0], elements[1], elements[2], elements[4], elements[3], null);
+            case 3 -> fetch(elements[0], elements[1], elements[2], "jar", null, null);
+            case 4 -> fetch(elements[0], elements[1], elements[3], elements[2], null, null);
+            case 5 -> fetch(elements[0], elements[1], elements[4], elements[2], elements[3], null);
             default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
         };
     }
