@@ -1,5 +1,5 @@
 package build.buildbuddy;
 
 public enum MavenDependencyScope {
-    COMPILE, SYSTEM, PROVIDED, RUNTIME, TEST, IMPORT
+    COMPILE, RUNTIME, PROVIDED, TEST, SYSTEM, IMPORT
 }
