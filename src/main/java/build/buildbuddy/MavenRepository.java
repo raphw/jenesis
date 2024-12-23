@@ -136,8 +136,8 @@ public class MavenRepository implements Repository {
             return new LatentInputStreamSource(cached,
                     uri,
                     digests,
-                    "prefix",
-                    "suffix"); // TODO
+                    path.substring(path.lastIndexOf('/') + 1, path.indexOf('.')),
+                    path.substring(path.indexOf('.') + 1));
         }
     }
 
