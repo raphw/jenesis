@@ -1,5 +1,6 @@
-package build.buildbuddy;
+package build.buildbuddy.test;
 
+import build.buildbuddy.HashFunction;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;

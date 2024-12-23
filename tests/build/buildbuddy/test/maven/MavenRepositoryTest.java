@@ -1,5 +1,6 @@
-package build.buildbuddy.maven;
+package build.buildbuddy.test.maven;
 
+import build.buildbuddy.maven.MavenRepository;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

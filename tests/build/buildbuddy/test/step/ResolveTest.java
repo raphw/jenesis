@@ -1,9 +1,10 @@
-package build.buildbuddy.step;
+package build.buildbuddy.test.step;
 
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.step.Resolve;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

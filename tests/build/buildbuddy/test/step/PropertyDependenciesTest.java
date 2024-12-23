@@ -1,9 +1,11 @@
-package build.buildbuddy.step;
+package build.buildbuddy.test.step;
 
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.step.Dependencies;
+import build.buildbuddy.step.PropertyDependencies;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -128,7 +130,7 @@ public class PropertyDependenciesTest {
     @Test
     public void can_resolve_dependencies_with_predefined_checksum() throws IOException,
             ExecutionException,
-            InterruptedException, NoSuchAlgorithmException {
+            InterruptedException {
         Properties properties = new Properties();
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");

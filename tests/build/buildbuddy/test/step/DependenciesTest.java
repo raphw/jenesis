@@ -1,6 +1,7 @@
-package build.buildbuddy.step;
+package build.buildbuddy.test.step;
 
 import build.buildbuddy.*;
+import build.buildbuddy.step.Dependencies;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

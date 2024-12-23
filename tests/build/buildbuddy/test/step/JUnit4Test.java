@@ -1,9 +1,12 @@
-package build.buildbuddy.step;
+package build.buildbuddy.test.step;
 
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.step.Dependencies;
+import build.buildbuddy.step.JUnit4;
+import build.buildbuddy.step.Javac;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;

@@ -1,5 +1,6 @@
-package build.buildbuddy.maven;
+package build.buildbuddy.test.maven;
 
+import build.buildbuddy.maven.MavenModuleResolver;
 import org.junit.Test;
 
 import java.util.Map;

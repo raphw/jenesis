@@ -1,5 +1,6 @@
-package build.buildbuddy;
+package build.buildbuddy.test;
 
+import build.buildbuddy.ChecksumStatus;
 import org.junit.Test;
 
 import java.nio.file.Path;

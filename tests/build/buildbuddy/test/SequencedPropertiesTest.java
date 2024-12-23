@@ -1,5 +1,6 @@
-package build.buildbuddy;
+package build.buildbuddy.test;
 
+import build.buildbuddy.SequencedProperties;
 import org.junit.Test;
 
 import java.io.IOException;
