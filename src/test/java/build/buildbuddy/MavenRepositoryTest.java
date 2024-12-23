@@ -208,4 +208,19 @@ public class MavenRepositoryTest {
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
     }
+
+    @Test
+    public void can_fetch_metadata() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact"))
+                .resolve("maven-metadata.xml"), "foo");
+        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
+                "artifact",
+                null).toInputStream();
+             OutputStream outputStream = Files.newOutputStream(dependency)) {
+            inputStream.transferTo(outputStream);
+        }
+        assertThat(dependency).content().isEqualTo("foo");
+    }
 }

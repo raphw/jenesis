@@ -11,11 +11,7 @@ import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public class MavenRepository implements Repository {
 
@@ -64,12 +60,20 @@ public class MavenRepository implements Repository {
                 + "." + type + (checksum == null ? "" : ("." + checksum)), checksum == null).materialize();
     }
 
-    private LazyInputStreamSource fetch(URI repository, String path, boolean checksum) throws IOException {
+    public InputStreamSource fetchMetadata(String groupId,
+                                           String artifactId,
+                                           String checksum) throws IOException {
+        return fetch(repository, groupId.replace('.', '/')
+                + "/" + artifactId
+                + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum), checksum == null).materialize();
+    }
+
+    private LazyInputStreamSource fetch(URI repository, String path, boolean validate) throws IOException {
         Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {
                 boolean valid = true;
-                if (checksum) {
+                if (validate) {
                     Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
                         LazyInputStreamSource source = fetch(
@@ -115,7 +119,7 @@ public class MavenRepository implements Repository {
             }
         }
         Map<LazyInputStreamSource, MessageDigest> digests = new HashMap<>();
-        if (checksum) {
+        if (validate) {
             for (Map.Entry<String, URI> entry : validations.entrySet()) {
                 LazyInputStreamSource source = fetch(entry.getValue(),
                         path + "." + entry.getKey().toLowerCase(),
