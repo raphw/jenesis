@@ -10,7 +10,7 @@ import java.util.concurrent.Executor;
 @FunctionalInterface
 public interface ProcessBuildStep extends BuildStep {
 
-    boolean WINDOWS = System.getProperty("os.name").toLowerCase().contains("win");
+    boolean WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
 
     static String ofJavaHome(String command) {
         String home = System.getProperty("java.home");
