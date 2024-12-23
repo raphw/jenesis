@@ -199,12 +199,12 @@ public class MavenRepositoryTest {
         MavenRepository repository = new MavenRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
-        assertThatThrownBy(() -> repository.fetch("group",
+        assertThat(repository.fetch("group",
                 "artifact",
                 "1",
                 "jar",
                 null,
-                null)).isInstanceOf(IOException.class);
+                null).toInputStream()).isEmpty();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
     }
