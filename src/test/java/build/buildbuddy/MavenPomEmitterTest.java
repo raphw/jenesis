@@ -23,6 +23,7 @@ public class MavenPomEmitterTest {
                         "jar",
                         null,
                         MavenDependencyScope.COMPILE,
+                        null,
                         false))).accept(writer);
         assertThat(writer.toString()).isEqualTo("""
                 <?xml version="1.0" encoding="UTF-8" standalone="no"?>

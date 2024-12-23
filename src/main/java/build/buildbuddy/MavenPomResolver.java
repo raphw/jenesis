@@ -9,6 +9,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -36,7 +37,6 @@ public class MavenPomResolver {
                                               MavenDependencyScope scope) throws IOException {
         SequencedMap<DependencyKey, DependencyInclusion> dependencies = new LinkedHashMap<>();
         Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
-        Set<DependencyKey> previous = new HashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
                 resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms, true),
                 scope,
@@ -49,7 +49,7 @@ public class MavenPomResolver {
             for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
                 if (!current.exclusions().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
-                        entry.getKey().artifactId())) && previous.add(entry.getKey())) {
+                        entry.getKey().artifactId()))) {
                     DependencyValue value = managedDependencies.getOrDefault(entry.getKey(), entry.getValue());
                     boolean optional = switch (value.optional()) {
                         case "true" -> true;
@@ -75,7 +75,18 @@ public class MavenPomResolver {
                     if (transitive == null) {
                         continue;
                     }
-                    dependencies.put(entry.getKey(), new DependencyInclusion(value.version(), optional, transitive));
+                    DependencyInclusion previous = dependencies.get(entry.getKey()), next;
+                    if (previous == null) {
+                        next = new DependencyInclusion(value.version(),
+                                optional,
+                                transitive,
+                                value.systemPath() == null ? null : Path.of(value.systemPath()));
+                    } else if (transitive != previous.scope() && previous.scope() == MavenDependencyScope.TEST) {
+                        next = new DependencyInclusion(previous.version(), previous.optional(), transitive, previous.path());
+                    } else {
+                        continue;
+                    }
+                    dependencies.put(entry.getKey(), next);
                     Set<DependencyExclusion> exclusions;
                     if (value.exclusions() == null || value.exclusions().isEmpty()) {
                         exclusions = current.exclusions();
@@ -97,6 +108,7 @@ public class MavenPomResolver {
                 entry.getKey().type(),
                 entry.getKey().classifier(),
                 entry.getValue().scope(),
+                entry.getValue().path(),
                 entry.getValue().optional())).toList();
     }
 
@@ -255,6 +267,7 @@ public class MavenPomResolver {
                 new DependencyValue(
                         toTextChild400(node, "version").orElse(null),
                         toTextChild400(node, "scope").orElse(null),
+                        toTextChild400(node, "systemPath").orElse(null),
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
@@ -325,11 +338,13 @@ public class MavenPomResolver {
 
     private record DependencyValue(String version,
                                    String scope,
+                                   String systemPath,
                                    List<DependencyExclusion> exclusions,
                                    String optional) {
         private DependencyValue resolve(Map<String, String> properties) {
             return new DependencyValue(property(version, properties),
                     property(scope, properties),
+                    property(systemPath, properties),
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new DependencyExclusion(
                             property(exclusion.groupId(), properties),
                             property(exclusion.artifactId(), properties))).toList(),
@@ -338,7 +353,7 @@ public class MavenPomResolver {
         }
     }
 
-    private record DependencyInclusion(String version, boolean optional, MavenDependencyScope scope) {
+    private record DependencyInclusion(String version, boolean optional, MavenDependencyScope scope, Path path) {
     }
 
     private record DependencyExclusion(String groupId, String artifactId) {
