@@ -63,11 +63,12 @@ public class BuildExecutorTest {
         try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
             writer.append("foo");
         }
-        assertThat(md5.update(root.resolve("source.diff"), source)).containsOnlyKeys(Path.of("sample"));
+        HashFunction.write(
+                Files.createDirectory(step.resolve("checksum")).resolve("checksums.source"),
+                HashFunction.read(source));
         try (Writer writer = Files.newBufferedWriter(step.resolve("result"))) {
             writer.append("foo");
         }
-        assertThat(md5.update(root.resolve("step.diff"), step)).containsOnlyKeys(Path.of("result")); // TODO: if missing, run step.
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (executor, previous, target, dependencies) -> {
             fail();

@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class DependenciesTest {
@@ -46,7 +45,7 @@ public class DependenciesTest {
                 coordinate -> new ByteArrayInputStream("foo".getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildResult(
                 classes,
-                new LegacyChecksumNopDiff().read(root.resolve("dependencies"), classes)))).toCompletableFuture().get();
+                Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result).isTrue();
         assertThat(target.resolve("sample:coordinate")).content().isEqualTo("foo");
     }

@@ -83,13 +83,6 @@ public class BuildExecutor {
                             ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
                             : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
-                if (Files.exists(checksum.resolve("checksums")) && ChecksumStatus.diff(
-                                HashFunction.read(checksum.resolve("checksums")),
-                                HashFunction.read(output, hashFunction)).values().stream()
-                        .anyMatch(status -> status != ChecksumStatus.RETAINED)) {
-                    Files.walkFileTree(output, new RecursiveFileDeletion());
-                    dependencies.entrySet().forEach(entry -> entry.setValue(entry.getValue().toAltered()));
-                }
                 if (step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildResult::isChanged)) {
                     Path target = Files.createTempDirectory(identity);
                     return step.apply(executor, output, target, dependencies).handleAsync((handled, throwable) -> {
@@ -108,7 +101,7 @@ public class BuildExecutor {
                                         root.resolve(entry.getKey() + "/checksum/checksums"),
                                         checksum.resolve("checksums." + entry.getKey()));
                             }
-                            Map<Path, byte[]> checksums = HashFunction.read(output);
+                            Map<Path, byte[]> checksums = HashFunction.read(output, hashFunction);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
                             return Map.of(identity, new BuildStatus(output, checksums));
                         } catch (Throwable t) {

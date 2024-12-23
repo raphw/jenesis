@@ -45,7 +45,7 @@ public class JavaTest {
                 "sample.Sample"
         ).apply(Runnable::run, previous, target, Map.of("classes", new BuildResult(
                 classes,
-                new LegacyChecksumNopDiff().read(root.resolve("checksums"), classes)))).toCompletableFuture().get();
+                Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result).isTrue();
         assertThat(target.resolve("output")).content().isEqualTo("Hello world!");
         assertThat(target.resolve("error")).isEmptyFile();
