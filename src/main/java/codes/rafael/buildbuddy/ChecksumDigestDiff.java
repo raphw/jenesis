@@ -20,16 +20,16 @@ public class ChecksumDigestDiff implements ChecksumDiff {
     @Override
     public Map<Path, ChecksumStatus> read(Path checksums, Path root) throws IOException {
         Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
-        diff(checksums.resolve("checksums." + algorithm), root, (path, state) -> status.put(path, state.status()));
+        diff(checksums, root, (path, state) -> status.put(path, state.status()));
         return status;
     }
 
     @Override
     public Map<Path, ChecksumStatus> update(Path checksums, Path root) throws IOException {
         Map<Path, ChecksumStatus> status = new LinkedHashMap<>();
-        Path updated = Files.createTempFile("checksums", "." + algorithm);
+        Path updated = Files.createTempFile("checksums", ".temp");
         try (BufferedWriter writer = Files.newBufferedWriter(updated)) {
-            diff(checksums.resolve("checksums." + algorithm), root, (path, state) -> {
+            diff(checksums, root, (path, state) -> {
                 writer.append(path.toString());
                 writer.newLine();
                 writer.append(Base64.getEncoder().encodeToString(state.checksum()));
@@ -37,7 +37,7 @@ public class ChecksumDigestDiff implements ChecksumDiff {
                 status.put(path, state.status());
             });
         }
-        Files.move(checksums.resolve("checksums." + algorithm), updated, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(checksums, updated, StandardCopyOption.REPLACE_EXISTING);
         return status;
     }
 
@@ -70,7 +70,7 @@ public class ChecksumDigestDiff implements ChecksumDiff {
                 consumer.accept(entry.getKey(), new State(ChecksumStatus.REMOVED, null, entry.getValue()));
             }
         } else {
-            traverse(root, digest, (path, bytes) -> consumer.accept(path, new State(ChecksumStatus.ADDED, bytes, null)));
+            traverse(root, digest, (path, bytes) -> consumer.accept(path, new State(ChecksumStatus.ADDED, bytes,null)));
         }
     }
 

@@ -15,7 +15,9 @@ public class TaskGraph<IDENTITY, STATE> {
     }
 
     @SafeVarargs
-    public final void add(IDENTITY identity, BiFunction<Executor, STATE, CompletionStage<STATE>> step, IDENTITY... dependencies) {
+    public final void add(IDENTITY identity,
+                          BiFunction<Executor, STATE, CompletionStage<STATE>> step,
+                          IDENTITY... dependencies) {
         if (!registrations.keySet().containsAll(List.of(dependencies))) {
             throw new IllegalArgumentException("Unknown dependencies: " + Arrays.stream(dependencies)
                     .filter(dependency -> !registrations.containsKey(dependency))
@@ -39,7 +41,9 @@ public class TaskGraph<IDENTITY, STATE> {
                     for (IDENTITY dependency : entry.getValue().dependencies()) {
                         completionStage = completionStage.thenCombineAsync(dispatched.get(dependency), merge, executor);
                     }
-                    dispatched.put(entry.getKey(), completionStage.thenComposeAsync(input -> entry.getValue().step().apply(executor, input), executor));
+                    dispatched.put(entry.getKey(), completionStage.thenComposeAsync(input -> entry.getValue()
+                            .step()
+                            .apply(executor, input), executor));
                     it.remove();
                 }
             }
@@ -49,5 +53,6 @@ public class TaskGraph<IDENTITY, STATE> {
                 .reduce(initial, (left, right) -> left.thenCombineAsync(right, merge, executor));
     }
 
-    record Registration<IDENTITY, STATE>(BiFunction<Executor, STATE, CompletionStage<STATE>> step, Set<IDENTITY> dependencies) { }
+    record Registration<IDENTITY, STATE>(BiFunction<Executor, STATE, CompletionStage<STATE>> step,
+                                         Set<IDENTITY> dependencies) { }
 }
