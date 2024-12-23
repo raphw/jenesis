@@ -1,30 +1,21 @@
 package codes.rafael.buildbuddy;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
-public class TaskGraph<IDENTITY, INPUT, OUTPUT> implements Function<OUTPUT, CompletionStage<OUTPUT>> {
+public class TaskGraph<IDENTITY, STATE> {
 
-    private final Executor executor;
-    private final BiFunction<OUTPUT, OUTPUT, OUTPUT> merge;
-    private final BiFunction<Set<IDENTITY>, OUTPUT, INPUT> initiate;
-    private final Map<IDENTITY, Registration<IDENTITY, INPUT, OUTPUT>> registrations = new LinkedHashMap<>();
+    private final BiFunction<STATE, STATE, STATE> merge;
+    private final Map<IDENTITY, Registration<IDENTITY, STATE>> registrations = new LinkedHashMap<>();
 
-    public TaskGraph(Executor executor, BiFunction<OUTPUT, OUTPUT, OUTPUT> merge, BiFunction<Set<IDENTITY>, OUTPUT, INPUT> initiate) {
-        this.executor = executor;
+    public TaskGraph(BiFunction<STATE, STATE, STATE> merge) {
         this.merge = merge;
-        this.initiate = initiate;
     }
 
-    public void add(
-            IDENTITY identity,
-            Function<INPUT, CompletionStage<OUTPUT>> step,
-            IDENTITY... dependencies
-    ) {
+    @SafeVarargs
+    public final void add(IDENTITY identity, BiFunction<Executor, STATE, CompletionStage<STATE>> step, IDENTITY... dependencies) {
         if (!registrations.keySet().containsAll(List.of(dependencies))) {
             throw new IllegalArgumentException("Unknown dependencies: " + Arrays.stream(dependencies)
                     .filter(dependency -> !registrations.containsKey(dependency))
@@ -36,34 +27,28 @@ public class TaskGraph<IDENTITY, INPUT, OUTPUT> implements Function<OUTPUT, Comp
         }
     }
 
-    @Override
-    public CompletionStage<OUTPUT> apply(OUTPUT output) {
-        CompletionStage<OUTPUT> initial = CompletableFuture.completedStage(output);
-        Map<IDENTITY, CompletionStage<OUTPUT>> dispatched = new HashMap<>();
-        Set<IDENTITY> last = new HashSet<>();
-        while (!dispatched.keySet().containsAll(registrations.keySet())) {
-            registrations.entrySet().stream()
-                    .filter(entry -> !dispatched.containsKey(entry.getKey()))
-                    .filter(entry -> dispatched.keySet().containsAll(entry.getValue().dependencies()))
-                    .forEach(registration -> {
-                        CompletionStage<OUTPUT> future = initial;
-                        for (IDENTITY dependency : registration.getValue().dependencies()) {
-                            future = future.thenCombineAsync(dispatched.get(dependency), merge, executor);
-                            last.remove(dependency);
-                        }
-                        dispatched.put(registration.getKey(), future
-                                .thenApplyAsync(merged -> initiate.apply(registration.getValue().dependencies(), merged), executor)
-                                .thenComposeAsync(input -> registration.getValue().step().apply(input), executor));
-                        last.add(registration.getKey());
-                    });
+    public CompletionStage<STATE> execute(Executor executor, CompletionStage<STATE> initial) {
+        Map<IDENTITY, Registration<IDENTITY, STATE>> pending = new LinkedHashMap<>(registrations);
+        Map<IDENTITY, CompletionStage<STATE>> dispatched = new HashMap<>();
+        Set<IDENTITY> independents = new LinkedHashSet<>();
+        while (!pending.isEmpty()) {
+            Iterator<Map.Entry<IDENTITY, Registration<IDENTITY, STATE>>> it = pending.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<IDENTITY, Registration<IDENTITY, STATE>> entry = it.next();
+                if (dispatched.keySet().containsAll(entry.getValue().dependencies())) {
+                    CompletionStage<STATE> completionStage = initial;
+                    for (IDENTITY dependency : entry.getValue().dependencies()) {
+                        completionStage = completionStage.thenCombineAsync(dispatched.get(dependency), merge, executor);
+                        independents.remove(dependency);
+                    }
+                    dispatched.put(entry.getKey(), completionStage.thenComposeAsync(input -> entry.getValue().step().apply(executor, input), executor));
+                    independents.add(entry.getKey());
+                    it.remove();
+                }
+            }
         }
-        return last.stream()
-                .map(dispatched::get)
-                .reduce(initial, (left, right) -> left.thenCombineAsync(right, merge, executor));
+        return independents.stream().map(dispatched::get).reduce(initial, (left, right) -> left.thenCombineAsync(right, merge, executor));
     }
 
-    record Registration<IDENTITY, INPUT, OUTPUT> (
-            Function<INPUT, CompletionStage<OUTPUT>> step,
-            Set<IDENTITY> dependencies
-    ) { }
+    record Registration<IDENTITY, STATE>(BiFunction<Executor, STATE, CompletionStage<STATE>> step, Set<IDENTITY> dependencies) { }
 }
