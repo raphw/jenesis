@@ -51,12 +51,14 @@ public class Dependencies implements BuildStep {
                     try (Reader reader = Files.newBufferedReader(result.folder().resolve(path))) {
                         properties.load(reader);
                     }
-                    for (String dependency : properties.stringPropertyNames()) {
-                        int index = dependency.indexOf('/');
+                    for (String property : properties.stringPropertyNames()) {
+                        int index = property.indexOf('/');
+                        String expectation = properties.getProperty(property),
+                                dependency = property.replace('/', ':'),
+                                coordinate = dependency.substring(index + 1);
                         Repository repository = requireNonNull(
                                 repositories.get(dependency.substring(0, index)),
-                                "Could not resolve dependency: " + dependency);
-                        String expectation = properties.getProperty(dependency);
+                                "Could not resolve repository: " + dependency.substring(0, index));
                         // TODO: make digest optional.
                         int algorithm = expectation.indexOf('/');
                         MessageDigest digest;
@@ -79,8 +81,8 @@ public class Dependencies implements BuildStep {
                         executor.execute(() -> {
                             try {
                                 RepositoryItem source = repository
-                                        .fetch((dependency.substring(index + 1)).replace('/', ':'))
-                                        .orElseThrow(() -> new IllegalStateException("Could not fetch " + dependency));
+                                        .fetch(coordinate)
+                                        .orElseThrow(() -> new IllegalStateException("Could not fetch " + coordinate));
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
                                     try (DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest)) {

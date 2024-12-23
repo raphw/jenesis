@@ -56,7 +56,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "sample/coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
@@ -88,7 +88,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "sample/coordinate")).content().isEqualTo("coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
@@ -107,15 +107,15 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Mismatched digest for sample/coordinate");
-        assertThat(next.resolve(Dependencies.LIBS + "sample/coordinate")).content().isEqualTo("coordinate");
+                .hasMessageContaining("Mismatched digest for sample:coordinate");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("coordinate");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
-        Files.writeString(Files.createDirectory(Files.createDirectory(previous)
-                        .resolve(Dependencies.LIBS))
-                .resolve("sample/coordinate"), "other");
+        Files.writeString(Files
+                .createDirectory(Files.createDirectory(previous).resolve(Dependencies.LIBS))
+                .resolve("sample:coordinate"), "other");
         Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("sample/coordinate", "SHA256/" + Base64.getEncoder().encodeToString(
@@ -130,7 +130,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "sample.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(Dependencies.LIBS + "sample/coordinate")).content().isEqualTo("other");
-        assertThat(next.resolve(Dependencies.LIBS + "sample/coordinate")).content().isEqualTo("other");
+        assertThat(previous.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("other");
+        assertThat(next.resolve(Dependencies.LIBS + "sample:coordinate")).content().isEqualTo("other");
     }
 }
