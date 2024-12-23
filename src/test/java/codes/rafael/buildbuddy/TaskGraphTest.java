@@ -53,7 +53,7 @@ public class TaskGraphTest {
     public void requires_unique_identifier() {
         taskGraph.add("1", (executor, state) -> CompletableFuture.completedStage(state + "1"));
         assertThatThrownBy(
-                () -> taskGraph.add("1", (executor, state) -> CompletableFuture.completedStage(state + "1"))
+            () -> taskGraph.add("1", (executor, state) -> CompletableFuture.completedStage(state + "1"))
         ).isInstanceOf(IllegalArgumentException.class);
     }
 }
