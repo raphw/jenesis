@@ -44,7 +44,7 @@ public class JarTest {
         BuildStepResult result = new Jar().apply(Runnable::run, previous, target, Map.of("sources", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result.useTarget()).isTrue();
+        assertThat(result.next()).isTrue();
         assertThat(target.resolve("artifact.jar")).isNotEmptyFile();
     }
 }

@@ -30,10 +30,10 @@ public class Dependencies implements BuildStep {
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   Path previous,
-                                                  Path target,
-                                                  Map<String, BuildStepArgument> dependencies) throws IOException {
+                                                  Path next,
+                                                  Map<String, BuildStepArgument> arguments) throws IOException {
         List<CompletionStage<Boolean>> stages = new ArrayList<>();
-        for (BuildStepArgument result : dependencies.values()) {
+        for (BuildStepArgument result : arguments.values()) {
             for (Path path : result.files().keySet()) {
                 if (path.toString().endsWith(".dependencies")) {
                     Properties properties = new Properties();
@@ -49,7 +49,7 @@ public class Dependencies implements BuildStep {
                         executor.execute(() -> {
                             try (
                                     InputStream inputStream = repository.download(segments[segments.length == 1 ? 0 : 1]);
-                                    OutputStream outputStream = Files.newOutputStream(target.resolve(dependency))
+                                    OutputStream outputStream = Files.newOutputStream(next.resolve(dependency))
                             ) {
                                 inputStream.transferTo(outputStream);
                                 // TODO: checksum validation of value

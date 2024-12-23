@@ -46,7 +46,7 @@ public class JavaTest {
         ).apply(Runnable::run, previous, target, Map.of("classes", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result.useTarget()).isTrue();
+        assertThat(result.next()).isTrue();
         assertThat(target.resolve("output")).content().isEqualTo("Hello world!");
         assertThat(target.resolve("error")).isEmptyFile();
     }

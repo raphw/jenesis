@@ -41,12 +41,12 @@ public interface ProcessBuildStep extends BuildStep {
     @Override
     default CompletionStage<BuildStepResult> apply(Executor executor,
                                                    Path previous,
-                                                   Path target,
-                                                   Map<String, BuildStepArgument> dependencies) throws IOException {
-        return process(executor, previous, target, dependencies).thenComposeAsync(builder -> {
+                                                   Path next,
+                                                   Map<String, BuildStepArgument> arguments) throws IOException {
+        return process(executor, previous, next, arguments).thenComposeAsync(builder -> {
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
-                Process process = prepare(builder, executor, previous, target, dependencies).start();
+                Process process = prepare(builder, executor, previous, next, arguments).start();
                 executor.execute(() -> {
                     try {
                         if (process.waitFor() == 0) {

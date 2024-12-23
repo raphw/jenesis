@@ -41,7 +41,7 @@ public class JavacTest {
         BuildStepResult result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildStepArgument(
                 sources,
                 Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result.useTarget()).isTrue();
+        assertThat(result.next()).isTrue();
         assertThat(target.resolve("sample/Sample.class")).isNotEmptyFile();
     }
 }

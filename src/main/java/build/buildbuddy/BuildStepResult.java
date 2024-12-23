@@ -1,4 +1,4 @@
 package build.buildbuddy;
 
-public record BuildStepResult(boolean useTarget) {
+public record BuildStepResult(boolean next) {
 }

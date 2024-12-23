@@ -46,7 +46,7 @@ public class DependenciesTest {
         )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
-        assertThat(result.useTarget()).isTrue();
+        assertThat(result.next()).isTrue();
         assertThat(target.resolve("sample:coordinate")).content().isEqualTo("foo");
     }
 }

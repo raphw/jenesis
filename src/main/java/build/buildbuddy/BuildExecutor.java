@@ -77,10 +77,10 @@ public class BuildExecutor {
             BuildStep step) {
         return (executor, states) -> {
             try {
-                Path current = root.resolve(identity), checksum = current.resolve("checksum"), output = current.resolve("output");
-                boolean exists = Files.exists(current);
-                Map<Path, byte[]> previous = exists ? HashFunction.read(checksum.resolve("checksums")) : null;
-                boolean consistent = previous != null && HashFunction.areConsistent(output, previous, hash);
+                Path previous = root.resolve(identity), checksum = previous.resolve("checksum"), output = previous.resolve("output");
+                boolean exists = Files.exists(previous);
+                Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
+                boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
                 Map<String, BuildStepArgument> dependencies = new HashMap<>();
                 for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + entry.getKey());
@@ -91,19 +91,19 @@ public class BuildExecutor {
                 if (!consistent || step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildStepArgument::isChanged)) {
                     Path next = Files.createTempDirectory(identity);
                     return step.apply(executor,
-                            exists ? output : null,
+                            consistent ? output : null,
                             Files.createDirectory(next.resolve("output")),
                             dependencies).handleAsync((result, throwable) -> {
                         try {
                             if (throwable != null) {
                                 Files.delete(Files.walkFileTree(next, new RecursiveFileDeletion()));
                                 throw throwable;
-                            } else if (result.useTarget()) {
+                            } else if (result.next()) {
                                 Files.move(next, exists
-                                        ? Files.walkFileTree(current, new RecursiveFileDeletion())
-                                        : current);
+                                        ? Files.walkFileTree(previous, new RecursiveFileDeletion())
+                                        : previous);
                                 Files.createDirectory(checksum);
-                            } else if (exists) {
+                            } else if (consistent) {
                                 Files.delete(Files.walkFileTree(next, new RecursiveFileDeletion()));
                                 Files.walkFileTree(checksum, new RecursiveFileDeletion());
                             } else {
@@ -122,7 +122,7 @@ public class BuildExecutor {
                         }
                     }, executor);
                 } else {
-                    return CompletableFuture.completedStage(Map.of(identity, new BuildStatus(output, previous)));
+                    return CompletableFuture.completedStage(Map.of(identity, new BuildStatus(output, current)));
                 }
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
