@@ -6,6 +6,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class BuildExecutorTest {
 
@@ -24,12 +26,13 @@ public class BuildExecutorTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private Path root;
+    private ChecksumDiff md5 = new ChecksumDigestDiff("MD5");
     private BuildExecutor buildExecutor;
 
     @Before
     public void setUp() throws Exception {
         root = temporaryFolder.newFolder().toPath();
-        buildExecutor = new BuildExecutor(root, new ChecksumDigestDiff("MD5"));
+        buildExecutor = new BuildExecutor(root, md5);
     }
 
     @Test
@@ -46,6 +49,29 @@ public class BuildExecutorTest {
             assertThat(dependencies.get("source").folder()).isEqualTo(source);
             assertThat(dependencies.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
             Files.copy(dependencies.get("source").folder().resolve("sample"), target.resolve("result"));
+            return CompletableFuture.completedStage(true);
+        }, "source");
+        Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        assertThat(build).containsOnlyKeys("source", "step");
+        Path result = root.resolve("step").resolve("result");
+        assertThat(result).isRegularFile();
+        assertThat(result).content().isEqualTo("foo");
+    }
+
+    @Test
+    public void can_execute_build_with_skipped_step() throws IOException, ExecutionException, InterruptedException {
+        Path source = temporaryFolder.newFolder().toPath(), step = Files.createDirectory(root.resolve("step"));
+        try (Writer writer = Files.newBufferedWriter(source.resolve("sample"))) {
+            writer.append("foo");
+        }
+        assertThat(md5.update(root.resolve("source.diff"), source)).containsOnlyKeys(Path.of("sample"));
+        try (Writer writer = Files.newBufferedWriter(step.resolve("result"))) {
+            writer.append("foo");
+        }
+        assertThat(md5.update(root.resolve("step.diff"), step)).containsOnlyKeys(Path.of("result")); // TODO: if missing, run step.
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", (executor, previous, target, dependencies) -> {
+            fail();
             return CompletableFuture.completedStage(true);
         }, "source");
         Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();

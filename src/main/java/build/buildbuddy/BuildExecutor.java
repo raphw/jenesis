@@ -73,17 +73,33 @@ public class BuildExecutor {
             BuildStep step) {
         return (executor, states) -> {
             try {
-                Path source = root.resolve(identity), target = Files.createTempDirectory(identity);
-                return step.apply(executor, source, target, states).thenComposeAsync(result -> {
-                    try {
-                        System.out.println(identity + " -> " + result);
-                        return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.update(
-                                root.resolve(identity + ".diff"),
-                                Files.move(target, source, StandardCopyOption.REPLACE_EXISTING)))));
-                    } catch (Throwable t) {
-                        return CompletableFuture.failedFuture(t);
-                    }
-                }, executor);
+                Path source = root.resolve(identity);
+                // TODO: check if output diff is consistent.
+                if (step.isAlwaysRun() || states.values().stream().anyMatch(BuildResult::isChanged)) {
+                    Path target = Files.createTempDirectory(identity);
+                    return step.apply(executor, source, target, states).thenComposeAsync(result -> {
+                        try {
+                            System.out.println(identity + " -> " + result);
+                            if (result) {
+                                return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.update(
+                                        root.resolve(identity + ".diff"),
+                                        Files.move(target, source, StandardCopyOption.REPLACE_EXISTING)))));
+                            } else {
+                                Files.delete(target);
+                                return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.read(
+                                        root.resolve(identity + ".diff"),
+                                        source))));
+                            }
+                        } catch (Throwable t) {
+                            return CompletableFuture.failedFuture(t);
+                        }
+                    }, executor);
+                } else {
+                    System.out.println(identity + " -> skipped");
+                    return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.update(
+                            root.resolve(identity + ".diff"),
+                            source))));
+                }
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
             }

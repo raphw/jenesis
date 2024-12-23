@@ -9,6 +9,10 @@ import java.util.concurrent.Executor;
 @FunctionalInterface
 public interface BuildStep {
 
+    default boolean isAlwaysRun() {
+        return false;
+    }
+
     CompletionStage<Boolean> apply(Executor executor,
                                    Path previous,
                                    Path target,
