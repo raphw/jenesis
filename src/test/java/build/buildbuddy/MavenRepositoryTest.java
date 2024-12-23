@@ -26,11 +26,10 @@ public class MavenRepositoryTest {
     @Before
     public void setUp() throws Exception {
         repository = temporaryFolder.newFolder("repository").toPath();
-        mavenRepository = new MavenRepository(repository.toUri()); // comment out argument to test against Maven Central.
     }
 
     @Test
-    public void can_download_dependency() throws IOException  {
+    public void can_fetch_dependency() throws IOException  {
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(repository.resolve("junit/junit/4.13.2"))
                 .resolve("junit-4.13.2.jar"))) {
@@ -38,11 +37,38 @@ public class MavenRepositoryTest {
         }
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (
-                InputStream inputStream = mavenRepository.download("junit", "junit", "4.13.2", null, "jar");
+                InputStream inputStream = new MavenRepository(repository.toUri(), null).download("junit",
+                        "junit",
+                        "4.13.2",
+                        null,
+                        "jar");
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
         }
         assertThat(dependency).content().isEqualTo("foo");
+    }
+
+    @Test
+    public void can_fetch_and_cache_dependency() throws IOException  {
+        try (Writer writer = Files.newBufferedWriter(Files
+                .createDirectories(repository.resolve("junit/junit/4.13.2"))
+                .resolve("junit-4.13.2.jar"))) {
+            writer.write("foo");
+        }
+        Path local = temporaryFolder.newFolder("cache").toPath();
+        Path dependency = temporaryFolder.newFile("dependency").toPath();
+        try (
+                InputStream inputStream = new MavenRepository(repository.toUri(), local).download("junit",
+                        "junit",
+                        "4.13.2",
+                        null,
+                        "jar");
+                OutputStream outputStream = Files.newOutputStream(dependency)
+        ) {
+            inputStream.transferTo(outputStream);
+        }
+        assertThat(dependency).content().isEqualTo("foo");
+        assertThat(local.resolve("junit/junit/4.13.2/junit-4.13.2.jar")).content().isEqualTo("foo");
     }
 }

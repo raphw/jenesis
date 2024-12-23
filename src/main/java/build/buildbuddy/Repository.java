@@ -5,5 +5,5 @@ import java.io.InputStream;
 
 public interface Repository {
 
-    InputStream download(String coordinate) throws IOException;
+    InputStream fetch(String coordinate) throws IOException;
 }

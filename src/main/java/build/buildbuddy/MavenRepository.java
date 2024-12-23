@@ -2,12 +2,15 @@ package build.buildbuddy;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class MavenRepository implements Repository {
 
     private final URI root;
+    private final Path local;
 
     public MavenRepository() {
         String environment = System.getenv("MAVEN_REPOSITORY_URI");
@@ -15,14 +18,21 @@ public class MavenRepository implements Repository {
             environment += "/";
         }
         root = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
+        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
+        if (Files.isDirectory(local)) {
+            this.local = local;
+        } else {
+            this.local = null;
+        }
     }
 
-    public MavenRepository(URI root) {
+    public MavenRepository(URI root, Path local) {
         this.root = root;
+        this.local = local;
     }
 
     @Override
-    public InputStream download(String coordinate) throws IOException {
+    public InputStream fetch(String coordinate) throws IOException {
         String[] elements = coordinate.split(":");
         return switch (elements.length) {
             case 4 -> download(elements[0], elements[1], elements[2], null, "jar");
@@ -37,10 +47,25 @@ public class MavenRepository implements Repository {
                                 String version,
                                 String classifier,
                                 String extension) throws IOException {
-        return root.resolve(groupId.replace('.', '/')
+        String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
-                + "." + extension).toURL().openConnection().getInputStream();
+                + "." + extension;
+        Path cached = local == null ? null : local.resolve(path);
+        if (cached != null) {
+            if (Files.exists(cached)) {
+                return Files.newInputStream(cached);
+            }
+        }
+        InputStream inputStream = root.resolve(path).toURL().openConnection().getInputStream();
+        if (cached != null) {
+            Files.createDirectories(cached.getParent());
+            try (inputStream; OutputStream outputStream = Files.newOutputStream(cached)) {
+                    inputStream.transferTo(outputStream);
+            }
+            return Files.newInputStream(cached);
+        }
+        return inputStream;
     }
 }

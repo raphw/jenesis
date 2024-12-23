@@ -51,7 +51,7 @@ public class Dependencies implements BuildStep {
                             executor.execute(() -> {
                                 try (
                                         DigestInputStream inputStream = new DigestInputStream(
-                                                repository.download(segments[segments.length == 1 ? 0 : 1]),
+                                                repository.fetch(segments[segments.length == 1 ? 0 : 1]),
                                                 MessageDigest.getInstance(expectation.length == 1 ? "SHA256" : expectation[0]));
                                         OutputStream outputStream = Files.newOutputStream(context.next().resolve(dependency))
                                 ) {
