@@ -63,34 +63,32 @@ public class MavenPomResolver {
                     current.type(),
                     current.classifier(),
                     resolution.versions());
-            if (!Objects.equals(negotiated, resolution.version())) {
-                int offset = (int) dependencies.stream()
-                        .takeWhile(entry -> !entry.key().equals(current))
-                        .count();
-                int remaining = 1;
-                do {
-                    DependencyEntry entry = dependencies.remove(offset);
-                    DependencyResolution transitive = resolutions.get(entry.key());
-                    transitive.versions().remove(entry.version());
-                    transitive.scopes().remove(entry.scope());
-                    if (transitive.versions().isEmpty()) {
-                        resolutions.remove(entry.key()); // TODO: does this require special handling?
-                    } else if (!transitive.scopes().contains(entry.scope()) || !transitive.versions().contains(entry.version())) {
-                        queue.add(entry.key());
-                    }
-                    remaining += entry.children() - 1;
-                } while (remaining > 0);
-                queue.addAll(traverse(poms,
-                        resolutions,
-                        initial.managedDependencies(),
-                        dependencies,
-                        offset,
-                        new ResolvedPom(assembleOrCached(current.groupId(),
-                                current.artifactId(),
-                                negotiated,
-                                new HashSet<>(),
-                                poms), false, resolution.scope(), resolution.exclusions())));
-            }
+            int offset = (int) dependencies.stream()
+                    .takeWhile(entry -> !entry.key().equals(current))
+                    .count();
+            int remaining = 1; // TODO: short cut with no actual change after negotiation? (consider scope)
+            do {
+                DependencyEntry entry = dependencies.remove(offset);
+                DependencyResolution transitive = resolutions.get(entry.key());
+                transitive.versions().remove(entry.version());
+                transitive.scopes().remove(entry.scope());
+                if (transitive.versions().isEmpty()) {
+                    resolutions.remove(entry.key()); // TODO: does this require special handling?
+                } else if (!transitive.scopes().contains(entry.scope()) || !transitive.versions().contains(entry.version())) {
+                    queue.add(entry.key());
+                }
+                remaining += entry.children() - 1;
+            } while (remaining > 0);
+            queue.addAll(traverse(poms,
+                    resolutions,
+                    initial.managedDependencies(),
+                    dependencies,
+                    offset,
+                    new ResolvedPom(assembleOrCached(current.groupId(),
+                            current.artifactId(),
+                            negotiated,
+                            new HashSet<>(),
+                            poms), false, resolution.scope(), resolution.exclusions())));
         }
         return dependencies.stream().map(DependencyEntry::key).distinct().map(key -> {
             DependencyResolution resolution = resolutions.get(key);
