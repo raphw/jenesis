@@ -53,7 +53,7 @@ public class PropertyDependenciesTest {
         properties.setProperty("foo/baz", "");
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectory(dependencies.resolve(PropertyDependencies.DEPENDENCIES))
-                .resolve("dependencies.properties"))) {
+                .resolve("src/test/dependencies.properties"))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new PropertyDependencies(
@@ -67,11 +67,11 @@ public class PropertyDependenciesTest {
                 Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(PropertyDependencies.DEPENDENCIES, "dependencies.properties"),
+                                Path.of(PropertyDependencies.DEPENDENCIES, "src/test/dependencies.properties"),
                                 ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "src/test/dependencies.properties"))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("qux",
@@ -95,7 +95,7 @@ public class PropertyDependenciesTest {
         properties.setProperty("foo/baz", "");
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectory(dependencies.resolve(PropertyDependencies.DEPENDENCIES))
-                .resolve("dependencies.properties"))) {
+                .resolve("src/test/dependencies.properties"))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new PropertyDependencies(
@@ -109,11 +109,11 @@ public class PropertyDependenciesTest {
                 Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(PropertyDependencies.DEPENDENCIES, "dependencies.properties"),
+                                Path.of(PropertyDependencies.DEPENDENCIES, "src/test/dependencies.properties"),
                                 ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "src/test/dependencies.properties"))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("qux",
@@ -134,7 +134,7 @@ public class PropertyDependenciesTest {
         properties.setProperty("foo/baz", "");
         try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectory(dependencies.resolve(PropertyDependencies.DEPENDENCIES))
-                .resolve("dependencies.properties"))) {
+                .resolve("src/test/dependencies.properties"))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new PropertyDependencies(
@@ -148,11 +148,11 @@ public class PropertyDependenciesTest {
                 Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(PropertyDependencies.DEPENDENCIES, "dependencies.properties"),
+                                Path.of(PropertyDependencies.DEPENDENCIES, "src/test/dependencies.properties"),
                                 ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "src/test/dependencies.properties"))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("qux",
