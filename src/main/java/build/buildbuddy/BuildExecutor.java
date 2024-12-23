@@ -1,11 +1,13 @@
 package build.buildbuddy;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
@@ -15,15 +17,15 @@ import java.util.stream.Stream;
 public class BuildExecutor {
 
     private final Path root;
-    private final ChecksumDiff diff;
+    private final HashFunction hashFunction;
 
-    private final TaskGraph<String, Map<String, BuildResult>> taskGraph = new TaskGraph<>((left, right) -> Stream
+    private final TaskGraph<String, Map<String, BuildStatus>> taskGraph = new TaskGraph<>((left, right) -> Stream
             .concat(left.entrySet().stream(), right.entrySet().stream())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
-    public BuildExecutor(Path root, ChecksumDiff diff) {
+    public BuildExecutor(Path root, HashFunction hashFunction) {
         this.root = root;
-        this.diff = diff;
+        this.hashFunction = hashFunction;
     }
 
     public void addSource(String identity, Path path) {
@@ -34,16 +36,14 @@ public class BuildExecutor {
         taskGraph.replace(identity, wrapSource(identity, path));
     }
 
-    private BiFunction<Executor, Map<String, BuildResult>, CompletionStage<Map<String, BuildResult>>> wrapSource(
+    private BiFunction<Executor, Map<String, BuildStatus>, CompletionStage<Map<String, BuildStatus>>> wrapSource(
             String identity,
             Path path) {
         return (executor, states) -> {
-            CompletableFuture<Map<String, BuildResult>> future = new CompletableFuture<>();
+            CompletableFuture<Map<String, BuildStatus>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
-                    future.complete(Map.of(identity, new BuildResult(path, diff.read(
-                            root.resolve(identity + ".diff"),
-                            path))));
+                    future.complete(Map.of(identity, new BuildStatus(path, HashFunction.read(path))));
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
@@ -68,37 +68,57 @@ public class BuildExecutor {
         taskGraph.replace(identity, wrapStep(identity, step));
     }
 
-    private BiFunction<Executor, Map<String, BuildResult>, CompletionStage<Map<String, BuildResult>>> wrapStep(
+    private BiFunction<Executor, Map<String, BuildStatus>, CompletionStage<Map<String, BuildStatus>>> wrapStep(
             String identity,
             BuildStep step) {
         return (executor, states) -> {
             try {
-                Path source = root.resolve(identity);
-                // TODO: check if output diff is consistent.
-                if (step.isAlwaysRun() || states.values().stream().anyMatch(BuildResult::isChanged)) {
+                Path current = Files.createDirectory(root.resolve(identity)),
+                        output = Files.createDirectory(current.resolve("output")),
+                        checksum = Files.createDirectory(current.resolve("checksum"));
+                Map<String, BuildResult> dependencies = new HashMap<>();
+                for (Map.Entry<String, BuildStatus> entry : states.entrySet()) {
+                    Path checksums = checksum.resolve("checksums." + entry.getKey());
+                    dependencies.put(entry.getKey(), new BuildResult(entry.getValue().folder(), Files.exists(checksums)
+                            ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
+                            : ChecksumStatus.added(entry.getValue().checksums().keySet())));
+                }
+                if (Files.exists(checksum.resolve("checksums")) && ChecksumStatus.diff(
+                                HashFunction.read(checksum.resolve("checksums")),
+                                HashFunction.read(output, hashFunction)).values().stream()
+                        .anyMatch(status -> status != ChecksumStatus.RETAINED)) {
+                    Files.walkFileTree(output, new RecursiveFileDeletion());
+                    dependencies.entrySet().forEach(entry -> entry.setValue(entry.getValue().toAltered()));
+                }
+                if (step.isAlwaysRun() || dependencies.values().stream().anyMatch(BuildResult::isChanged)) {
                     Path target = Files.createTempDirectory(identity);
-                    return step.apply(executor, source, target, states).thenComposeAsync(result -> {
+                    return step.apply(executor, output, target, dependencies).handleAsync((handled, throwable) -> {
                         try {
-                            System.out.println(identity + " -> " + result);
-                            if (result) {
-                                return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.update(
-                                        root.resolve(identity + ".diff"),
-                                        Files.move(target, source, StandardCopyOption.REPLACE_EXISTING)))));
+                            Files.walkFileTree(checksum, new RecursiveFileDeletion());
+                            if (throwable != null) {
+                                Files.delete(Files.walkFileTree(target, new RecursiveFileDeletion()));
+                                throw throwable;
+                            } else if (handled) {
+                                Files.move(target, output, StandardCopyOption.REPLACE_EXISTING);
                             } else {
                                 Files.delete(target);
-                                return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.read(
-                                        root.resolve(identity + ".diff"),
-                                        source))));
                             }
+                            for (Map.Entry<String, BuildResult> entry : dependencies.entrySet()) {
+                                Files.copy(
+                                        root.resolve(entry.getKey() + "/checksum/checksums"),
+                                        checksum.resolve("checksums." + entry.getKey()));
+                            }
+                            Map<Path, byte[]> checksums = HashFunction.read(output);
+                            HashFunction.write(checksum.resolve("checksums"), checksums);
+                            return Map.of(identity, new BuildStatus(output, checksums));
                         } catch (Throwable t) {
-                            return CompletableFuture.failedFuture(t);
+                            throw new CompletionException(t);
                         }
                     }, executor);
                 } else {
-                    System.out.println(identity + " -> skipped");
-                    return CompletableFuture.completedStage(Map.of(identity, new BuildResult(source, diff.update(
-                            root.resolve(identity + ".diff"),
-                            source))));
+                    return CompletableFuture.completedStage(Map.of(identity, new BuildStatus(
+                            output,
+                            HashFunction.read(output))));
                 }
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
@@ -107,6 +127,24 @@ public class BuildExecutor {
     }
 
     public CompletionStage<Map<String, BuildResult>> execute(Executor executor) {
-        return taskGraph.execute(executor, CompletableFuture.completedStage(Map.of()));
+        taskGraph.execute(executor, CompletableFuture.completedStage(Map.of()));
+        return null;
+    }
+
+    private record BuildStatus(Path folder, Map<Path, byte[]> checksums) { }
+
+    private static class RecursiveFileDeletion extends SimpleFileVisitor<Path> {
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+        }
     }
 }

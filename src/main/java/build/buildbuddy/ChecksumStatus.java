@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public enum ChecksumStatus {
 
@@ -28,6 +29,12 @@ public enum ChecksumStatus {
         for (Path path : removed.keySet()) {
             diff.put(path, REMOVED);
         }
+        return diff;
+    }
+
+    public static Map<Path, ChecksumStatus> added(Set<Path> paths) {
+        Map<Path, ChecksumStatus> diff = new LinkedHashMap<>();
+        paths.forEach(path -> diff.put(path, ADDED));
         return diff;
     }
 }

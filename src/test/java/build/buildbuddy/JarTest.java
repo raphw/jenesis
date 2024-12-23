@@ -43,7 +43,7 @@ public class JarTest {
         }
         boolean result = new Jar().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
                 classes,
-                new ChecksumNopDiff().read(root.resolve("checksums"), classes)))).toCompletableFuture().get();
+                new LegacyChecksumNopDiff().read(root.resolve("checksums"), classes)))).toCompletableFuture().get();
         assertThat(result).isTrue();
         assertThat(target.resolve("artifact.jar")).isNotEmptyFile();
     }

@@ -40,7 +40,7 @@ public class JavacTest {
         }
         boolean result = new Javac().apply(Runnable::run, previous, target, Map.of("sources", new BuildResult(
                 sources,
-                new ChecksumNopDiff().read(root.resolve("checksums"), sources)))).toCompletableFuture().get();
+                new LegacyChecksumNopDiff().read(root.resolve("checksums"), sources)))).toCompletableFuture().get();
         assertThat(result).isTrue();
         assertThat(target.resolve("sample/Sample.class")).isNotEmptyFile();
     }

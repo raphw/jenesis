@@ -6,7 +6,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -26,7 +25,7 @@ public class BuildExecutorTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private Path root;
-    private ChecksumDiff md5 = new ChecksumDigestDiff("MD5");
+    private HashFunction md5 = new HashDigestFunction("MD5");
     private BuildExecutor buildExecutor;
 
     @Before

@@ -4,11 +4,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import sample.Sample;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -48,7 +46,7 @@ public class DependenciesTest {
                 coordinate -> new ByteArrayInputStream("foo".getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildResult(
                 classes,
-                new ChecksumNopDiff().read(root.resolve("dependencies"), classes)))).toCompletableFuture().get();
+                new LegacyChecksumNopDiff().read(root.resolve("dependencies"), classes)))).toCompletableFuture().get();
         assertThat(result).isTrue();
         assertThat(target.resolve("sample:coordinate")).content().isEqualTo("foo");
     }
