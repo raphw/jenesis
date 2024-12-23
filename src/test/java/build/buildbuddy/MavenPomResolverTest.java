@@ -58,6 +58,41 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_dependencies_with_property() throws IOException {
+        toFile("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <properties>
+                        <my.version>1</my.version>
+                    </properties>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>${my.version}</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        toFile("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+                "artifact",
+                "1");
+        assertThat(dependencies).containsExactly(new MavenDependency("other",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                false));
+    }
+
+    @Test
     public void can_resolve_dependencies_from_parent() throws IOException {
         toFile("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>

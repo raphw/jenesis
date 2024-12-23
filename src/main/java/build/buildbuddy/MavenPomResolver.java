@@ -10,6 +10,9 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -18,6 +21,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
 
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
+    private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
 
     private final MavenRepository repository;
     private final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -66,9 +70,9 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                 Objects.equals(entry.getValue().optional(), true))).toList();
     }
 
-    private ResolvedPom doResolveOrCached(InputStream inputStream,
-                                          Set<DependencyCoordinates> children,
-                                          Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
+    private ResolvedPom doResolve(InputStream inputStream,
+                                  Set<DependencyCoordinates> children,
+                                  Map<DependencyCoordinates, ResolvedPom> poms) throws IOException {
         // TODO: order of dependencies?
         Document document;
         try (inputStream) {
@@ -81,16 +85,16 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                 DependencyCoordinates parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
                         .map(node -> new DependencyCoordinates(
-                                toChildren400(node, "groupId").map(Node::getTextContent).findFirst().orElseThrow(),
-                                toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().orElseThrow(),
-                                toChildren400(node, "version").map(Node::getTextContent).findFirst().orElseThrow()))
+                                toChildren400(node, "groupId").map(Node::getTextContent).findFirst().orElseThrow(missing("parent.groupId")),
+                                toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().orElseThrow(missing("parent.artifactId")),
+                                toChildren400(node, "version").map(Node::getTextContent).findFirst().orElseThrow(missing("parent.version"))))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
                 SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
                 if (parent != null) {
                     if (!children.add(new DependencyCoordinates(parent.groupId(), parent.artifactId(), parent.version()))) {
-                        throw new IllegalStateException("Circular dependency to " + parent);
+                        throw new IllegalStateException("Circular dependency to " + parent.groupId() + ":" + parent.artifactId() + ":" + parent.version());
                     }
                     ResolvedPom resolution = doResolveOrCached(parent.groupId(),
                             parent.artifactId(),
@@ -117,6 +121,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                 toChildren400(document.getDocumentElement(), "properties")
                         .limit(1)
                         .flatMap(MavenPomResolver::toChildren)
+                        .filter(node -> node.getNodeType() == Node.ELEMENT_NODE)
                         .forEach(node -> properties.put(node.getLocalName(), node.getTextContent()));
                 toChildren400(document.getDocumentElement(), "dependencyManagement")
                         .limit(1)
@@ -147,11 +152,15 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
         DependencyCoordinates coordinates = new DependencyCoordinates(groupId, artifactId, version);
         ResolvedPom pom = poms.get(coordinates);
         if (pom == null) {
-            pom = doResolveOrCached(repository.download(groupId,
-                    artifactId,
-                    version,
-                    null,
-                    "pom"), children, poms);
+            try {
+                pom = doResolve(repository.download(groupId,
+                        artifactId,
+                        version,
+                        null,
+                        "pom"), children, poms);
+            } catch (RuntimeException e) {
+                throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
+            }
             poms.put(coordinates, pom);
         }
         return pom;
@@ -165,15 +174,14 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     }
 
     private static Stream<Node> toChildren400(Node node, String localName) {
-        return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName)
-                && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
+        return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName) && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
     }
 
     private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node, Map<String, String> properties) {
         return Map.entry(
                 new DependencyKey(
-                        toChildren400(node, "groupId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(),
-                        toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(),
+                        toChildren400(node, "groupId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(missing("groupId")),
+                        toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(missing("artifactId")),
                         toChildren400(node, "type").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse("jar"),
                         toChildren400(node, "classifier").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse(null)),
                 new DependencyValue(
@@ -183,20 +191,43 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
                                         .map(child -> new DependencyExclusion(
-                                                toChildren400(child, "groupId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow(),
-                                                toChildren400(child, "artifactId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow()))
+                                                toChildren400(child, "groupId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow(missing("exclusion.groupId")),
+                                                toChildren400(child, "artifactId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow(missing("exclusion.artifactId"))))
                                         .toList())
                                 .orElse(null),
                         toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(value -> toValue(value, properties)).map(Boolean::valueOf).orElse(null)));
     }
 
+
     private static String toValue(String text, Map<String, String> properties) {
+        return toValue(text, properties, Set.of());
+    }
+
+    private static String toValue(String text, Map<String, String> properties, Set<String> previous) {
         if (text.contains("$")) {
-            throw new UnsupportedOperationException();
-            // TODO: implement resolution.
+            Matcher matcher = PROPERTY.matcher(text);
+            StringBuilder sb = new StringBuilder();
+            while (matcher.find()) {
+                String property = matcher.group(2);
+                String replacement = properties.get(property);
+                if (replacement == null) {
+                    throw new IllegalStateException("Property not defined: " + property);
+                } else {
+                    HashSet<String> duplicates = new HashSet<>(previous);
+                    if (!duplicates.add(property)) {
+                        throw new IllegalStateException("Circular property definition of: " + property);
+                    }
+                    matcher.appendReplacement(sb, toValue(replacement, properties, duplicates));
+                }
+            }
+            return matcher.appendTail(sb).toString();
         } else {
             return text;
         }
+    }
+
+    private static Supplier<IllegalStateException> missing(String property) {
+        return () -> new IllegalStateException("Property not defined: " + property);
     }
 
     private record DependencyKey(String groupId,
