@@ -10,6 +10,7 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,7 +47,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -83,7 +86,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -121,7 +126,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -166,7 +173,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -224,7 +233,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -271,7 +282,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -326,7 +339,9 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -380,7 +395,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -430,7 +447,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -485,7 +504,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
@@ -561,7 +582,9 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
+        List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(),
+                null,
+                Map.of())).dependencies("group",
                 "artifact",
                 "1",
                 null);
