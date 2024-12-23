@@ -20,17 +20,13 @@ where Main is a class located in the project's build folder. This should be empl
 document the use of this tool within its own source.
 
 The POC is currently missing:
-- Task to download dependencies (starting with Maven Central) based on a simple dependency descriptor file.
-- Task to validate downloaded dependencies against a well-known checksum.
-- Task to create a POM file from dependencies.
-- Task to create META-INF.
+- Task for JUnit (4, keep it simple).
+- Refactor this project to use itself as build tool. (Retain POM for IDE support.)
 - Builder class for a BuildExecutor that offers convenient defaults.
-- Configurable support for reacting to incremental build information. (if changed, if not changed, always, custom rules)
-- Extend BuildResult class to carry custom context information.
+- Task to create a dependencies file from a POM file.
+- Task to create a POM file from dependencies.
 - Task for javadoc tool.
 - Task for source jars.
-- Task for JUnit (4, keep it simple).
 - Task to add GPG signatures of artifacts.
 - Task to publish to Maven Central.
-- Refactor this project to use itself as build tool. (Retain POM for IDE support.)
 - Extend all build step implementations to support their standard options.
