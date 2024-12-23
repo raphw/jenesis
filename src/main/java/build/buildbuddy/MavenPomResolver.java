@@ -47,7 +47,7 @@ public class MavenPomResolver {
             Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
             managedDependencies.putAll(current.managedDependencies());
             for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
-                if (!dependencies.containsKey(entry.getKey()) && !current.exclusions().contains(new DependencyExclusion(
+                if (!current.exclusions().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId()))) {
                     DependencyValue primary = current.managedDependencies().get(entry.getKey()), value = primary == null
@@ -78,17 +78,16 @@ public class MavenPomResolver {
                         continue;
                     }
                     DependencyInclusion previous = dependencies.get(entry.getKey());
-                    if (previous == null) {
-                        dependencies.put(entry.getKey(), new DependencyInclusion(value.version(),
-                                optional,
-                                derived,
-                                value.systemPath() == null ? null : Path.of(value.systemPath())));
-                    } else if (previous.scope() != derived) {
-                        dependencies.replace(entry.getKey(), new DependencyInclusion(previous.version(),
-                                previous.optional(),
-                                MavenDependencyScope.values()[Math.min(previous.scope().ordinal(), derived.ordinal())],
-                                previous.path()));
+                    if (previous != null) {
+                        if (current.pom().transitive()) {
+                            // TODO: fix scope of already included dependencies and their transitives.
+                        }
+                        continue;
                     }
+                    dependencies.put(entry.getKey(), new DependencyInclusion(value.version(),
+                            optional,
+                            derived,
+                            value.systemPath() == null ? null : Path.of(value.systemPath())));
                     Set<DependencyExclusion> exclusions;
                     if (value.exclusions() == null || value.exclusions().isEmpty()) {
                         exclusions = current.exclusions();
