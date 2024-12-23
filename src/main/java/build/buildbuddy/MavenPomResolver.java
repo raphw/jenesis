@@ -191,6 +191,20 @@ public class MavenPomResolver { // TODO: resolve BOMs
         return pom;
     }
 
+    private ResolvedPom resolve(UnresolvedPom pom) {
+        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
+        pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
+                key.resolve(pom.properties()),
+                value.resolve(pom.properties())));
+        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+        pom.dependencies().forEach((key, value) -> {
+            DependencyKey resolvedKey = key.resolve(pom.properties());
+            DependencyValue managed = managedDependencies.get(resolvedKey);
+            dependencies.putLast(resolvedKey, managed == null ? value.resolve(pom.properties()) : managed);
+        });
+        return new ResolvedPom(managedDependencies, dependencies);
+    }
+
     private static Stream<Node> toChildren(Node node) {
         NodeList children = node.getChildNodes();
         return IntStream.iterate(0,
@@ -267,20 +281,6 @@ public class MavenPomResolver { // TODO: resolve BOMs
             case null -> MavenDependencyScope.COMPILE;
             default -> throw new IllegalArgumentException("");
         };
-    }
-
-    private static ResolvedPom resolve(UnresolvedPom pom) {
-        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
-        pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
-                key.resolve(pom.properties()),
-                value.resolve(pom.properties())));
-        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
-        pom.dependencies().forEach((key, value) -> {
-            DependencyKey resolved = key.resolve(pom.properties());
-            DependencyValue managed = managedDependencies.get(resolved);
-            dependencies.putLast(resolved, managed == null ? value.resolve(pom.properties()) : managed);
-        });
-        return new ResolvedPom(managedDependencies, dependencies);
     }
 
     private static Supplier<IllegalStateException> missing(String property) {
