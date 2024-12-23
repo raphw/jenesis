@@ -1,4 +1,4 @@
-package buiild.buildbuddy.sample;
+package build.buildbuddy.sample;
 
 import org.junit.Test;
 
