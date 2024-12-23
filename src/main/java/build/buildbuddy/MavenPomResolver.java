@@ -30,13 +30,16 @@ public class MavenPomResolver {
         factory.setNamespaceAware(true);
     }
 
-    public List<MavenDependency> dependencies(String groupId, String artifactId, String version) throws IOException {
+    public List<MavenDependency> dependencies(String groupId,
+                                              String artifactId,
+                                              String version,
+                                              MavenDependencyScope scope) throws IOException {
         SequencedMap<DependencyKey, DependencyInclusion> dependencies = new LinkedHashMap<>();
         Map<DependencyCoordinates, UnresolvedPom> poms = new HashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
                 resolve(assembleOrCached(groupId, artifactId, version, new HashSet<>(), poms), poms),
-                null,
+                scope,
                 Set.of(),
                 Map.of())));
         do {
@@ -48,13 +51,13 @@ public class MavenPomResolver {
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
                     DependencyValue value = managedDependencies.getOrDefault(entry.getKey(), entry.getValue());
-                    MavenDependencyScope scope = toScope(value.scope()), transitive = switch (current.scope()) {
-                        case null -> scope == MavenDependencyScope.IMPORT ? null : scope;
-                        case COMPILE -> switch (scope) {
-                            case COMPILE, RUNTIME -> scope;
+                    MavenDependencyScope base = toScope(value.scope()), transitive = switch (current.scope()) {
+                        case null -> base == MavenDependencyScope.IMPORT ? null : base;
+                        case COMPILE -> switch (base) {
+                            case COMPILE, RUNTIME -> base;
                             default -> null;
                         };
-                        case PROVIDED, RUNTIME, TEST -> switch (scope) {
+                        case PROVIDED, RUNTIME, TEST -> switch (base) {
                             case COMPILE, RUNTIME -> current.scope();
                             default -> null;
                         };

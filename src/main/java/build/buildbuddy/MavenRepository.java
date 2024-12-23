@@ -58,7 +58,7 @@ public class MavenRepository implements Repository {
         if (cached != null) {
             Files.createDirectories(cached.getParent());
             try (inputStream; OutputStream outputStream = Files.newOutputStream(cached)) {
-                    inputStream.transferTo(outputStream);
+                inputStream.transferTo(outputStream);
             }
             return Files.newInputStream(cached);
         }

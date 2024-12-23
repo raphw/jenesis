@@ -48,7 +48,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -84,7 +85,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -121,7 +123,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -165,7 +168,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -222,7 +226,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "2",
@@ -268,7 +273,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(
                 new MavenDependency("other",
                         "artifact",
@@ -322,7 +328,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -375,7 +382,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(
                 new MavenDependency("other",
                         "artifact",
@@ -424,7 +432,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -478,7 +487,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(new MavenDependency("other",
                 "artifact",
                 "1",
@@ -553,7 +563,8 @@ public class MavenPomResolverTest {
                 """);
         List<MavenDependency> dependencies = new MavenPomResolver(new MavenRepository(repository.toUri(), null)).dependencies("group",
                 "artifact",
-                "1");
+                "1",
+                null);
         assertThat(dependencies).containsExactly(
                 new MavenDependency("deep",
                         "artifact",
