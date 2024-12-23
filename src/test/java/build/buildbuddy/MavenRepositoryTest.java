@@ -47,7 +47,7 @@ public class MavenRepositoryTest {
                         "junit",
                         "4.13.2",
                         null,
-                        "jar");
+                        "jar").toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
@@ -69,7 +69,7 @@ public class MavenRepositoryTest {
                         "junit",
                         "4.13.2",
                         null,
-                        "jar");
+                        "jar").toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
@@ -100,7 +100,7 @@ public class MavenRepositoryTest {
                         "junit",
                         "4.13.2",
                         null,
-                        "jar");
+                        "jar").toInputStream();
                 OutputStream outputStream = Files.newOutputStream(dependency)
         ) {
             inputStream.transferTo(outputStream);
@@ -130,6 +130,6 @@ public class MavenRepositoryTest {
                 "junit",
                 "4.13.2",
                 null,
-                "jar").close()).isInstanceOf(IOException.class);
+                "jar")).isInstanceOf(IOException.class);
     }
 }

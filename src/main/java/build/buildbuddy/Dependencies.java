@@ -51,13 +51,17 @@ public class Dependencies implements BuildStep {
                             executor.execute(() -> {
                                 try (
                                         DigestInputStream inputStream = new DigestInputStream(
-                                                repository.fetch(segments[segments.length == 1 ? 0 : 1]),
-                                                MessageDigest.getInstance(expectation.length == 1 ? "SHA256" : expectation[0]));
+                                                repository.fetch(segments[segments.length == 1 ? 0 : 1]).toInputStream(),
+                                                null);
                                         OutputStream outputStream = Files.newOutputStream(context.next().resolve(dependency))
                                 ) {
+                                    inputStream.setMessageDigest(MessageDigest.getInstance(expectation.length == 1
+                                            ? "SHA256"
+                                            : expectation[0]));
                                     inputStream.transferTo(outputStream);
-                                    String digest = Base64.getEncoder().encodeToString(inputStream.getMessageDigest().digest());
-                                    if (!digest.equals(expectation[expectation.length == 1 ? 0 : 1])) {
+                                    if (!Objects.equals(
+                                            Base64.getEncoder().encodeToString(inputStream.getMessageDigest().digest()),
+                                            expectation[expectation.length == 1 ? 0 : 1])) {
                                         Files.delete(context.next().resolve(dependency));
                                         throw new IllegalStateException("Mismatched digest for " + dependency);
                                     }

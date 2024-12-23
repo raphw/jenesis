@@ -185,7 +185,7 @@ public class MavenPomResolver {
                         artifactId,
                         version,
                         null,
-                        "pom"), children, poms);
+                        "pom").toInputStream(), children, poms);
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
             }

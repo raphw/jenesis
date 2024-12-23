@@ -40,7 +40,7 @@ public class MavenRepository implements Repository {
     }
 
     @Override
-    public InputStream fetch(String coordinate) throws IOException {
+    public InputStreamSource fetch(String coordinate) throws IOException {
         String[] elements = coordinate.split(":");
         return switch (elements.length) {
             case 4 -> download(elements[0], elements[1], elements[2], null, "jar");
@@ -50,11 +50,11 @@ public class MavenRepository implements Repository {
         };
     }
 
-    public InputStream download(String groupId,
-                                String artifactId,
-                                String version,
-                                String classifier,
-                                String extension) throws IOException {
+    public InputStreamSource download(String groupId,
+                                      String artifactId,
+                                      String version,
+                                      String classifier,
+                                      String extension) throws IOException {
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
@@ -63,7 +63,7 @@ public class MavenRepository implements Repository {
         Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {
-                return Files.newInputStream(cached);
+                return new PathInputStreamSource(cached);
             }
             Files.createDirectories(cached.getParent());
         }
@@ -118,9 +118,9 @@ public class MavenRepository implements Repository {
                 }
                 throw t;
             }
-            return Files.newInputStream(cached);
+            return new PathInputStreamSource(cached);
         }
-        return inputStream;
+        return () -> inputStream;
     }
 
     private static class ValidationInputStream extends DigestInputStream {
