@@ -1,9 +1,6 @@
 package build.buildbuddy.steps;
 
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.*;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.DirectiveTree;
 import com.sun.source.tree.RequiresTree;
@@ -46,7 +43,7 @@ public class ModuleDependencies implements BuildStep {
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             Path modules = entry.getValue().folder().resolve(MODULES + "modules.properties");
             if (Files.exists(modules)) {
-                Properties properties = new Properties();
+                Properties properties = new SequencedProperties();
                 try (Reader reader = Files.newBufferedReader(modules)) {
                     properties.load(reader);
                 }
@@ -59,7 +56,7 @@ public class ModuleDependencies implements BuildStep {
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             Path moduleInfo = entry.getValue().folder().resolve(Resolve.SOURCES + "module-info.java");
             if (Files.exists(moduleInfo)) {
-                Properties properties = new Properties();
+                Properties properties = new SequencedProperties();
                 JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
                         compiler.getStandardFileManager(null, null, null),
                         null,

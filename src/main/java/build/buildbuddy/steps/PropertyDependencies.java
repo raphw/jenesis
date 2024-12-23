@@ -46,7 +46,7 @@ public class PropertyDependencies implements BuildStep {
             Map<String, SequencedMap<String, String>> groups = new LinkedHashMap<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.properties")) {
                 for (Path path : stream) {
-                    Properties properties = new Properties();
+                    Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(folder.resolve(path))) {
                         properties.load(reader);
                     }
@@ -58,7 +58,7 @@ public class PropertyDependencies implements BuildStep {
                     }
                 }
             }
-            Properties properties = new Properties();
+            Properties properties = new SequencedProperties();
             for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
                 for (String coordinate : requireNonNull(
                         resolvers.get(group.getKey()),
@@ -102,7 +102,7 @@ public class PropertyDependencies implements BuildStep {
                 }
             }
             try (Writer writer = Files.newBufferedWriter(flattened.resolve(entry.getKey() + ".properties"))) {
-                properties.store(new CommentSuppressingWriter(writer), null);
+                properties.store(writer, null);
             }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
