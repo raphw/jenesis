@@ -32,13 +32,15 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
     }
 
     public List<MavenDependency> dependencies(String groupId, String artifactId, String version) throws IOException {
-        Map<DependencyCoordinates, ResolvedPom> poms = new HashMap<>();
         SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+        Map<DependencyCoordinates, ResolvedPom> poms = new HashMap<>();
         Set<DependencyKey> previous = new HashSet<>();
-        ResolvedPom root = doResolveOrCached(groupId, artifactId, version, new HashSet<>(), poms);
-        Queue<ContextualPom> queue = new ArrayDeque<>();
-        ContextualPom current = new ContextualPom(root, Set.of(), Map.of());
+        Queue<ContextualPom> queue = new ArrayDeque<>(Set.of(new ContextualPom(
+                doResolveOrCached(groupId, artifactId, version, new HashSet<>(), poms),
+                Set.of(),
+                Map.of())));
         do {
+            ContextualPom current = queue.remove();
             Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
             managedDependencies.putAll(current.managedDependencies());
             for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
@@ -60,7 +62,7 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                             poms), exclusions, managedDependencies));
                 }
             }
-        } while ((current = queue.poll()) != null);
+        } while (!queue.isEmpty());
         return dependencies.entrySet().stream().map(entry -> new MavenDependency(
                 entry.getKey().groupId(),
                 entry.getKey().artifactId(),
