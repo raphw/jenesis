@@ -234,7 +234,7 @@ public class MavenPomResolver { // TODO: resolve BOMs
     }
 
     private static String property(String text, Map<String, String> properties, Set<String> previous) {
-        if (text.contains("$")) {
+        if (text != null && text.contains("$")) {
             Matcher matcher = PROPERTY.matcher(text);
             StringBuilder sb = new StringBuilder();
             while (matcher.find()) {
@@ -270,7 +270,17 @@ public class MavenPomResolver { // TODO: resolve BOMs
     }
 
     private static ResolvedPom resolve(UnresolvedPom pom) {
-        return new ResolvedPom(pom.managedDependencies(), pom.dependencies()); // TODO: resolve properties and BOM imports.
+        Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
+        pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
+                key.resolve(pom.properties()),
+                value.resolve(pom.properties())));
+        SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+        pom.dependencies().forEach((key, value) -> {
+            DependencyKey resolved = key.resolve(pom.properties());
+            DependencyValue managed = managedDependencies.get(resolved);
+            dependencies.putLast(resolved, managed == null ? value.resolve(pom.properties()) : managed);
+        });
+        return new ResolvedPom(managedDependencies, dependencies);
     }
 
     private static Supplier<IllegalStateException> missing(String property) {
@@ -281,12 +291,27 @@ public class MavenPomResolver { // TODO: resolve BOMs
                                  String artifactId,
                                  String type,
                                  String classifier) {
+        private DependencyKey resolve(Map<String, String> properties) {
+            return new DependencyKey(property(groupId, properties),
+                    property(artifactId, properties),
+                    property(type, properties),
+                    property(classifier, properties));
+        }
     }
 
     private record DependencyValue(String version,
                                    String scope,
                                    List<DependencyExclusion> exclusions,
                                    String optional) {
+        private DependencyValue resolve(Map<String, String> properties) {
+            return new DependencyValue(property(version, properties),
+                    property(scope, properties),
+                    exclusions == null ? null : exclusions.stream().map(exclusion -> new DependencyExclusion(
+                            property(exclusion.groupId(), properties),
+                            property(exclusion.artifactId(), properties))).toList(),
+                    property(optional, properties)
+            );
+        }
     }
 
     private record DependencyInclusion(String version, boolean optional, MavenDependencyScope scope) {
