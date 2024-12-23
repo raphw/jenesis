@@ -42,15 +42,12 @@ public class BuildExecutorTest {
             assertThat(dependencies).containsOnlyKeys("source");
             assertThat(dependencies.get("source").root()).isEqualTo(source);
             assertThat(dependencies.get("source").diffs()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
-            for (BuildResult result : dependencies.values()) {
-                for (Path path : result.diffs().keySet()) {
-                    Files.copy(result.root().resolve(path), target.resolve(path));
-                }
-            }
+            Files.copy(dependencies.get("source").root().resolve("sample"), target.resolve("result"));
             return CompletableFuture.completedStage("Success");
         }, "source");
         Map<String, BuildResult> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
-        Path result = root.resolve("step").resolve("sample");
+        assertThat(build).containsOnlyKeys("source", "step");
+        Path result = root.resolve("step").resolve("result");
         assertThat(result).isRegularFile();
         assertThat(result).content().isEqualTo("foo");
     }
