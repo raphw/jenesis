@@ -5,10 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -17,13 +16,16 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
+    private final String algorithm;
     private final Map<String, Repository> repositories;
 
     public Dependencies() {
+        algorithm = "SHA256";
         repositories = Map.of("maven", new MavenRepository());
     }
 
-    public Dependencies(Map<String, Repository> repositories) {
+    public Dependencies(String algorithm, Map<String, Repository> repositories) {
+        this.algorithm = algorithm;
         this.repositories = repositories;
     }
 
@@ -38,7 +40,7 @@ public class Dependencies implements BuildStep {
                 if (path.toString().endsWith(".dependencies")) {
                     Properties properties = new Properties();
                     try (InputStream inputStream = Files.newInputStream(result.folder().resolve(path))) {
-                        properties.loadFromXML(inputStream);
+                        properties.load(inputStream);
                     }
                     for (String dependency : properties.stringPropertyNames()) {
                         String[] segments = dependency.split(":", 2);
@@ -48,11 +50,17 @@ public class Dependencies implements BuildStep {
                         CompletableFuture<Boolean> future = new CompletableFuture<>();
                         executor.execute(() -> {
                             try (
-                                    InputStream inputStream = repository.download(segments[segments.length == 1 ? 0 : 1]);
-                                    OutputStream outputStream = Files.newOutputStream(next.resolve(dependency))
+                                    DigestInputStream inputStream = new DigestInputStream(
+                                            repository.download(segments[segments.length == 1 ? 0 : 1]),
+                                            MessageDigest.getInstance(algorithm));
+                                    OutputStream outputStream = Files.newOutputStream(next.resolve(dependency));
                             ) {
                                 inputStream.transferTo(outputStream);
-                                // TODO: checksum validation of value
+                                String digest = Base64.getEncoder().encodeToString(inputStream.getMessageDigest().digest());
+                                if (!digest.equals(properties.getProperty(dependency))) {
+                                    Files.delete(next.resolve(dependency));
+                                    throw new IllegalStateException("Mismatched digest for " + dependency);
+                                }
                                 future.complete(true);
                             } catch (Throwable t) {
                                 future.completeExceptionally(t);

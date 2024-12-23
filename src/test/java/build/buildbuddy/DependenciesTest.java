@@ -5,17 +5,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DependenciesTest {
 
@@ -33,20 +37,41 @@ public class DependenciesTest {
     }
 
     @Test
-    public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException {
+    public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Path folder = Files.createDirectory(classes.resolve("sample"));
         Properties properties = new Properties();
-        properties.setProperty("sample:coordinate", "");
-        try (OutputStream output = Files.newOutputStream(folder.resolve("sample.dependencies"))) {
-            properties.storeToXML(output, "Sample dependencies");
+        properties.setProperty("sample:coordinate", Base64.getEncoder().encodeToString(
+                MessageDigest.getInstance("SHA256").digest("coordinate".getBytes(StandardCharsets.UTF_8))));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
+            properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new Dependencies("SHA256", Map.of(
                 "sample",
-                coordinate -> new ByteArrayInputStream("foo".getBytes(StandardCharsets.UTF_8))
+                coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
         )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(target.resolve("sample:coordinate")).content().isEqualTo("foo");
+        assertThat(target.resolve("sample:coordinate")).content().isEqualTo("coordinate");
+    }
+
+    @Test
+    public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
+        Path folder = Files.createDirectory(classes.resolve("sample"));
+        Properties properties = new Properties();
+        properties.setProperty("sample:coordinate", Base64.getEncoder().encodeToString(
+                MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("sample.dependencies"))) {
+            properties.store(writer, null);
+        }
+        assertThatThrownBy(() -> new Dependencies("SHA256", Map.of(
+                "sample",
+                coordinate -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+        )).apply(Runnable::run, previous, target, Map.of("dependencies", new BuildStepArgument(
+                classes,
+                Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
+                .hasCauseInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Mismatched digest for sample:coordinate");
+        assertThat(target.resolve("sample:coordinate")).doesNotExist();
     }
 }
