@@ -7,13 +7,9 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class MavenRepository implements Repository {
 
@@ -55,151 +51,145 @@ public class MavenRepository implements Repository {
                                    String type,
                                    String classifier,
                                    String checksum) throws IOException {
-        return fetch(repository, groupId, artifactId, version, type, classifier, checksum, false);
+        return fetch(repository, groupId, artifactId, version, type, classifier, checksum).resolve();
     }
 
-    private InputStreamSource fetch(URI repository,
-                                    String groupId,
-                                    String artifactId,
-                                    String version,
-                                    String type,
-                                    String classifier,
-                                    String checksum,
-                                    boolean latent) throws IOException {
+    private LazyInputStreamSource fetch(URI repository,
+                                        String groupId,
+                                        String artifactId,
+                                        String version,
+                                        String type,
+                                        String classifier,
+                                        String checksum) throws IOException {
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
                 + "." + type + (checksum == null ? "" : ("." + checksum));
-        Path cached = local != null ? local.resolve(path) : null;
-        caching:
+        Path cached = local == null ? null : local.resolve(path);
         if (cached != null) {
             if (Files.exists(cached)) {
+                boolean valid = true;
                 if (checksum == null) {
-                    for (Map.Entry<String, URI> validation : validations.entrySet()) {
-                        MessageDigest digest;
-                        try {
-                            digest = MessageDigest.getInstance(validation.getKey());
-                        } catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException(e);
-                        }
-                        try (FileChannel channel = FileChannel.open(cached)) {
-                            digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
-                        }
-                        InputStreamSource source = fetch(validation.getValue(),
+                    Map<LazyInputStreamSource, byte[]> digests = new HashMap<>();
+                    for (Map.Entry<String, URI> entry : validations.entrySet()) {
+                        LazyInputStreamSource source = fetch(entry.getValue(),
                                 groupId,
                                 artifactId,
                                 version,
                                 type,
                                 classifier,
-                                validation.getKey().toLowerCase(),
-                                true);
-                        byte[] expected;
-                        try (InputStream inputStream = source.toInputStream()) {
-                            expected = inputStream.readAllBytes();
-                        }
-                        if (!Arrays.equals(Base64.getDecoder().decode(expected), digest.digest())) {
-                            Path file = source.getPath().orElse(null);
-                            if (file != null) {
-                                Files.delete(file);
+                                entry.getKey().toLowerCase());
+                        if (valid) {
+                            MessageDigest digest;
+                            try {
+                                digest = MessageDigest.getInstance(entry.getKey());
+                            } catch (NoSuchAlgorithmException e) {
+                                throw new IllegalStateException(e);
                             }
-                            Files.delete(cached);
-                            break caching;
-                        } else if (source instanceof CachableInputStreamSource cachable) {
-                            Files.write(cachable.file(), expected);
+                            try (FileChannel channel = FileChannel.open(cached)) {
+                                digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+                            }
+                            byte[] expected;
+                            try (InputStream inputStream = source.toInputStream()) {
+                                expected = inputStream.readAllBytes();
+                            }
+                            digests.put(source, expected);
+                            valid = Arrays.equals(Base64.getDecoder().decode(expected), digest.digest());
+                        } else {
+                            digests.put(source, null);
+                        }
+                    }
+                    if (valid) {
+                        for (Map.Entry<LazyInputStreamSource, byte[]> entry : digests.entrySet()) {
+                            entry.getKey().store(entry.getValue());
+                        }
+                    } else {
+                        for (LazyInputStreamSource source : digests.keySet()) {
+                            source.delete();
                         }
                     }
                 }
-                return new PathInputStreamSource(cached);
+                if (valid) {
+                    return new StoredInputStreamSource(cached);
+                }
             } else {
                 Files.createDirectories(cached.getParent());
             }
         }
         URI uri = repository.resolve(path);
-        Map<MessageDigest, InputStreamSource> digests = new HashMap<>();
-        if (checksum == null) {
-            for (Map.Entry<String, URI> validation : validations.entrySet()) {
-                MessageDigest digest;
-                try {
-                    digest = MessageDigest.getInstance(validation.getKey());
-                } catch (NoSuchAlgorithmException e) {
-                    throw new IllegalStateException(e);
-                }
-                digests.put(digest, fetch(validation.getValue(),
-                        groupId,
-                        artifactId,
-                        version,
-                        type,
-                        classifier,
-                        validation.getKey().toLowerCase(),
-                        true));
-            }
-        }
         if (cached == null) {
-            return () -> ValidationInputStream.wrap(uri.toURL().openConnection().getInputStream(), digests);
-        } else if (latent) {
-            return new CachableInputStreamSource(cached, uri);
+            return () -> uri.toURL().openStream();
         } else {
-            Path temp = Files.createTempFile(
+            return new LatentInputStreamSource(cached,
+                    uri,
                     artifactId + "-" + version + (classifier == null ? "" : "-" + classifier),
-                    type + (checksum == null ? "" : "." + checksum));
-            try (InputStream inputStream = ValidationInputStream.wrap(
-                    uri.toURL().openConnection().getInputStream(),
-                    digests); OutputStream outputStream = Files.newOutputStream(temp)) {
-                inputStream.transferTo(outputStream);
-            } catch (Throwable t) {
-                try {
-                    Files.delete(temp);
-                } catch (Exception e) {
-                    t.addSuppressed(e);
-                }
-                throw t;
-            }
-            return new PathInputStreamSource(Files.move(temp, cached));
+                    type + (checksum == null ? "" : ("." + checksum)));
         }
     }
 
-    private record CachableInputStreamSource(Path file, URI uri) implements InputStreamSource {
+    @FunctionalInterface
+    private interface LazyInputStreamSource extends InputStreamSource {
+
+        default void delete() throws IOException {
+        }
+
+        default void store(byte[] bytes) throws IOException {
+        }
+
+        default InputStreamSource resolve() throws IOException {
+            return this;
+        }
+    }
+
+    record StoredInputStreamSource(Path path) implements LazyInputStreamSource {
+
+        @Override
+        public void delete() throws IOException {
+            Files.delete(path);
+        }
+
+        @Override
+        public InputStream toInputStream() throws IOException {
+            return Files.newInputStream(path);
+        }
+
+        @Override
+        public Optional<Path> getPath() {
+            return Optional.of(path);
+        }
+    }
+
+    record LatentInputStreamSource(Path path, URI uri, String prefix, String suffix) implements LazyInputStreamSource {
 
         @Override
         public InputStream toInputStream() throws IOException {
             return uri.toURL().openStream();
         }
-    }
 
-    private static class ValidationInputStream extends DigestInputStream {
-
-        private final InputStreamSource source;
-
-        private ValidationInputStream(InputStream inputStream, MessageDigest digest, InputStreamSource source) {
-            super(inputStream, digest);
-            this.source = source;
-        }
-
-        private static InputStream wrap(InputStream inputStream,
-                                        Map<MessageDigest, InputStreamSource> sources) throws IOException {
-            for (Map.Entry<MessageDigest, InputStreamSource> entry : sources.entrySet()) {
-                inputStream = new ValidationInputStream(inputStream, entry.getKey(), entry.getValue());
+        @Override
+        public InputStreamSource resolve() throws IOException {
+            Path temporary = Files.createTempFile(prefix, suffix);
+            try (InputStream inputStream = uri.toURL().openConnection().getInputStream();
+                 OutputStream outputStream = Files.newOutputStream(temporary)) {
+                inputStream.transferTo(outputStream);
+            } catch (Throwable t) {
+                Files.delete(temporary);
+                throw t;
             }
-            return inputStream;
+            return new StoredInputStreamSource(Files.move(temporary, path));
         }
 
         @Override
-        public void close() throws IOException {
-            super.close();
-            byte[] expected;
-            try (InputStream inputStream = source.toInputStream()) {
-                expected = inputStream.readAllBytes();
+        public void store(byte[] bytes) throws IOException {
+            Path temporary = Files.createTempFile(prefix, suffix);
+            try (OutputStream outputStream = Files.newOutputStream(temporary)) {
+                outputStream.write(bytes);
+            } catch (Throwable t) {
+                Files.delete(temporary);
+                throw t;
             }
-            if (!Arrays.equals(Base64.getDecoder().decode(expected), getMessageDigest().digest())) {
-                Path file = source.getPath().orElse(null);
-                if (file != null) {
-                    Files.delete(file);
-                }
-                throw new IOException("Digest did not match expectation");
-            } else if (source instanceof CachableInputStreamSource cachable) {
-                Files.write(cachable.file(), expected);
-            }
+            Files.move(temporary, path);
         }
     }
 }
