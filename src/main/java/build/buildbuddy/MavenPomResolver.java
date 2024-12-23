@@ -36,11 +36,13 @@ public class MavenPomResolver {
         Queue<DependencyElement> queue = new ArrayDeque<>();
         DependencyElement current = new DependencyElement(root, Set.of(), Map.of());
         do {
+            Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>(current.pom().managedDependencies());
+            managedDependencies.putAll(current.managedDependencies());
             for (Map.Entry<DependencyKey, DependencyValue> entry : current.pom().dependencies().entrySet()) {
                 if (!current.exclusions().contains(new DependencyExclusion(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
-                    dependencies.put(entry.getKey(), entry.getValue());
+                    dependencies.put(entry.getKey(), managedDependencies.getOrDefault(entry.getKey(), entry.getValue()));
                     Set<DependencyExclusion> exclusions;
                     if (entry.getValue().exclusions() == null || entry.getValue().exclusions().isEmpty()) {
                         exclusions = current.exclusions();
@@ -52,7 +54,7 @@ public class MavenPomResolver {
                             entry.getKey().artifactId(),
                             entry.getValue().version(),
                             null,
-                            "pom"), new HashSet<>()), exclusions, Map.of())); // TODO: dependency management
+                            "pom"), new HashSet<>()), exclusions, managedDependencies));
                 }
             }
         } while ((current = queue.poll()) != null);
@@ -117,9 +119,9 @@ public class MavenPomResolver {
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
-                        .forEach(entry -> dependencies.putLast(
+                        .forEach(entry -> dependencies.put(
                                 entry.getKey(),
-                                managedDependencies.getOrDefault(entry.getKey(), entry.getValue()).merge(entry.getValue())));
+                                managedDependencies.getOrDefault(entry.getKey(), entry.getValue())));
                 yield new ResolvedPom(properties, managedDependencies, dependencies);
             }
             case null, default ->
