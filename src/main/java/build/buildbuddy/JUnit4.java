@@ -16,6 +16,11 @@ public class JUnit4 extends Java {
     }
 
     @Override
+    public boolean isExpectedExitCode(int exitCode) {
+        return exitCode == 0 || exitCode == 1;
+    }
+
+    @Override
     protected CompletionStage<List<String>> commands(Executor executor,
                                                      BuildStepContext context,
                                                      Map<String, BuildStepArgument> arguments) {

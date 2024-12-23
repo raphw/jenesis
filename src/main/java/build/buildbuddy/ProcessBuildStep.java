@@ -37,6 +37,10 @@ public interface ProcessBuildStep extends BuildStep {
         return builder.inheritIO();
     }
 
+    default boolean isExpectedExitCode(int exitCode) {
+        return exitCode == 0;
+    }
+
     @Override
     default CompletionStage<BuildStepResult> apply(Executor executor,
                                                    BuildStepContext context,
@@ -47,7 +51,7 @@ public interface ProcessBuildStep extends BuildStep {
                 Process process = prepare(builder, executor, context, arguments).start();
                 executor.execute(() -> {
                     try {
-                        if (process.waitFor() == 0) {
+                        if (isExpectedExitCode(process.waitFor())) {
                             future.complete(new BuildStepResult(true));
                         } else {
                             throw new IllegalStateException("Unexpected exit code: " + process.exitValue());
