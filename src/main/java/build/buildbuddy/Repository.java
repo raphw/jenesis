@@ -17,6 +17,6 @@ public interface Repository {
             return Optional.empty();
         }
 
-        InputStream toInputStream() throws IOException;
+        Optional<InputStream> toInputStream() throws IOException;
     }
 }

@@ -42,7 +42,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream();
+                null).toInputStream().orElseThrow();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -61,7 +61,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream();
+                null).toInputStream().orElseThrow();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -90,7 +90,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream();
+                null).toInputStream().orElseThrow();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -145,7 +145,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream();
+                null).toInputStream().orElseThrow();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -175,7 +175,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null).toInputStream();
+                null).toInputStream().orElseThrow();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }
@@ -217,7 +217,7 @@ public class MavenRepositoryTest {
         Path dependency = temporaryFolder.newFile("dependency").toPath();
         try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
                 "artifact",
-                null).toInputStream();
+                null).toInputStream().orElseThrow();
              OutputStream outputStream = Files.newOutputStream(dependency)) {
             inputStream.transferTo(outputStream);
         }

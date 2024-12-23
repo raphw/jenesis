@@ -144,7 +144,9 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         Metadata metadata = cache.get(new MavenPomResolver.DependencyName(groupId, artifactId));
         if (metadata == null) {
             Document document;
-            try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null).toInputStream()) {
+            try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null)
+                    .toInputStream()
+                    .orElseThrow(() -> new IllegalStateException("No metadata for " + groupId + ":" + artifactId))) {
                 document = factory.newDocumentBuilder().parse(inputStream);
             } catch (SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException(e);

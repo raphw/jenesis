@@ -74,7 +74,9 @@ public class Dependencies implements BuildStep {
                                 Path file = source.getFile().orElse(null);
                                 if (file == null) {
                                     try (
-                                            DigestInputStream inputStream = new DigestInputStream(source.toInputStream(), digest);
+                                            DigestInputStream inputStream = new DigestInputStream(source
+                                                    .toInputStream()
+                                                    .orElseThrow(), digest);
                                             OutputStream outputStream = Files.newOutputStream(dependencies.resolve(dependency))
                                     ) {
                                         inputStream.transferTo(outputStream);

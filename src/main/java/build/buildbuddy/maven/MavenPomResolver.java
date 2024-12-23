@@ -260,12 +260,15 @@ public class MavenPomResolver {
         UnresolvedPom pom = poms.get(coordinates);
         if (pom == null) {
             try {
-                pom = assemble(repository.fetch(groupId,
+                Optional<InputStream> inputStream = repository.fetch(groupId,
                         artifactId,
                         version,
                         "pom",
                         null,
-                        null).toInputStream(), children, poms);
+                        null).toInputStream();
+                pom = inputStream.isPresent()
+                        ? assemble(inputStream.get(), children, poms)
+                        : new UnresolvedPom(Map.of(), Map.of(), Collections.emptyNavigableMap());
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
             }

@@ -2,10 +2,7 @@ package build.buildbuddy.maven;
 
 import build.buildbuddy.Repository;
 
-import java.io.FilterInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -92,12 +89,15 @@ public class MavenRepository implements Repository {
                             try (FileChannel channel = FileChannel.open(cached)) {
                                 digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
                             }
-                            byte[] expected;
-                            try (InputStream inputStream = source.toInputStream()) {
-                                expected = inputStream.readAllBytes();
+                            Optional<InputStream> candidate = source.toInputStream();
+                            if (candidate.isPresent()) {
+                                byte[] expected;
+                                try (InputStream inputStream = candidate.get()) {
+                                    expected = inputStream.readAllBytes();
+                                }
+                                results.put(source, expected);
+                                valid = Arrays.equals(Base64.getDecoder().decode(expected), digest.digest());
                             }
-                            results.put(source, expected);
-                            valid = Arrays.equals(Base64.getDecoder().decode(expected), digest.digest());
                         } else {
                             results.put(source, null);
                         }
@@ -137,7 +137,7 @@ public class MavenRepository implements Repository {
         }
         URI uri = repository.resolve(path);
         if (cached == null) {
-            return () -> ValidatingInputStream.of(uri.toURL().openStream(), digests);
+            return () -> ValidatingInputStream.of(uri, digests);
         } else {
             return new LatentInputStreamSource(cached,
                     uri,
@@ -169,8 +169,8 @@ public class MavenRepository implements Repository {
         }
 
         @Override
-        public InputStream toInputStream() throws IOException {
-            return Files.newInputStream(path);
+        public Optional<InputStream> toInputStream() throws IOException {
+            return Optional.of(Files.newInputStream(path));
         }
 
         @Override
@@ -186,8 +186,8 @@ public class MavenRepository implements Repository {
                                    String suffix) implements LazyInputStreamSource {
 
         @Override
-        public InputStream toInputStream() throws IOException {
-            return ValidatingInputStream.of(uri.toURL().openStream(), digests);
+        public Optional<InputStream> toInputStream() throws IOException {
+            return ValidatingInputStream.of(uri, digests);
         }
 
         @Override
@@ -205,7 +205,11 @@ public class MavenRepository implements Repository {
         @Override
         public InputStreamSource materialize() throws IOException {
             Path temporary = Files.createTempFile(prefix, suffix);
-            try (InputStream inputStream = toInputStream();
+            Optional<InputStream> candidate = toInputStream();
+            if (candidate.isEmpty()) {
+                return Optional::empty;
+            }
+            try (InputStream inputStream = candidate.get();
                  OutputStream outputStream = Files.newOutputStream(temporary)) {
                 inputStream.transferTo(outputStream);
             } catch (Throwable t) {
@@ -225,14 +229,20 @@ public class MavenRepository implements Repository {
             this.digests = digests;
         }
 
-        private static InputStream of(InputStream inputStream, Map<LazyInputStreamSource, MessageDigest> digests) {
+        private static Optional<InputStream> of(URI uri, Map<LazyInputStreamSource, MessageDigest> digests) throws IOException {
+            InputStream inputStream;
+            try {
+                inputStream = uri.toURL().openStream();
+            } catch (FileNotFoundException ignored) {
+                return Optional.empty();
+            }
             if (digests.isEmpty()) {
-                return inputStream;
+                return Optional.of(inputStream);
             }
             for (MessageDigest digest : digests.values()) {
                 inputStream = new DigestInputStream(inputStream, digest);
             }
-            return new ValidatingInputStream(inputStream, digests);
+            return Optional.of(new ValidatingInputStream(inputStream, digests));
         }
 
         @Override
@@ -241,13 +251,16 @@ public class MavenRepository implements Repository {
             boolean valid = true;
             Map<LazyInputStreamSource, byte[]> results = new HashMap<>();
             for (Map.Entry<LazyInputStreamSource, MessageDigest> entry : digests.entrySet()) {
-                byte[] expected;
-                try (InputStream inputStream = entry.getKey().toInputStream()) {
-                    expected = inputStream.readAllBytes();
-                }
-                results.put(entry.getKey(), expected);
-                if (!(valid = Arrays.equals(Base64.getDecoder().decode(expected), entry.getValue().digest()))) {
-                    break;
+                Optional<InputStream> candidate = entry.getKey().toInputStream();
+                if (candidate.isPresent()) {
+                    byte[] expected;
+                    try (InputStream inputStream = candidate.get()) {
+                        expected = inputStream.readAllBytes();
+                    }
+                    results.put(entry.getKey(), expected);
+                    if (!(valid = Arrays.equals(Base64.getDecoder().decode(expected), entry.getValue().digest()))) {
+                        break;
+                    }
                 }
             }
             if (valid) {

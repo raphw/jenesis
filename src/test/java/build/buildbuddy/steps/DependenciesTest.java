@@ -51,7 +51,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
-                coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+                coordinate -> () -> Optional.of(new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
@@ -74,7 +74,7 @@ public class DependenciesTest {
                     Path file = Files.writeString(temporaryFolder.newFile(coordinate).toPath(), coordinate);
                     return new Repository.InputStreamSource() {
                         @Override
-                        public InputStream toInputStream() {
+                        public Optional<InputStream> toInputStream() {
                             throw new AssertionError();
                         }
 
@@ -102,7 +102,7 @@ public class DependenciesTest {
         }
         assertThatThrownBy(() -> new Dependencies(Map.of(
                 "sample",
-                coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+                coordinate -> () -> Optional.of(new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
@@ -125,7 +125,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "sample",
-                coordinate -> () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8))
+                coordinate -> () -> Optional.of(new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/sample.dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
