@@ -24,10 +24,7 @@ public class ChecksumDiff {
             try (BufferedReader reader = Files.newBufferedReader(target)) {
                 Iterator<String> it = reader.lines().iterator();
                 while (it.hasNext()) {
-                    Path path = Paths.get(it.next());
-                    String s = it.next();
-                    byte[] bytes = Base64.getDecoder().decode(s);
-                    checksums.put(path, bytes);
+                    checksums.put(Paths.get(it.next()), Base64.getDecoder().decode(it.next()));
                 }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
