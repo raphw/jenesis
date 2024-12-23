@@ -20,7 +20,6 @@ import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.in;
 
 public class JUnit4Test {
 
