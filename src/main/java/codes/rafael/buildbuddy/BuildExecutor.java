@@ -16,16 +16,16 @@ import java.util.stream.Stream;
 public class BuildExecutor {
 
     private final Path root;
+    private final ChecksumDiff diff;
 
     private final TaskGraph<String, Map<String, Map<Path, ChecksumStatus>>> taskGraph = new TaskGraph<>((left, right) -> Stream.concat(
         left.entrySet().stream(),
         right.entrySet().stream()
     ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
-    private final ChecksumDiff diff = new ChecksumDiff();
-
-    public BuildExecutor(Path root) {
+    public BuildExecutor(Path root, ChecksumDiff diff) {
         this.root = root;
+        this.diff = diff;
     }
 
     public void source(String identity, Path path) {
@@ -50,5 +50,9 @@ public class BuildExecutor {
                 throw new UncheckedIOException(e);
             }
         }, executor), dependencies);
+    }
+
+    public void execute(Executor executor) {
+        taskGraph.execute(executor, CompletableFuture.completedStage(Map.of()));
     }
 }

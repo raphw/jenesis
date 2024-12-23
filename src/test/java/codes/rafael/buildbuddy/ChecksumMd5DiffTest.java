@@ -16,12 +16,12 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ChecksumDiffTest {
+public class ChecksumMd5DiffTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private ChecksumDiff checksumDiff = new ChecksumDiff();
+    private ChecksumMd5Diff md5ChecksumDiff = new ChecksumMd5Diff();
 
     @Test
     public void can_diff_empty() throws IOException, NoSuchAlgorithmException {
@@ -29,8 +29,8 @@ public class ChecksumDiffTest {
         Path first = toFile(sources, "first", "foo"), second = toFile(sources, "second", "bar");
         Path checksums = temporaryFolder.newFile("checksums.diff").toPath();
         Files.delete(checksums);
-        Map<Path, ChecksumDiff.State> diffs = new LinkedHashMap<>();
-        checksumDiff.diff(checksums, sources, diffs::put);
+        Map<Path, ChecksumMd5Diff.State> diffs = new LinkedHashMap<>();
+        md5ChecksumDiff.diff(checksums, sources, diffs::put);
         assertThat(diffs).containsOnlyKeys(sources.relativize(first), sources.relativize(second));
         assertThat(diffs.get(sources.relativize(first)).status()).isEqualTo(ChecksumStatus.ADDED);
         assertThat(diffs.get(sources.relativize(first)).checksum()).isEqualTo(toMd5("foo"));
@@ -61,8 +61,8 @@ public class ChecksumDiffTest {
             writer.append(toMd5String("removed"));
             writer.newLine();
         }
-        Map<Path, ChecksumDiff.State> diffs = new LinkedHashMap<>();
-        checksumDiff.diff(checksums, sources, diffs::put);
+        Map<Path, ChecksumMd5Diff.State> diffs = new LinkedHashMap<>();
+        md5ChecksumDiff.diff(checksums, sources, diffs::put);
         assertThat(diffs).containsOnlyKeys(sources.relativize(first),
                 sources.relativize(second),
                 sources.relativize(third),
