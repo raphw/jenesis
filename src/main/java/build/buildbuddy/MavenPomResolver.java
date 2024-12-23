@@ -9,6 +9,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -28,17 +29,12 @@ public class MavenPomResolver {
     public List<MavenDependency> resolve(String groupId, String artifactId, String version) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         Set<MavenDependencyKey> previous = new HashSet<>();
-        Queue<Map.Entry<PomVersion, Set<ExcludedDependency>>> queue = new ArrayDeque<>(Set.of(Map.entry(
-                new PomVersion(groupId, artifactId, version),
-                Set.of())));
+        Map.Entry<ResolvedPom, Set<ExcludedDependency>> root = Map.entry(doResolve(
+                repository.download(groupId, artifactId, version, null, "pom"),
+                new HashSet<>()), Set.of()), current = root;
+        Queue<Map.Entry<ResolvedPom, Set<ExcludedDependency>>> queue = new ArrayDeque<>();
         do {
-            Map.Entry<PomVersion, Set<ExcludedDependency>> current = queue.remove();
-            ResolvedPom pom = doResolve(repository.download(current.getKey().groupId(),
-                    current.getKey().artifactId(),
-                    current.getKey().version(),
-                    null,
-                    "pom"), new HashSet<>());
-            for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : pom.dependencies().entrySet()) {
+            for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : current.getKey().dependencies().entrySet()) {
                 if (!current.getValue().contains(new ExcludedDependency(
                         entry.getKey().groupId(),
                         entry.getKey().artifactId())) && previous.add(entry.getKey())) {
@@ -50,29 +46,29 @@ public class MavenPomResolver {
                         exclusions = new HashSet<>(current.getValue());
                         exclusions.addAll(entry.getValue().exclusions());
                     }
-                    queue.add(Map.entry(new PomVersion(entry.getKey().groupId(),
-                            entry.getKey().artifactId(),
-                            entry.getValue().version()), exclusions));
+                    queue.add(Map.entry(doResolve(
+                            repository.download(groupId, artifactId, version, null, "pom"),
+                            new HashSet<>()), exclusions));
                 }
             }
-        for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : pom.dependencies().entrySet()) {
-            ResolvedPom pom1 = doResolve(repository.download(entry.getKey().groupId(),
-                            entry.getKey().artifactId(),
-                            entry.getValue().version(),
-                            null,
-                            "pom"),
-                    new HashSet<>());
-            List<ExcludedDependency> exclusions = entry.getValue().exclusions() == null ? List.of() : entry.getValue().exclusions();
-            pom1.dependencies().entrySet().stream()
-                    .filter(dependency -> !exclusions.contains(new ExcludedDependency(
-                            dependency.getKey().groupId(),
-                            dependency.getKey().artifactId())))
-                    .forEach(dependency -> dependencies.putIfAbsent(
-                            dependency.getKey(),
-                            dependency.getValue()));
-            // TODO: as queue, with dependency configuration propagation
-        }
-        } while (!queue.isEmpty());
+            for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : current.getKey().dependencies().entrySet()) {
+                ResolvedPom pom = doResolve(repository.download(entry.getKey().groupId(),
+                                entry.getKey().artifactId(),
+                                entry.getValue().version(),
+                                null,
+                                "pom"),
+                        new HashSet<>());
+                List<ExcludedDependency> exclusions = entry.getValue().exclusions() == null ? List.of() : entry.getValue().exclusions();
+                pom.dependencies().entrySet().stream()
+                        .filter(dependency -> !exclusions.contains(new ExcludedDependency(
+                                dependency.getKey().groupId(),
+                                dependency.getKey().artifactId())))
+                        .forEach(dependency -> dependencies.putIfAbsent(
+                                dependency.getKey(),
+                                dependency.getValue()));
+            }
+            current = queue.poll();
+        } while (current != null);
         return dependencies.entrySet().stream().map(entry -> new MavenDependency(
                 entry.getKey().groupId(),
                 entry.getKey().artifactId(),
