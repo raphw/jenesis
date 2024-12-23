@@ -87,16 +87,17 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                 DependencyCoordinates parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
                         .map(node -> new DependencyCoordinates(
-                                toChildren400(node, "groupId").map(Node::getTextContent).findFirst().orElseThrow(missing("parent.groupId")),
-                                toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().orElseThrow(missing("parent.artifactId")),
-                                toChildren400(node, "version").map(Node::getTextContent).findFirst().orElseThrow(missing("parent.version"))))
+                                toTextChild400(node, "groupId", Map.of()).orElseThrow(missing("parent.groupId")),
+                                toTextChild400(node, "artifactId", Map.of()).orElseThrow(missing("parent.artifactId")),
+                                toTextChild400(node, "version", Map.of()).orElseThrow(missing("parent.version"))))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
                 SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
                 if (parent != null) {
                     if (!children.add(new DependencyCoordinates(parent.groupId(), parent.artifactId(), parent.version()))) {
-                        throw new IllegalStateException("Circular dependency to " + parent.groupId() + ":" + parent.artifactId() + ":" + parent.version());
+                        throw new IllegalStateException("Circular dependency to "
+                                + parent.groupId() + ":" + parent.artifactId() + ":" + parent.version());
                     }
                     ResolvedPom resolution = doResolveOrCached(parent.groupId(),
                             parent.artifactId(),
@@ -141,8 +142,8 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
                                 managedDependencies.getOrDefault(entry.getKey(), entry.getValue())));
                 yield new ResolvedPom(properties, managedDependencies, dependencies);
             }
-            case null, default ->
-                    throw new IllegalArgumentException("Unknown namespace: " + document.getDocumentElement().getNamespaceURI());
+            case null, default -> throw new IllegalArgumentException(
+                    "Unknown namespace: " + document.getDocumentElement().getNamespaceURI());
         };
     }
 
@@ -179,25 +180,29 @@ public class MavenPomResolver { // TODO: scope resolution, BOMs
         return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName) && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
     }
 
+    private static Optional<String> toTextChild400(Node node, String localName, Map<String, String> properties) {
+        return toChildren400(node, localName).map(Node::getTextContent).findFirst().map(value -> toValue(value, properties));
+    }
+
     private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node, Map<String, String> properties) {
         return Map.entry(
                 new DependencyKey(
-                        toChildren400(node, "groupId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(missing("groupId")),
-                        toChildren400(node, "artifactId").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElseThrow(missing("artifactId")),
-                        toChildren400(node, "type").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse("jar"),
-                        toChildren400(node, "classifier").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse(null)),
+                        toTextChild400(node, "groupId", properties).orElseThrow(missing("groupId")),
+                        toTextChild400(node, "artifactId", properties).orElseThrow(missing("artifactId")),
+                        toTextChild400(node, "type", properties).orElse("jar"),
+                        toTextChild400(node, "classifier", properties).orElse(null)),
                 new DependencyValue(
-                        toChildren400(node, "version").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse(null),
-                        toChildren400(node, "scope").map(Node::getTextContent).findFirst().map(value -> toValue(value, properties)).orElse("compile"),
+                        toTextChild400(node, "version", properties).orElse(null),
+                        toTextChild400(node, "scope", properties).orElse("compile"),
                         toChildren400(node, "exclusions")
                                 .findFirst()
                                 .map(exclusions -> toChildren400(exclusions, "exclusion")
                                         .map(child -> new DependencyExclusion(
-                                                toChildren400(child, "groupId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow(missing("exclusion.groupId")),
-                                                toChildren400(child, "artifactId").map(Node::getTextContent).map(value -> toValue(value, properties)).findFirst().orElseThrow(missing("exclusion.artifactId"))))
+                                                toTextChild400(child, "groupId", properties).orElseThrow(missing("exclusion.groupId")),
+                                                toTextChild400(child, "artifactId", properties).orElseThrow(missing("exclusion.artifactId"))))
                                         .toList())
                                 .orElse(null),
-                        toChildren400(node, "optional").findFirst().map(Node::getTextContent).map(value -> toValue(value, properties)).map(Boolean::valueOf).orElse(null)));
+                        toTextChild400(node, "optional", properties).map(Boolean::valueOf).orElse(null)));
     }
 
 
