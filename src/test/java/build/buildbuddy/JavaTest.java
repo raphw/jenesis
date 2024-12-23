@@ -34,11 +34,9 @@ public class JavaTest {
 
     @Test
     public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectory(classes.resolve("sample"));
-        try (
-                InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
-                OutputStream output = Files.newOutputStream(folder.resolve("Sample.class"))
-        ) {
+        Path folder = Files.createDirectories(classes.resolve(Javac.FOLDER + "sample"));
+        try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class");
+             OutputStream output = Files.newOutputStream(folder.resolve("Sample.class"))) {
             requireNonNull(input).transferTo(output);
         }
         BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,

@@ -1,13 +1,14 @@
 package build.buildbuddy;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class Java implements ProcessBuildStep {
@@ -45,18 +46,18 @@ public abstract class Java implements ProcessBuildStep {
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    BuildStepContext context,
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
+        List<String> classPath = new ArrayList<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            for (String folder : List.of(Javac.FOLDER, Dependencies.FOLDER)) {
+                Path candidate = argument.folder().resolve(folder);
+                if (Files.exists(candidate)) {
+                    classPath.add(candidate.toString());
+                }
+            }
+        }
         return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
-                Stream.of(
-                        java,
-                        "--class-path", arguments.values().stream() // TODO: needs better approach.
-                                .flatMap(result -> Stream.concat(Stream.of(result.folder()), result.files().keySet().stream()
-                                        .filter(path -> path.toString().endsWith(".jar")))
-                                        .map(path -> result.folder().resolve(path)))
-                                .map(Path::toString)
-                                .collect(Collectors.joining(":"))
-                ),
-                commands.stream()
-        ).toList()), executor);
+                Stream.of(java, "--class-path", String.join(":", classPath)),
+                commands.stream()).toList()), executor);
     }
 
     @Override
