@@ -70,9 +70,37 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                           String artifactId,
                           String type,
                           String classifier,
-                          String version,
+                          String current,
                           SequencedSet<String> versions) throws IOException {
-        return versions.getFirst(); // TODO
+        String lower = null, upper = null;
+        for (String version : versions) {
+            if ((version.startsWith("[") || version.startsWith("(")) && (version.endsWith("]") || version.endsWith(")"))) {
+                String value = version.substring(1, version.length() - 1), minimum, maximum;
+                int includeMinimum = version.startsWith("[") ? 1 : 0, includeMaximum = version.endsWith("]") ? 1 : 0, index = value.indexOf(',');
+                if (index == -1) {
+                    minimum = maximum = value.trim();
+                } else {
+                    minimum = value.substring(0, index).trim();
+                    maximum = value.substring(index + 1).trim();
+                }
+                if (lower != null && compare(lower, minimum) < 0) {
+                    throw new IllegalStateException("Cannot resolve common minimum for " + groupId + ":" + artifactId);
+                } else {
+                    lower = minimum;
+                }
+                if (upper != null && compare(upper, maximum) > 0) {
+                    throw new IllegalStateException("Cannot resolve common maximum for " + groupId + ":" + artifactId);
+                } else {
+                    upper = maximum;
+                }
+                current = toMetadata(groupId, artifactId).versions().stream()
+                        .filter(candidate -> compare(minimum, candidate) < includeMinimum)
+                        .filter(candidate -> compare(candidate, maximum) < includeMaximum)
+                        .reduce((left, right) -> right)
+                        .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
+            }
+        }
+        return current;
     }
 
     private Metadata toMetadata(String groupId, String artifactId) throws IOException {

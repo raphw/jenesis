@@ -15,6 +15,6 @@ public interface MavenVersionNegotiator {
                    String artifactId,
                    String type,
                    String classifier,
-                   String version,
+                   String current,
                    SequencedSet<String> versions) throws IOException;
 }
