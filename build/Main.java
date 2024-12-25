@@ -2,6 +2,7 @@ package build;
 
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.Repository;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.step.Bind;
 import build.buildbuddy.step.JUnit4;
@@ -17,6 +18,7 @@ public class Main {
 
     public static void main(String[] args) {
         MavenRepository mavenRepository = new MavenRepository();
+        Map<String, Repository> repositories = Map.of("file", Repository.files(), "maven", mavenRepository);
         BuildExecutor executor = new BuildExecutor(Path.of("target"), new HashDigestFunction("MD5"));
         executor.addSource("sources", Path.of("sources"));
         executor.addStep("sources-bound", Bind.asSources(), "sources");
