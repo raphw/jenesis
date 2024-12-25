@@ -39,7 +39,7 @@ public class MavenRepository implements Repository {
 
     @Override
     public Optional<RepositoryItem> fetch(String coordinate) throws IOException {
-        String[] elements = coordinate.split(":", 5);
+        String[] elements = coordinate.split("/", 5);
         return switch (elements.length) {
             case 3 -> fetch(elements[0], elements[1], elements[2], "jar", null, null);
             case 4 -> fetch(elements[0], elements[1], elements[3], elements[2], null, null);

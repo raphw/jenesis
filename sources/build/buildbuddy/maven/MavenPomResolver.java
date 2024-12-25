@@ -35,7 +35,7 @@ public class MavenPomResolver implements Resolver {
     }
 
     @Override
-    public List<String> dependencies(Collection<String> descriptors) throws IOException {
+    public Collection<String> dependencies(Collection<String> descriptors) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         descriptors.forEach(coordinate -> {
             String[] elements = coordinate.split("/");
@@ -53,10 +53,10 @@ public class MavenPomResolver implements Resolver {
             };
         });
         return dependencies(Map.of(), dependencies).stream().map(dependency -> dependency.groupId()
-                + ":" + dependency.artifactId()
-                + (Objects.equals(dependency.type(), "jar") ? "" : ":" + dependency.type())
-                + (dependency.classifier() == null ? "" : ":" + dependency.classifier())
-                + ":" + dependency.version()).toList();
+                + "/" + dependency.artifactId()
+                + (Objects.equals(dependency.type(), "jar") ? "" : "/" + dependency.type())
+                + (dependency.classifier() == null ? "" : "/" + dependency.classifier())
+                + "/" + dependency.version()).toList();
     }
 
     public List<MavenDependency> dependencies(

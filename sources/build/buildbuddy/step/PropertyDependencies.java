@@ -54,7 +54,7 @@ public class PropertyDependencies implements BuildStep {
                         int index = property.indexOf('/');
                         groups
                                 .computeIfAbsent(property.substring(0, index), ignored -> new LinkedHashMap<>())
-                                .put(property.replace('/', ':').substring(index + 1), properties.getProperty(property));
+                                .put(property.substring(index + 1), properties.getProperty(property));
                     }
                 }
             }
