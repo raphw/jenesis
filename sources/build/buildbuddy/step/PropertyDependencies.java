@@ -47,7 +47,7 @@ public class PropertyDependencies implements BuildStep {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.properties")) {
                 for (Path path : stream) {
                     Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(folder.resolve(path))) {
+                    try (Reader reader = Files.newBufferedReader(path)) {
                         properties.load(reader);
                     }
                     for (String property : properties.stringPropertyNames()) {

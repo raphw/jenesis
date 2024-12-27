@@ -47,14 +47,14 @@ public class Javac implements ProcessBuildStep {
                 classPath.add(classes.toString());
             }
             if (Files.exists(jars)) {
-                Files.walkFileTree(sources, new FileExtensionAddingVisitor(classPath, ".jar"));
+                Files.walkFileTree(jars, new FileExtensionAddingVisitor(classPath, ".jar"));
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new FileExtensionAddingVisitor(files, ".java"));
             }
         }
         if (!classPath.isEmpty()) {
-            commands.add("-classpath");
+            commands.add("--module-path"); // TODO: distinguish module and class path properly
             commands.add(String.join(File.pathSeparator, classPath));
         }
         commands.addAll(files);

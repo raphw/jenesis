@@ -7,4 +7,8 @@ import java.util.Collection;
 public interface Resolver {
 
     Collection<String> dependencies(Collection<String> descriptors) throws IOException;
+
+    static Resolver identity() {
+        return descriptors -> descriptors;
+    }
 }

@@ -127,7 +127,7 @@ public class BuildExecutor {
                                 throw throwable;
                             } else if (result.next()) {
                                 Files.move(next, exists
-                                        ? Files.walkFileTree(previous, new RecursiveFolderDeletion(next))
+                                        ? Files.walkFileTree(previous, new RecursiveFolderDeletion(null))
                                         : previous);
                                 Files.createDirectory(checksum);
                             } else if (consistent) {
