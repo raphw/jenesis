@@ -49,15 +49,15 @@ public class Dependencies implements BuildStep {
                     for (String property : properties.stringPropertyNames()) {
                         int index = property.indexOf('/');
                         String expectation = properties.getProperty(property),
-                                dependency = property.replace('/', ':'),
-                                coordinate = dependency.substring(index + 1);
+                                coordinate = property.substring(index + 1),
+                                name = coordinate.replace('/', ':');
                         Repository repository = requireNonNull(
-                                repositories.get(dependency.substring(0, index)),
-                                "Could not resolve repository: " + dependency.substring(0, index));
-                        Path previous = context.previous() == null ? null : context.previous().resolve(LIBS + dependency);
+                                repositories.get(property.substring(0, index)),
+                                "Could not resolve repository: " + property.substring(0, index));
+                        Path previous = context.previous() == null ? null : context.previous().resolve(LIBS + name);
                         if (expectation.isEmpty()) {
                             if (previous != null && Files.exists(previous)) {
-                                Files.createLink(libs.resolve(dependency), previous);
+                                Files.createLink(libs.resolve(name), previous);
                             } else {
                                 CompletableFuture<?> future = new CompletableFuture<>();
                                 executor.execute(() -> {
@@ -67,10 +67,10 @@ public class Dependencies implements BuildStep {
                                         Path file = source.getFile().orElse(null);
                                         if (file == null) {
                                             try (InputStream inputStream = source.toInputStream()) {
-                                                Files.copy(inputStream, libs.resolve(dependency));
+                                                Files.copy(inputStream, libs.resolve(name));
                                             }
                                         } else {
-                                            Files.createLink(context.next().resolve(LIBS + dependency), file);
+                                            Files.createLink(context.next().resolve(LIBS + name), file);
                                         }
                                         future.complete(null);
                                     } catch (Throwable t) {
@@ -90,7 +90,7 @@ public class Dependencies implements BuildStep {
                             String checksum = expectation.substring(algorithm + 1);
                             if (previous != null && Files.exists(previous)) {
                                 if (validateFile(digest, previous, checksum)) {
-                                    Files.createLink(libs.resolve(dependency), previous);
+                                    Files.createLink(libs.resolve(name), previous);
                                     continue;
                                 } else {
                                     digest.reset();
@@ -106,18 +106,18 @@ public class Dependencies implements BuildStep {
                                         try (DigestInputStream inputStream = new DigestInputStream(
                                                 source.toInputStream(),
                                                 digest)) {
-                                            Files.copy(inputStream, libs.resolve(dependency));
+                                            Files.copy(inputStream, libs.resolve(name));
                                             if (!Arrays.equals(
                                                     inputStream.getMessageDigest().digest(),
                                                     Base64.getDecoder().decode(checksum))) {
-                                                throw new IllegalStateException("Mismatched digest for " + dependency);
+                                                throw new IllegalStateException("Mismatched digest for " + property);
                                             }
                                         }
                                     } else {
                                         if (validateFile(digest, file, checksum)) {
-                                            Files.createLink(context.next().resolve(LIBS + dependency), file);
+                                            Files.createLink(context.next().resolve(LIBS + name), file);
                                         } else {
-                                            throw new IllegalStateException("Mismatched digest for " + dependency);
+                                            throw new IllegalStateException("Mismatched digest for " + property);
                                         }
                                     }
                                     future.complete(null);

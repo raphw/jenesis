@@ -76,15 +76,15 @@ public class PropertyDependenciesTest {
         try (Reader reader = Files.newBufferedReader(next.resolve(Dependencies.FLATTENED + "dependencies.properties"))) {
             dependencies.load(reader);
         }
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("qux",
-                "transitive/qux",
-                "baz",
-                "transitive/baz");
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
+                "foo/transitive/qux",
+                "foo/baz",
+                "foo/transitive/baz");
         for (String property : dependencies.stringPropertyNames()) {
             assertThat(dependencies.getProperty(property)).isEqualTo("SHA256/"
                     + Base64.getEncoder().encodeToString(MessageDigest
                     .getInstance("SHA256")
-                    .digest(property.getBytes(StandardCharsets.UTF_8))));
+                    .digest(property.substring("foo/".length()).getBytes(StandardCharsets.UTF_8))));
         }
     }
 
