@@ -8,16 +8,17 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenRepositoryTest {
 
@@ -74,10 +75,10 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         byte[] hash = digest.digest("foo".getBytes(StandardCharsets.UTF_8));
-        try (OutputStream outputStream = Files.newOutputStream(Files
+        try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar.md5"))) {
-            outputStream.write(Base64.getEncoder().encode(hash));
+            writer.write(HexFormat.of().formatHex(hash));
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
@@ -93,7 +94,7 @@ public class MavenRepositoryTest {
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
-        assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).content().isEqualTo(Base64.getEncoder().encodeToString(hash));
+        assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).content().isEqualTo(HexFormat.of().formatHex(hash));
     }
 
     @Test
@@ -102,10 +103,10 @@ public class MavenRepositoryTest {
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
-        try (OutputStream outputStream = Files.newOutputStream(Files
+        try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar.md5"))) {
-            outputStream.write(Base64.getEncoder().encode(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
+            writer.write(HexFormat.of().formatHex(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
         MavenRepository repository = new MavenRepository(this.repository.toUri(),
@@ -129,10 +130,10 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         byte[] hash = digest.digest("foo".getBytes(StandardCharsets.UTF_8));
-        try (OutputStream outputStream = Files.newOutputStream(Files
+        try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar.md5"))) {
-            outputStream.write(Base64.getEncoder().encode(hash));
+            writer.write(HexFormat.of().formatHex(hash));
         }
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(),
@@ -147,7 +148,7 @@ public class MavenRepositoryTest {
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
-        assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).content().isEqualTo(Base64.getEncoder().encodeToString(hash));
+        assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).content().isEqualTo(HexFormat.of().formatHex(hash));
     }
 
     @Test
@@ -158,10 +159,10 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
         byte[] hash = digest.digest("foo".getBytes(StandardCharsets.UTF_8));
-        try (OutputStream outputStream = Files.newOutputStream(Files
+        try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar.md5"))) {
-            outputStream.write(Base64.getEncoder().encode(hash));
+            writer.write(HexFormat.of().formatHex(hash));
         }
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenRepository(repository.toUri(),
@@ -176,7 +177,7 @@ public class MavenRepositoryTest {
         }
         assertThat(dependency).content().isEqualTo("foo");
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).content().isEqualTo("foo");
-        assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).content().isEqualTo(Base64.getEncoder().encodeToString(hash));
+        assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).content().isEqualTo(HexFormat.of().formatHex(hash));
     }
 
     @Test
@@ -186,10 +187,10 @@ public class MavenRepositoryTest {
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         MessageDigest digest = MessageDigest.getInstance("MD5");
-        try (OutputStream outputStream = Files.newOutputStream(Files
+        try (Writer writer = Files.newBufferedWriter(Files
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar.md5"))) {
-            outputStream.write(Base64.getEncoder().encode(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
+            writer.write(HexFormat.of().formatHex(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
         }
         MavenRepository repository = new MavenRepository(this.repository.toUri(),
                 local,

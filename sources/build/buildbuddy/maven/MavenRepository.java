@@ -6,6 +6,7 @@ import build.buildbuddy.RepositoryItem;
 import java.io.*;
 import java.net.URI;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -15,6 +16,17 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class MavenRepository implements Repository {
+
+    public static void main(String[] args) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA1");
+        byte[] b = Files.readAllBytes(Path.of("/home/rafael/.m2/repository/junit/junit/4.13.2/junit-4.13.2.pom"));
+        String s = Files.readString(Path.of("/home/rafael/.m2/repository/junit/junit/4.13.2/junit-4.13.2.pom.sha1"));
+//        System.out.println(HexFormat.of().formatHex(digest.digest(b)));
+//        System.out.println(s);
+        byte[] sb = HexFormat.of().parseHex(s);
+        System.out.println(Arrays.toString(digest.digest(b)));
+        System.out.println(Arrays.toString(sb));
+    }
 
     private final URI repository;
     private final Path local;
@@ -98,7 +110,9 @@ public class MavenRepository implements Repository {
                                     expected = inputStream.readAllBytes();
                                 }
                                 results.put(item, expected);
-                                valid = Arrays.equals(Base64.getDecoder().decode(expected), digest.digest());
+                                valid = Arrays.equals(
+                                        HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
+                                        digest.digest());
                             }
                         } else {
                             results.put(item, null);
@@ -271,7 +285,9 @@ public class MavenRepository implements Repository {
                         expected = inputStream.readAllBytes();
                     }
                     results.put(entry.getKey(), expected);
-                    if (!Arrays.equals(Base64.getDecoder().decode(expected), entry.getValue().digest())) {
+                    if (!Arrays.equals(
+                            HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
+                            entry.getValue().digest())) {
                         invalid = entry.getValue().getAlgorithm();
                         break;
                     }
