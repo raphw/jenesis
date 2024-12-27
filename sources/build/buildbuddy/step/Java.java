@@ -4,10 +4,10 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.ProcessBuildStep;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,29 +51,37 @@ public abstract class Java implements ProcessBuildStep {
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    BuildStepContext context,
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
-        List<String> classPath = new ArrayList<>();
+        List<String> classes = new ArrayList<>(), modules = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
             for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path candidate = argument.folder().resolve(folder);
-                if (Files.exists(candidate)) {
-                    classPath.add(candidate.toString());
-                }
-            }
-            for (String folder : List.of(Dependencies.LIBS, Jar.JARS)) {
-                Path candidate = argument.folder().resolve(folder);
-                if (Files.exists(candidate)) {
-                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(candidate)) {
-                        for (Path path : stream) {
-                            classPath.add(path.toString());
-                        }
+                if (Files.isDirectory(candidate)) {
+                    if (Files.exists(candidate.resolve("module-info.java"))) {
+                        modules.add(candidate.toString());
+                    } else {
+                        classes.add(candidate.toString());
                     }
                 }
             }
+            for (String folder : List.of(Dependencies.LIBS, Jar.JARS)) { // TODO: resolve modules and class path
+                Path candidate = argument.folder().resolve(folder);
+                if (Files.exists(candidate)) {
+                    Files.walkFileTree(candidate, new FileAddingVisitor(modules));
+                }
+            }
+        }
+        List<String> prefixes = new ArrayList<>();
+        prefixes.add(java);
+        if (!classes.isEmpty()) {
+            prefixes.add("-classpath");
+            prefixes.add(String.join(File.pathSeparator, classes));
+        }
+        if (!modules.isEmpty()) {
+            prefixes.add("--module-path");
+            prefixes.add(String.join(File.pathSeparator, modules));
         }
         return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
-                classPath.isEmpty()
-                        ? Stream.of(java)
-                        : Stream.of(java, "--class-path", String.join(":", classPath)),
+                prefixes.stream(),
                 commands.stream()).toList()), executor);
     }
 
@@ -85,5 +93,20 @@ public abstract class Java implements ProcessBuildStep {
         return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
                 .redirectOutput(context.supplement().resolve("output").toFile())
                 .redirectError(context.supplement().resolve("error").toFile());
+    }
+
+    private static class FileAddingVisitor extends SimpleFileVisitor<Path> {
+
+        private final List<String> target;
+
+        private FileAddingVisitor(List<String> target) {
+            this.target = target;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            target.add(file.toString());
+            return FileVisitResult.CONTINUE;
+        }
     }
 }

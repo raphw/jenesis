@@ -37,7 +37,7 @@ public class JUnit4 extends Java {
 
     @Override
     public boolean isExpectedExitCode(int exitCode) {
-        return exitCode == 0 || exitCode == 1;
+        return exitCode == 0; // TODO: handling of error
     }
 
     @Override

@@ -44,7 +44,7 @@ public class JUnit4Test {
     }
 
     @Test
-    public void can_execute_java() throws IOException, ExecutionException, InterruptedException, URISyntaxException, ClassNotFoundException {
+    public void can_execute_junit4() throws IOException, ExecutionException, InterruptedException, URISyntaxException, ClassNotFoundException {
         Path libs = Files.createDirectory(dependencies.resolve(Dependencies.LIBS));
         Files.copy(
                 Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),

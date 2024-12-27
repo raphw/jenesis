@@ -39,7 +39,9 @@ public class Jar implements ProcessBuildStep {
             for (String name : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path folder = argument.folder().resolve(name);
                 if (Files.exists(folder)) {
+                    commands.add("-C");
                     commands.add(folder.toString());
+                    commands.add(".");
                 }
             }
         }
