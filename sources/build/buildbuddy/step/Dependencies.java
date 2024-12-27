@@ -74,7 +74,9 @@ public class Dependencies implements BuildStep {
                                         }
                                         future.complete(null);
                                     } catch (Throwable t) {
-                                        future.completeExceptionally(t);
+                                        future.completeExceptionally(new RuntimeException(
+                                                "Failed to fetch " + coordinate,
+                                                t));
                                     }
                                 });
                                 futures.add(future);
@@ -122,7 +124,9 @@ public class Dependencies implements BuildStep {
                                     }
                                     future.complete(null);
                                 } catch (Throwable t) {
-                                    future.completeExceptionally(t);
+                                    future.completeExceptionally(new RuntimeException(
+                                            "Failed to fetch " + coordinate,
+                                            t));
                                 }
                             });
                             futures.add(future);

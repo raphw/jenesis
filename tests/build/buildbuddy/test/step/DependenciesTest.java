@@ -108,7 +108,9 @@ public class DependenciesTest {
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
-                .hasCauseInstanceOf(IllegalStateException.class)
+                .cause()
+                .isInstanceOf(RuntimeException.class)
+                .cause()
                 .hasMessageContaining("Mismatched digest for foo/bar");
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }

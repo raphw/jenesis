@@ -116,7 +116,7 @@ public class MavenRepositoryTest {
                 "1",
                 "jar",
                 null,
-                null)).isInstanceOf(IOException.class);
+                null)).isInstanceOf(IllegalStateException.class);
         assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
         assertThat(local.resolve("group/artifact/1/artifact-1.jar.md5")).doesNotExist();
     }

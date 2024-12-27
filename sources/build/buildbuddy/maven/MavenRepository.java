@@ -28,7 +28,7 @@ public class MavenRepository implements Repository {
         repository = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
         Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
         this.local = Files.isDirectory(local) ? local : null;
-        validations = Map.of(); // "SHA1", repository
+        validations = Map.of("SHA1", repository);
     }
 
     public MavenRepository(URI repository, Path local, Map<String, URI> validations) {
@@ -261,7 +261,7 @@ public class MavenRepository implements Repository {
         @Override
         public void close() throws IOException {
             super.close();
-            boolean valid = true;
+            String invalid = null;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
             for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
                 Optional<InputStream> candidate = entry.getKey().toLazyInputStream();
@@ -271,12 +271,13 @@ public class MavenRepository implements Repository {
                         expected = inputStream.readAllBytes();
                     }
                     results.put(entry.getKey(), expected);
-                    if (!(valid = Arrays.equals(Base64.getDecoder().decode(expected), entry.getValue().digest()))) {
+                    if (!Arrays.equals(Base64.getDecoder().decode(expected), entry.getValue().digest())) {
+                        invalid = entry.getValue().getAlgorithm();
                         break;
                     }
                 }
             }
-            if (valid) {
+            if (invalid == null) {
                 for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                     entry.getKey().storeIfNotPresent(entry.getValue());
                 }
@@ -284,7 +285,7 @@ public class MavenRepository implements Repository {
                 for (LazyRepositoryItem item : digests.keySet()) {
                     item.deleteIfPresent();
                 }
-                throw new IOException("Failed checksum validation");
+                throw new IllegalStateException("Failed checksum validation for " + invalid);
             }
         }
     }
