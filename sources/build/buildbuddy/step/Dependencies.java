@@ -50,7 +50,7 @@ public class Dependencies implements BuildStep {
                         int index = property.indexOf('/');
                         String expectation = properties.getProperty(property),
                                 coordinate = property.substring(index + 1),
-                                name = property.replace('/', ':');
+                                name = property.replace('/', ':') + ".jar";
                         Repository repository = requireNonNull(
                                 repositories.get(property.substring(0, index)),
                                 "Could not resolve repository: " + property.substring(0, index));
