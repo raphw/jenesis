@@ -10,10 +10,7 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.Reader;
-import java.io.Writer;
+import java.io.*;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,10 +42,8 @@ public class ModuleDependencies implements BuildStep {
                         + String.join(".", elements.subList(0, elements.size() - 3))
                         + "/" + elements.get(elements.size() - 3)
                         + "/" + elements.get(elements.size() - 2);
-            } else if (value.startsWith("file://")) {
-                return "file/" + value.substring("file://".length());
             } else {
-                throw new IllegalArgumentException();
+                return value;
             }
         };
     }
