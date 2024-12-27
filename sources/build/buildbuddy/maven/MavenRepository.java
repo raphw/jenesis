@@ -17,17 +17,6 @@ import java.util.*;
 
 public class MavenRepository implements Repository {
 
-    public static void main(String[] args) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance("SHA1");
-        byte[] b = Files.readAllBytes(Path.of("/home/rafael/.m2/repository/junit/junit/4.13.2/junit-4.13.2.pom"));
-        String s = Files.readString(Path.of("/home/rafael/.m2/repository/junit/junit/4.13.2/junit-4.13.2.pom.sha1"));
-//        System.out.println(HexFormat.of().formatHex(digest.digest(b)));
-//        System.out.println(s);
-        byte[] sb = HexFormat.of().parseHex(s);
-        System.out.println(Arrays.toString(digest.digest(b)));
-        System.out.println(Arrays.toString(sb));
-    }
-
     private final URI repository;
     private final Path local;
     private final Map<String, URI> validations;
