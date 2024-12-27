@@ -93,7 +93,7 @@ public class PropertyDependencies implements BuildStep {
                             }
                         }
                         properties.setProperty(
-                                coordinate,
+                                group.getKey() + "/" + coordinate,
                                 algorithm + "/" + Base64.getEncoder().encodeToString(digest.digest()));
 
                     } else {

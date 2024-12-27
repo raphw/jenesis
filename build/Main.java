@@ -39,8 +39,9 @@ public class Main {
                 resolvers,
                 repositories,
                 "SHA256"), "test-dependencies-bound");
-        executor.addStep("test-sources-javac", new Javac(), "sources-jar", "test-dependencies-resolved", "test-sources-bound");
-        executor.addStep("junit", new JUnit4(), "sources-jar", "test-dependencies-resolved", "test-sources-javac");
+        executor.addStep("test-dependencies-jar", new Dependencies(repositories), "test-dependencies-resolved");
+        executor.addStep("test-sources-javac", new Javac(), "sources-jar", "test-dependencies-jar", "test-sources-bound");
+        executor.addStep("junit", new JUnit4(), "sources-jar", "test-dependencies-jar", "test-sources-javac");
         Map<String, Path> steps;
         try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             steps = executor.execute(executorService).toCompletableFuture().join();

@@ -43,7 +43,7 @@ public class Dependencies implements BuildStep {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dependencies, "*.properties")) {
                 for (Path path : stream) {
                     Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(result.folder().resolve(path))) {
+                    try (Reader reader = Files.newBufferedReader(path)) {
                         properties.load(reader);
                     }
                     for (String property : properties.stringPropertyNames()) {

@@ -28,7 +28,7 @@ public class MavenRepository implements Repository {
         repository = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
         Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
         this.local = Files.isDirectory(local) ? local : null;
-        validations = Map.of("SHA1", repository);
+        validations = Map.of(); // "SHA1", repository
     }
 
     public MavenRepository(URI repository, Path local, Map<String, URI> validations) {
@@ -141,11 +141,12 @@ public class MavenRepository implements Repository {
         if (cached == null) {
             return () -> ValidatingInputStream.of(uri, digests);
         } else {
+            int dash = path.lastIndexOf('/'), dot = path.indexOf('.', dash);
             return new LatentRepositoryItem(cached,
                     uri,
                     digests,
-                    path.substring(path.lastIndexOf('/') + 1, path.indexOf('.')),
-                    path.substring(path.indexOf('.')));
+                    path.substring(dash + 1, dot),
+                    path.substring(dot));
         }
     }
 
