@@ -66,6 +66,7 @@ public class CopyTest {
         Files.copy(first, Files.createDirectories(previous.resolve("target")).resolve("first.txt"));
         Files.writeString(first, "qux");
         Path second = Files.writeString(Files.createTempFile("sample", ".txt"), "bar");
+        Thread.sleep(Duration.ofSeconds(1));
         BuildStepResult result = new Copy(Map.of(
                 Path.of("target", "first.txt"), first.toUri(),
                 Path.of("target", "second.txt"), second.toUri()), Duration.ofMillis(1)).apply(
