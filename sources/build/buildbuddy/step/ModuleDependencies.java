@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -26,10 +27,31 @@ import static java.util.Objects.requireNonNull;
 
 public class ModuleDependencies implements BuildStep {
 
+    public static final URI MODULES_PROPERTIES = URI.create("https://raw.githubusercontent.com/" +
+            "sormuras/modules/refs/heads/main/" +
+            "com.github.sormuras.modules/com/github/sormuras/modules/modules.properties");
     public static final String MODULES = "modules/";
 
     private final Function<String, String> resolver;
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+
+    public ModuleDependencies() {
+        resolver = value -> {
+            if (value.startsWith("https://repo.maven.apache.org/maven2/") && value.endsWith(".jar")) {
+                List<String> elements = Arrays.asList(value
+                        .substring("https://repo.maven.apache.org/maven2/".length())
+                        .split("/"));
+                return "maven/"
+                        + String.join(".", elements.subList(0, elements.size() - 3))
+                        + "/" + elements.get(elements.size() - 3)
+                        + "/" + elements.get(elements.size() - 2);
+            } else if (value.startsWith("file://")) {
+                return "file/" + value.substring("file://".length());
+            } else {
+                throw new IllegalArgumentException();
+            }
+        };
+    }
 
     public ModuleDependencies(Function<String, String> resolver) {
         this.resolver = resolver;
