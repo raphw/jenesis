@@ -108,7 +108,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Mismatched digest for foo:bar");
+                .hasMessageContaining("Mismatched digest for foo/bar");
         assertThat(next.resolve(Dependencies.LIBS + "foo:bar")).content().isEqualTo("bar");
     }
 
