@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 public class Javac implements ProcessBuildStep {
 
@@ -43,16 +42,12 @@ public class Javac implements ProcessBuildStep {
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(Bind.SOURCES),
                     classes = argument.folder().resolve(CLASSES),
-                    jars = argument.folder().resolve(Jar.JARS),
-                    libs = argument.folder().resolve(Dependencies.LIBS);
+                    jars = argument.folder().resolve(Jar.JARS);
             if (Files.exists(classes)) {
                 classPath.add(classes.toString());
             }
             if (Files.exists(jars)) {
                 Files.walkFileTree(jars, new FileExtensionAddingVisitor(classPath, ".jar"));
-            }
-            if (Files.exists(libs)) {
-                Files.walkFileTree(libs, new FileExtensionAddingVisitor(classPath, ".jar"));
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new FileExtensionAddingVisitor(files, ".java"));

@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 public abstract class Java implements ProcessBuildStep {
 
     private final String java;
+    protected boolean modular = true;
 
     protected Java() {
         java = ProcessBuildStep.ofJavaHome("bin/java" + (WINDOWS ? ".exe" : ""));
@@ -43,6 +44,11 @@ public abstract class Java implements ProcessBuildStep {
         };
     }
 
+    public Java modular(boolean modular) {
+        this.modular = modular;
+        return this;
+    }
+
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
                                                               Map<String, BuildStepArgument> arguments) throws IOException;
@@ -51,34 +57,34 @@ public abstract class Java implements ProcessBuildStep {
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    BuildStepContext context,
                                                    Map<String, BuildStepArgument> arguments) throws IOException {
-        List<String> classes = new ArrayList<>(), modules = new ArrayList<>();
+        List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
             for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.isDirectory(candidate)) {
-                    if (Files.exists(candidate.resolve("module-info.java"))) {
-                        modules.add(candidate.toString());
+                    if (modular && Files.exists(candidate.resolve("module-info.class"))) {
+                        classPath.add(candidate.toString());
                     } else {
-                        classes.add(candidate.toString());
+                        classPath.add(candidate.toString());
                     }
                 }
             }
-            for (String folder : List.of(Dependencies.LIBS, Jar.JARS)) { // TODO: resolve modules and class path
+            for (String folder : List.of(Jar.JARS)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.exists(candidate)) {
-                    Files.walkFileTree(candidate, new FileAddingVisitor(modules));
+                    Files.walkFileTree(candidate, new FileAddingVisitor(modular ? modulePath : classPath));
                 }
             }
         }
         List<String> prefixes = new ArrayList<>();
-        prefixes.add(java);
-        if (!classes.isEmpty()) {
+        prefixes.add(java); // TODO: better automatic module path resolution?
+        if (!classPath.isEmpty()) {
             prefixes.add("-classpath");
-            prefixes.add(String.join(File.pathSeparator, classes));
+            prefixes.add(String.join(File.pathSeparator, classPath));
         }
-        if (!modules.isEmpty()) {
+        if (!modulePath.isEmpty()) {
             prefixes.add("--module-path");
-            prefixes.add(String.join(File.pathSeparator, modules));
+            prefixes.add(String.join(File.pathSeparator, modulePath));
         }
         return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
                 prefixes.stream(),
@@ -104,7 +110,7 @@ public abstract class Java implements ProcessBuildStep {
         }
 
         @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs){
             target.add(file.toString());
             return FileVisitResult.CONTINUE;
         }

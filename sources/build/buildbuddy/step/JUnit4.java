@@ -36,15 +36,18 @@ public class JUnit4 extends Java {
     }
 
     @Override
-    public boolean isExpectedExitCode(int exitCode) {
-        return exitCode == 0; // TODO: handling of error
-    }
-
-    @Override
     protected CompletionStage<List<String>> commands(Executor executor,
                                                      BuildStepContext context,
                                                      Map<String, BuildStepArgument> arguments) throws IOException {
-        List<String> commands = new ArrayList<>(List.of("org.junit.runner.JUnitCore"));
+        List<String> commands = new ArrayList<>();
+        if (modular) {
+            commands.add("--add-modules");
+            commands.add("ALL-MODULE-PATH");
+            commands.add("-m");
+            commands.add("junit/org.junit.runner.JUnitCore");
+        } else {
+            commands.add("org.junit.runner.JUnitCore");
+        }
         for (BuildStepArgument argument : arguments.values()) {
             Path classes = argument.folder().resolve(Javac.CLASSES);
             if (Files.exists(classes)) {

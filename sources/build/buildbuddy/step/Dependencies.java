@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    public static final String FLATTENED = "flattened/", LIBS = "libs/";
+    public static final String FLATTENED = "flattened/";
 
     private final Map<String, Repository> repositories;
 
@@ -34,7 +34,7 @@ public class Dependencies implements BuildStep {
                                                   BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        Path libs = Files.createDirectory(context.next().resolve(LIBS));
+        Path libs = Files.createDirectory(context.next().resolve(Jar.JARS));
         for (BuildStepArgument result : arguments.values()) {
             Path dependencies = result.folder().resolve(FLATTENED);
             if (!Files.exists(dependencies)) {
@@ -50,11 +50,11 @@ public class Dependencies implements BuildStep {
                         int index = property.indexOf('/');
                         String expectation = properties.getProperty(property),
                                 coordinate = property.substring(index + 1),
-                                name = property.replace('/', '.') + ".jar";
+                                name = property.replace('/', '-') + ".jar";
                         Repository repository = requireNonNull(
                                 repositories.get(property.substring(0, index)),
                                 "Could not resolve repository: " + property.substring(0, index));
-                        Path previous = context.previous() == null ? null : context.previous().resolve(LIBS + name);
+                        Path previous = context.previous() == null ? null : context.previous().resolve(Jar.JARS + name);
                         if (expectation.isEmpty()) {
                             if (previous != null && Files.exists(previous)) {
                                 Files.createLink(libs.resolve(name), previous);
@@ -70,7 +70,7 @@ public class Dependencies implements BuildStep {
                                                 Files.copy(inputStream, libs.resolve(name));
                                             }
                                         } else {
-                                            Files.createLink(context.next().resolve(LIBS + name), file);
+                                            Files.createLink(context.next().resolve(Jar.JARS + name), file);
                                         }
                                         future.complete(null);
                                     } catch (Throwable t) {
@@ -115,7 +115,7 @@ public class Dependencies implements BuildStep {
                                         }
                                     } else {
                                         if (validateFile(digest, file, checksum)) {
-                                            Files.createLink(context.next().resolve(LIBS + name), file);
+                                            Files.createLink(context.next().resolve(Jar.JARS + name), file);
                                         } else {
                                             throw new IllegalStateException("Mismatched digest for " + property);
                                         }

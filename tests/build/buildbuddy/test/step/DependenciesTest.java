@@ -2,6 +2,7 @@ package build.buildbuddy.test.step;
 
 import build.buildbuddy.*;
 import build.buildbuddy.step.Dependencies;
+import build.buildbuddy.step.Jar;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,7 +58,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
@@ -89,7 +90,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
@@ -109,14 +110,14 @@ public class DependenciesTest {
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Mismatched digest for foo/bar");
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
         Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(Dependencies.LIBS))
-                .resolve("foo.bar.jar"), "other");
+                .createDirectory(Files.createDirectory(previous).resolve(Jar.JARS))
+                .resolve("foo-bar.jar"), "other");
         Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
@@ -131,8 +132,8 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("other");
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("other");
+        assertThat(previous.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
     }
 
     @Test
@@ -150,7 +151,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
@@ -181,14 +182,14 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run_no_hash() throws IOException, ExecutionException, InterruptedException {
         Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(Dependencies.LIBS))
-                .resolve("foo.bar.jar"), "other");
+                .createDirectory(Files.createDirectory(previous).resolve(Jar.JARS))
+                .resolve("foo-bar.jar"), "other");
         Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "");
@@ -202,7 +203,7 @@ public class DependenciesTest {
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("other");
-        assertThat(next.resolve(Dependencies.LIBS + "foo.bar.jar")).content().isEqualTo("other");
+        assertThat(previous.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
     }
 }

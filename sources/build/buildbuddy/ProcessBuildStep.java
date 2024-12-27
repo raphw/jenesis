@@ -2,6 +2,7 @@ package build.buildbuddy;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -37,8 +38,11 @@ public interface ProcessBuildStep extends BuildStep {
         return builder.inheritIO();
     }
 
-    default boolean isExpectedExitCode(int exitCode) {
-        return exitCode == 0;
+    default boolean acceptableExitCode(int code,
+                                       Executor executor,
+                                       BuildStepContext context,
+                                       Map<String, BuildStepArgument> arguments) throws IOException {
+        return code == 0;
     }
 
     @Override
@@ -48,13 +52,19 @@ public interface ProcessBuildStep extends BuildStep {
         return process(executor, context, arguments).thenComposeAsync(builder -> {
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
-                Process process = prepare(builder, executor, context, arguments).start();
+                ProcessBuilder prepared = prepare(builder, executor, context, arguments);
+                Process process = prepared.start();
                 executor.execute(() -> {
                     try {
-                        if (isExpectedExitCode(process.waitFor())) {
+                        if (acceptableExitCode(process.waitFor(), executor, context, arguments)) {
                             future.complete(new BuildStepResult(true));
                         } else {
-                            throw new IllegalStateException("Unexpected exit code: " + process.exitValue());
+                            String output = Files.readString(context.supplement().resolve("output"));
+                            String error = Files.readString(context.supplement().resolve("error"));
+                            throw new IllegalStateException("Unexpected exit code: " + process.exitValue() + "\n"
+                                    + "To reproduce, execute:\n " + String.join(" ", prepared.command())
+                                    + (output.isBlank() ? "" : ("\n\nOutput:\n" + output))
+                                    + (error.isBlank() ? "" : ("\n\nError:\n" + error)));
                         }
                     } catch (Throwable t) {
                         future.completeExceptionally(t);
