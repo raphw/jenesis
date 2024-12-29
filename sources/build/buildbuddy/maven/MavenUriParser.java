@@ -8,11 +8,11 @@ import java.util.function.UnaryOperator;
 
 import static java.util.Objects.requireNonNull;
 
-public class MavenModuleResolver implements UnaryOperator<String> {
+public class MavenUriParser implements UnaryOperator<String> {
 
     private final Function<String, String> hosts;
 
-    public MavenModuleResolver(Function<String, String> hosts) {
+    public MavenUriParser(Function<String, String> hosts) {
         this.hosts = hosts;
     }
 

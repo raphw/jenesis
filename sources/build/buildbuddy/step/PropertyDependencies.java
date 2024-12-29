@@ -60,12 +60,12 @@ public class PropertyDependencies implements BuildStep {
             }
             Properties properties = new SequencedProperties();
             for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
-                for (String coordinate : requireNonNull(
+                for (String dependency : requireNonNull(
                         resolvers.get(group.getKey()),
-                        "Unknown resolver: " + group.getKey()).dependencies(group.getValue().keySet())) {
-                    String expectation = group.getValue().getOrDefault(coordinate, "");
+                        "Unknown resolver: " + group.getKey()).dependencies(executor, group.getValue().keySet())) {
+                    String expectation = group.getValue().getOrDefault(dependency, "");
                     if (!expectation.isEmpty()) {
-                        properties.setProperty(coordinate, expectation);
+                        properties.setProperty(dependency, expectation);
                     } else if (algorithm != null) {
                         MessageDigest digest;
                         try {
@@ -76,8 +76,8 @@ public class PropertyDependencies implements BuildStep {
                         RepositoryItem item = requireNonNull(
                                 repositories.get(group.getKey()),
                                 "Unknown repository: " + group.getKey())
-                                .fetch(coordinate)
-                                .orElseThrow(() -> new IllegalStateException("Cannot resolve " + coordinate));
+                                .fetch(dependency)
+                                .orElseThrow(() -> new IllegalStateException("Cannot resolve " + dependency));
                         Path file = item.getFile().orElse(null);
                         if (file == null) {
                             try (InputStream inputStream = item.toInputStream()) {
@@ -93,11 +93,11 @@ public class PropertyDependencies implements BuildStep {
                             }
                         }
                         properties.setProperty(
-                                group.getKey() + "/" + coordinate,
+                                group.getKey() + "/" + dependency,
                                 algorithm + "/" + Base64.getEncoder().encodeToString(digest.digest()));
 
                     } else {
-                        properties.setProperty(coordinate, "");
+                        properties.setProperty(dependency, "");
                     }
                 }
             }

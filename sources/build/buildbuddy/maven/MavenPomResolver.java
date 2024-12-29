@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,9 +36,9 @@ public class MavenPomResolver implements Resolver {
     }
 
     @Override
-    public Collection<String> dependencies(Collection<String> descriptors) throws IOException {
+    public Collection<String> dependencies(Executor executor, Collection<String> coordinates) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-        descriptors.forEach(coordinate -> {
+        coordinates.forEach(coordinate -> {
             String[] elements = coordinate.split("/");
             switch (elements.length) {
                 case 3 -> dependencies.put(

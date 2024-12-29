@@ -2,13 +2,14 @@ package build.buildbuddy;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.Executor;
 
 @FunctionalInterface
 public interface Resolver {
 
-    Collection<String> dependencies(Collection<String> descriptors) throws IOException;
+    Collection<String> dependencies(Executor executor, Collection<String> coordinates) throws IOException;
 
     static Resolver identity() {
-        return descriptors -> descriptors;
+        return (executor, descriptors) -> descriptors;
     }
 }
