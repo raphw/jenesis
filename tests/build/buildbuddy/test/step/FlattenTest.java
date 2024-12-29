@@ -15,7 +15,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Stream;
+import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,10 +43,14 @@ public class FlattenTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Flatten(
-                Map.of("foo", (_, descriptors) -> descriptors.stream()
-                        .flatMap(descriptor -> Stream.of(descriptor, "transitive/" + descriptor))
-                        .toList())).apply(
+        BuildStepResult result = new Flatten(Map.of("foo", (_, descriptors) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.forEach(descriptor -> {
+                resolved.put(descriptor, "");
+                resolved.put("transitive/" + descriptor, "");
+            });
+            return resolved;
+        })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -76,10 +80,15 @@ public class FlattenTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Flatten(
-                Map.of("foo", (_, descriptors) -> descriptors.stream()
-                        .flatMap(descriptor -> Stream.of(descriptor, "transitive/" + descriptor))
-                        .toList())).apply(Runnable::run,
+        BuildStepResult result = new Flatten(Map.of("foo", (_, descriptors) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.forEach(descriptor -> {
+                resolved.put(descriptor, "");
+                resolved.put("transitive/" + descriptor, "");
+            });
+            return resolved;
+        })).apply(
+                Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
@@ -99,5 +108,43 @@ public class FlattenTest {
         assertThat(dependencies.getProperty("foo/transitive/qux")).isEmpty();
         assertThat(dependencies.getProperty("foo/baz")).isEmpty();
         assertThat(dependencies.getProperty("foo/transitive/baz")).isEmpty();
+    }
+
+    @Test
+    public void can_resolve_dependencies_with_resolved_checksum() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty("foo/qux", "bar");
+        properties.setProperty("foo/baz", "");
+        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
+            properties.store(writer, null);
+        }
+        BuildStepResult result = new Flatten(Map.of("foo", (_, descriptors) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.forEach(descriptor -> {
+                resolved.put(descriptor, "qux/" + descriptor);
+                resolved.put("transitive/" + descriptor, "baz/" + descriptor);
+            });
+            return resolved;
+        })).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.DEPENDENCIES),
+                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Properties dependencies = new Properties();
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
+            dependencies.load(reader);
+        }
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
+                "foo/transitive/qux",
+                "foo/baz",
+                "foo/transitive/baz");
+        assertThat(dependencies.getProperty("foo/qux")).isEqualTo("bar");
+        assertThat(dependencies.getProperty("foo/transitive/qux")).isEqualTo("baz/qux");
+        assertThat(dependencies.getProperty("foo/baz")).isEmpty();
+        assertThat(dependencies.getProperty("foo/transitive/baz")).isEqualTo("baz/baz");
     }
 }

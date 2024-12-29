@@ -36,7 +36,8 @@ public class MavenPomResolver implements Resolver {
     }
 
     @Override
-    public Collection<String> dependencies(Executor executor, Collection<String> coordinates) throws IOException {
+    public SequencedMap<String, String> dependencies(Executor executor, SequencedSet<String> coordinates)
+            throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> {
             String[] elements = coordinate.split("/");
@@ -51,13 +52,15 @@ public class MavenPomResolver implements Resolver {
                         new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]),
                         new MavenDependencyValue(elements[4], MavenDependencyScope.COMPILE, null, null, null));
                 default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
-            };
+            }
         });
-        return dependencies(Map.of(), dependencies).stream().map(dependency -> dependency.groupId()
+        SequencedMap<String, String> resolved = new LinkedHashMap<>();
+        dependencies(Map.of(), dependencies).stream().map(dependency -> dependency.groupId()
                 + "/" + dependency.artifactId()
                 + (Objects.equals(dependency.type(), "jar") ? "" : "/" + dependency.type())
                 + (dependency.classifier() == null ? "" : "/" + dependency.classifier())
-                + "/" + dependency.version()).toList();
+                + "/" + dependency.version()).forEach(coordinate -> resolved.put(coordinate, ""));
+        return resolved;
     }
 
     public List<MavenDependency> dependencies(
@@ -164,7 +167,7 @@ public class MavenPomResolver implements Resolver {
                 }
                 DependencyResolution resolution = resolutions.computeIfAbsent(
                         entry.getKey(),
-                        key -> new DependencyResolution());
+                        _ -> new DependencyResolution());
                 MavenDependencyScope resolvedScope = switch (current.scope()) {
                     case null -> value.scope();
                     case COMPILE -> switch (value.scope()) {

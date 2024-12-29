@@ -31,12 +31,14 @@ public class Flatten implements DependencyTransformingBuildStep {
             throws IOException {
         Properties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
-            for (String dependency : requireNonNull(
+            for (Map.Entry<String, String> entry : requireNonNull(
                     resolvers.get(group.getKey()),
-                    "Unknown resolver: " + group.getKey()).dependencies(executor, group.getValue().keySet())) {
+                    "Unknown resolver: " + group.getKey()).dependencies(
+                    executor,
+                    group.getValue().sequencedKeySet()).entrySet()) {
                 properties.setProperty(
-                        group.getKey() + "/" + dependency,
-                        group.getValue().getOrDefault(dependency, ""));
+                        group.getKey() + "/" + entry.getKey(),
+                        group.getValue().getOrDefault(entry.getKey(), entry.getValue()));
             }
         }
         return CompletableFuture.completedStage(properties);
