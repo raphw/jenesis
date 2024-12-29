@@ -1,7 +1,7 @@
 package build.buildbuddy.test.step;
 
 import build.buildbuddy.*;
-import build.buildbuddy.step.Dependencies;
+import build.buildbuddy.step.DownloadDependencies;
 import build.buildbuddy.step.Jar;
 import org.junit.Before;
 import org.junit.Rule;
@@ -26,7 +26,7 @@ import java.util.concurrent.ExecutionException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class DependenciesTest {
+public class DownloadDependenciesTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -44,33 +44,33 @@ public class DependenciesTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> {
                     Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
@@ -88,26 +88,26 @@ public class DependenciesTest {
                 }
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        assertThatThrownBy(() -> new Dependencies(Map.of(
+        assertThatThrownBy(() -> new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
                 .cause()
                 .isInstanceOf(RuntimeException.class)
                 .cause()
@@ -120,19 +120,19 @@ public class DependenciesTest {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(Jar.JARS))
                 .resolve("foo-bar.jar"), "other");
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(previous.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
@@ -140,31 +140,31 @@ public class DependenciesTest {
 
     @Test
     public void can_resolve_dependencies_without_hash() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "");
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_resolve_dependencies_from_file_without_hash() throws IOException, ExecutionException, InterruptedException {
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "");
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> {
                     Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
@@ -182,7 +182,7 @@ public class DependenciesTest {
                 }
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("bar");
     }
@@ -192,18 +192,18 @@ public class DependenciesTest {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(Jar.JARS))
                 .resolve("foo-bar.jar"), "other");
-        Path folder = Files.createDirectory(flattened.resolve(Dependencies.FLATTENED));
+        Path folder = Files.createDirectory(flattened.resolve(DownloadDependencies.FLATTENED));
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "");
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("dependency.properties"))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Dependencies(Map.of(
+        BuildStepResult result = new DownloadDependencies(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
-                Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                Map.of(Path.of(DownloadDependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
         assertThat(result.next()).isTrue();
         assertThat(previous.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");
         assertThat(next.resolve(Jar.JARS + "foo-bar.jar")).content().isEqualTo("other");

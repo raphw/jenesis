@@ -41,7 +41,7 @@ public class Define implements BuildStep {
             definition.store(writer, null);
         }
         try (Writer writer = Files.newBufferedWriter(Files
-                .createDirectory(context.next().resolve(PropertyDependencies.DEPENDENCIES))
+                .createDirectory(context.next().resolve(FlattenDependencies.DEPENDENCIES))
                 .resolve("dependencies.properties"))) {
             dependencies.store(writer, null);
         }

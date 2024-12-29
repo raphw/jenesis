@@ -36,7 +36,7 @@ public class Bind implements BuildStep {
     }
 
     public static BuildStep asDependencies() {
-        return new Bind(Map.of(Path.of("."), Path.of(PropertyDependencies.DEPENDENCIES)));
+        return new Bind(Map.of(Path.of("."), Path.of(FlattenDependencies.DEPENDENCIES)));
     }
 
     @Override

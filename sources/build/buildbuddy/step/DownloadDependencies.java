@@ -19,13 +19,13 @@ import java.util.concurrent.Executor;
 
 import static java.util.Objects.requireNonNull;
 
-public class Dependencies implements BuildStep {
+public class DownloadDependencies implements BuildStep {
 
     public static final String FLATTENED = "flattened/";
 
     private final Map<String, Repository> repositories;
 
-    public Dependencies(Map<String, Repository> repositories) {
+    public DownloadDependencies(Map<String, Repository> repositories) {
         this.repositories = repositories;
     }
 

@@ -2,7 +2,7 @@ package build.buildbuddy.test.step;
 
 import build.buildbuddy.*;
 import build.buildbuddy.step.Define;
-import build.buildbuddy.step.PropertyDependencies;
+import build.buildbuddy.step.FlattenDependencies;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,7 +56,7 @@ public class DefineTest {
             definition.load(reader);
         }
         assertThat(definition.stringPropertyNames()).containsExactly("foo/bar");
-        try (Reader reader = Files.newBufferedReader(next.resolve(PropertyDependencies.DEPENDENCIES + "dependencies.properties"))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(FlattenDependencies.DEPENDENCIES + "dependencies.properties"))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactly("foo/qux");

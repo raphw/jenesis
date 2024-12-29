@@ -19,7 +19,7 @@ import java.util.concurrent.Executor;
 
 import static java.util.Objects.requireNonNull;
 
-public class PropertyDependencies implements BuildStep {
+public class FlattenDependencies implements BuildStep {
 
     public static final String DEPENDENCIES = "dependencies/";
 
@@ -27,7 +27,7 @@ public class PropertyDependencies implements BuildStep {
     private final Map<String, Repository> repositories;
     private final String algorithm;
 
-    public PropertyDependencies(Map<String, Resolver> resolvers, Map<String, Repository> repositories, String algorithm) {
+    public FlattenDependencies(Map<String, Resolver> resolvers, Map<String, Repository> repositories, String algorithm) {
         this.resolvers = resolvers;
         this.repositories = repositories;
         this.algorithm = algorithm;
@@ -37,7 +37,7 @@ public class PropertyDependencies implements BuildStep {
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   Map<String, BuildStepArgument> arguments) throws IOException {
-        Path flattened = Files.createDirectory(context.next().resolve(Dependencies.FLATTENED));
+        Path flattened = Files.createDirectory(context.next().resolve(DownloadDependencies.FLATTENED));
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             Path folder = entry.getValue().folder().resolve(DEPENDENCIES);
             if (!Files.exists(folder)) {
