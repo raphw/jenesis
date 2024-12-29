@@ -97,7 +97,7 @@ public class Download implements DependencyTransformingBuildStep {
                                     Files.copy(inputStream, libs.resolve(name));
                                     if (!Arrays.equals(
                                             inputStream.getMessageDigest().digest(),
-                                            Base64.getDecoder().decode(checksum))) {
+                                            HexFormat.of().parseHex(checksum))) {
                                         throw new IllegalStateException("Mismatched digest for " + dependency);
                                     }
                                 }
@@ -128,6 +128,6 @@ public class Download implements DependencyTransformingBuildStep {
         try (FileChannel channel = FileChannel.open(file)) {
             digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
         }
-        return Arrays.equals(digest.digest(), Base64.getDecoder().decode(expected));
+        return Arrays.equals(digest.digest(), HexFormat.of().parseHex(expected));
     }
 }

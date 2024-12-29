@@ -20,12 +20,12 @@ import static java.util.Objects.requireNonNull;
 
 public class Checksum implements DependencyTransformingBuildStep {
 
-    private final Map<String, Repository> repositories;
     private final String algorithm;
+    private final Map<String, Repository> repositories;
 
-    public Checksum(Map<String, Repository> repositories, String algorithm) {
-        this.repositories = repositories;
+    public Checksum(String algorithm, Map<String, Repository> repositories) {
         this.algorithm = algorithm;
+        this.repositories = repositories;
     }
 
     @Override
@@ -67,9 +67,7 @@ public class Checksum implements DependencyTransformingBuildStep {
                                     FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
                         }
                     }
-                    properties.setProperty(
-                            group.getKey() + "/" + dependency,
-                            algorithm + "/" + HexFormat.of().formatHex(digest.digest()));
+                    properties.setProperty(dependency, algorithm + "/" + HexFormat.of().formatHex(digest.digest()));
 
                 }
             }

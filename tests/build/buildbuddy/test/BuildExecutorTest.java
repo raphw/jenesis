@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -37,7 +36,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_build() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
@@ -50,7 +49,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("output").resolve("result");
         assertThat(result).isRegularFile();
@@ -71,7 +70,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(false));
         }, "source");
-        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().get())
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
                 .hasMessageContaining("Cannot reuse non-existing location for step")
                 .hasCauseInstanceOf(IllegalStateException.class);
         assertThat(root.resolve("step")).doesNotExist();
@@ -91,14 +90,14 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             throw new RuntimeException("baz");
         }, "source");
-        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().get())
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
                 .hasMessageContaining("baz")
                 .hasCauseInstanceOf(RuntimeException.class);
         assertThat(root.resolve("step")).doesNotExist();
     }
 
     @Test
-    public void can_execute_build_with_skipped_step() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build_with_skipped_step() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath(),
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
@@ -111,7 +110,7 @@ public class BuildExecutorTest {
         buildExecutor.addStep("step", (_, _, _) -> {
             throw new AssertionError("Did not expect that step is executed");
         }, "source");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("output").resolve("result");
         assertThat(result).isRegularFile();
@@ -119,7 +118,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_build_with_changed_source() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build_with_changed_source() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath(),
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
@@ -138,7 +137,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("output").resolve("result");
         assertThat(result).isRegularFile();
@@ -146,7 +145,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_build_with_changed_source_and_use_of_context() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build_with_changed_source_and_use_of_context() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath(),
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
@@ -165,7 +164,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(false));
         }, "source");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("output").resolve("result");
         assertThat(result).isRegularFile();
@@ -173,7 +172,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_build_with_inconsistent_output() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build_with_inconsistent_output() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath(),
                 step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
@@ -192,7 +191,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         Path result = root.resolve("step").resolve("output").resolve("result");
         assertThat(result).isRegularFile();
@@ -200,7 +199,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_build_multiple_steps() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_build_multiple_steps() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
@@ -222,7 +221,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("step1").folder().resolve("result"), context.next().resolve("final"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "step1");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step1", "step2");
         Path result = root.resolve("step2").resolve("output").resolve("final");
         assertThat(result).isRegularFile();
@@ -230,7 +229,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_multiple_sources() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_multiple_sources() throws IOException {
         Path source1 = temporaryFolder.newFolder("source1").toPath(), source2 = temporaryFolder.newFolder("source2").toPath();
         Files.writeString(source1.resolve("sample1"), "foo");
         Files.writeString(source2.resolve("sample2"), "bar");
@@ -251,7 +250,7 @@ public class BuildExecutorTest {
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source1", "source2");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source1", "source2", "step");
         Path result = root.resolve("step").resolve("output").resolve("result");
         assertThat(result).isRegularFile();
@@ -259,7 +258,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_diverging_steps() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_diverging_steps() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("sample"), "foo");
         buildExecutor.addSource("source", source);
@@ -293,7 +292,7 @@ public class BuildExecutorTest {
             Files.copy(arguments.get("step2").folder().resolve("result"), context.next().resolve("result2"));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "step1", "step2");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().get();
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step1", "step2", "step3");
         Path result1 = root.resolve("step3").resolve("output").resolve("result1");
         assertThat(result1).isRegularFile();

@@ -19,7 +19,7 @@ public interface HashFunction {
         try (BufferedReader reader = Files.newBufferedReader(file)) {
             Iterator<String> it = reader.lines().iterator();
             while (it.hasNext()) {
-                checksums.put(Paths.get(it.next()), Base64.getDecoder().decode(it.next()));
+                checksums.put(Paths.get(it.next()), HexFormat.of().parseHex(it.next()));
             }
         }
         return checksums;
@@ -46,7 +46,7 @@ public interface HashFunction {
             for (Map.Entry<Path, byte[]> entry : checksums.entrySet()) {
                 writer.append(entry.getKey().toString());
                 writer.newLine();
-                writer.append(Base64.getEncoder().encodeToString(entry.getValue()));
+                writer.append(HexFormat.of().formatHex(entry.getValue()));
                 writer.newLine();
             }
         }

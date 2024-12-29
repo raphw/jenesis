@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,7 +40,7 @@ public class DownloadTest {
     @Test
     public void can_resolve_dependencies() throws IOException, NoSuchAlgorithmException {
         Properties properties = new Properties();
-        properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
+        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
@@ -61,7 +60,7 @@ public class DownloadTest {
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, NoSuchAlgorithmException {
         Properties properties = new Properties();
-        properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
+        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
@@ -92,7 +91,7 @@ public class DownloadTest {
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
         Properties properties = new Properties();
-        properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
+        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
@@ -119,7 +118,7 @@ public class DownloadTest {
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
                 .resolve("foo-bar.jar"), "other");
         Properties properties = new Properties();
-        properties.setProperty("foo/bar", "SHA256/" + Base64.getEncoder().encodeToString(
+        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
@@ -189,7 +188,7 @@ public class DownloadTest {
     }
 
     @Test
-    public void can_retain_dependency_from_previous_run_no_hash() throws IOException, ExecutionException, InterruptedException {
+    public void can_retain_dependency_from_previous_run_no_hash() throws IOException {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
                 .resolve("foo-bar.jar"), "other");
