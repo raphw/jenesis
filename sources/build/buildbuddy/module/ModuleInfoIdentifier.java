@@ -1,6 +1,8 @@
 package build.buildbuddy.module;
 
-import build.buildbuddy.ArtifactDescription;
+import build.buildbuddy.Identification;
+import build.buildbuddy.Identifier;
+import build.buildbuddy.step.Bind;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.DirectiveTree;
 import com.sun.source.tree.ModuleTree;
@@ -16,18 +18,20 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.SequencedMap;
 
 import static java.util.Objects.requireNonNull;
 
-public class ModuleInfoParser {
+public class ModuleInfoIdentifier implements Identifier {
 
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
-    public Optional<ArtifactDescription> parse(Path folder) throws IOException {
-        Path moduleInfo = folder.resolve("module-info.java");
+    @Override
+    public Optional<Identification> identify(Path folder) throws IOException {
+        Path moduleInfo = folder.resolve(Bind.SOURCES + "module-info.java");
         if (!Files.exists(moduleInfo)) {
             return Optional.empty();
         }
@@ -44,13 +48,13 @@ public class ModuleInfoParser {
                 }));
         for (CompilationUnitTree unit : javac.parse()) {
             ModuleTree module = unit.getModule();
-            List<String> dependencies = new ArrayList<>();
+            SequencedMap<String, String> dependencies = new LinkedHashMap<>();
             for (DirectiveTree directive : requireNonNull(module).getDirectives()) {
                 if (directive instanceof RequiresTree requires) {
-                    dependencies.add(requires.getModuleName().toString());
+                    dependencies.put(requires.getModuleName().toString(), "");
                 }
             }
-            return Optional.of(new ArtifactDescription(module.getName().toString(), dependencies));
+            return Optional.of(new Identification(module.getName().toString(), dependencies));
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
     }
