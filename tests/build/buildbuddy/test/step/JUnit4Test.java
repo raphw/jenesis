@@ -1,11 +1,7 @@
 package build.buildbuddy.test.step;
 
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.*;
 import build.buildbuddy.step.JUnit4;
-import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import org.junit.Before;
 import org.junit.Rule;
@@ -17,11 +13,10 @@ import sample.SampleTest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +26,11 @@ public class JUnit4Test {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path previous, next, supplement, dependencies, classes, jars;
+    private Path previous;
+    private Path next;
+    private Path supplement;
+    private Path dependencies;
+    private Path classes;
 
     @Before
     public void setUp() throws Exception {
@@ -41,13 +40,13 @@ public class JUnit4Test {
         supplement = Files.createDirectory(root.resolve("supplement"));
         dependencies = Files.createDirectories(root.resolve("dependencies"));
         classes = Files.createDirectories(root.resolve("classes"));
-        jars = Files.createDirectory(dependencies.resolve(Jar.JARS));
+        Path artifacts = Files.createDirectory(dependencies.resolve(BuildStep.ARTIFACTS));
         Files.copy(
                 Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
-                jars.resolve("junit.jar"));
+                artifacts.resolve("junit.jar"));
         Files.copy(
                 Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
-                jars.resolve("hamcrest-core.jar"));
+                artifacts.resolve("hamcrest-core.jar"));
         try (InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files
                      .createDirectories(classes.resolve(Javac.CLASSES + "sample"))
@@ -57,18 +56,19 @@ public class JUnit4Test {
     }
 
     @Test
-    public void can_execute_junit4() throws IOException, ExecutionException, InterruptedException, URISyntaxException, ClassNotFoundException {
-        BuildStepResult result = new JUnit4().apply(Runnable::run,
+    public void can_execute_junit4() throws IOException {
+        BuildStepResult result = new JUnit4().apply(
+                Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of(
+                new LinkedHashMap<>(Map.of(
                         "dependencies", new BuildStepArgument(
                                 dependencies,
                                 Map.of(
-                                        Path.of(Jar.JARS + "junit.jar"), ChecksumStatus.ADDED,
-                                        Path.of(Jar.JARS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
+                                        Path.of(BuildStep.ARTIFACTS + "junit.jar"), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.ARTIFACTS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content()
                 .contains("JUnit")
@@ -78,18 +78,19 @@ public class JUnit4Test {
     }
 
     @Test
-    public void can_execute_junit4_non_modular() throws IOException, ExecutionException, InterruptedException, URISyntaxException, ClassNotFoundException {
-        BuildStepResult result = new JUnit4().modular(false).apply(Runnable::run,
+    public void can_execute_junit4_non_modular() throws IOException {
+        BuildStepResult result = new JUnit4().modular(false).apply(
+                Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of(
+                new LinkedHashMap<>(Map.of(
                         "dependencies", new BuildStepArgument(
                                 dependencies,
                                 Map.of(
-                                        Path.of(Jar.JARS + "junit.jar"), ChecksumStatus.ADDED,
-                                        Path.of(Jar.JARS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
+                                        Path.of(BuildStep.ARTIFACTS + "junit.jar"), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.ARTIFACTS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content()
                 .contains("JUnit")

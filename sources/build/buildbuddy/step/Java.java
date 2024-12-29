@@ -2,7 +2,6 @@ package build.buildbuddy.step;
 
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.ProcessBuildStep;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,7 +9,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -38,7 +37,7 @@ public abstract class Java implements ProcessBuildStep {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
-                                                             Map<String, BuildStepArgument> arguments) {
+                                                             SequencedMap<String, BuildStepArgument> arguments) {
                 return CompletableFuture.completedStage(commands);
             }
         };
@@ -51,12 +50,13 @@ public abstract class Java implements ProcessBuildStep {
 
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
-                                                              Map<String, BuildStepArgument> arguments) throws IOException;
+                                                              SequencedMap<String, BuildStepArgument> arguments) throws IOException;
 
     @Override
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    BuildStepContext context,
-                                                   Map<String, BuildStepArgument> arguments) throws IOException {
+                                                   SequencedMap<String, BuildStepArgument> arguments)
+            throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
             for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
@@ -69,11 +69,9 @@ public abstract class Java implements ProcessBuildStep {
                     }
                 }
             }
-            for (String folder : List.of(Jar.JARS)) {
-                Path candidate = argument.folder().resolve(folder);
-                if (Files.exists(candidate)) {
-                    Files.walkFileTree(candidate, new FileAddingVisitor(modular ? modulePath : classPath));
-                }
+            Path candidate = argument.folder().resolve(ARTIFACTS);
+            if (Files.exists(candidate)) {
+                Files.walkFileTree(candidate, new FileAddingVisitor(modular ? modulePath : classPath));
             }
         }
         List<String> prefixes = new ArrayList<>();
@@ -95,7 +93,7 @@ public abstract class Java implements ProcessBuildStep {
     public ProcessBuilder prepare(ProcessBuilder builder,
                                   Executor executor,
                                   BuildStepContext context,
-                                  Map<String, BuildStepArgument> arguments) {
+                                  SequencedMap<String, BuildStepArgument> arguments) {
         return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
                 .redirectOutput(context.supplement().resolve("output").toFile())
                 .redirectError(context.supplement().resolve("error").toFile());

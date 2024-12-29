@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,16 +39,17 @@ public class JavaTest {
     }
 
     @Test
-    public void can_execute_java() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_java() throws IOException {
         Path folder = Files.createDirectories(classes.resolve(Javac.CLASSES + "sample"));
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
             Files.copy(requireNonNull(input), folder.resolve("Sample.class"));
         }
-        BuildStepResult result = Java.of("sample.Sample").apply(Runnable::run,
+        BuildStepResult result = Java.of("sample.Sample").apply(
+                Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of("classes", new BuildStepArgument(
+                new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content().isEqualTo("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();

@@ -4,8 +4,8 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.Bind;
+import build.buildbuddy.step.Javac;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,8 +15,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,7 +37,7 @@ public class JavacTest {
     }
 
     @Test
-    public void can_execute_javac() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_javac() throws IOException {
         Path folder = Files.createDirectories(sources.resolve(Bind.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
@@ -47,9 +47,9 @@ public class JavacTest {
         }
         BuildStepResult result = new Javac().apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of("sources", new BuildStepArgument(
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }

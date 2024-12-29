@@ -1,9 +1,6 @@
 package build.buildbuddy.test.step;
 
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.*;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import org.junit.Before;
@@ -16,8 +13,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,19 +36,20 @@ public class JarTest {
     }
 
     @Test
-    public void can_execute_jar() throws IOException, ExecutionException, InterruptedException {
+    public void can_execute_jar() throws IOException {
         Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
         try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
             Files.copy(requireNonNull(inputStream), Files
                     .createDirectory(folder.resolve("sample"))
                     .resolve("Sample.class"));
         }
-        BuildStepResult result = new Jar().apply(Runnable::run,
+        BuildStepResult result = new Jar().apply(
+                Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of("sources", new BuildStepArgument(
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Jar.JARS + "artifact.jar")).isNotEmptyFile();
+        assertThat(next.resolve(BuildStep.ARTIFACTS + "artifact.jar")).isNotEmptyFile();
     }
 }

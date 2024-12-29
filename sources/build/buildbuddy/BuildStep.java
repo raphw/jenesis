@@ -1,8 +1,8 @@
 package build.buildbuddy;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -11,13 +11,16 @@ import java.util.stream.Stream;
 @FunctionalInterface
 public interface BuildStep {
 
+    String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
+    String COORDINATES = "coordinates.properties", DEPENDENCIES = "dependencies.properties";
+
     default boolean isAlwaysRun() {
         return false;
     }
 
     CompletionStage<BuildStepResult> apply(Executor executor,
                                            BuildStepContext context,
-                                           Map<String, BuildStepArgument> arguments) throws IOException;
+                                           SequencedMap<String, BuildStepArgument> arguments) throws IOException;
 
     default BuildStep without(String... identities) {
         return new BuildStep() {
@@ -29,8 +32,9 @@ public interface BuildStep {
             @Override
             public CompletionStage<BuildStepResult> apply(Executor executor,
                                                           BuildStepContext context,
-                                                          Map<String, BuildStepArgument> arguments) throws IOException {
-                Map<String, BuildStepArgument> reduction = new HashMap<>(arguments);
+                                                          SequencedMap<String, BuildStepArgument> arguments)
+                    throws IOException {
+                SequencedMap<String, BuildStepArgument> reduction = new LinkedHashMap<>(arguments);
                 Stream.of(identities).forEach(reduction.keySet()::remove);
                 return BuildStep.this.isAlwaysRun()
                         || context.previous() == null

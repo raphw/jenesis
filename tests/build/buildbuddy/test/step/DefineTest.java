@@ -2,7 +2,6 @@ package build.buildbuddy.test.step;
 
 import build.buildbuddy.*;
 import build.buildbuddy.step.Define;
-import build.buildbuddy.step.FlattenDependencies;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,18 +44,21 @@ public class DefineTest {
                 dependencies.put(elements[0], elements[1]);
             }
             return Optional.of(new Identification(Files.readString(folder.resolve("name")), dependencies));
-        })).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of(
-                "definition",
-                new BuildStepArgument(definition, Map.of(
-                        Path.of("name"), ChecksumStatus.ADDED,
-                        Path.of("dependencies"), ChecksumStatus.ADDED)))).toCompletableFuture().join();
+        })).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of(
+                        "definition",
+                        new BuildStepArgument(definition, Map.of(
+                                Path.of("name"), ChecksumStatus.ADDED,
+                                Path.of("dependencies"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties definition = new Properties(), dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(Define.DEFINITION + "definition.properties"))) {
-            definition.load(reader);
+        Properties coordinates = new Properties(), dependencies = new Properties();
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.COORDINATES))) {
+            coordinates.load(reader);
         }
-        assertThat(definition.stringPropertyNames()).containsExactly("foo/bar");
-        try (Reader reader = Files.newBufferedReader(next.resolve(FlattenDependencies.DEPENDENCIES + "dependencies.properties"))) {
+        assertThat(coordinates.stringPropertyNames()).containsExactly("foo/bar");
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactly("foo/qux");

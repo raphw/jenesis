@@ -2,7 +2,6 @@ package build.buildbuddy.step;
 
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.ProcessBuildStep;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +12,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -35,19 +34,20 @@ public class Javac implements ProcessBuildStep {
     @Override
     public CompletionStage<ProcessBuilder> process(Executor executor,
                                                    BuildStepContext context,
-                                                   Map<String, BuildStepArgument> arguments) throws IOException {
+                                                   SequencedMap<String, BuildStepArgument> arguments)
+            throws IOException {
         List<String> files = new ArrayList<>(), classPath = new ArrayList<>(), commands = new ArrayList<>(List.of(javac,
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
                 "-d", Files.createDirectory(context.next().resolve(CLASSES)).toString()));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(Bind.SOURCES),
                     classes = argument.folder().resolve(CLASSES),
-                    jars = argument.folder().resolve(Jar.JARS);
+                    artifacts = argument.folder().resolve(ARTIFACTS);
             if (Files.exists(classes)) {
                 classPath.add(classes.toString());
             }
-            if (Files.exists(jars)) {
-                Files.walkFileTree(jars, new FileExtensionAddingVisitor(classPath, ".jar"));
+            if (Files.exists(artifacts)) {
+                Files.walkFileTree(artifacts, new FileExtensionAddingVisitor(classPath, ".jar"));
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new FileExtensionAddingVisitor(files, ".java"));

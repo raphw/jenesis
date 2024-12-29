@@ -1,9 +1,14 @@
-package build.buildbuddy;
+package build.buildbuddy.step;
+
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Map;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -29,26 +34,26 @@ public interface ProcessBuildStep extends BuildStep {
 
     CompletionStage<ProcessBuilder> process(Executor executor,
                                             BuildStepContext context,
-                                            Map<String, BuildStepArgument> arguments) throws IOException;
+                                            SequencedMap<String, BuildStepArgument> arguments) throws IOException;
 
     default ProcessBuilder prepare(ProcessBuilder builder,
                                    Executor executor,
                                    BuildStepContext context,
-                                   Map<String, BuildStepArgument> arguments) {
+                                   SequencedMap<String, BuildStepArgument> arguments) {
         return builder.inheritIO();
     }
 
     default boolean acceptableExitCode(int code,
                                        Executor executor,
                                        BuildStepContext context,
-                                       Map<String, BuildStepArgument> arguments) throws IOException {
+                                       SequencedMap<String, BuildStepArgument> arguments) throws IOException {
         return code == 0;
     }
 
     @Override
     default CompletionStage<BuildStepResult> apply(Executor executor,
                                                    BuildStepContext context,
-                                                   Map<String, BuildStepArgument> arguments) throws IOException {
+                                                   SequencedMap<String, BuildStepArgument> arguments) throws IOException {
         return process(executor, context, arguments).thenComposeAsync(builder -> {
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {

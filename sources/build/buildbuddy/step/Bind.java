@@ -13,13 +13,12 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.Objects;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 public class Bind implements BuildStep {
-
-    public static final String SOURCES = "sources/", RESOURCES = "resources/";
 
     private final Map<Path, Path> paths;
 
@@ -35,14 +34,19 @@ public class Bind implements BuildStep {
         return new Bind(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
-    public static BuildStep asDependencies() {
-        return new Bind(Map.of(Path.of("."), Path.of(FlattenDependencies.DEPENDENCIES)));
+    public static BuildStep asCoordinates(String name) {
+        return new Bind(Map.of(Path.of(name == null ? COORDINATES : name), Path.of(COORDINATES)));
+    }
+
+    public static BuildStep asDependencies(String name) {
+        return new Bind(Map.of(Path.of(name == null ? DEPENDENCIES : name), Path.of(DEPENDENCIES)));
     }
 
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
-                                                  Map<String, BuildStepArgument> arguments) throws IOException {
+                                                  SequencedMap<String, BuildStepArgument> arguments)
+            throws IOException {
         for (BuildStepArgument argument : arguments.values()) {
             for (Map.Entry<Path, Path> entry : paths.entrySet()) {
                 Path source = argument.folder().resolve(entry.getKey());

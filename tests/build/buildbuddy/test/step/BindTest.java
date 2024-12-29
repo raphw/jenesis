@@ -13,8 +13,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,20 +35,21 @@ public class BindTest {
     }
 
     @Test
-    public void can_link_values() throws IOException, ExecutionException, InterruptedException {
+    public void can_link_files() throws IOException {
         Files.writeString(original.resolve("file"), "foo");
         Files.writeString(Files.createDirectories(original.resolve("folder/sub")).resolve("file"), "bar");
-        BuildStepResult result = new Bind(Map.of(
-                Path.of("file"), Path.of("other/copied"),
-                Path.of("folder"), Path.of("other"))).apply(Runnable::run,
+        BuildStepResult result = new Bind(
+                Map.of(
+                        Path.of("file"), Path.of("other/copied"),
+                        Path.of("folder"), Path.of("other"))).apply(
+                Runnable::run,
                 new BuildStepContext(previous, next, supplement),
-                Map.of("original", new BuildStepArgument(
+                new LinkedHashMap<>(Map.of("original", new BuildStepArgument(
                         original,
                         Map.of(Path.of("file"), ChecksumStatus.ADDED,
-                               Path.of("folder/sub/file"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
+                                Path.of("folder/sub/file"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("other/copied")).content().isEqualTo("foo");
         assertThat(next.resolve("other/sub/file")).content().isEqualTo("bar");
     }
-
 }

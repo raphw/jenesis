@@ -1,6 +1,6 @@
 module buildbuddy {
-    requires java.xml;
     requires jdk.compiler;
+    requires java.desktop;
     exports build.buildbuddy;
     exports build.buildbuddy.maven;
     exports build.buildbuddy.module;

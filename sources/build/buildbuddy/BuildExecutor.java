@@ -55,12 +55,16 @@ public class BuildExecutor {
         addStep(identity, step, Set.of(dependencies));
     }
 
-    public void addStep(String identity, BuildStep step, Set<String> dependencies) {
+    public void addStep(String identity, BuildStep step, SequencedSet<String> dependencies) {
         add(identity, wrapStep(identity, step), dependencies);
     }
 
     public void addStepAtEnd(String identity, BuildStep step) {
         addStep(identity, step, registrations.keySet());
+    }
+
+    private void addStep(String identity, BuildStep step, Set<String> dependencies) {
+        add(identity, wrapStep(identity, step), dependencies);
     }
 
     public void replaceStep(String identity, BuildStep step) {
@@ -102,7 +106,7 @@ public class BuildExecutor {
                 boolean exists = Files.exists(previous);
                 Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
                 boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
-                Map<String, BuildStepArgument> arguments = new HashMap<>();
+                SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + entry.getKey());
                     arguments.put(entry.getKey(), new BuildStepArgument(
@@ -160,7 +164,7 @@ public class BuildExecutor {
     public CompletionStage<Map<String, Path>> execute(Executor executor) {
         CompletionStage<Map<String, StepSummary>> initial = CompletableFuture.completedStage(Map.of());
         Map<String, Registration> pending = new LinkedHashMap<>(registrations);
-        Map<String, CompletionStage<Map<String, StepSummary>>> dispatched = new HashMap<>();
+        Map<String, CompletionStage<Map<String, StepSummary>>> dispatched = new LinkedHashMap<>();
         while (!pending.isEmpty()) {
             Iterator<Map.Entry<String, Registration>> it = pending.entrySet().iterator();
             while (it.hasNext()) {
