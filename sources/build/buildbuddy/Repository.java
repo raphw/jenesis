@@ -6,21 +6,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 @FunctionalInterface
 public interface Repository {
 
-    Optional<RepositoryItem> fetch(String coordinate) throws IOException;
+    Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException;
 
     default Repository andThen(Repository repository) {
-        return coordinate -> {
-            Optional<RepositoryItem> candidate = fetch(coordinate);
-            return candidate.isPresent() ? candidate : repository.fetch(coordinate);
+        return (executor, coordinate) -> {
+            Optional<RepositoryItem> candidate = fetch(executor, coordinate);
+            return candidate.isPresent() ? candidate : repository.fetch(executor, coordinate);
         };
     }
 
     static Repository files() {
-        return coordinate -> {
+        return (_, coordinate) -> {
             Path file = Paths.get(coordinate);
             return Files.exists(file) ? Optional.of(new RepositoryItem() {
                 @Override

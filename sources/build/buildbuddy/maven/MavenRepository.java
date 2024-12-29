@@ -14,6 +14,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.Executor;
 
 public class MavenRepository implements Repository {
 
@@ -39,7 +40,7 @@ public class MavenRepository implements Repository {
     }
 
     @Override
-    public Optional<RepositoryItem> fetch(String coordinate) throws IOException {
+    public Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
         String[] elements = coordinate.split("/", 5);
         return switch (elements.length) {
             case 3 -> fetch(elements[0], elements[1], elements[2], "jar", null, null);

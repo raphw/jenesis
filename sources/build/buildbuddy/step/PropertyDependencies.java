@@ -76,7 +76,7 @@ public class PropertyDependencies implements BuildStep {
                         RepositoryItem item = requireNonNull(
                                 repositories.get(group.getKey()),
                                 "Unknown repository: " + group.getKey())
-                                .fetch(dependency)
+                                .fetch(executor, dependency)
                                 .orElseThrow(() -> new IllegalStateException("Cannot resolve " + dependency));
                         Path file = item.getFile().orElse(null);
                         if (file == null) {

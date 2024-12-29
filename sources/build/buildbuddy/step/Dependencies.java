@@ -62,7 +62,7 @@ public class Dependencies implements BuildStep {
                                 CompletableFuture<?> future = new CompletableFuture<>();
                                 executor.execute(() -> {
                                     try {
-                                        RepositoryItem source = repository.fetch(coordinate).orElseThrow(
+                                        RepositoryItem source = repository.fetch(executor, coordinate).orElseThrow(
                                                 () -> new IllegalStateException("Unresolved: " + coordinate));
                                         Path file = source.getFile().orElse(null);
                                         if (file == null) {
@@ -101,7 +101,7 @@ public class Dependencies implements BuildStep {
                             CompletableFuture<?> future = new CompletableFuture<>();
                             executor.execute(() -> {
                                 try {
-                                    RepositoryItem source = repository.fetch(coordinate).orElseThrow(
+                                    RepositoryItem source = repository.fetch(executor, coordinate).orElseThrow(
                                             () -> new IllegalStateException("Unresolved: " + coordinate));
                                     Path file = source.getFile().orElse(null);
                                     if (file == null) {

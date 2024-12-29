@@ -59,10 +59,10 @@ public class PropertyDependenciesTest {
             properties.store(writer, null);
         }
         BuildStepResult result = new PropertyDependencies(
-                Map.of("foo", descriptors -> descriptors.stream()
+                Map.of("foo", (_, descriptors) -> descriptors.stream()
                         .flatMap(descriptor -> Stream.of(descriptor, "transitive/" + descriptor))
                         .toList()),
-                Map.of("foo", coordinate -> Optional.of(
+                Map.of("foo", (_, coordinate) -> Optional.of(
                         () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))),
                 "SHA256").apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -101,10 +101,10 @@ public class PropertyDependenciesTest {
             properties.store(writer, null);
         }
         BuildStepResult result = new PropertyDependencies(
-                Map.of("foo", descriptors -> descriptors.stream()
+                Map.of("foo", (_, descriptors) -> descriptors.stream()
                         .flatMap(descriptor -> Stream.of(descriptor, "transitive/" + descriptor))
                         .toList()),
-                Map.of("foo", coordinate -> Optional.of(
+                Map.of("foo", (_, coordinate) -> Optional.of(
                         () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))),
                 null).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -140,10 +140,10 @@ public class PropertyDependenciesTest {
             properties.store(writer, null);
         }
         BuildStepResult result = new PropertyDependencies(
-                Map.of("foo", descriptors -> descriptors.stream()
+                Map.of("foo", (_, descriptors) -> descriptors.stream()
                         .flatMap(descriptor -> Stream.of(descriptor, "transitive/" + descriptor))
                         .toList()),
-                Map.of("foo", coordinate -> Optional.of(
+                Map.of("foo", (_, coordinate) -> Optional.of(
                         () -> new ByteArrayInputStream(coordinate.getBytes(StandardCharsets.UTF_8)))),
                 null).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),

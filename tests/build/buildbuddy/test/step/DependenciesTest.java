@@ -53,7 +53,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "foo",
-                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
@@ -72,7 +72,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "foo",
-                bar -> {
+                (_, bar) -> {
                     Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
                     return Optional.of(new RepositoryItem() {
                         @Override
@@ -104,7 +104,7 @@ public class DependenciesTest {
         }
         assertThatThrownBy(() -> new Dependencies(Map.of(
                 "foo",
-                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get())
@@ -129,7 +129,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "foo",
-                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
@@ -148,7 +148,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "foo",
-                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
@@ -166,7 +166,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "foo",
-                bar -> {
+                (_, bar) -> {
                     Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
                     return Optional.of(new RepositoryItem() {
                         @Override
@@ -200,7 +200,7 @@ public class DependenciesTest {
         }
         BuildStepResult result = new Dependencies(Map.of(
                 "foo",
-                bar -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
         )).apply(Runnable::run, new BuildStepContext(previous, next, supplement), Map.of("dependencies", new BuildStepArgument(
                 flattened,
                 Map.of(Path.of(Dependencies.FLATTENED, "dependency.properties"), ChecksumStatus.ADDED)))).toCompletableFuture().get();
