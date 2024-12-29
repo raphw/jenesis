@@ -10,6 +10,6 @@ public interface Resolver {
     Collection<String> dependencies(Executor executor, Collection<String> coordinates) throws IOException;
 
     static Resolver identity() {
-        return (executor, descriptors) -> descriptors;
+        return (_, descriptors) -> descriptors;
     }
 }
