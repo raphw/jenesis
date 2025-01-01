@@ -165,22 +165,24 @@ public class BuildExecutor {
         };
     }
 
-    public void add(String identity, BuildExecutorFactory factory, String... dependencies) {
-        add(identity, factory, Set.of(dependencies));
+    public void add(String identity, IOConsumer consumer, String... dependencies) {
+        add(identity, consumer, Set.of(dependencies));
     }
 
-    public void add(String identity, BuildExecutorFactory factory, SequencedSet<String> dependencies) {
-        add(identity, factory, (Set<String>) dependencies);
+    public void add(String identity, IOConsumer consumer, SequencedSet<String> dependencies) {
+        add(identity, consumer, (Set<String>) dependencies);
     }
 
-    private void add(String identity, BuildExecutorFactory factory, Set<String> dependencies) {
+    private void add(String identity, IOConsumer consumer, Set<String> dependencies) {
         if (registrations.putIfAbsent(identity, new Registration((executor, summaries) -> {
             try {
                 SequencedMap<String, Path> translated = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     translated.put(entry.getKey(), entry.getValue().folder());
                 }
-                return factory.make(root.resolve(identity), hash, translated).execute(executor, summaries);
+                BuildExecutor buildExecutor = of(root.resolve(identity), hash);
+                consumer.accept(buildExecutor, translated);
+                return buildExecutor.execute(executor, summaries);
             } catch (Throwable t) {
                 return CompletableFuture.failedStage(t);
             }
@@ -266,5 +268,11 @@ public class BuildExecutor {
             }
             return FileVisitResult.CONTINUE;
         }
+    }
+
+    @FunctionalInterface
+    public interface IOConsumer {
+
+        void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> paths) throws IOException;
     }
 }
