@@ -12,7 +12,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,9 +22,13 @@ public class BuildExecutor {
 
     final Map<String, Registration> registrations = new LinkedHashMap<>();
 
-    public BuildExecutor(Path root, HashFunction hash) {
+    private BuildExecutor(Path root, HashFunction hash) {
         this.root = root;
         this.hash = hash;
+    }
+
+    public static BuildExecutor of(Path root, HashFunction hash) throws IOException {
+        return new BuildExecutor(Files.isDirectory(root) ? root : Files.createDirectory(root), hash);
     }
 
     public void addSource(String identity, Path path) {
@@ -96,30 +99,6 @@ public class BuildExecutor {
         registrations.replace(identity, new Registration(step, registration.dependencies()));
     }
 
-    public void add(String identity,
-                    Function<SequencedMap<String, Path>, BuildExecutor> resolver,
-                    String... dependencies) {
-        add(identity, resolver, Set.of(dependencies));
-    }
-
-    public void add(String identity,
-                    Function<SequencedMap<String, Path>, BuildExecutor> resolver,
-                    SequencedSet<String> dependencies) {
-        add(identity, resolver, (Set<String>) dependencies);
-    }
-
-    private void add(String identity,
-                     Function<SequencedMap<String, Path>, BuildExecutor> resolver,
-                     Set<String> dependencies) {
-        registrations.put(identity, new Registration((executor, summaries) -> {
-            SequencedMap<String, Path> translated = new LinkedHashMap<>();
-            for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                translated.put(entry.getKey(), entry.getValue().folder());
-            }
-            return resolver.apply(translated).execute(executor, summaries);
-        }, dependencies));
-    }
-
     private BiFunction<Executor,
             Map<String, StepSummary>,
             CompletionStage<Map<String, StepSummary>>> wrapStep(String identity, BuildStep step) {
@@ -184,6 +163,30 @@ public class BuildExecutor {
                 return CompletableFuture.failedFuture(t);
             }
         };
+    }
+
+    public void add(String identity, BuildExecutorFactory factory, String... dependencies) {
+        add(identity, factory, Set.of(dependencies));
+    }
+
+    public void add(String identity, BuildExecutorFactory factory, SequencedSet<String> dependencies) {
+        add(identity, factory, (Set<String>) dependencies);
+    }
+
+    private void add(String identity, BuildExecutorFactory factory, Set<String> dependencies) {
+        if (registrations.putIfAbsent(identity, new Registration((executor, summaries) -> {
+            try {
+                SequencedMap<String, Path> translated = new LinkedHashMap<>();
+                for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
+                    translated.put(entry.getKey(), entry.getValue().folder());
+                }
+                return factory.make(root.resolve(identity), hash, translated).execute(executor, summaries);
+            } catch (Throwable t) {
+                return CompletableFuture.failedStage(t);
+            }
+        }, dependencies)) != null) {
+            throw new IllegalArgumentException("Step already registered: " + identity);
+        }
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {

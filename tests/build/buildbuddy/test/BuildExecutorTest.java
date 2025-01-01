@@ -32,7 +32,7 @@ public class BuildExecutorTest {
     public void setUp() throws Exception {
         root = temporaryFolder.newFolder("root").toPath();
         hash = new HashDigestFunction("MD5");
-        buildExecutor = new BuildExecutor(root, hash);
+        buildExecutor = BuildExecutor.of(root, hash);
     }
 
     @Test
