@@ -12,6 +12,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -95,10 +96,34 @@ public class BuildExecutor {
         registrations.replace(identity, new Registration(step, registration.dependencies()));
     }
 
-    private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapStep(
-            String identity,
-            BuildStep step) {
-        return (executor, states) -> {
+    public void add(String identity,
+                    Function<SequencedMap<String, Path>, BuildExecutor> resolver,
+                    String... dependencies) {
+        add(identity, resolver, Set.of(dependencies));
+    }
+
+    public void add(String identity,
+                    Function<SequencedMap<String, Path>, BuildExecutor> resolver,
+                    SequencedSet<String> dependencies) {
+        add(identity, resolver, (Set<String>) dependencies);
+    }
+
+    private void add(String identity,
+                     Function<SequencedMap<String, Path>, BuildExecutor> resolver,
+                     Set<String> dependencies) {
+        registrations.put(identity, new Registration((executor, summaries) -> {
+            SequencedMap<String, Path> translated = new LinkedHashMap<>();
+            for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
+                translated.put(entry.getKey(), entry.getValue().folder());
+            }
+            return resolver.apply(translated).execute(executor, summaries);
+        }, dependencies));
+    }
+
+    private BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> wrapStep(String identity, BuildStep step) {
+        return (executor, summaries) -> {
             try {
                 Path previous = root.resolve(identity),
                         checksum = previous.resolve("checksum"),
@@ -107,7 +132,7 @@ public class BuildExecutor {
                 Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
                 boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
-                for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
+                for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + entry.getKey());
                     arguments.put(entry.getKey(), new BuildStepArgument(
                             entry.getValue().folder(),
@@ -140,7 +165,7 @@ public class BuildExecutor {
                             } else {
                                 throw new IllegalStateException("Cannot reuse non-existing location for " + identity);
                             }
-                            for (Map.Entry<String, StepSummary> entry : states.entrySet()) {
+                            for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                                 HashFunction.write(
                                         checksum.resolve("checksums." + entry.getKey()),
                                         entry.getValue().checksums());
@@ -161,7 +186,17 @@ public class BuildExecutor {
         };
     }
 
-    public CompletionStage<Map<String, Path>> execute(Executor executor) {
+    public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
+        return execute(executor, Map.of()).thenApplyAsync(summaries -> {
+            SequencedMap<String, Path> translated = new LinkedHashMap<>();
+            for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
+                translated.put(entry.getKey(), entry.getValue().folder());
+            }
+            return translated;
+        }, executor);
+    }
+
+    private CompletionStage<Map<String, StepSummary>> execute(Executor executor, Map<String, StepSummary> initials) {
         CompletionStage<Map<String, StepSummary>> initial = CompletableFuture.completedStage(Map.of());
         Map<String, Registration> pending = new LinkedHashMap<>(registrations);
         Map<String, CompletionStage<Map<String, StepSummary>>> dispatched = new LinkedHashMap<>();
@@ -179,21 +214,21 @@ public class BuildExecutor {
                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
                                 executor);
                     }
-                    dispatched.put(entry.getKey(), completionStage.thenComposeAsync(input -> entry.getValue()
-                            .step()
-                            .apply(executor, input), executor));
+                    dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
+                        Map<String, StepSummary> merged = new LinkedHashMap<>(initials);
+                        merged.putAll(summaries);
+                        return entry.getValue().step().apply(executor, merged);
+                    }, executor));
                     it.remove();
                 }
             }
         }
-        CompletionStage<Map<String, Path>> result = CompletableFuture.completedStage(Map.of());
+        CompletionStage<Map<String, StepSummary>> result = CompletableFuture.completedStage(Map.of());
         for (String identity : registrations.keySet()) {
             result = result.thenCombineAsync(dispatched.get(identity), (left, right) -> {
-                Map<String, Path> folders = new LinkedHashMap<>(left); // TODO: return more complex result.
-                for (Map.Entry<String, StepSummary> entry : right.entrySet()) {
-                    folders.put(entry.getKey(), entry.getValue().folder());
-                }
-                return folders;
+                SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(left);
+                merged.putAll(right);
+                return merged;
             }, executor);
         }
         return result;
