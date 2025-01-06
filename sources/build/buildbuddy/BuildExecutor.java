@@ -12,15 +12,18 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class BuildExecutor {
 
+    private static final Pattern VALIDATE = Pattern.compile("[a-zA-Z0-9]+");
+
     private final Path root;
     private final HashFunction hash;
 
-    final Map<String, Registration> registrations = new LinkedHashMap<>();
+    final SequencedMap<String, Registration> registrations = new LinkedHashMap<>();
 
     private BuildExecutor(Path root, HashFunction hash) {
         this.root = root;
@@ -64,7 +67,7 @@ public class BuildExecutor {
     }
 
     public void addStepAtEnd(String identity, BuildStep step) {
-        addStep(identity, step, registrations.keySet());
+        addStep(identity, step, new LinkedHashSet<>(registrations.keySet()));
     }
 
     private void addStep(String identity, BuildStep step, Set<String> dependencies) {
@@ -73,30 +76,6 @@ public class BuildExecutor {
 
     public void replaceStep(String identity, BuildStep step) {
         replace(identity, wrapStep(identity, step));
-    }
-
-    private void add(String identity,
-                     BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> step,
-                     Set<String> dependencies) {
-        if (!registrations.keySet().containsAll(dependencies)) {
-            throw new IllegalArgumentException("Unknown dependencies: " + dependencies.stream()
-                    .filter(dependency -> !registrations.containsKey(dependency))
-                    .distinct()
-                    .toList());
-        }
-        if (registrations.putIfAbsent(identity, new Registration(step, dependencies)) != null) {
-            throw new IllegalArgumentException("Step already registered: " + identity);
-        }
-    }
-
-    private void replace(String identity, BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> step) {
-        Registration registration = registrations.get(identity);
-        if (registration == null) {
-            throw new IllegalArgumentException("Unknown step: " + identity);
-        }
-        registrations.replace(identity, new Registration(step, registration.dependencies()));
     }
 
     private BiFunction<Executor,
@@ -166,29 +145,65 @@ public class BuildExecutor {
     }
 
     public void add(String identity, IOConsumer consumer, String... dependencies) {
-        add(identity, consumer, Set.of(dependencies));
+        add(identity, wrapConsumer(identity, consumer), Set.of(dependencies));
     }
 
     public void add(String identity, IOConsumer consumer, SequencedSet<String> dependencies) {
-        add(identity, consumer, (Set<String>) dependencies);
+        add(identity, wrapConsumer(identity, consumer), dependencies);
     }
 
-    private void add(String identity, IOConsumer consumer, Set<String> dependencies) {
-        if (registrations.putIfAbsent(identity, new Registration((executor, summaries) -> {
+    public void addAtEnd(String identity, IOConsumer consumer) {
+        add(identity, wrapConsumer(identity, consumer), new LinkedHashSet<>(registrations.keySet()));
+    }
+
+    public void replace(String identity, IOConsumer consumer) {
+        replace(identity, wrapConsumer(identity, consumer));
+    }
+
+    private BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> wrapConsumer(String prefix, IOConsumer consumer) {
+        return (executor, summaries) -> {
             try {
-                SequencedMap<String, Path> translated = new LinkedHashMap<>();
+                SequencedMap<String, Path> folders = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                    translated.put(entry.getKey(), entry.getValue().folder());
+                    folders.put(entry.getKey(), entry.getValue().folder());
                 }
-                BuildExecutor buildExecutor = of(root.resolve(identity), hash);
-                consumer.accept(buildExecutor, translated);
-                return buildExecutor.execute(executor, summaries);
+                BuildExecutor buildExecutor = of(root.resolve(prefix), hash);
+                consumer.accept(buildExecutor, folders);
+                return buildExecutor.execute(executor, summaries).thenApplyAsync(results -> {
+                    SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
+                    results.forEach((identity, values) -> prefixed.put(prefix + "/" + identity, values));
+                    return prefixed;
+                }, executor);
             } catch (Throwable t) {
                 return CompletableFuture.failedStage(t);
             }
-        }, dependencies)) != null) {
+        };
+    }
+
+    private void add(String identity,
+                     BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> step,
+                     Set<String> dependencies) {
+        if (!registrations.keySet().containsAll(dependencies)) {
+            throw new IllegalArgumentException("Unknown dependencies: " + dependencies.stream()
+                    .filter(dependency -> !registrations.containsKey(dependency))
+                    .distinct()
+                    .toList());
+        }
+        if (registrations.putIfAbsent(validated(identity), new Registration(step, dependencies)) != null) {
             throw new IllegalArgumentException("Step already registered: " + identity);
         }
+    }
+
+    private void replace(String identity, BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> step) {
+        Registration registration = registrations.get(identity);
+        if (registration == null) {
+            throw new IllegalArgumentException("Unknown step: " + identity);
+        }
+        registrations.replace(validated(identity), new Registration(step, registration.dependencies()));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
@@ -237,6 +252,13 @@ public class BuildExecutor {
             }, executor);
         }
         return result;
+    }
+
+    private static String validated(String identity) {
+        if (VALIDATE.matcher(identity).matches()) {
+            return identity;
+        }
+        throw new IllegalArgumentException("Identity '" + identity + "' does not match pattern: " + VALIDATE.pattern());
     }
 
     private record Registration(BiFunction<Executor,
