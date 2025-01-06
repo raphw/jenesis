@@ -51,7 +51,12 @@ public class ModuleInfoIdentifier implements Identifier {
             SequencedMap<String, String> dependencies = new LinkedHashMap<>();
             for (DirectiveTree directive : requireNonNull(module).getDirectives()) {
                 if (directive instanceof RequiresTree requires) {
-                    dependencies.put(requires.getModuleName().toString(), "");
+                    if (!requires.isStatic()) {
+                        String name = requires.getModuleName().toString();
+                        if (!name.startsWith("java.") && !name.startsWith("jdk.")) {
+                            dependencies.put(name, "");
+                        }
+                    }
                 }
             }
             return Optional.of(new Identification(module.getName().toString(), dependencies));
