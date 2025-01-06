@@ -2,17 +2,18 @@ package build.buildbuddy.module;
 
 import build.buildbuddy.Identification;
 
-import java.io.IOException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.reflect.AccessFlag;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.SequencedMap;
+import java.util.function.Function;
 
-public class ModularJarResolver {
+public class ModularJarResolver implements Function<Path, Identification> {
 
-    public Identification identify(Path jar) throws IOException {
+    @Override
+    public Identification apply(Path jar) {
         ModuleDescriptor descriptor = ModuleFinder.of(jar).findAll().stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Does not contain a module: " + jar))
