@@ -27,8 +27,8 @@ public class MavenPomResolverTest {
     public void setUp() throws Exception {
         repository = temporaryFolder.newFolder("repository").toPath();
         mavenPomResolver = new MavenPomResolver(
-                new MavenRepository(repository.toUri(), null, Map.of()),
-                MavenDefaultVersionNegotiator.maven(new MavenRepository(repository.toUri(), null, Map.of())));
+                new MavenDefaultRepository(repository.toUri(), null, Map.of()),
+                MavenDefaultVersionNegotiator.maven(new MavenDefaultRepository(repository.toUri(), null, Map.of())));
     }
 
     @Test

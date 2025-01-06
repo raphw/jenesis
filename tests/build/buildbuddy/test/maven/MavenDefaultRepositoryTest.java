@@ -1,5 +1,6 @@
 package build.buildbuddy.test.maven;
 
+import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenRepository;
 import org.junit.Before;
 import org.junit.Rule;
@@ -20,7 +21,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class MavenRepositoryTest {
+public class MavenDefaultRepositoryTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -38,7 +39,7 @@ public class MavenRepositoryTest {
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetch("group",
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetch("group",
                 "artifact",
                 "1",
                 "jar",
@@ -56,7 +57,7 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar"), "foo");
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenRepository(repository.toUri(), local, Map.of()).fetch("group",
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), local, Map.of()).fetch("group",
                 "artifact",
                 "1",
                 "jar",
@@ -82,7 +83,7 @@ public class MavenRepositoryTest {
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenRepository(repository.toUri(),
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch("group",
                 "artifact",
@@ -109,7 +110,7 @@ public class MavenRepositoryTest {
             writer.write(HexFormat.of().formatHex(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
         }
         Path local = temporaryFolder.newFolder("cache").toPath();
-        MavenRepository repository = new MavenRepository(this.repository.toUri(),
+        MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
         assertThatThrownBy(() -> repository.fetch("group",
@@ -136,7 +137,7 @@ public class MavenRepositoryTest {
             writer.write(HexFormat.of().formatHex(hash));
         }
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenRepository(repository.toUri(),
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch("group",
                 "artifact",
@@ -165,7 +166,7 @@ public class MavenRepositoryTest {
             writer.write(HexFormat.of().formatHex(hash));
         }
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenRepository(repository.toUri(),
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch("group",
                 "artifact",
@@ -192,7 +193,7 @@ public class MavenRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             writer.write(HexFormat.of().formatHex(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
         }
-        MavenRepository repository = new MavenRepository(this.repository.toUri(),
+        MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
         assertThat(repository.fetch("group",
@@ -211,7 +212,7 @@ public class MavenRepositoryTest {
                 .createDirectories(repository.resolve("group/artifact"))
                 .resolve("maven-metadata.xml"), "foo");
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
                 "artifact",
                 null).orElseThrow().toInputStream()) {
             Files.copy(inputStream, dependency);
