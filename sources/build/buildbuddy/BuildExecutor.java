@@ -78,8 +78,12 @@ public class BuildExecutor {
         replace(identity, wrapStep(identity, step));
     }
 
-    public void appendStep(String identity, BuildStep step) {
-        append(identity, wrapStep(identity, step));
+    public void prependStep(String identity, String prepended, BuildStep step) {
+        prepend(identity, prepended, wrapStep(identity, step));
+    }
+
+    public void appendStep(String identity, String appended, BuildStep step) {
+        append(identity, appended, wrapStep(identity, step));
     }
 
     private BiFunction<Executor,
@@ -164,8 +168,12 @@ public class BuildExecutor {
         replace(identity, wrapConsumer(identity, consumer));
     }
 
-    public void append(String identity, IOConsumer consumer) {
-        append(identity, wrapConsumer(identity, consumer));
+    public void prepend(String identity, String prepended, IOConsumer consumer) {
+        prepend(identity, prepended, wrapConsumer(identity, consumer));
+    }
+
+    public void append(String identity, String appended, IOConsumer consumer) {
+        append(identity, appended, wrapConsumer(identity, consumer));
     }
 
     private BiFunction<Executor,
@@ -214,20 +222,30 @@ public class BuildExecutor {
         registrations.replace(identity, new Registration(step, registration.dependencies()));
     }
 
-    private void append(String identity, BiFunction<Executor,
+    private void prepend(String identity, String prepended, BiFunction<Executor,
             Map<String, StepSummary>,
             CompletionStage<Map<String, StepSummary>>> step) {
-        Registration registration = registrations.remove(identity);
+        Registration registration = registrations.get(identity);
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        int index = 0;
-        String previous;
-        do {
-            previous = identity + "_" + index++;
-        } while (registrations.containsKey(previous));
-        registrations.put(previous, registration);
-        registrations.put(identity, new Registration(step, Set.of(previous)));
+        if (registrations.putIfAbsent(prepended, new Registration(step, registration.dependencies())) != null) {
+            throw new IllegalArgumentException("Step already registered: " + prepended);
+        }
+        registrations.replace(identity, new Registration(registration.step(), Set.of(prepended)));
+    }
+
+    private void append(String identity, String appended, BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> step) {
+        Registration registration = registrations.get(identity);
+        if (registration == null) {
+            throw new IllegalArgumentException("Unknown step: " + identity);
+        }
+        if (registrations.putIfAbsent(appended, registration) != null) {
+            throw new IllegalArgumentException("Step already registered: " + appended);
+        }
+        registrations.replace(identity, new Registration(step, Set.of(appended)));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
