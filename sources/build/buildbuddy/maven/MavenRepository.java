@@ -49,6 +49,39 @@ public interface MavenRepository extends Repository {
         };
     }
 
+    default MavenRepository andThen(MavenRepository repository) {
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) throws IOException {
+                Optional<RepositoryItem> candidate = MavenRepository.this.fetch(groupId,
+                        artifactId,
+                        version,
+                        type,
+                        classifier,
+                        checksum);
+                return candidate.isPresent() ? candidate : repository.fetch(groupId,
+                        artifactId,
+                        version,
+                        type,
+                        classifier,
+                        checksum);
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(String groupId,
+                                                          String artifactId,
+                                                          String checksum) throws IOException {
+                Optional<RepositoryItem> candidate = MavenRepository.this.fetchMetadata(groupId, artifactId, checksum);
+                return candidate.isPresent() ? candidate : repository.fetchMetadata(groupId, artifactId, checksum);
+            }
+        };
+    }
+
     @Override
     default Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
         String[] elements = coordinate.split("/", 5);
@@ -69,8 +102,8 @@ public interface MavenRepository extends Repository {
 
 
     default Optional<RepositoryItem> fetchMetadata(String groupId,
-                                                  String artifactId,
-                                                  String checksum) throws IOException {
+                                                   String artifactId,
+                                                   String checksum) throws IOException {
         return Optional.empty();
     }
 }
