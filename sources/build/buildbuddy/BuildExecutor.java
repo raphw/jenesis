@@ -78,6 +78,10 @@ public class BuildExecutor {
         replace(identity, wrapStep(identity, step));
     }
 
+    public void appendStep(String identity, BuildStep step) {
+        append(identity, wrapStep(identity, step));
+    }
+
     private BiFunction<Executor,
             Map<String, StepSummary>,
             CompletionStage<Map<String, StepSummary>>> wrapStep(String identity, BuildStep step) {
@@ -160,6 +164,10 @@ public class BuildExecutor {
         replace(identity, wrapConsumer(identity, consumer));
     }
 
+    public void append(String identity, IOConsumer consumer) {
+        append(identity, wrapConsumer(identity, consumer));
+    }
+
     private BiFunction<Executor,
             Map<String, StepSummary>,
             CompletionStage<Map<String, StepSummary>>> wrapConsumer(String prefix, IOConsumer consumer) {
@@ -203,7 +211,23 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        registrations.replace(validated(identity), new Registration(step, registration.dependencies()));
+        registrations.replace(identity, new Registration(step, registration.dependencies()));
+    }
+
+    private void append(String identity, BiFunction<Executor,
+            Map<String, StepSummary>,
+            CompletionStage<Map<String, StepSummary>>> step) {
+        Registration registration = registrations.remove(identity);
+        if (registration == null) {
+            throw new IllegalArgumentException("Unknown step: " + identity);
+        }
+        int index = 0;
+        String previous;
+        do {
+            previous = identity + "_" + index++;
+        } while (registrations.containsKey(previous));
+        registrations.put(previous, registration);
+        registrations.put(identity, new Registration(step, Set.of(previous)));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
