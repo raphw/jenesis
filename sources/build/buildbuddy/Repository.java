@@ -20,6 +20,10 @@ public interface Repository {
         };
     }
 
+    static Repository empty() {
+        return (_, _) -> Optional.empty();
+    }
+
     static Repository files() {
         return (_, coordinate) -> {
             Path file = Paths.get(coordinate);
