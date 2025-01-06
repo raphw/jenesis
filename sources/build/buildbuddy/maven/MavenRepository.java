@@ -24,13 +24,12 @@ public interface MavenRepository extends Repository {
                                                   String checksum) throws IOException {
                 Path file = coordinates.get(groupId
                         + "/" + artifactId
-                        + (type == null ? "" : "/" + type)
+                        + (type == null ? "/jar" : "/" + type)
                         + (classifier == null ? "" : "/" + classifier)
                         + "/" + version);
                 if (file == null && type == null) {
                     file = coordinates.get(groupId
                             + "/" + artifactId
-                            + "/jar"
                             + (classifier == null ? "" : "/" + classifier)
                             + "/" + version);
                 }
