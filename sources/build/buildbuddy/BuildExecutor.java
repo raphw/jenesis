@@ -229,7 +229,7 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        if (registrations.putIfAbsent(prepended, new Registration(step, registration.dependencies())) != null) {
+        if (registrations.putIfAbsent(validated(prepended), new Registration(step, registration.dependencies())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
         registrations.replace(identity, new Registration(registration.step(), Set.of(prepended)));
@@ -242,7 +242,7 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        if (registrations.putIfAbsent(appended, registration) != null) {
+        if (registrations.putIfAbsent(validated(appended), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
         registrations.replace(identity, new Registration(step, Set.of(appended)));
