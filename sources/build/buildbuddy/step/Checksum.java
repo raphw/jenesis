@@ -36,9 +36,7 @@ public class Checksum implements DependencyTransformingBuildStep {
             throws IOException {
         Properties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
-            Repository repository = requireNonNull(
-                    repositories.get(group.getKey()),
-                    "Could not resolve repository: " + group.getKey());
+            Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
             for (Map.Entry<String, String> entry : group.getValue().entrySet()) {
                 String dependency = group.getKey() + "/" + entry.getKey();
                 if (!entry.getValue().isEmpty()) {

@@ -35,9 +35,7 @@ public class Download implements DependencyTransformingBuildStep {
         Properties properties = new SequencedProperties();
         Path libs = Files.createDirectory(context.next().resolve(ARTIFACTS));
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
-            Repository repository = requireNonNull(
-                    repositories.get(group.getKey()),
-                    "Could not resolve repository: " + group.getKey());
+            Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
             for (Map.Entry<String, String> entry : group.getValue().entrySet()) {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(ARTIFACTS + name);

@@ -1,10 +1,10 @@
 package build.buildbuddy;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -20,6 +20,13 @@ public interface Repository {
         };
     }
 
+    default Repository prepend(Map<String, Path> coordinates) {
+        return (executor, coordinate) -> {
+            Path file = coordinates.get(coordinate);
+            return file == null ? fetch(executor, coordinate) : Optional.of(RepositoryItem.ofFile(file));
+        };
+    }
+
     static Repository empty() {
         return (_, _) -> Optional.empty();
     }
@@ -27,17 +34,7 @@ public interface Repository {
     static Repository files() {
         return (_, coordinate) -> {
             Path file = Paths.get(coordinate);
-            return Files.exists(file) ? Optional.of(new RepositoryItem() {
-                @Override
-                public Optional<Path> getFile() {
-                    return Optional.of(file);
-                }
-
-                @Override
-                public InputStream toInputStream() throws IOException {
-                    return Files.newInputStream(file);
-                }
-            }) : Optional.empty();
+            return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
         };
     }
 }

@@ -4,11 +4,50 @@ import build.buildbuddy.Repository;
 import build.buildbuddy.RepositoryItem;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
 @FunctionalInterface
 public interface MavenRepository extends Repository {
+
+    @Override
+    default MavenRepository prepend(Map<String, Path> coordinates) {
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) throws IOException {
+                Path file = coordinates.get(groupId
+                        + "/" + artifactId
+                        + (type == null ? "" : "/" + type)
+                        + (classifier == null ? "" : "/" + classifier)
+                        + "/" + version);
+                if (file == null && type == null) {
+                    file = coordinates.get(groupId
+                            + "/" + artifactId
+                            + "/jar"
+                            + (classifier == null ? "" : "/" + classifier)
+                            + "/" + version);
+                }
+                return file != null
+                        ? Optional.of(RepositoryItem.ofFile(file))
+                        : MavenRepository.this.fetch(groupId, artifactId, version, type, classifier, checksum);
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(String groupId,
+                                                          String artifactId,
+                                                          String checksum) throws IOException {
+                // TODO: check prepended data for versions?
+                return MavenRepository.this.fetchMetadata(groupId, artifactId, checksum);
+            }
+        };
+    }
 
     @Override
     default Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
