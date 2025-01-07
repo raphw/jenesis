@@ -17,9 +17,11 @@ import java.util.zip.ZipInputStream;
 
 public class ModularJarResolver implements Resolver {
 
+    private final boolean resolveAutomaticModules;
     private final Repository repository;
 
-    public ModularJarResolver(Repository repository) {
+    public ModularJarResolver(boolean resolveAutomaticModules, Repository repository) {
+        this.resolveAutomaticModules = resolveAutomaticModules;
         this.repository = repository;
     }
 
@@ -46,6 +48,9 @@ public class ModularJarResolver implements Resolver {
                         .orElseGet(() -> ModuleDescriptor.newAutomaticModule(current).build());
             }
             if (descriptor.isAutomatic()) {
+                if (resolveAutomaticModules) {
+                    continue;
+                }
                 throw new IllegalArgumentException("No module-info.class found for " + current);
             }
             descriptor.requires().stream()
