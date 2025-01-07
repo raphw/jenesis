@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.SequencedMap;
@@ -26,28 +27,26 @@ public class Bind implements BuildStep {
         this.paths = paths;
     }
 
-    public static BuildStep asSources() {
+    public static Bind asSources() {
         return new Bind(Map.of(Path.of("."), Path.of(SOURCES)));
     }
 
-    public static BuildStep asResources() {
+    public static Bind asResources() {
         return new Bind(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
-    public static BuildStep asCoordinates() {
-        return asCoordinates(COORDINATES);
-    }
-
-    public static BuildStep asCoordinates(String name) {
+    public static Bind asCoordinates(String name) {
         return new Bind(Map.of(Path.of(name == null ? COORDINATES : name), Path.of(COORDINATES)));
     }
 
-    public static BuildStep asDependencies() {
-        return asDependencies(DEPENDENCIES);
+    public static Bind asDependencies(String name) {
+        return new Bind(Map.of(Path.of(name), Path.of(DEPENDENCIES)));
     }
 
-    public static BuildStep asDependencies(String name) {
-        return new Bind(Map.of(Path.of(name), Path.of(DEPENDENCIES)));
+    public Bind with(Bind bind) {
+        Map<Path, Path> paths = new HashMap<>(this.paths);
+        paths.putAll(bind.paths);
+        return new Bind(paths);
     }
 
     @Override
