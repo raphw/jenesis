@@ -452,7 +452,7 @@ public class BuildExecutorTest {
             buildExecutor.addStep("step1", (_, _, _) -> {
                 throw new AssertionError();
             }, "../source");
-        }, "source");
+        }, "source/source1");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
                 .hasMessageContaining("Did not inherit: ../source")
                 .hasCauseInstanceOf(IllegalArgumentException.class);
@@ -492,7 +492,7 @@ public class BuildExecutorTest {
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "step1");
-        }, "source");
+        }, "source/source1");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source/source1", "step/step1", "step/step2");
         assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
