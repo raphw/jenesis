@@ -324,8 +324,7 @@ public class BuildExecutorTest {
                 assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
-                        Files.readString(arguments.get("source").folder().resolve("file"))
-                                + Files.readString(arguments.get("step1").folder().resolve("file")));
+                        Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "step1");
         }, "source");
@@ -333,7 +332,7 @@ public class BuildExecutorTest {
         assertThat(build).containsOnlyKeys("source", "step/step1", "step/step2");
         assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
                 .content()
-                .isEqualTo("foofoobar");
+                .isEqualTo("foobarqux");
     }
 
     @Test

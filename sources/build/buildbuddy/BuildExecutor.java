@@ -8,13 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -138,7 +132,9 @@ public class BuildExecutor {
                             }
                             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                                 HashFunction.write(
-                                        checksum.resolve("checksums." + entry.getKey()),
+                                        checksum.resolve("checksums." + URLEncoder.encode(
+                                                entry.getKey(),
+                                                StandardCharsets.UTF_8)),
                                         entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
