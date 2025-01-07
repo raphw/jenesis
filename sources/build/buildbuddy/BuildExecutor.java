@@ -182,7 +182,7 @@ public class BuildExecutor {
                 }
                 BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, summaries);
                 consumer.accept(buildExecutor, folders);
-                return buildExecutor.execute(executor, Map.of()).thenApplyAsync(results -> {
+                return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
                     results.forEach((identity, values) -> prefixed.put(prefix + "/" + identity, values));
                     return prefixed;
@@ -194,7 +194,7 @@ public class BuildExecutor {
     }
 
     private void add(String identity, Bound bound, Set<String> preliminaries) {
-        SequencedSet<String> dependencies = new LinkedHashSet<>();
+        Set<String> dependencies = new LinkedHashSet<>(), keys = new LinkedHashSet<>();
         SequencedMap<String, StepSummary> summaries = new LinkedHashMap<>();
         preliminaries.forEach(preliminary -> {
             if (preliminary.startsWith("../")) {
@@ -209,10 +209,13 @@ public class BuildExecutor {
                 if (!registrations.containsKey(reference)) {
                     throw new IllegalArgumentException("Did not find dependency: " + reference);
                 }
-                dependencies.add(preliminary);
+                dependencies.add(reference);
+                keys.add(preliminary);
             }
         });
-        if (registrations.putIfAbsent(validated(identity), new Registration(bound, dependencies, summaries)) != null) {
+        if (registrations.putIfAbsent(
+                validated(identity), 
+                new Registration(bound, dependencies, keys, summaries)) != null) {
             throw new IllegalArgumentException("Step already registered: " + identity);
         }
     }
@@ -222,7 +225,10 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        registrations.replace(identity, new Registration(bound, registration.dependencies(), registration.summaries()));
+        registrations.replace(identity, new Registration(bound, 
+                registration.dependencies(),
+                registration.keys(),
+                registration.summaries()));
     }
 
     private void prepend(String identity, String prepended, Bound bound) {
@@ -232,10 +238,14 @@ public class BuildExecutor {
         }
         if (registrations.putIfAbsent(validated(prepended), new Registration(bound,
                 registration.dependencies(),
+                registration.keys(),
                 registration.summaries())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended), Map.of()));
+        registrations.replace(identity, new Registration(registration.bound(), 
+                Set.of(prepended), 
+                Set.of(prepended), 
+                Map.of()));
     }
 
     private void append(String identity, String appended, Bound bound) {
@@ -246,11 +256,14 @@ public class BuildExecutor {
         if (registrations.putIfAbsent(validated(appended), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(identity, new Registration(bound, Set.of(appended), Map.of()));
+        registrations.replace(identity, new Registration(bound, 
+                Set.of(appended), 
+                Set.of(appended), 
+                Map.of()));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
-        return execute(executor, Map.of()).thenApplyAsync(summaries -> {
+        return doExecute(executor).thenApplyAsync(summaries -> {
             SequencedMap<String, Path> translated = new LinkedHashMap<>();
             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                 translated.put(entry.getKey(), entry.getValue().folder());
@@ -259,7 +272,7 @@ public class BuildExecutor {
         }, executor);
     }
 
-    private CompletionStage<Map<String, StepSummary>> execute(Executor executor, Map<String, StepSummary> x) {
+    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor) {
         CompletionStage<Map<String, StepSummary>> initial = CompletableFuture.completedStage(Map.of());
         SequencedMap<String, Registration> pending = new LinkedHashMap<>(registrations);
         SequencedMap<String, CompletionStage<Map<String, StepSummary>>> dispatched = new LinkedHashMap<>();
@@ -281,7 +294,11 @@ public class BuildExecutor {
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
                         SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(entry.getValue().summaries());
-                        merged.putAll(summaries);
+                        summaries.forEach((identity, summary) -> {
+                            if (entry.getValue().keys().contains(identity)) {
+                                merged.put(identity, summary);
+                            }
+                        });
                         return entry.getValue().bound().apply(entry.getKey(), executor, merged);
                     }, executor));
                     it.remove();
@@ -314,7 +331,10 @@ public class BuildExecutor {
                                                         Map<String, StepSummary> summaries);
     }
 
-    private record Registration(Bound bound, Set<String> dependencies, Map<String, StepSummary> summaries) {
+    private record Registration(Bound bound, 
+                                Set<String> dependencies, 
+                                Set<String> keys, 
+                                Map<String, StepSummary> summaries) {
     }
 
     private record StepSummary(Path folder, Map<Path, byte[]> checksums) {
