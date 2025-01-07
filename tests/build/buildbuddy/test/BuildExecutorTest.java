@@ -325,13 +325,13 @@ public class BuildExecutorTest {
                 assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
                 assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
-                Files.copy(arguments.get("step1").folder().resolve("result"), context.next().resolve("result"));
+                Files.copy(arguments.get("step1").folder().resolve("result"), context.next().resolve("final"));
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "step1");
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step/step1", "step/step2");
-        Path result = root.resolve("step").resolve("step2").resolve("output").resolve("result");
+        Path result = root.resolve("step").resolve("step2").resolve("output").resolve("final");
         assertThat(result).isRegularFile();
         assertThat(result).content().isEqualTo("foo");
     }
