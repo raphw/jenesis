@@ -278,14 +278,15 @@ public class BuildExecutor {
                                 executor);
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
-                        SequencedMap<String, StepSummary> merged = new LinkedHashMap<>();
+                        // TODO: organize dependencies after user supplied input
+                        SequencedMap<String, StepSummary> propagated = new LinkedHashMap<>();
                         inherited.forEach((identity, summary) -> {
                             if (entry.getValue().dependencies().contains(identity)) {
-                                merged.put(identity, summary);
+                                propagated.put(identity, summary);
                             }
                         });
-                        merged.putAll(summaries);
-                        return entry.getValue().bound().apply(entry.getKey(), executor, merged);
+                        propagated.putAll(summaries);
+                        return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
                     }, executor));
                     it.remove();
                 }
