@@ -100,7 +100,9 @@ public class BuildExecutor {
                 boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                    Path checksums = checksum.resolve("checksums." + entry.getKey());
+                    Path checksums = checksum.resolve("checksums." + URLEncoder.encode(
+                            entry.getKey(),
+                            StandardCharsets.UTF_8));
                     arguments.put(entry.getKey(), new BuildStepArgument(
                             entry.getValue().folder(),
                             consistent && Files.exists(checksums)
