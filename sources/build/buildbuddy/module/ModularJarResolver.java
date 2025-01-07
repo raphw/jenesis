@@ -7,13 +7,10 @@ import build.buildbuddy.Resolver;
 import java.io.IOException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReference;
 import java.lang.reflect.AccessFlag;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.LinkedHashMap;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -45,8 +42,8 @@ public class ModularJarResolver implements Resolver {
             } else {
                 descriptor = ModuleFinder.of(file).findAll().stream()
                         .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("Does not describe a module: " + current))
-                        .descriptor();
+                        .map(ModuleReference::descriptor)
+                        .orElseGet(() -> ModuleDescriptor.newAutomaticModule(current).build());
             }
             if (descriptor.isAutomatic()) {
                 throw new IllegalArgumentException("No module-info.class found for " + current);
