@@ -34,12 +34,20 @@ public class Bind implements BuildStep {
         return new Bind(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
+    public static BuildStep asCoordinates() {
+        return asCoordinates(COORDINATES);
+    }
+
     public static BuildStep asCoordinates(String name) {
         return new Bind(Map.of(Path.of(name == null ? COORDINATES : name), Path.of(COORDINATES)));
     }
 
+    public static BuildStep asDependencies() {
+        return asDependencies(DEPENDENCIES);
+    }
+
     public static BuildStep asDependencies(String name) {
-        return new Bind(Map.of(Path.of(name == null ? DEPENDENCIES : name), Path.of(DEPENDENCIES)));
+        return new Bind(Map.of(Path.of(name), Path.of(DEPENDENCIES)));
     }
 
     @Override
