@@ -25,24 +25,24 @@ public class Main {
                 mavenRepository,
                 MavenDefaultVersionNegotiator.maven(mavenRepository)));
         BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
-        root.add("sources", (build, _) -> {
-            build.addSource("source", Path.of("sources"));
-            build.addStep("bound", Bind.asSources(), "source");
-            build.addStep("javac", new Javac(), "bound");
-            build.addStep("jar", new Jar(), "javac");
+        root.add("sources", (module, _) -> {
+            module.addSource("source", Path.of("sources"));
+            module.addStep("bound", Bind.asSources(), "source");
+            module.addStep("javac", new Javac(), "bound");
+            module.addStep("jar", new Jar(), "javac");
         });
-        root.add("tests", (build, _) -> {
-            build.addSource("source", Path.of("tests"));
-            build.addStep("bound", Bind.asSources(), "source");
-            build.add("dependencies", (dependencies, _) -> {
-                dependencies.addSource("source", Path.of("dependencies", "test"));
-                dependencies.addStep("bound", Bind.asDependencies(), "source");
-                dependencies.addStep("resolved", new Flatten(resolvers), "bound");
-                dependencies.addStep("download", new Download(repositories), "resolved");
+        root.add("tests", (module, _) -> {
+            module.addSource("source", Path.of("tests"));
+            module.addStep("bound", Bind.asSources(), "source");
+            module.add("dependencies", (dependencies, _) -> {
+                dependencies.addSource("properties", Path.of("dependencies", "test"));
+                dependencies.addStep("bound", Bind.asDependencies(), "properties");
+                dependencies.addStep("resolved", new Resolve(resolvers), "bound");
+                dependencies.addStep("downloaded", new Download(repositories), "resolved");
             });
-            build.addStep("javac", new Javac(), "bound", "dependencies/download");
-            build.addStep("jar", new Jar(), "javac", "dependencies/download");
-            build.addStep("junit", new JUnit4(), "jar", "../sources/jar", "dependencies/download");
+            module.addStep("javac", new Javac(), "bound", "../sources/jar", "dependencies/downloaded");
+            module.addStep("jar", new Jar(), "javac", "dependencies/download");
+            module.addStep("junit", new JUnit4(), "jar", "../sources/jar", "dependencies/downloaded");
         }, "sources");
         Map<String, Path> steps;
         try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {

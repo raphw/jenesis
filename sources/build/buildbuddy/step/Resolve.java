@@ -15,11 +15,11 @@ import java.util.concurrent.Executor;
 
 import static java.util.Objects.requireNonNull;
 
-public class Flatten implements DependencyTransformingBuildStep {
+public class Resolve implements DependencyTransformingBuildStep {
 
     private final Map<String, Resolver> resolvers;
 
-    public Flatten(Map<String, Resolver> resolvers) {
+    public Resolve(Map<String, Resolver> resolvers) {
         this.resolvers = resolvers;
     }
 

@@ -1,7 +1,7 @@
 package build.buildbuddy.test.step;
 
 import build.buildbuddy.*;
-import build.buildbuddy.step.Flatten;
+import build.buildbuddy.step.Resolve;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -19,7 +19,7 @@ import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class FlattenTest {
+public class ResolveTest {
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -43,7 +43,7 @@ public class FlattenTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Flatten(Map.of("foo", (_, descriptors) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", (_, descriptors) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(descriptor, "");
@@ -80,7 +80,7 @@ public class FlattenTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Flatten(Map.of("foo", (_, descriptors) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", (_, descriptors) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(descriptor, "");
@@ -118,7 +118,7 @@ public class FlattenTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Flatten(Map.of("foo", (_, descriptors) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", (_, descriptors) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(descriptor, "qux/" + descriptor);
