@@ -53,4 +53,26 @@ public class JavacTest {
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
+
+    @Test
+    public void can_execute_javac_with_resources() throws IOException {
+        Path folder = Files.createDirectories(sources.resolve(Bind.SOURCES + "sample"));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
+            writer.append("package sample;");
+            writer.newLine();
+            writer.append("public class Sample { }");
+            writer.newLine();
+        }
+        Files.writeString(folder.resolve("foo"), "bar");
+        Files.createDirectory(sources.resolve(Bind.SOURCES + "folder"));
+        BuildStepResult result = new Javac().apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "sample/foo")).content().isEqualTo("bar");
+        assertThat(next.resolve(Javac.CLASSES + "folder")).isDirectory();
+    }
 }
