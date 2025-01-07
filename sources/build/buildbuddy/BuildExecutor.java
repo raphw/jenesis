@@ -8,14 +8,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.SequencedMap;
+import java.util.SequencedSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class BuildExecutor {
 
@@ -47,10 +51,12 @@ public class BuildExecutor {
 
     private Bound bindSource(Path path) {
         return (identity, executor, _) -> {
-            CompletableFuture<Map<String, StepSummary>> future = new CompletableFuture<>();
+            CompletableFuture<Map<String, Map<String, StepSummary>>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
-                    future.complete(Map.of(identity, new StepSummary(path, HashFunction.read(path, hash))));
+                    future.complete(Map.of(identity, Map.of(
+                            identity,
+                            new StepSummary(path, HashFunction.read(path, hash)))));
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
@@ -135,13 +141,15 @@ public class BuildExecutor {
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
-                            return Map.of(identity, new StepSummary(output, checksums));
+                            return Map.of(identity, Map.of(identity, new StepSummary(output, checksums)));
                         } catch (Throwable t) {
                             throw new CompletionException(t);
                         }
                     }, executor);
                 } else {
-                    return CompletableFuture.completedStage(Map.of(identity, new StepSummary(output, current)));
+                    return CompletableFuture.completedStage(Map.of(identity, Map.of(
+                            identity,
+                            new StepSummary(output, current))));
                 }
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
@@ -187,7 +195,7 @@ public class BuildExecutor {
                 return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
                     results.forEach((identity, values) -> prefixed.put(prefix + "/" + identity, values));
-                    return prefixed;
+                    return Map.of(prefix, prefixed);
                 }, executor);
             } catch (Throwable t) {
                 return CompletableFuture.failedStage(t);
@@ -196,7 +204,7 @@ public class BuildExecutor {
     }
 
     private void add(String identity, Bound bound, Set<String> dependencies) {
-        Set<String> preliminaries = new HashSet<>();
+        SequencedSet<String> preliminaries = new LinkedHashSet<>();
         dependencies.forEach(dependency -> {
             if (dependency.startsWith("../")) {
                 if (!inherited.containsKey(dependency)) {
@@ -260,35 +268,32 @@ public class BuildExecutor {
     }
 
     private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor) {
-        CompletionStage<Map<String, StepSummary>> initial = CompletableFuture.completedStage(Map.of());
+        CompletionStage<Map<String, Map<String, StepSummary>>> initial = CompletableFuture.completedStage(Map.of());
         SequencedMap<String, Registration> pending = new LinkedHashMap<>(registrations);
-        SequencedMap<String, CompletionStage<Map<String, StepSummary>>> dispatched = new LinkedHashMap<>();
+        SequencedMap<String, CompletionStage<Map<String, Map<String, StepSummary>>>> dispatched = new LinkedHashMap<>();
         while (!pending.isEmpty()) {
             Iterator<Map.Entry<String, Registration>> it = pending.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<String, Registration> entry = it.next();
                 if (dispatched.keySet().containsAll(entry.getValue().preliminaries())) {
-                    CompletionStage<Map<String, StepSummary>> completionStage = initial;
+                    CompletionStage<Map<String, Map<String, StepSummary>>> completionStage = initial;
                     for (String dependency : entry.getValue().preliminaries()) {
                         completionStage = completionStage.thenCombineAsync(
                                 dispatched.get(dependency),
-                                (left, right) -> Stream
-                                        .concat(left.entrySet().stream(), right.entrySet().stream())
-                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
+                                (left, right) -> {
+                                    SequencedMap<String, Map<String, StepSummary>> merged = new LinkedHashMap<>(left);
+                                    merged.putAll(right);
+                                    return merged;
+                                },
                                 executor);
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
-                        // TODO: organize dependencies after user supplied input
                         SequencedMap<String, StepSummary> propagated = new LinkedHashMap<>();
                         entry.getValue().dependencies().forEach(dependency -> {
                             if (dependency.startsWith("../")) {
                                 propagated.put(dependency, inherited.get(dependency));
                             } else {
-                                summaries.forEach((identity, summary) -> {
-                                    if (identity.equals(dependency) || identity.startsWith(dependency + "/")) {
-                                        propagated.put(identity, summary);
-                                    }
-                                });
+                                propagated.putAll(summaries.get(dependency));
                             }
                         });
                         return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
@@ -301,7 +306,7 @@ public class BuildExecutor {
         for (String identity : registrations.keySet()) {
             result = result.thenCombineAsync(dispatched.get(identity), (left, right) -> {
                 SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(left);
-                merged.putAll(right);
+                right.values().forEach(merged::putAll);
                 return merged;
             }, executor);
         }
@@ -318,9 +323,9 @@ public class BuildExecutor {
     @FunctionalInterface
     private interface Bound {
 
-        CompletionStage<Map<String, StepSummary>> apply(String identity,
-                                                        Executor executor,
-                                                        Map<String, StepSummary> summaries);
+        CompletionStage<Map<String, Map<String, StepSummary>>> apply(String identity,
+                                                                     Executor executor,
+                                                                     Map<String, StepSummary> summaries);
     }
 
     private record Registration(Bound bound, Set<String> preliminaries, Set<String> dependencies) {
