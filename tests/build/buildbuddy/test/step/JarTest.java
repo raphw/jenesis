@@ -50,6 +50,6 @@ public class JarTest {
                         classes,
                         Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "artifact.jar")).isNotEmptyFile();
+        assertThat(next.resolve(BuildStep.ARTIFACTS + "classes.jar")).isNotEmptyFile();
     }
 }

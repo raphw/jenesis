@@ -32,7 +32,7 @@ public class Jar implements ProcessBuildStep {
             throws IOException {
         List<String> commands = new ArrayList<>(List.of(jar,
                 "cf",
-                Files.createDirectory(context.next().resolve(ARTIFACTS)).resolve("artifact.jar").toString()));
+                Files.createDirectory(context.next().resolve(ARTIFACTS)).resolve("classes.jar").toString()));
         for (BuildStepArgument argument : arguments.values()) {
             for (String name : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path folder = argument.folder().resolve(name);

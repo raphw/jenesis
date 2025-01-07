@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,7 +38,9 @@ public interface Repository {
             if (item == null) {
                 return Optional.empty();
             } else {
-                Path file = item.getFile().orElse(null), target = folder.resolve(coordinate.replace('/', '-'));
+                Path file = item.getFile().orElse(null), target = folder.resolve(URLEncoder.encode(
+                        coordinate,
+                        StandardCharsets.UTF_8));
                 if (file != null) {
                     Files.createLink(target, file);
                 } else {
