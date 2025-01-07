@@ -373,6 +373,47 @@ public class BuildExecutorTest {
     }
 
     @Test
+    public void can_execute_nested_parent_child_reference() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.add("source", (buildExecutor, paths) -> {
+            assertThat(paths).isEmpty();
+            buildExecutor.addSource("inner", source);
+        });
+        buildExecutor.add("step", (buildExecutor, paths) -> {
+            assertThat(paths).containsOnlyKeys("source/inner");
+            assertThat(paths.get("source/inner")).isEqualTo(source);
+            buildExecutor.addStep("step1", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("../source/inner");
+                assertThat(arguments.get("../source/inner").folder()).isEqualTo(source);
+                assertThat(arguments.get("../source/inner").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("../source/inner").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "../source/inner");
+            buildExecutor.addStep("step2", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("step1");
+                assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
+                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "step1");
+        }, "source/inner");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source/inner", "step/step1", "step/step2");
+        assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
+                .content()
+                .isEqualTo("foobarqux");
+    }
+
+    @Test
     public void can_replace_step() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
