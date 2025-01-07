@@ -79,8 +79,8 @@ public class BuildExecutor {
         prepend(identity, prepended, bindStep(step));
     }
 
-    public void appendedStep(String identity, String target, BuildStep step) {
-        append(identity, target, bindStep(step));
+    public void appendStep(String identity, String original, BuildStep step) {
+        append(identity, original, bindStep(step));
     }
 
     private Bound bindStep(BuildStep step) {
@@ -167,8 +167,8 @@ public class BuildExecutor {
         prepend(identity, prepended, bindConsumer(consumer));
     }
 
-    public void append(String identity, String target, IOConsumer consumer) {
-        append(identity, target, bindConsumer(consumer));
+    public void append(String identity, String appended, IOConsumer consumer) {
+        append(identity, appended, bindConsumer(consumer));
     }
 
     private Bound bindConsumer(IOConsumer consumer) {
@@ -222,15 +222,15 @@ public class BuildExecutor {
         registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended)));
     }
 
-    private void append(String identity, String target, Bound bound) {
-        Registration registration = registrations.get(target);
+    private void append(String identity, String appended, Bound bound) {
+        Registration registration = registrations.get(identity);
         if (registration == null) {
-            throw new IllegalArgumentException("Unknown step: " + target);
+            throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        if (registrations.putIfAbsent(validated(identity), registration) != null) {
-            throw new IllegalArgumentException("Step already registered: " + identity);
+        if (registrations.putIfAbsent(validated(appended), registration) != null) {
+            throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(target, new Registration(bound, Set.of(identity)));
+        registrations.replace(identity, new Registration(bound, Set.of(appended)));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
