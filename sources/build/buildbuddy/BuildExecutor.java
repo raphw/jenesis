@@ -157,31 +157,31 @@ public class BuildExecutor {
         };
     }
 
-    public void add(String identity, IOConsumer consumer, String... dependencies) {
+    public void add(String identity, BuildExecutorDelegate consumer, String... dependencies) {
         add(identity, bindConsumer(consumer), Set.of(dependencies));
     }
 
-    public void add(String identity, IOConsumer consumer, SequencedSet<String> dependencies) {
+    public void add(String identity, BuildExecutorDelegate consumer, SequencedSet<String> dependencies) {
         add(identity, bindConsumer(consumer), dependencies);
     }
 
-    public void addAtEnd(String identity, IOConsumer consumer) {
+    public void addAtEnd(String identity, BuildExecutorDelegate consumer) {
         add(identity, bindConsumer(consumer), new LinkedHashSet<>(registrations.keySet()));
     }
 
-    public void replace(String identity, IOConsumer consumer) {
+    public void replace(String identity, BuildExecutorDelegate consumer) {
         replace(identity, bindConsumer(consumer));
     }
 
-    public void prepend(String identity, String prepended, IOConsumer consumer) {
+    public void prepend(String identity, String prepended, BuildExecutorDelegate consumer) {
         prepend(identity, prepended, bindConsumer(consumer));
     }
 
-    public void append(String identity, String appended, IOConsumer consumer) {
+    public void append(String identity, String appended, BuildExecutorDelegate consumer) {
         append(identity, appended, bindConsumer(consumer));
     }
 
-    private Bound bindConsumer(IOConsumer consumer) {
+    private Bound bindConsumer(BuildExecutorDelegate consumer) {
         return (prefix, executor, summaries) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
@@ -357,9 +357,4 @@ public class BuildExecutor {
         }
     }
 
-    @FunctionalInterface
-    public interface IOConsumer {
-
-        void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException;
-    }
 }
