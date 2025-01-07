@@ -177,10 +177,12 @@ public class BuildExecutor {
         return (prefix, executor, summaries) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
+                SequencedMap<String, StepSummary> translated = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     folders.put(entry.getKey(), entry.getValue().folder());
+                    translated.put("../" + entry.getKey(), entry.getValue());
                 }
-                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, summaries);
+                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, translated);
                 consumer.accept(buildExecutor, folders);
                 return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
@@ -197,7 +199,7 @@ public class BuildExecutor {
         Set<String> preliminaries = new HashSet<>();
         dependencies.forEach(dependency -> {
             if (dependency.startsWith("../")) {
-                if (!inherited.containsKey(dependency.substring(3))) {
+                if (!inherited.containsKey(dependency)) {
                     throw new IllegalArgumentException("Did not inherit: " + dependency);
                 }
             } else if (registrations.containsKey(dependency)) {
