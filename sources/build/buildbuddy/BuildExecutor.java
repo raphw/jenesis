@@ -1,6 +1,8 @@
 package build.buildbuddy;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,7 +96,7 @@ public class BuildExecutor {
     private Bound bindStep(BuildStep step) {
         return (identity, executor, summaries) -> {
             try {
-                Path previous = root.resolve(identity),
+                Path previous = root.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
                         checksum = previous.resolve("checksum"),
                         output = previous.resolve("output");
                 boolean exists = Files.exists(previous);
@@ -112,7 +114,7 @@ public class BuildExecutor {
                 if (!consistent
                         || step.isAlwaysRun()
                         || arguments.values().stream().anyMatch(BuildStepArgument::hasChanged)) {
-                    Path next = Files.createTempDirectory(identity);
+                    Path next = Files.createTempDirectory(URLEncoder.encode(identity, StandardCharsets.UTF_8));
                     return step.apply(executor,
                             new BuildStepContext(
                                     consistent ? output : null,
@@ -208,6 +210,7 @@ public class BuildExecutor {
                 if (summary == null) {
                     throw new IllegalArgumentException("Did not inherit: " + preliminary);
                 }
+                summaries.put(preliminary, summary);
             } else {
                 int index = preliminary.indexOf('/');
                 String reference = index == -1 ? preliminary : preliminary.substring(0, index);
