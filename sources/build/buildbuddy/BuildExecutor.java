@@ -194,7 +194,7 @@ public class BuildExecutor {
     }
 
     private void add(String identity, Bound bound, Set<String> preliminaries) {
-        Set<String> dependencies = new LinkedHashSet<>(), keys = new LinkedHashSet<>();
+        SequencedSet<String> dependencies = new LinkedHashSet<>(); // TODO: retain argument order
         SequencedMap<String, StepSummary> summaries = new LinkedHashMap<>();
         preliminaries.forEach(preliminary -> {
             if (preliminary.startsWith("../")) {
@@ -203,19 +203,13 @@ public class BuildExecutor {
                     throw new IllegalArgumentException("Did not inherit: " + preliminary);
                 }
                 summaries.put(preliminary, summary);
+            } else if (registrations.containsKey(preliminary)) {
+                dependencies.add(preliminary);
             } else {
-                int index = preliminary.indexOf('/');
-                String reference = index == -1 ? preliminary : preliminary.substring(0, index);
-                if (!registrations.containsKey(reference)) {
-                    throw new IllegalArgumentException("Did not find dependency: " + reference);
-                }
-                dependencies.add(reference);
-                keys.add(preliminary);
+                throw new IllegalArgumentException("Did not find dependency: " + preliminary);
             }
         });
-        if (registrations.putIfAbsent(
-                validated(identity), 
-                new Registration(bound, dependencies, keys, summaries)) != null) {
+        if (registrations.putIfAbsent(validated(identity), new Registration(bound, dependencies, summaries)) != null) {
             throw new IllegalArgumentException("Step already registered: " + identity);
         }
     }
@@ -225,10 +219,7 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        registrations.replace(identity, new Registration(bound, 
-                registration.dependencies(),
-                registration.keys(),
-                registration.summaries()));
+        registrations.replace(identity, new Registration(bound, registration.dependencies(), registration.summaries()));
     }
 
     private void prepend(String identity, String prepended, Bound bound) {
@@ -238,14 +229,10 @@ public class BuildExecutor {
         }
         if (registrations.putIfAbsent(validated(prepended), new Registration(bound,
                 registration.dependencies(),
-                registration.keys(),
                 registration.summaries())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.bound(),
-                Set.of(prepended),
-                Set.of(prepended),
-                Map.of()));
+        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended), Map.of()));
     }
 
     private void append(String identity, String appended, Bound bound) {
@@ -256,7 +243,7 @@ public class BuildExecutor {
         if (registrations.putIfAbsent(validated(appended), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(identity, new Registration(bound, Set.of(appended), Set.of(appended), Map.of()));
+        registrations.replace(identity, new Registration(bound, Set.of(appended), Map.of()));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
@@ -291,11 +278,7 @@ public class BuildExecutor {
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
                         SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(entry.getValue().summaries());
-                        summaries.forEach((identity, summary) -> {
-                            if (entry.getValue().keys().contains(identity)) {
-                                merged.put(identity, summary);
-                            }
-                        });
+                        merged.putAll(summaries);
                         return entry.getValue().bound().apply(entry.getKey(), executor, merged);
                     }, executor));
                     it.remove();
@@ -329,8 +312,7 @@ public class BuildExecutor {
     }
 
     private record Registration(Bound bound, 
-                                Set<String> dependencies, 
-                                Set<String> keys, 
+                                Set<String> dependencies,
                                 Map<String, StepSummary> summaries) {
     }
 
