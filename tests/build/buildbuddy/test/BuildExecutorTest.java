@@ -373,6 +373,29 @@ public class BuildExecutorTest {
     }
 
     @Test
+    public void propagates_nested_error() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.add("step", (buildExecutor, paths) -> {
+            assertThat(paths).containsOnlyKeys("source");
+            assertThat(paths.get("source")).isEqualTo(source);
+            buildExecutor.addStep("step1", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("../source");
+                assertThat(arguments.get("../source").folder()).isEqualTo(source);
+                assertThat(arguments.get("../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                throw new RuntimeException("baz");
+            }, "../source");
+        }, "source");
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
+                .hasMessageContaining("baz")
+                .hasCauseInstanceOf(RuntimeException.class);
+        assertThat(root.resolve("step").resolve("step1").resolve("output")).doesNotExist();
+    }
+
+    @Test
     public void can_execute_nested_parent_child_reference() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
