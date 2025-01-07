@@ -1,6 +1,7 @@
 package build.buildbuddy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,6 +25,13 @@ public interface Repository {
         return (executor, coordinate) -> {
             Path file = coordinates.get(coordinate);
             return file == null ? fetch(executor, coordinate) : Optional.of(RepositoryItem.ofFile(file));
+        };
+    }
+
+    static Repository ofUris(Map<String, URI> uris) {
+        return (_, coordinate) -> {
+            URI uri = uris.get(coordinate);
+            return uri == null ? Optional.empty() : Optional.of(() -> uri.toURL().openStream());
         };
     }
 
