@@ -265,8 +265,8 @@ public class BuildExecutor {
 
     private CompletionStage<Map<String, StepSummary>> execute(Executor executor, Map<String, StepSummary> x) {
         CompletionStage<Map<String, StepSummary>> initial = CompletableFuture.completedStage(Map.of());
-        Map<String, Registration> pending = new LinkedHashMap<>(registrations);
-        Map<String, CompletionStage<Map<String, StepSummary>>> dispatched = new LinkedHashMap<>();
+        SequencedMap<String, Registration> pending = new LinkedHashMap<>(registrations);
+        SequencedMap<String, CompletionStage<Map<String, StepSummary>>> dispatched = new LinkedHashMap<>();
         while (!pending.isEmpty()) {
             Iterator<Map.Entry<String, Registration>> it = pending.entrySet().iterator();
             while (it.hasNext()) {
@@ -284,7 +284,7 @@ public class BuildExecutor {
                         }
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
-                        Map<String, StepSummary> merged = new LinkedHashMap<>(entry.getValue().summaries());
+                        SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(entry.getValue().summaries());
                         merged.putAll(summaries);
                         return entry.getValue().bound().apply(entry.getKey(), executor, merged);
                     }, executor));
