@@ -396,6 +396,24 @@ public class BuildExecutorTest {
     }
 
     @Test
+    public void can_detect_nested_missing_reference() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.add("step", (buildExecutor, paths) -> {
+            assertThat(paths).containsOnlyKeys("source");
+            assertThat(paths.get("source")).isEqualTo(source);
+            buildExecutor.addStep("step1", (_, _, _) -> {
+                throw new AssertionError();
+            }, "../missing");
+        }, "source");
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
+                .hasMessageContaining("Did not inherit: ../missing")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThat(root.resolve("step").resolve("step1").resolve("output")).doesNotExist();
+    }
+
+    @Test
     public void can_execute_nested_parent_child_reference() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
@@ -404,8 +422,8 @@ public class BuildExecutorTest {
             buildExecutor.addSource("source1", source);
         });
         buildExecutor.add("step", (buildExecutor, paths) -> {
-            assertThat(paths).containsOnlyKeys("source/inner");
-            assertThat(paths.get("source/inner")).isEqualTo(source);
+            assertThat(paths).containsOnlyKeys("source/source1");
+            assertThat(paths.get("source/source1")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
@@ -414,7 +432,7 @@ public class BuildExecutorTest {
                 assertThat(arguments.get("../source/source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
-                        Files.readString(arguments.get("../source/inner").folder().resolve("file")) + "bar");
+                        Files.readString(arguments.get("../source/source1").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "../source/source1");
             buildExecutor.addStep("step2", (_, context, arguments) -> {
@@ -430,7 +448,7 @@ public class BuildExecutorTest {
             }, "step1");
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("source/inner", "step/step1", "step/step2");
+        assertThat(build).containsOnlyKeys("source/source1", "step/step1", "step/step2");
         assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
                 .content()
                 .isEqualTo("foobarqux");
