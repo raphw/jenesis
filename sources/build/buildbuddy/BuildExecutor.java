@@ -350,6 +350,6 @@ public class BuildExecutor {
     @FunctionalInterface
     public interface IOConsumer {
 
-        void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> paths) throws IOException;
+        void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException;
     }
 }
