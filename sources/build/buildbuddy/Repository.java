@@ -1,12 +1,16 @@
 package build.buildbuddy;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 
 @FunctionalInterface
@@ -18,6 +22,32 @@ public interface Repository {
         return (executor, coordinate) -> {
             Optional<RepositoryItem> candidate = fetch(executor, coordinate);
             return candidate.isPresent() ? candidate : repository.fetch(executor, coordinate);
+        };
+    }
+
+    default Repository cached(Path folder) {
+        ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
+        return (executor, coordinate) -> {
+            Path previous = cache.get(coordinate);
+            if (previous != null) {
+                return Optional.of(RepositoryItem.ofFile(previous));
+            }
+            RepositoryItem item = Repository.this.fetch(executor, coordinate).orElse(null);
+            if (item == null) {
+                return Optional.empty();
+            } else {
+                Path file = item.getFile().orElse(null), target = folder.resolve(coordinate.replace('/', '-'));
+                if (file != null) {
+                    Files.createLink(target, file);
+                } else {
+                    try (InputStream inputStream = item.toInputStream();
+                         OutputStream outputStream = Files.newOutputStream(target)) {
+                        inputStream.transferTo(outputStream);
+                    }
+                }
+                Path concurrent = cache.putIfAbsent(coordinate, target);
+                return Optional.of(RepositoryItem.ofFile(concurrent == null ? target : concurrent));
+            }
         };
     }
 
