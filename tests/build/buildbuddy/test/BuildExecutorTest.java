@@ -373,6 +373,32 @@ public class BuildExecutorTest {
     }
 
     @Test
+    public void can_execute_child_reference() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.add("source", (buildExecutor, inherited) -> {
+            assertThat(inherited).isEmpty();
+            buildExecutor.addSource("source1", source);
+        });
+        buildExecutor.addStep("step", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("source/source1");
+            assertThat(arguments.get("source/source1").folder()).isEqualTo(source);
+            assertThat(arguments.get("source/source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("step1").folder().resolve("file")) + "bar");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source/source1");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source/source1", "step");
+        assertThat(root.resolve("step").resolve("output").resolve("file"))
+                .content()
+                .isEqualTo("foobar");
+    }
+
+    @Test
     public void propagates_nested_error() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
