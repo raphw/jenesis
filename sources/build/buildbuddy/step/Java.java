@@ -5,7 +5,10 @@ import build.buildbuddy.BuildStepContext;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +66,7 @@ public abstract class Java implements ProcessBuildStep {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.isDirectory(candidate)) {
                     if (modular && Files.exists(candidate.resolve("module-info.class"))) {
-                        classPath.add(candidate.toString());
+                        modulePath.add(candidate.toString());
                     } else {
                         classPath.add(candidate.toString());
                     }
@@ -71,7 +74,13 @@ public abstract class Java implements ProcessBuildStep {
             }
             Path candidate = argument.folder().resolve(ARTIFACTS);
             if (Files.exists(candidate)) {
-                Files.walkFileTree(candidate, new FileAddingVisitor(modular ? modulePath : classPath));
+                Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        (modular ? modulePath : classPath).add(file.toString());
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
             }
         }
         List<String> prefixes = new ArrayList<>();
@@ -97,20 +106,5 @@ public abstract class Java implements ProcessBuildStep {
         return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
                 .redirectOutput(context.supplement().resolve("output").toFile())
                 .redirectError(context.supplement().resolve("error").toFile());
-    }
-
-    private static class FileAddingVisitor extends SimpleFileVisitor<Path> {
-
-        private final List<String> target;
-
-        private FileAddingVisitor(List<String> target) {
-            this.target = target;
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs){
-            target.add(file.toString());
-            return FileVisitResult.CONTINUE;
-        }
     }
 }

@@ -61,7 +61,6 @@ public class JUnit4 extends Java {
                             if (isTest.test(className)) {
                                 commands.add(className);
                             }
-
                         }
                         return FileVisitResult.CONTINUE;
                     }

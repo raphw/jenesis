@@ -56,7 +56,7 @@ public class Group implements BuildStep {
                     .flatMap(value -> link.getOrDefault(value, Set.of()).stream())
                     .flatMap(value -> to.getOrDefault(value, Set.of()).stream())
                     .forEach(value -> properties.setProperty(value, ""));
-            try (Writer writer = Files.newBufferedWriter(folder.resolve(name + ".properties"))) {
+            try (Writer writer = Files.newBufferedWriter(folder.resolve(name.replace('/', '.') + ".properties"))) {
                 properties.store(writer, null);
             }
         }

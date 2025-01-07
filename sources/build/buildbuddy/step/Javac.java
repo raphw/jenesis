@@ -16,6 +16,7 @@ import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 public class Javac implements ProcessBuildStep {
 
@@ -36,9 +37,10 @@ public class Javac implements ProcessBuildStep {
                                                    BuildStepContext context,
                                                    SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
+        Path target = Files.createDirectory(context.next().resolve(CLASSES));
         List<String> files = new ArrayList<>(), classPath = new ArrayList<>(), commands = new ArrayList<>(List.of(javac,
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
-                "-d", Files.createDirectory(context.next().resolve(CLASSES)).toString()));
+                "-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(Bind.SOURCES),
                     classes = argument.folder().resolve(CLASSES),
@@ -47,10 +49,33 @@ public class Javac implements ProcessBuildStep {
                 classPath.add(classes.toString());
             }
             if (Files.exists(artifacts)) {
-                Files.walkFileTree(artifacts, new FileExtensionAddingVisitor(classPath, ".jar"));
+                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        classPath.add(file.toString());
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
             }
             if (Files.exists(sources)) {
-                Files.walkFileTree(sources, new FileExtensionAddingVisitor(files, ".java"));
+                Files.walkFileTree(sources, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                        Files.createDirectories(target.resolve(sources.relativize(dir)));
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        String name = file.toString();
+                        if (name.endsWith(".java")) {
+                            files.add(name);
+                        } else {
+                            Files.createLink(target.resolve(sources.relativize(file)), file);
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
             }
         }
         if (!classPath.isEmpty()) {
@@ -59,24 +84,5 @@ public class Javac implements ProcessBuildStep {
         }
         commands.addAll(files);
         return CompletableFuture.completedStage(new ProcessBuilder(commands));
-    }
-
-    private static class FileExtensionAddingVisitor extends SimpleFileVisitor<Path> {
-
-        private final List<String> target;
-        private final String extension;
-
-        private FileExtensionAddingVisitor(List<String> target, String extension) {
-            this.target = target;
-            this.extension = extension;
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-            if (file.getFileName().toString().endsWith(extension)) {
-                target.add(file.toString());
-            }
-            return FileVisitResult.CONTINUE;
-        }
     }
 }

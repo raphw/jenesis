@@ -55,32 +55,22 @@ public class Bind implements BuildStep {
                     if (!Objects.equals(target.getParent(), context.next())) {
                         Files.createDirectories(target.getParent());
                     }
-                    Files.walkFileTree(source, new LinkingFileVisitor(source, target));
+                    Files.walkFileTree(source, new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                            Files.createDirectories(target.resolve(source.relativize(dir)));
+                            return FileVisitResult.CONTINUE;
+                        }
+
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                            Files.createLink(target.resolve(source.relativize(file)), file);
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
                 }
             }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
-    }
-
-    public static class LinkingFileVisitor extends SimpleFileVisitor<Path> {
-
-        private final Path source, target;
-
-        public LinkingFileVisitor(Path source, Path target) {
-            this.source = source;
-            this.target = target;
-        }
-
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-            Files.createDirectories(target.resolve(source.relativize(dir)));
-            return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-            Files.createLink(target.resolve(source.relativize(file)), file);
-            return FileVisitResult.CONTINUE;
-        }
     }
 }
