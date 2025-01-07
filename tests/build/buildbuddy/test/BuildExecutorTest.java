@@ -335,4 +335,67 @@ public class BuildExecutorTest {
         assertThat(result).isRegularFile();
         assertThat(result).content().isEqualTo("foo");
     }
+
+    @Test
+    public void can_replace_step() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("sample"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", (_, _, _) -> {
+            throw new AssertionError();
+        }, "source");
+        buildExecutor.replaceStep("step", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("source");
+            assertThat(arguments.get("source").folder()).isEqualTo(source);
+            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step");
+        Path result = root.resolve("step").resolve("output").resolve("result");
+        assertThat(result).isRegularFile();
+        assertThat(result).content().isEqualTo("foo");
+    }
+
+    @Test
+    public void can_append_step() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("sample"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step1", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("source");
+            assertThat(arguments.get("source").folder()).isEqualTo(source);
+            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("sample"), ChecksumStatus.ADDED));
+            Files.copy(arguments.get("source").folder().resolve("sample"), context.next().resolve("result"));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        buildExecutor.addStep("step3", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("step2");
+            assertThat(arguments.get("step2").folder()).isEqualTo(root.resolve("step1").resolve("output"));
+            assertThat(arguments.get("step2").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
+            Files.copy(arguments.get("step2").folder().resolve("result"), context.next().resolve("intermediate"));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "step1");
+        buildExecutor.appendStep("step2", "step1", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("step1");
+            assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
+            assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("result"), ChecksumStatus.ADDED));
+            Files.copy(arguments.get("step1").folder().resolve("result"), context.next().resolve("final"));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step1", "step2", "step3");
+        Path result = root.resolve("step2").resolve("output").resolve("final");
+        assertThat(result).isRegularFile();
+        assertThat(result).content().isEqualTo("foo");
+    }
 }

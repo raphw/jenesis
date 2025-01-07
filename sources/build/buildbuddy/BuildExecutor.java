@@ -11,7 +11,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,17 +34,15 @@ public class BuildExecutor {
     }
 
     public void addSource(String identity, Path path) {
-        add(identity, wrapSource(identity, path), Set.of());
+        add(identity, bindSource(path), Set.of());
     }
 
     public void replaceSource(String identity, Path path) {
-        replace(identity, wrapSource(identity, path));
+        replace(identity, bindSource(path));
     }
 
-    private BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> wrapSource(
-            String identity,
-            Path path) {
-        return (executor, _) -> {
+    private Bound bindSource(Path path) {
+        return (identity, executor, _) -> {
             CompletableFuture<Map<String, StepSummary>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
@@ -63,7 +60,7 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, SequencedSet<String> dependencies) {
-        add(identity, wrapStep(identity, step), dependencies);
+        add(identity, bindStep(step), dependencies);
     }
 
     public void addStepAtEnd(String identity, BuildStep step) {
@@ -71,25 +68,23 @@ public class BuildExecutor {
     }
 
     private void addStep(String identity, BuildStep step, Set<String> dependencies) {
-        add(identity, wrapStep(identity, step), dependencies);
+        add(identity, bindStep(step), dependencies);
     }
 
     public void replaceStep(String identity, BuildStep step) {
-        replace(identity, wrapStep(identity, step));
+        replace(identity, bindStep(step));
     }
 
     public void prependStep(String identity, String prepended, BuildStep step) {
-        prepend(identity, prepended, wrapStep(identity, step));
+        prepend(identity, prepended, bindStep(step));
     }
 
-    public void appendStep(String identity, String appended, BuildStep step) {
-        append(identity, appended, wrapStep(identity, step));
+    public void appendStep(String identity, String target, BuildStep step) {
+        append(identity, target, bindStep(step));
     }
 
-    private BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> wrapStep(String identity, BuildStep step) {
-        return (executor, summaries) -> {
+    private Bound bindStep(BuildStep step) {
+        return (identity, executor, summaries) -> {
             try {
                 Path previous = root.resolve(identity),
                         checksum = previous.resolve("checksum"),
@@ -153,33 +148,31 @@ public class BuildExecutor {
     }
 
     public void add(String identity, IOConsumer consumer, String... dependencies) {
-        add(identity, wrapConsumer(identity, consumer), Set.of(dependencies));
+        add(identity, bindConsumer(consumer), Set.of(dependencies));
     }
 
     public void add(String identity, IOConsumer consumer, SequencedSet<String> dependencies) {
-        add(identity, wrapConsumer(identity, consumer), dependencies);
+        add(identity, bindConsumer(consumer), dependencies);
     }
 
     public void addAtEnd(String identity, IOConsumer consumer) {
-        add(identity, wrapConsumer(identity, consumer), new LinkedHashSet<>(registrations.keySet()));
+        add(identity, bindConsumer(consumer), new LinkedHashSet<>(registrations.keySet()));
     }
 
     public void replace(String identity, IOConsumer consumer) {
-        replace(identity, wrapConsumer(identity, consumer));
+        replace(identity, bindConsumer(consumer));
     }
 
     public void prepend(String identity, String prepended, IOConsumer consumer) {
-        prepend(identity, prepended, wrapConsumer(identity, consumer));
+        prepend(identity, prepended, bindConsumer(consumer));
     }
 
-    public void append(String identity, String appended, IOConsumer consumer) {
-        append(identity, appended, wrapConsumer(identity, consumer));
+    public void append(String identity, String target, IOConsumer consumer) {
+        append(identity, target, bindConsumer(consumer));
     }
 
-    private BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> wrapConsumer(String prefix, IOConsumer consumer) {
-        return (executor, summaries) -> {
+    private Bound bindConsumer(IOConsumer consumer) {
+        return (prefix, executor, summaries) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
@@ -198,54 +191,46 @@ public class BuildExecutor {
         };
     }
 
-    private void add(String identity,
-                     BiFunction<Executor, Map<String, StepSummary>, CompletionStage<Map<String, StepSummary>>> step,
-                     Set<String> dependencies) {
+    private void add(String identity, Bound bound, Set<String> dependencies) {
         if (!registrations.keySet().containsAll(dependencies)) {
             throw new IllegalArgumentException("Unknown dependencies: " + dependencies.stream()
                     .filter(dependency -> !registrations.containsKey(dependency))
                     .distinct()
                     .toList());
         }
-        if (registrations.putIfAbsent(validated(identity), new Registration(step, dependencies)) != null) {
+        if (registrations.putIfAbsent(validated(identity), new Registration(bound, dependencies)) != null) {
             throw new IllegalArgumentException("Step already registered: " + identity);
         }
     }
 
-    private void replace(String identity, BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> step) {
+    private void replace(String identity, Bound bound) {
         Registration registration = registrations.get(identity);
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        registrations.replace(identity, new Registration(step, registration.dependencies()));
+        registrations.replace(identity, new Registration(bound, registration.dependencies()));
     }
 
-    private void prepend(String identity, String prepended, BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> step) {
+    private void prepend(String identity, String prepended, Bound bound) {
         Registration registration = registrations.get(identity);
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        if (registrations.putIfAbsent(validated(prepended), new Registration(step, registration.dependencies())) != null) {
+        if (registrations.putIfAbsent(validated(prepended), new Registration(bound, registration.dependencies())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.step(), Set.of(prepended)));
+        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended)));
     }
 
-    private void append(String identity, String appended, BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> step) {
-        Registration registration = registrations.get(identity);
+    private void append(String identity, String target, Bound bound) {
+        Registration registration = registrations.get(target);
         if (registration == null) {
-            throw new IllegalArgumentException("Unknown step: " + identity);
+            throw new IllegalArgumentException("Unknown step: " + target);
         }
-        if (registrations.putIfAbsent(validated(appended), registration) != null) {
-            throw new IllegalArgumentException("Step already registered: " + appended);
+        if (registrations.putIfAbsent(validated(identity), registration) != null) {
+            throw new IllegalArgumentException("Step already registered: " + identity);
         }
-        registrations.replace(identity, new Registration(step, Set.of(appended)));
+        registrations.replace(target, new Registration(bound, Set.of(identity)));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
@@ -279,7 +264,7 @@ public class BuildExecutor {
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
                         Map<String, StepSummary> merged = new LinkedHashMap<>(initials);
                         merged.putAll(summaries);
-                        return entry.getValue().step().apply(executor, merged);
+                        return entry.getValue().bound().apply(entry.getKey(), executor, merged);
                     }, executor));
                     it.remove();
                 }
@@ -303,9 +288,15 @@ public class BuildExecutor {
         throw new IllegalArgumentException("Identity '" + identity + "' does not match pattern: " + VALIDATE.pattern());
     }
 
-    private record Registration(BiFunction<Executor,
-            Map<String, StepSummary>,
-            CompletionStage<Map<String, StepSummary>>> step, Set<String> dependencies) {
+    @FunctionalInterface
+    private interface Bound {
+
+        CompletionStage<Map<String, StepSummary>> apply(String identity,
+                                                        Executor executor,
+                                                        Map<String, StepSummary> summaries);
+    }
+
+    private record Registration(Bound bound, Set<String> dependencies) {
     }
 
     private record StepSummary(Path folder, Map<Path, byte[]> checksums) {
