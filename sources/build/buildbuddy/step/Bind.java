@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.SequencedMap;
@@ -41,12 +40,6 @@ public class Bind implements BuildStep {
 
     public static Bind asDependencies(String name) {
         return new Bind(Map.of(Path.of(name), Path.of(DEPENDENCIES)));
-    }
-
-    public Bind with(Bind bind) {
-        Map<Path, Path> paths = new HashMap<>(this.paths);
-        paths.putAll(bind.paths);
-        return new Bind(paths);
     }
 
     @Override

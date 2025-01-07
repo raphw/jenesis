@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 public class BuildExecutor {
 
-    private static final Pattern VALIDATE = Pattern.compile("[a-zA-Z0-9]+");
+    private static final Pattern VALIDATE = Pattern.compile("[a-zA-Z0-9-]+");
 
     private final Path root;
     private final HashFunction hash;

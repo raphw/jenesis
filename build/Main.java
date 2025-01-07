@@ -39,23 +39,21 @@ public class Main {
         root.add("main", (module, _) -> {
             module.addSource("sources", Path.of("sources"));
             module.addStep("bound", Bind.asSources(), "sources");
-            module.addStep("javac", new Javac(), "bound", "main-deps/downloaded");
+            module.addStep("javac", new Javac(), "bound", "../main-deps/artifacts");
             module.addStep("jar", new Jar(), "javac");
         }, "main-deps");
         root.add("test-deps", (module, _) -> {
             module.addSource("sources", Path.of("dependencies"));
-            module.addStep("bound",
-                    Bind.asDependencies("test.properties").with(Bind.asDependencies("main.properties")),
-                    "sources");
+            module.addStep("bound", Bind.asDependencies("test.properties"), "sources");
             module.addStep("resolved", new Resolve(resolvers), "bound");
             module.addStep("artifacts", new Download(repositories), "resolved");
         });
         root.add("test", (module, _) -> {
             module.addSource("sources", Path.of("tests"));
             module.addStep("bound", Bind.asSources(), "sources");
-            module.addStep("javac", new Javac(), "bound", "../main/jar", "tests-deps/artifacts");
-            module.addStep("jar", new Jar(), "javac", "dependencies/download");
-            module.addStep("junit", new JUnit4(), "jar", "../main/jar", "tests-deps/artifacts");
+            module.addStep("javac", new Javac(), "bound", "../main/jar", "../test-deps/artifacts");
+            module.addStep("jar", new Jar(), "javac", "../test-deps/artifacts");
+            module.addStep("junit", new JUnit4(), "jar", "../main/jar", "../test-deps/artifacts");
         }, "test-deps", "main");
         Map<String, Path> steps;
         try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
