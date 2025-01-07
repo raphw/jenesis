@@ -1,6 +1,6 @@
-package build.buildbuddy.module;
+package build.buildbuddy.maven;
 
-import build.buildbuddy.RootFinder;
+import build.buildbuddy.Finder;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -11,7 +11,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedHashSet;
 import java.util.SequencedSet;
 
-public class ModuleRootFinder implements RootFinder {
+public class MavenPomFinder implements Finder {
 
     @Override
     public SequencedSet<Path> search(Path root) throws IOException {
@@ -19,7 +19,7 @@ public class ModuleRootFinder implements RootFinder {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                if (file.getFileName().toString().equals("module-info.java")) {
+                if (file.getFileName().toString().equals("pom.xml")) {
                     modules.add(file.getParent());
                 }
                 return FileVisitResult.CONTINUE;

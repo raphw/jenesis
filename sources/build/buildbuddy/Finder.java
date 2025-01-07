@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import java.util.SequencedSet;
 
 @FunctionalInterface
-public interface RootFinder {
+public interface Finder {
 
     SequencedSet<Path> search(Path root) throws IOException;
 }
