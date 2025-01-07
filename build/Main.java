@@ -32,14 +32,14 @@ public class Main {
             module.addStep("jar", new Jar(), "javac");
         });
         root.add("tests", (module, _) -> {
-            module.addSource("source", Path.of("tests"));
-            module.addStep("bound", Bind.asSources(), "source");
             module.add("dependencies", (dependencies, _) -> {
                 dependencies.addSource("properties", Path.of("dependencies", "test"));
                 dependencies.addStep("bound", Bind.asDependencies(), "properties");
                 dependencies.addStep("resolved", new Resolve(resolvers), "bound");
                 dependencies.addStep("downloaded", new Download(repositories), "resolved");
             });
+            module.addSource("source", Path.of("tests"));
+            module.addStep("bound", Bind.asSources(), "source");
             module.addStep("javac", new Javac(), "bound", "../sources/jar", "dependencies/downloaded");
             module.addStep("jar", new Jar(), "javac", "dependencies/download");
             module.addStep("junit", new JUnit4(), "jar", "../sources/jar", "dependencies/downloaded");

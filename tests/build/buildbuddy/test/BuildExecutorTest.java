@@ -308,20 +308,18 @@ public class BuildExecutorTest {
             buildExecutor.addStep("step1", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
-                assertThat(arguments).containsOnlyKeys("source");
-                assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(arguments).containsOnlyKeys("../source");
+                assertThat(arguments.get("../source").folder()).isEqualTo(source);
+                assertThat(arguments.get("../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
-                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                        Files.readString(arguments.get("../source").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
-            });
+            }, "../source");
             buildExecutor.addStep("step2", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
-                assertThat(arguments).containsOnlyKeys("step1", "source");
-                assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(arguments).containsOnlyKeys("step1");
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
                 assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
