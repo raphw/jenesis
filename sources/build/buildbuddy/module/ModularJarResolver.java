@@ -31,7 +31,7 @@ public class ModularJarResolver implements Resolver {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> dependencies.put(coordinate, ""));
         Queue<String> queue = new ArrayDeque<>(coordinates);
-        while (!queue.isEmpty()) {
+        while (!queue.isEmpty()) { // TODO: consider multi-release-jars better?
             String current = queue.remove();
             RepositoryItem item = repository.fetch(
                     executor,
@@ -67,10 +67,12 @@ public class ModularJarResolver implements Resolver {
     private static ModuleDescriptor toDescriptor(ZipInputStream inputStream, String module) throws IOException {
         ZipEntry entry;
         while ((entry = inputStream.getNextEntry()) != null) {
-            if (entry.getName().equals("module-info.class")) { // TODO: MR-JARs? Better API in JDK to do this?
+            if (entry.getName().equals("module-info.class")
+                    || entry.getName().startsWith("META-INF/versions/")
+                    && entry.getName().endsWith("module-info.class")) {
                 return ModuleDescriptor.read(inputStream);
             }
         }
-        throw new IllegalArgumentException("No module-info.class found for " + module);
+        return ModuleDescriptor.newAutomaticModule(module).build();
     }
 }
