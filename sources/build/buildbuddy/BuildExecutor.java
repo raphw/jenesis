@@ -63,20 +63,20 @@ public class BuildExecutor {
         };
     }
 
-    public void addStep(String identity, BuildStep step, String... dependencies) {
-        addStep(identity, step, Set.of(dependencies));
+    public void addStep(String identity, BuildStep step, String... preliminaries) {
+        addStep(identity, step, Set.of(preliminaries));
     }
 
-    public void addStep(String identity, BuildStep step, SequencedSet<String> dependencies) {
-        add(identity, bindStep(step), dependencies);
+    public void addStep(String identity, BuildStep step, SequencedSet<String> preliminaries) {
+        add(identity, bindStep(step), preliminaries);
     }
 
     public void addStepAtEnd(String identity, BuildStep step) {
         addStep(identity, step, new LinkedHashSet<>(registrations.keySet()));
     }
 
-    private void addStep(String identity, BuildStep step, Set<String> dependencies) {
-        add(identity, bindStep(step), dependencies);
+    private void addStep(String identity, BuildStep step, Set<String> preliminaries) {
+        add(identity, bindStep(step), preliminaries);
     }
 
     public void replaceStep(String identity, BuildStep step) {
@@ -155,12 +155,12 @@ public class BuildExecutor {
         };
     }
 
-    public void add(String identity, IOConsumer consumer, String... dependencies) {
-        add(identity, bindConsumer(consumer), Set.of(dependencies));
+    public void add(String identity, IOConsumer consumer, String... preliminaries) {
+        add(identity, bindConsumer(consumer), Set.of(preliminaries));
     }
 
-    public void add(String identity, IOConsumer consumer, SequencedSet<String> dependencies) {
-        add(identity, bindConsumer(consumer), dependencies);
+    public void add(String identity, IOConsumer consumer, SequencedSet<String> preliminaries) {
+        add(identity, bindConsumer(consumer), preliminaries);
     }
 
     public void addAtEnd(String identity, IOConsumer consumer) {
