@@ -1,5 +1,9 @@
 package build;
 
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.Repository;
+import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
 import build.buildbuddy.maven.MavenPomResolver;
