@@ -401,14 +401,13 @@ public class BuildExecutorTest {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.add("step", (buildExecutor, paths) -> {
-            assertThat(paths).containsOnlyKeys("source");
-            assertThat(paths.get("source")).isEqualTo(source);
+            assertThat(paths).isEmpty();
             buildExecutor.addStep("step1", (_, _, _) -> {
                 throw new AssertionError();
-            }, "../missing");
-        }, "source");
+            }, "../source");
+        });
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasMessageContaining("Did not inherit: ../missing")
+                .hasMessageContaining("Did not inherit: ../source")
                 .hasCauseInstanceOf(IllegalArgumentException.class);
         assertThat(root.resolve("step").resolve("step1").resolve("output")).doesNotExist();
     }
