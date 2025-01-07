@@ -60,7 +60,7 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, String... preliminaries) {
-        addStep(identity, step, Set.of(preliminaries));
+        add(identity, bindStep(step), Set.of(preliminaries));
     }
 
     public void addStep(String identity, BuildStep step, SequencedSet<String> preliminaries) {
@@ -69,10 +69,6 @@ public class BuildExecutor {
 
     public void addStepAtEnd(String identity, BuildStep step) {
         addStep(identity, step, new LinkedHashSet<>(registrations.keySet()));
-    }
-
-    private void addStep(String identity, BuildStep step, Set<String> preliminaries) {
-        add(identity, bindStep(step), preliminaries);
     }
 
     public void replaceStep(String identity, BuildStep step) {
