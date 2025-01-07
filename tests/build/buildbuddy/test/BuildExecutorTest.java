@@ -405,7 +405,7 @@ public class BuildExecutorTest {
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "step1");
-        }, "source/inner");
+        }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source/inner", "step/step1", "step/step2");
         assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
