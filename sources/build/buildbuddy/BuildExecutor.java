@@ -79,7 +79,7 @@ public class BuildExecutor {
         prepend(identity, prepended, bindStep(step));
     }
 
-    public void appendStep(String identity, String target, BuildStep step) {
+    public void appendedStep(String identity, String target, BuildStep step) {
         append(identity, target, bindStep(step));
     }
 
