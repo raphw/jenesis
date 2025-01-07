@@ -388,7 +388,7 @@ public class BuildExecutorTest {
             assertThat(arguments.get("source/source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
-                    Files.readString(arguments.get("step1").folder().resolve("file")) + "bar");
+                    Files.readString(arguments.get("source/source1").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "source/source1");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();

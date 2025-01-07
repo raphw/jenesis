@@ -242,9 +242,9 @@ public class BuildExecutor {
                 registration.summaries())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.bound(), 
-                Set.of(prepended), 
-                Set.of(prepended), 
+        registrations.replace(identity, new Registration(registration.bound(),
+                Set.of(prepended),
+                Set.of(prepended),
                 Map.of()));
     }
 
@@ -256,10 +256,7 @@ public class BuildExecutor {
         if (registrations.putIfAbsent(validated(appended), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(identity, new Registration(bound, 
-                Set.of(appended), 
-                Set.of(appended), 
-                Map.of()));
+        registrations.replace(identity, new Registration(bound, Set.of(appended), Set.of(appended), Map.of()));
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
