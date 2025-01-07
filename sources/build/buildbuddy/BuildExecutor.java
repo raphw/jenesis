@@ -278,7 +278,12 @@ public class BuildExecutor {
                                 executor);
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
-                        SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(inherited);
+                        SequencedMap<String, StepSummary> merged = new LinkedHashMap<>();
+                        inherited.forEach((identity, summary) -> {
+                            if (entry.getValue().dependencies().contains(identity)) {
+                                merged.put(identity, summary);
+                            }
+                        });
                         merged.putAll(summaries);
                         return entry.getValue().bound().apply(entry.getKey(), executor, merged);
                     }, executor));
