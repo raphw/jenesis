@@ -177,12 +177,12 @@ public class BuildExecutor {
         return (prefix, executor, summaries) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
-                SequencedMap<String, StepSummary> translated = new LinkedHashMap<>();
+                SequencedMap<String, StepSummary> inherited = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     folders.put(entry.getKey(), entry.getValue().folder());
-                    translated.put("../" + entry.getKey(), entry.getValue());
+                    inherited.put("../" + entry.getKey(), entry.getValue());
                 }
-                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, translated);
+                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, inherited);
                 consumer.accept(buildExecutor, folders);
                 return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
