@@ -5,6 +5,8 @@ import build.buildbuddy.*;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -56,7 +58,9 @@ public class Group implements BuildStep {
                     .flatMap(value -> link.getOrDefault(value, Set.of()).stream())
                     .flatMap(value -> to.getOrDefault(value, Set.of()).stream())
                     .forEach(value -> properties.setProperty(value, ""));
-            try (Writer writer = Files.newBufferedWriter(folder.resolve(name.replace('/', '.') + ".properties"))) {
+            try (Writer writer = Files.newBufferedWriter(folder.resolve(URLEncoder.encode(
+                    name,
+                    StandardCharsets.UTF_8) + ".properties"))) {
                 properties.store(writer, null);
             }
         }
