@@ -18,11 +18,11 @@ public class MavenPomEmitter {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
 
-    private final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    private final DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
     private final TransformerFactory transformerFactory = TransformerFactory.newInstance();
 
     public MavenPomEmitter() {
-        factory.setNamespaceAware(true);
+        documentBuilderFactory.setNamespaceAware(true);
     }
 
     public IOConsumer emit(String groupId,
@@ -32,7 +32,7 @@ public class MavenPomEmitter {
                            List<MavenDependency> dependencies) {
         Document document;
         try {
-            document = factory.newDocumentBuilder().newDocument();
+            document = documentBuilderFactory.newDocumentBuilder().newDocument();
         } catch (ParserConfigurationException e) {
             throw new IllegalStateException(e);
         }

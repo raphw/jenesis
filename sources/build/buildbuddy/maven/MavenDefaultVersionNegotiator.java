@@ -18,12 +18,12 @@ import static build.buildbuddy.maven.MavenPomResolver.toChildren;
 public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 
     private final MavenRepository repository;
-    private final DocumentBuilderFactory factory;
+    private final DocumentBuilderFactory documentBuilderFactory;
     private final Map<MavenDependencyName, Metadata> cache = new HashMap<>();
 
-    private MavenDefaultVersionNegotiator(MavenRepository repository, DocumentBuilderFactory factory) {
+    private MavenDefaultVersionNegotiator(MavenRepository repository, DocumentBuilderFactory documentBuilderFactory) {
         this.repository = repository;
-        this.factory = factory;
+        this.documentBuilderFactory = documentBuilderFactory;
     }
 
     static DocumentBuilderFactory toDocumentBuilderFactory() {
@@ -135,7 +135,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null)
                     .orElseThrow(() -> new IllegalStateException("No metadata for " + groupId + ":" + artifactId))
                     .toInputStream()) {
-                document = factory.newDocumentBuilder().parse(inputStream);
+                document = documentBuilderFactory.newDocumentBuilder().parse(inputStream);
             } catch (SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException(e);
             }
