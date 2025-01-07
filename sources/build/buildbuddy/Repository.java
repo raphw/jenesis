@@ -40,9 +40,8 @@ public interface Repository {
                 if (file != null) {
                     Files.createLink(target, file);
                 } else {
-                    try (InputStream inputStream = item.toInputStream();
-                         OutputStream outputStream = Files.newOutputStream(target)) {
-                        inputStream.transferTo(outputStream);
+                    try (InputStream inputStream = item.toInputStream()) {
+                        Files.copy(inputStream, target);
                     }
                 }
                 Path concurrent = cache.putIfAbsent(coordinate, target);
