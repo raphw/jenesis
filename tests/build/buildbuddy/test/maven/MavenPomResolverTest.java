@@ -1612,6 +1612,83 @@ public class MavenPomResolverTest {
                         new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
+    @Test
+    public void can_resolve_local_pom_parent_explicit_location() throws IOException {
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <artifactId>artifact</artifactId>
+                    <parent>
+                        <groupId>project</groupId>
+                        <artifactId>parent</artifactId>
+                        <version>1</version>
+                        <relativePath>../parent/pom.xml</relativePath>
+                    </parent>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        Files.writeString(Files.createDirectory(project.resolve("parent")).resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>parent</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>parent</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>parent</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        assertThat(pom.groupId()).isEqualTo("project");
+        assertThat(pom.artifactId()).isEqualTo("artifact");
+        assertThat(pom.version()).isEqualTo("1");
+        assertThat(pom.dependencies()).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("group", "parent", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("group", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(pom.managedDependencies()).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("other", "parent", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
