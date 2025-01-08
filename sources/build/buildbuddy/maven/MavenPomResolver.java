@@ -135,7 +135,7 @@ public class MavenPomResolver implements Resolver {
                     resolution.widestScope,
                     null,
                     null,
-                    false));
+                    null));
         });
         return results;
     }

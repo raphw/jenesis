@@ -58,7 +58,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -91,7 +91,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -125,7 +125,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -149,7 +149,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -184,7 +184,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -225,7 +225,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -293,10 +293,10 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("other", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -350,7 +350,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -394,10 +394,10 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("other", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -440,7 +440,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -478,7 +478,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -529,10 +529,10 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("other", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, null)));
     }
 
     @Test
@@ -570,7 +570,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -636,13 +636,13 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("intermediate", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("other", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -681,7 +681,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -736,7 +736,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -813,7 +813,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -873,7 +873,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -948,16 +948,16 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("deep", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("shallow", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("intermediate", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1033,16 +1033,16 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("deep", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("shallow", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("intermediate", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1131,19 +1131,19 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("deep", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("shallow", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("intermediate", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("nested", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1188,7 +1188,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("transitive", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1233,7 +1233,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("transitive", "artifact", "jar", null),
-                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1278,7 +1278,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("transitive", "artifact", "jar", null),
-                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1323,7 +1323,7 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("transitive", "artifact", "jar", null),
-                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1393,10 +1393,10 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
-                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("other", "artifact", "jar", null),
-                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     @Test
@@ -1490,10 +1490,49 @@ public class MavenPomResolverTest {
         assertThat(dependencies).containsExactly(
                 Map.entry(
                         new MavenDependencyKey("first", "artifact", "jar", null),
-                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)),
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)),
                 Map.entry(
                         new MavenDependencyKey("second", "artifact", "jar", null),
-                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_local_pom() throws IOException {
+        Files.writeString(repository.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>version</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        MavenLocalPom pom = mavenPomResolver.resolve(repository);
+        assertThat(pom.groupId()).isEqualTo("group");
+        assertThat(pom.artifactId()).isEqualTo("artifact");
+        assertThat(pom.version()).isEqualTo("version");
+        assertThat(pom.dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(pom.managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
