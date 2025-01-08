@@ -11,22 +11,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -233,45 +220,98 @@ public class MavenPomResolver implements Resolver {
         return conflicting;
     }
 
+    public MavenLocalPom resolve(Path path) throws IOException {
+        try {
+            UnresolvedPom pom = assemble(Files.newInputStream(path.resolve("pom.xml")),
+                    path,
+                    new HashSet<>(),
+                    new HashMap<>());
+            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+            SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+            pom.dependencies().forEach((key, value) -> dependencies.put(
+                    key.resolve(pom.properties()),
+                    value.resolve(pom.properties())));
+            pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
+                    key.resolve(pom.properties()),
+                    value.resolve(pom.properties())));
+            return new MavenLocalPom(property(pom.groupId(), pom.properties()),
+                    property(pom.artifactId(), pom.properties()),
+                    property(pom.version(), pom.properties()),
+                    dependencies,
+                    managedDependencies);
+        } catch (SAXException | ParserConfigurationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private UnresolvedPom assemble(InputStream inputStream,
+                                   Path path,
                                    Set<DependencyCoordinate> children,
-                                   Map<DependencyCoordinate, UnresolvedPom> unresolved) throws IOException,
-            SAXException,
-            ParserConfigurationException {
+                                   Map<DependencyCoordinate, UnresolvedPom> unresolved)
+            throws IOException, SAXException, ParserConfigurationException {
         Document document;
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
         }
         return switch (document.getDocumentElement().getNamespaceURI()) {
             case NAMESPACE_4_0_0 -> {
-                DependencyCoordinate parent = toChildren400(document.getDocumentElement(), "parent")
+                ParentCoordinate parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
-                        .map(node -> new DependencyCoordinate(
+                        .map(node -> new ParentCoordinate(
                                 toTextChild400(node, "groupId").orElseThrow(missing("parent.groupId")),
                                 toTextChild400(node, "artifactId").orElseThrow(missing("parent.artifactId")),
-                                toTextChild400(node, "version").orElseThrow(missing("parent.version"))))
+                                toTextChild400(node, "version").orElseThrow(missing("parent.version")),
+                                toTextChild400(node, "relativePath").map(value -> value.endsWith("/pom.xml")
+                                        ? value.substring(0, value.length() - 7)
+                                        : value).orElse("../")))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
                 SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+                String groupId = null, artifactId = null, version = null;
                 if (parent != null) {
-                    if (!children.add(new DependencyCoordinate(parent.groupId(), parent.artifactId(), parent.version()))) {
+                    if (!children.add(new DependencyCoordinate(parent.groupId(),
+                            parent.artifactId(),
+                            parent.version()))) {
                         throw new IllegalStateException("Circular dependency to "
                                 + parent.groupId() + ":" + parent.artifactId() + ":" + parent.version());
                     }
-                    UnresolvedPom resolution = assembleOrCached(parent.groupId(),
-                            parent.artifactId(),
-                            parent.version(),
-                            children,
-                            unresolved);
+                    UnresolvedPom resolution = null;
+                    if (path != null && !parent.relativePath().isEmpty()) {
+                        Path candidate = path.resolve(parent.relativePath());
+                        if (Files.exists(candidate)) { // TODO: protect from expansion beyond work dir?
+                            resolution = assemble(Files.newInputStream(path.resolve("pom.xml")),
+                                    path.getParent(),
+                                    children,
+                                    unresolved);
+                            groupId = property(resolution.groupId(), resolution.properties());
+                            artifactId = property(resolution.groupId(), resolution.properties());
+                            version = property(resolution.groupId(), resolution.properties());
+                            if (!parent.groupId().equals(groupId)
+                                    || !parent.artifactId().equals(artifactId)
+                                    || !parent.version().equals(version)) {
+                                resolution = null;
+                            }
+                        }
+                    }
+                    if (resolution == null) {
+                        resolution = assembleOrCached(parent.groupId(),
+                                parent.artifactId(),
+                                parent.version(),
+                                children,
+                                unresolved);
+                        groupId = property(resolution.groupId(), resolution.properties());
+                        artifactId = property(resolution.groupId(), resolution.properties());
+                        version = property(resolution.groupId(), resolution.properties());
+                    }
                     properties.putAll(resolution.properties());
-                    IMPLICITS.forEach(property -> {
+                    for (String property : IMPLICITS) {
                         String value = resolution.properties().get(property);
                         if (value != null) {
                             properties.put("parent." + property, value);
                             properties.put("project.parent." + property, value);
                         }
-                    });
+                    }
                     managedDependencies.putAll(resolution.managedDependencies());
                     dependencies.putAll(resolution.dependencies());
                 }
@@ -298,7 +338,13 @@ public class MavenPomResolver implements Resolver {
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
                         .forEach(entry -> dependencies.putLast(entry.getKey(), entry.getValue()));
-                yield new UnresolvedPom(properties, managedDependencies, dependencies);
+                yield new UnresolvedPom(
+                        toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
+                        toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
+                        toTextChild400(document.getDocumentElement(), "version").orElse(version),
+                        properties,
+                        managedDependencies,
+                        dependencies);
             }
             case null, default -> throw new IllegalArgumentException(
                     "Unknown namespace: " + document.getDocumentElement().getNamespaceURI());
@@ -314,15 +360,22 @@ public class MavenPomResolver implements Resolver {
         UnresolvedPom pom = poms.get(coordinates);
         if (pom == null) {
             try {
-                Optional<RepositoryItem> candidate = repository.fetch(groupId,
+                RepositoryItem candidate = repository.fetch(groupId,
                         artifactId,
                         version,
                         "pom",
                         null,
-                        null);
-                pom = candidate.isPresent()
-                        ? assemble(candidate.get().toInputStream(), children, poms)
-                        : new UnresolvedPom(Map.of(), Map.of(), Collections.emptyNavigableMap());
+                        null).orElse(null);
+                if (candidate == null) {
+                    pom = new UnresolvedPom(groupId,
+                            artifactId,
+                            version,
+                            Map.of(),
+                            Map.of(),
+                            Collections.emptyNavigableMap());
+                } else {
+                    pom = assemble(candidate.toInputStream(), null, children, poms);
+                }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
             }
@@ -331,7 +384,8 @@ public class MavenPomResolver implements Resolver {
         return pom;
     }
 
-    private ResolvedPom resolve(UnresolvedPom pom, Map<DependencyCoordinate, UnresolvedPom> unresolved) throws IOException {
+    private ResolvedPom resolve(UnresolvedPom pom,
+                                Map<DependencyCoordinate, UnresolvedPom> unresolved) throws IOException {
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new HashMap<>();
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
@@ -507,7 +561,13 @@ public class MavenPomResolver implements Resolver {
     private record DependencyCoordinate(String groupId, String artifactId, String version) {
     }
 
-    private record UnresolvedPom(Map<String, String> properties,
+    private record ParentCoordinate(String groupId, String artifactId, String version, String relativePath) {
+    }
+
+    private record UnresolvedPom(String groupId,
+                                 String artifactId,
+                                 String version,
+                                 Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
                                  SequencedMap<DependencyKey, DependencyValue> dependencies) {
     }
