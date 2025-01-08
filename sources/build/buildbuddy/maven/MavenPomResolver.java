@@ -278,15 +278,15 @@ public class MavenPomResolver implements Resolver {
                     }
                     UnresolvedPom resolution = null;
                     if (path != null && !parent.relativePath().isEmpty()) {
-                        Path candidate = path.resolve(parent.relativePath());
-                        if (Files.exists(candidate)) { // TODO: protect from expansion beyond work dir?
-                            resolution = assemble(Files.newInputStream(path.resolve("pom.xml")),
-                                    path.getParent(),
+                        Path candidate = path.resolve(parent.relativePath()), pom = candidate.resolve("pom.xml");
+                        if (Files.exists(pom)) { // TODO: protect from expansion beyond work dir?
+                            resolution = assemble(Files.newInputStream(pom),
+                                    candidate,
                                     children,
                                     unresolved);
                             groupId = property(resolution.groupId(), resolution.properties());
-                            artifactId = property(resolution.groupId(), resolution.properties());
-                            version = property(resolution.groupId(), resolution.properties());
+                            artifactId = property(resolution.artifactId(), resolution.properties());
+                            version = property(resolution.version(), resolution.properties());
                             if (!parent.groupId().equals(groupId)
                                     || !parent.artifactId().equals(artifactId)
                                     || !parent.version().equals(version)) {
@@ -301,8 +301,8 @@ public class MavenPomResolver implements Resolver {
                                 children,
                                 unresolved);
                         groupId = property(resolution.groupId(), resolution.properties());
-                        artifactId = property(resolution.groupId(), resolution.properties());
-                        version = property(resolution.groupId(), resolution.properties());
+                        artifactId = property(resolution.artifactId(), resolution.properties());
+                        version = property(resolution.version(), resolution.properties());
                     }
                     properties.putAll(resolution.properties());
                     for (String property : IMPLICITS) {
