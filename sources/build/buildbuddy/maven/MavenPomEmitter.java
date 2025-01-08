@@ -11,8 +11,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.SequencedMap;
 
 public class MavenPomEmitter {
 
@@ -29,7 +30,7 @@ public class MavenPomEmitter {
                            String artifactId,
                            String version,
                            String packaging,
-                           List<MavenDependency> dependencies) {
+                           SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) {
         Document document;
         try {
             document = documentBuilderFactory.newDocumentBuilder().newDocument();
@@ -49,28 +50,28 @@ public class MavenPomEmitter {
         }
         if (!dependencies.isEmpty()) {
             Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "dependencies"));
-            for (MavenDependency dependency : dependencies) {
+            for (Map.Entry<MavenDependencyKey, MavenDependencyValue> dependency : dependencies.entrySet()) {
                 Node node = wrapper.appendChild(document.createElementNS(NAMESPACE_4_0_0, "dependency"));
-                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(dependency.groupId());
-                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(dependency.artifactId());
-                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "version")).setTextContent(dependency.version());
-                if (!Objects.equals(dependency.type(), "jar")) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "type")).setTextContent(dependency.type());
+                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(dependency.getKey().groupId());
+                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(dependency.getKey().artifactId());
+                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "version")).setTextContent(dependency.getValue().version());
+                if (!Objects.equals(dependency.getKey().type(), "jar")) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "type")).setTextContent(dependency.getKey().type());
                 }
-                if (dependency.classifier() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "classifier")).setTextContent(dependency.classifier());
+                if (dependency.getKey().classifier() != null) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "classifier")).setTextContent(dependency.getKey().classifier());
                 }
-                if (dependency.scope() != MavenDependencyScope.COMPILE) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "scope")).setTextContent(switch (dependency.scope()) {
+                if (dependency.getValue().scope() != MavenDependencyScope.COMPILE) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "scope")).setTextContent(switch (dependency.getValue().scope()) {
                         case PROVIDED -> "provided";
                         case RUNTIME -> "runtime";
                         case TEST -> "test";
                         case SYSTEM -> "system";
                         case IMPORT -> "import";
-                        default -> throw new IllegalStateException("Unexpected scope: " + dependency.scope());
+                        default -> throw new IllegalStateException("Unexpected scope: " + dependency.getValue().scope());
                     });
                 }
-                if (dependency.optional()) {
+                if (Objects.equals(dependency.getValue().optional(), true)) {
                     node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "optional")).setTextContent("true");
                 }
             }

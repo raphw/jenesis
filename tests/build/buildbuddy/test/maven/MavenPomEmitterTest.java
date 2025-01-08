@@ -1,13 +1,15 @@
 package build.buildbuddy.test.maven;
 
-import build.buildbuddy.maven.MavenDependency;
+import build.buildbuddy.maven.MavenDependencyKey;
 import build.buildbuddy.maven.MavenDependencyScope;
+import build.buildbuddy.maven.MavenDependencyValue;
 import build.buildbuddy.maven.MavenPomEmitter;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,14 +22,13 @@ public class MavenPomEmitterTest {
                 "artifact",
                 "version",
                 null,
-                List.of(new MavenDependency("other",
-                        "artifact",
-                        "version",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false))).accept(writer);
+                new LinkedHashMap<>(Map.of(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("version",
+                                MavenDependencyScope.COMPILE,
+                                null,
+                                null,
+                                false)))).accept(writer);
         assertThat(writer.toString()).isEqualTo("""
                 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
                 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">

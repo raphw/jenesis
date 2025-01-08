@@ -56,15 +56,15 @@ public class MavenPomResolver implements Resolver {
             }
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
-        dependencies(Map.of(), dependencies).stream().map(dependency -> dependency.groupId()
-                + "/" + dependency.artifactId()
-                + (Objects.equals(dependency.type(), "jar") ? "" : "/" + dependency.type())
-                + (dependency.classifier() == null ? "" : "/" + dependency.classifier())
-                + "/" + dependency.version()).forEach(coordinate -> resolved.put(coordinate, ""));
+        dependencies(Map.of(), dependencies).entrySet().stream().map(dependency -> dependency.getKey().groupId()
+                + "/" + dependency.getKey().artifactId()
+                + (Objects.equals(dependency.getKey().type(), "jar") ? "" : "/" + dependency.getKey().type())
+                + (dependency.getKey().classifier() == null ? "" : "/" + dependency.getKey().classifier())
+                + "/" + dependency.getValue().version()).forEach(coordinate -> resolved.put(coordinate, ""));
         return resolved;
     }
 
-    public List<MavenDependency> dependencies(
+    public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
             Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) throws IOException {
         return dependencies(new ContextualPom(new ResolvedPom(managedDependencies, dependencies),
@@ -73,10 +73,10 @@ public class MavenPomResolver implements Resolver {
                 Set.of()), new HashMap<>(), new HashMap<>());
     }
 
-    public List<MavenDependency> dependencies(String groupId,
-                                              String artifactId,
-                                              String version,
-                                              MavenDependencyScope scope) throws IOException {
+    public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(String groupId,
+                                                                               String artifactId,
+                                                                               String version,
+                                                                               MavenDependencyScope scope) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         return dependencies(new ContextualPom(resolveOrCached(groupId, artifactId, version, resolved, unresolved),
@@ -86,9 +86,10 @@ public class MavenPomResolver implements Resolver {
 
     }
 
-    private List<MavenDependency> dependencies(ContextualPom initial,
-                                               Map<DependencyCoordinate, UnresolvedPom> unresolved,
-                                               Map<DependencyCoordinate, ResolvedPom> resolved) throws IOException {
+    private SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
+            ContextualPom initial,
+            Map<DependencyCoordinate, UnresolvedPom> unresolved,
+            Map<DependencyCoordinate, ResolvedPom> resolved) throws IOException {
         Map<MavenDependencyKey, DependencyResolution> resolutions = new HashMap<>();
         SequencedSet<MavenDependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
         MavenVersionNegotiator negotiator = negotiatorSupplier.get();
@@ -127,17 +128,16 @@ public class MavenPomResolver implements Resolver {
                 }
             }
         } while (!conflicts.isEmpty());
-        return dependencies.stream().map(key -> {
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> results = new LinkedHashMap<>();
+        dependencies.forEach(key -> {
             DependencyResolution resolution = resolutions.get(key);
-            return new MavenDependency(key.groupId(),
-                    key.artifactId(),
-                    resolution.currentVersion,
-                    key.type(),
-                    key.classifier(),
+            results.put(key, new MavenDependencyValue(resolution.currentVersion,
                     resolution.widestScope,
                     null,
-                    false);
-        }).toList();
+                    null,
+                    false));
+        });
+        return results;
     }
 
     private SequencedSet<MavenDependencyKey> traverse(MavenVersionNegotiator negotiator,

@@ -9,8 +9,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
+import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,18 +52,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -90,18 +85,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -129,18 +119,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -158,18 +143,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -198,18 +178,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -244,18 +219,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -316,27 +286,17 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("other",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -384,18 +344,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "2",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -432,27 +387,17 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("other",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -489,18 +434,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -532,18 +472,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -587,27 +522,17 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("other",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.TEST,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.TEST,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)));
     }
 
     @Test
@@ -639,18 +564,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -709,35 +629,20 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("intermediate",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("other",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("intermediate", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -770,18 +675,13 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -830,18 +730,13 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -912,18 +807,13 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -977,18 +867,13 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(new MavenDependency("other",
-                "artifact",
-                "1",
-                "jar",
-                null,
-                MavenDependencyScope.COMPILE,
-                null,
-                false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1056,43 +941,23 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("deep",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("shallow",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("intermediate",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("deep", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("shallow", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("intermediate", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1161,43 +1026,23 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("deep",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("shallow",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.TEST,
-                        null,
-                        false),
-                new MavenDependency("intermediate",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("deep", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("shallow", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("intermediate", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1279,51 +1124,26 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("deep",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("shallow",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.TEST,
-                        null,
-                        false),
-                new MavenDependency("intermediate",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("nested",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("deep", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("shallow", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.TEST, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("intermediate", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("nested", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1362,19 +1182,13 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(
-                new MavenDependency("transitive",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1413,19 +1227,13 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(
-                new MavenDependency("transitive",
-                        "artifact",
-                        "2",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1464,19 +1272,13 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(
-                new MavenDependency("transitive",
-                        "artifact",
-                        "2",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1515,19 +1317,13 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
-        assertThat(dependencies).containsExactly(
-                new MavenDependency("transitive",
-                        "artifact",
-                        "2",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1590,27 +1386,17 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("transitive",
-                        "artifact",
-                        "2",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("other",
-                        "artifact",
-                        "1",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("other", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     @Test
@@ -1697,27 +1483,17 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<MavenDependency> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
                 "artifact",
                 "1",
                 null);
         assertThat(dependencies).containsExactly(
-                new MavenDependency("first",
-                        "artifact",
-                        "2",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false),
-                new MavenDependency("second",
-                        "artifact",
-                        "2",
-                        "jar",
-                        null,
-                        MavenDependencyScope.COMPILE,
-                        null,
-                        false));
+                Map.entry(
+                        new MavenDependencyKey("first", "artifact", "jar", null),
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)),
+                Map.entry(
+                        new MavenDependencyKey("second", "artifact", "jar", null),
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, false)));
     }
 
     private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
