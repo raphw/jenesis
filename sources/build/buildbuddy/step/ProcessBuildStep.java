@@ -19,9 +19,12 @@ public interface ProcessBuildStep extends BuildStep {
     boolean WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
 
     static String ofJavaHome(String command) {
-        String home = System.getProperty("java.home");
+        String home = System.getenv("JAVA_HOME");
         if (home == null) {
-            throw new IllegalStateException("java.home property not set");
+            home = System.getProperty("java.home");
+        }
+        if (home == null) {
+            throw new IllegalStateException("Neither JAVA_HOME environment or java.home property set");
         } else {
             File javac = new File(home, command);
             if (javac.isFile()) {
