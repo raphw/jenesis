@@ -1506,6 +1506,10 @@ public class MavenPomResolverTest {
                     <groupId>project</groupId>
                     <artifactId>artifact</artifactId>
                     <version>1</version>
+                    <build>
+                        <sourceDirectory>sources</sourceDirectory>
+                        <testSourceDirectory>tests</testSourceDirectory>
+                    </build>
                     <dependencies>
                         <dependency>
                             <groupId>group</groupId>
@@ -1528,6 +1532,8 @@ public class MavenPomResolverTest {
         assertThat(pom.groupId()).isEqualTo("project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
+        assertThat(pom.sourceDirectory()).isEqualTo("sources");
+        assertThat(pom.testSourceDirectory()).isEqualTo("tests");
         assertThat(pom.dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));

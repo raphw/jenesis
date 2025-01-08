@@ -237,6 +237,8 @@ public class MavenPomResolver implements Resolver {
             return new MavenLocalPom(property(pom.groupId(), pom.properties()),
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
+                    property(pom.sourceDirectory(), pom.properties()),
+                    property(pom.testSourceDirectory(), pom.properties()),
                     dependencies,
                     managedDependencies);
         } catch (SAXException | ParserConfigurationException e) {
@@ -338,10 +340,13 @@ public class MavenPomResolver implements Resolver {
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
                         .forEach(entry -> dependencies.putLast(entry.getKey(), entry.getValue()));
+                Node build = toChildren400(document.getDocumentElement(), "build").findFirst().orElse(null);
                 yield new UnresolvedPom(
                         toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
                         toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
                         toTextChild400(document.getDocumentElement(), "version").orElse(version),
+                        build == null ? null : toTextChild400(build, "sourceDirectory").orElse(null),
+                        build == null ? null : toTextChild400(build, "testSourceDirectory").orElse(null),
                         properties,
                         managedDependencies,
                         dependencies);
@@ -370,6 +375,8 @@ public class MavenPomResolver implements Resolver {
                     pom = new UnresolvedPom(groupId,
                             artifactId,
                             version,
+                            null,
+                            null,
                             Map.of(),
                             Map.of(),
                             Collections.emptyNavigableMap());
@@ -567,6 +574,8 @@ public class MavenPomResolver implements Resolver {
     private record UnresolvedPom(String groupId,
                                  String artifactId,
                                  String version,
+                                 String sourceDirectory,
+                                 String testSourceDirectory,
                                  Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
                                  SequencedMap<DependencyKey, DependencyValue> dependencies) {
