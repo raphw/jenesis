@@ -9,6 +9,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.SequencedMap;
 
@@ -441,7 +442,11 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+                new MavenDependencyValue("1",
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        List.of(new MavenDependencyName("transitive", "artifact")),
+                        null)));
     }
 
     @Test
@@ -484,7 +489,11 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+                new MavenDependencyValue("1",
+                        MavenDependencyScope.COMPILE,
+                        null,
+                        List.of(MavenDependencyName.EXCLUDE_ALL),
+                        null)));
     }
 
     @Test

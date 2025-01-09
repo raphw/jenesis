@@ -71,6 +71,9 @@ public class MavenPomEmitter {
                         default -> throw new IllegalStateException("Unexpected scope: " + dependency.getValue().scope());
                     });
                 }
+                if (dependency.getValue().systemPath() != null) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "systemPath")).setTextContent(dependency.getValue().systemPath().toString());
+                }
                 if (dependency.getValue().optional() != null) {
                     node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "optional")).setTextContent(dependency.getValue().optional().toString());
                 }
@@ -81,9 +84,6 @@ public class MavenPomEmitter {
                         exclusion.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(name.groupId());
                         exclusion.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(name.artifactId());
                     });
-                }
-                if (dependency.getValue().systemPath() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "systemPath")).setTextContent(dependency.getValue().systemPath().toString());
                 }
             }
         }
