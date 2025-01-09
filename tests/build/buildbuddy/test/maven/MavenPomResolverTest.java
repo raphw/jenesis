@@ -1588,7 +1588,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(project);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(project);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.groupId()).isEqualTo("project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
@@ -1660,7 +1662,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(subproject);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.groupId()).isEqualTo("project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
@@ -1737,7 +1741,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(subproject);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.groupId()).isEqualTo("project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
@@ -1795,7 +1801,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(project);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(project);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
@@ -1852,7 +1860,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(subproject);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
@@ -1909,7 +1919,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(subproject);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
@@ -1967,7 +1979,9 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(subproject);
+        assertThat(poms).containsOnlyKeys(Path.of(""));
+        MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));

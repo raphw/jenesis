@@ -225,11 +225,12 @@ public class MavenPomResolver implements Resolver {
         return conflicting;
     }
 
-    public MavenLocalPom resolve(Path path) throws IOException {
+    public SequencedMap<Path, MavenLocalPom> resolve(Path root) throws IOException {
+        SequencedMap<Path, MavenLocalPom> poms = new LinkedHashMap<>();
         try {
-            UnresolvedPom pom = assemble(Files.newInputStream(path.resolve("pom.xml")),
+            UnresolvedPom pom = assemble(Files.newInputStream(root.resolve("pom.xml")),
                     true,
-                    path,
+                    root,
                     new HashSet<>(),
                     new HashMap<>());
             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
@@ -240,7 +241,7 @@ public class MavenPomResolver implements Resolver {
             pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                     key.resolve(pom.properties()),
                     value.resolve(pom.properties())));
-            return new MavenLocalPom(property(pom.groupId(), pom.properties()),
+            poms.put(root.relativize(root), new MavenLocalPom(property(pom.groupId(), pom.properties()),
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
                     property(pom.sourceDirectory(), pom.properties()),
@@ -252,10 +253,11 @@ public class MavenPomResolver implements Resolver {
                             .map(resource -> property(resource, pom.properties()))
                             .toList(),
                     dependencies,
-                    managedDependencies);
+                    managedDependencies));
         } catch (SAXException | ParserConfigurationException e) {
             throw new RuntimeException(e);
         }
+        return poms;
     }
 
     private UnresolvedPom assemble(InputStream inputStream,
