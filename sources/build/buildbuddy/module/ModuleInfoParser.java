@@ -1,8 +1,5 @@
 package build.buildbuddy.module;
 
-import build.buildbuddy.Identification;
-import build.buildbuddy.Identifier;
-import build.buildbuddy.step.Bind;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.DirectiveTree;
 import com.sun.source.tree.ModuleTree;
@@ -18,23 +15,16 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.SequencedMap;
+import java.util.*;
 
 import static java.util.Objects.requireNonNull;
 
-public class ModuleInfoIdentifier implements Identifier {
+public class ModuleInfoParser {
 
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
-    @Override
-    public Optional<Identification> identify(Path folder) throws IOException {
-        Path moduleInfo = folder.resolve(Bind.SOURCES + "module-info.java");
-        if (!Files.exists(moduleInfo)) {
-            return Optional.empty();
-        }
+    public ModuleInfo identify(Path folder) throws IOException {
+        Path moduleInfo = folder.resolve("module-info.java");
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
                 compiler.getStandardFileManager(null, null, null),
                 null,
@@ -48,18 +38,18 @@ public class ModuleInfoIdentifier implements Identifier {
                 }));
         for (CompilationUnitTree unit : javac.parse()) {
             ModuleTree module = unit.getModule();
-            SequencedMap<String, String> dependencies = new LinkedHashMap<>();
+            SequencedSet<String> dependencies = new LinkedHashSet<>();
             for (DirectiveTree directive : requireNonNull(module).getDirectives()) {
                 if (directive instanceof RequiresTree requires) {
                     if (!requires.isStatic()) {
                         String name = requires.getModuleName().toString();
                         if (!name.startsWith("java.") && !name.startsWith("jdk.")) {
-                            dependencies.put(name, "");
+                            dependencies.add(name);
                         }
                     }
                 }
             }
-            return Optional.of(new Identification(module.getName().toString(), dependencies));
+            return new ModuleInfo(module.getName().toString(), dependencies);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
     }
