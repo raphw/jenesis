@@ -1,14 +1,13 @@
 package build.buildbuddy.test.maven;
 
-import build.buildbuddy.maven.MavenDependencyKey;
-import build.buildbuddy.maven.MavenDependencyScope;
-import build.buildbuddy.maven.MavenDependencyValue;
-import build.buildbuddy.maven.MavenPomEmitter;
+import build.buildbuddy.maven.*;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,8 +25,8 @@ public class MavenPomEmitterTest {
                         new MavenDependencyKey("other", "artifact", "jar", null),
                         new MavenDependencyValue("version",
                                 MavenDependencyScope.COMPILE,
-                                null,
-                                null,
+                                Path.of("file.jar"),
+                                List.of(new MavenDependencyName("group", "artifact")),
                                 false)))).accept(writer);
         assertThat(writer.toString()).isEqualTo("""
                 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -41,6 +40,14 @@ public class MavenPomEmitterTest {
                             <groupId>other</groupId>
                             <artifactId>artifact</artifactId>
                             <version>version</version>
+                            <optional>false</optional>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>group</groupId>
+                                    <artifactId>artifact</artifactId>
+                                </exclusion>
+                            </exclusions>
+                            <systemPath>file.jar</systemPath>
                         </dependency>
                     </dependencies>
                 </project>
