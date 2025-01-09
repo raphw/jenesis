@@ -237,7 +237,7 @@ public class MavenPomResolver implements Resolver {
                 try {
                     pom = assemble(Files.newInputStream(current.resolve("pom.xml")),
                             true,
-                            root,
+                            current,
                             paths,
                             new HashSet<>(),
                             unresolved);
