@@ -229,9 +229,9 @@ public class MavenPomResolver implements Resolver {
         SequencedSet<Path> modules = new LinkedHashSet<>();
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<Path, UnresolvedPom> paths = new HashMap<>();
-        Queue<Path> queue = new ArrayDeque<>(List.of(root));
+        Queue<Path> queue = new ArrayDeque<>();
+        Path current = root;
         do {
-            Path current = queue.remove();
             if (modules.add(current)) {
                 UnresolvedPom pom;
                 try {
@@ -245,13 +245,15 @@ public class MavenPomResolver implements Resolver {
                     throw new RuntimeException(e);
                 }
                 if (pom.modules() != null) {
-                    pom.modules().forEach(module -> queue.add(current.resolve(module)));
+                    for (String module : pom.modules()) {
+                        queue.add(current.resolve(module));
+                    }
                 }
                 paths.put(current, pom);
             } else {
                 throw new IllegalArgumentException("Circular POM project declaration");
             }
-        } while (!queue.isEmpty());
+        } while ((current = queue.poll()) != null);
         SequencedMap<Path, MavenLocalPom> results = new LinkedHashMap<>();
         modules.forEach(module -> {
             UnresolvedPom pom = paths.get(module);
