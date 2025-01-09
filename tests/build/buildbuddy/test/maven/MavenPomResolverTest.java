@@ -34,7 +34,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -47,7 +47,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -64,7 +64,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies_with_property() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -80,7 +80,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -97,7 +97,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies_with_nested_property() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -114,7 +114,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -131,7 +131,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_without_pom() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -155,7 +155,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies_with_duplicate() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -173,7 +173,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -190,7 +190,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies_from_parent() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -201,7 +201,7 @@ public class MavenPomResolverTest {
                     </parent>
                 </project>
                 """);
-        toFile("parent", "artifact", "1", """
+        addToRepository("parent", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -214,7 +214,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -231,7 +231,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependencies_from_parent_before_transitive() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -249,7 +249,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("parent", "artifact", "1", """
+        addToRepository("parent", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -262,19 +262,19 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("other", "artifact", "2", """
+        addToRepository("other", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -302,7 +302,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_duplicate_dependencies_from_parent() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -320,7 +320,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("parent", "artifact", "1", """
+        addToRepository("parent", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -333,13 +333,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "2", """
+        addToRepository("other", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -356,7 +356,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_transitive_dependencies() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -369,7 +369,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -382,7 +382,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -403,7 +403,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_transitive_dependencies_with_exclusion() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -422,7 +422,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -446,7 +446,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_transitive_dependencies_with_optional() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -459,7 +459,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -484,7 +484,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_transitive_dependencies_with_scope() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -498,7 +498,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -517,7 +517,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -538,7 +538,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_configuration() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -559,7 +559,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -576,7 +576,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void does_not_resolve_dependency_configuration_of_dependency() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -589,7 +589,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("intermediate", "artifact", "1", """
+        addToRepository("intermediate", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -611,7 +611,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -624,7 +624,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -648,7 +648,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_configuration_explicit_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -670,7 +670,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -687,7 +687,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_bom_configuration() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -710,13 +710,13 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("import", "artifact", "1", """
+        addToRepository("import", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -742,7 +742,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_bom_configuration_picks_first_import() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -772,13 +772,13 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("import", "artifact", "1", """
+        addToRepository("import", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -793,7 +793,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other-import", "artifact", "1", """
+        addToRepository("other-import", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -819,7 +819,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_dependency_bom_configuration_but_prefer_dependency_configuration() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -847,13 +847,13 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("import", "artifact", "1", """
+        addToRepository("import", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -879,7 +879,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_lowest_depth_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -897,7 +897,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("deep", "artifact", "1", """
+        addToRepository("deep", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -910,7 +910,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("intermediate", "artifact", "1", """
+        addToRepository("intermediate", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -923,13 +923,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("shallow", "artifact", "1", """
+        addToRepository("shallow", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -963,7 +963,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_lowest_depth_version_with_scope_override() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -982,7 +982,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("deep", "artifact", "1", """
+        addToRepository("deep", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -995,7 +995,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("intermediate", "artifact", "1", """
+        addToRepository("intermediate", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1008,13 +1008,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("shallow", "artifact", "1", """
+        addToRepository("shallow", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1048,7 +1048,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_lowest_depth_version_with_scope_override_and_nested_transitives() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1067,7 +1067,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("deep", "artifact", "1", """
+        addToRepository("deep", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1080,7 +1080,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("intermediate", "artifact", "1", """
+        addToRepository("intermediate", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1093,7 +1093,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1106,13 +1106,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("nested", "artifact", "1", """
+        addToRepository("nested", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("shallow", "artifact", "1", """
+        addToRepository("shallow", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1149,7 +1149,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_release_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1162,7 +1162,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1194,7 +1194,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_latest_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1207,7 +1207,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "2", """
+        addToRepository("transitive", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1239,7 +1239,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_closed_range_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1252,7 +1252,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "2", """
+        addToRepository("transitive", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1284,7 +1284,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_open_range_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1297,7 +1297,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "2", """
+        addToRepository("transitive", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1329,7 +1329,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_range_over_version() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1347,13 +1347,13 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "1", """
+        addToRepository("transitive", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("other", "artifact", "1", """
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1366,7 +1366,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("transitive", "artifact", "2", """
+        addToRepository("transitive", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1402,7 +1402,7 @@ public class MavenPomResolverTest {
 
     @Test
     public void can_resolve_divergent_ranges() throws IOException {
-        toFile("group", "artifact", "1", """
+        addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1420,7 +1420,7 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        toFile("first", "artifact", "2", """
+        addToRepository("first", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1431,7 +1431,7 @@ public class MavenPomResolverTest {
                         </dependency>
                 </project>
                 """);
-        toFile("second", "artifact", "2", """
+        addToRepository("second", "artifact", "2", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1442,13 +1442,13 @@ public class MavenPomResolverTest {
                         </dependency>
                 </project>
                 """);
-        toFile("first", "artifact", "1", """
+        addToRepository("first", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        toFile("second", "artifact", "1", """
+        addToRepository("second", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
@@ -1508,7 +1508,15 @@ public class MavenPomResolverTest {
                     <version>1</version>
                     <build>
                         <sourceDirectory>sources</sourceDirectory>
+                        <resources>
+                            <resource>resource-1</resource>
+                            <resource>resource-2</resource>
+                        </resources>
                         <testSourceDirectory>tests</testSourceDirectory>
+                        <testResources>
+                            <testResource>testResource-1</testResource>
+                            <testResource>testResource-2</testResource>
+                        </testResources>
                     </build>
                     <dependencies>
                         <dependency>
@@ -1533,7 +1541,9 @@ public class MavenPomResolverTest {
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
         assertThat(pom.sourceDirectory()).isEqualTo("sources");
+        assertThat(pom.resourceDirectories()).containsExactly("resource-1", "resource-2");
         assertThat(pom.testSourceDirectory()).isEqualTo("tests");
+        assertThat(pom.testResourceDirectories()).containsExactly("testResource-1", "testResource-2");
         assertThat(pom.dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
@@ -1695,7 +1705,226 @@ public class MavenPomResolverTest {
                         new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
-    private void toFile(String groupId, String artifactId, String version, String pom) throws IOException {
+    @Test
+    public void can_resolve_local_pom_repository_parent() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                </project>
+                """);
+        addToRepository("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        MavenLocalPom pom = mavenPomResolver.resolve(project);
+        assertThat(pom.dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(pom.managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_local_pom_repository_parent_on_mismatch() throws IOException {
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                </project>
+                """);
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>mismatch</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        addToRepository("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        assertThat(pom.dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(pom.managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_local_pom_parent_on_match() throws IOException {
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                </project>
+                """);
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        assertThat(pom.dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(pom.managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_repository_parent_if_specified() throws IOException {
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                        <relativePath/>
+                    </parent>
+                </project>
+                """);
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        addToRepository("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        MavenLocalPom pom = mavenPomResolver.resolve(subproject);
+        assertThat(pom.dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(pom.managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    private void addToRepository(String groupId, String artifactId, String version, String pom) throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
                 .resolve(artifactId + "-" + version + ".pom"), pom);
