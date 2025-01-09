@@ -251,7 +251,7 @@ public class MavenPomResolver implements Resolver {
                 }
                 paths.put(current, pom);
             } else {
-                throw new IllegalArgumentException("Circular POM project declaration");
+                throw new IllegalArgumentException("Circular POM module reference to " + current);
             }
         } while ((current = queue.poll()) != null);
         SequencedMap<Path, MavenLocalPom> results = new LinkedHashMap<>();

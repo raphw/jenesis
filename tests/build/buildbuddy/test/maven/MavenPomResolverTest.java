@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenPomResolverTest {
 
@@ -2111,6 +2112,43 @@ public class MavenPomResolverTest {
         assertThat(poms.get(Path.of("..")).managedDependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_detect_circular_modules() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <modules>
+                      <module>subproject</module>
+                    </modules>
+                </project>
+                """);
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                    <modules>
+                      <module>..</module>
+                    </modules>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.resolve(project))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Circular POM module reference to ");
     }
 
     private void addToRepository(String groupId, String artifactId, String version, String pom) throws IOException {
