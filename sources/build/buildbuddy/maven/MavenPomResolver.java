@@ -223,6 +223,7 @@ public class MavenPomResolver implements Resolver {
     public MavenLocalPom resolve(Path path) throws IOException {
         try {
             UnresolvedPom pom = assemble(Files.newInputStream(path.resolve("pom.xml")),
+                    true,
                     path,
                     new HashSet<>(),
                     new HashMap<>());
@@ -238,7 +239,13 @@ public class MavenPomResolver implements Resolver {
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
                     property(pom.sourceDirectory(), pom.properties()),
+                    pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
+                            .map(resource -> property(resource, pom.properties()))
+                            .toList(),
                     property(pom.testSourceDirectory(), pom.properties()),
+                    pom.testResourceDirectories() == null ? null : pom.testResourceDirectories().stream()
+                            .map(resource -> property(resource, pom.properties()))
+                            .toList(),
                     dependencies,
                     managedDependencies);
         } catch (SAXException | ParserConfigurationException e) {
@@ -247,6 +254,7 @@ public class MavenPomResolver implements Resolver {
     }
 
     private UnresolvedPom assemble(InputStream inputStream,
+                                   boolean extended,
                                    Path path,
                                    Set<DependencyCoordinate> children,
                                    Map<DependencyCoordinate, UnresolvedPom> unresolved)
@@ -263,9 +271,9 @@ public class MavenPomResolver implements Resolver {
                                 toTextChild400(node, "groupId").orElseThrow(missing("parent.groupId")),
                                 toTextChild400(node, "artifactId").orElseThrow(missing("parent.artifactId")),
                                 toTextChild400(node, "version").orElseThrow(missing("parent.version")),
-                                toTextChild400(node, "relativePath").map(value -> value.endsWith("/pom.xml")
+                                path != null ? toTextChild400(node, "relativePath").map(value -> value.endsWith("/pom.xml")
                                         ? value.substring(0, value.length() - 7)
-                                        : value).orElse("../")))
+                                        : value).orElse("../") : null))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
@@ -283,6 +291,7 @@ public class MavenPomResolver implements Resolver {
                         Path candidate = path.resolve(parent.relativePath()), pom = candidate.resolve("pom.xml");
                         if (Files.exists(pom)) { // TODO: protect from expansion beyond work dir?
                             resolution = assemble(Files.newInputStream(pom),
+                                    false,
                                     candidate,
                                     children,
                                     unresolved);
@@ -340,13 +349,25 @@ public class MavenPomResolver implements Resolver {
                         .flatMap(node -> toChildren400(node, "dependency"))
                         .map(MavenPomResolver::toDependency400)
                         .forEach(entry -> dependencies.putLast(entry.getKey(), entry.getValue()));
-                Node build = toChildren400(document.getDocumentElement(), "build").findFirst().orElse(null);
+                Node build = extended
+                        ? toChildren400(document.getDocumentElement(), "build").findFirst().orElse(null)
+                        : null;
                 yield new UnresolvedPom(
                         toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
                         toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
                         toTextChild400(document.getDocumentElement(), "version").orElse(version),
                         build == null ? null : toTextChild400(build, "sourceDirectory").orElse(null),
+                        build == null ? null : toChildren400(build, "resources").findFirst()
+                                .map(node -> toChildren400(node, "resource")
+                                        .map(Node::getTextContent)
+                                        .toList())
+                                .orElse(null),
                         build == null ? null : toTextChild400(build, "testSourceDirectory").orElse(null),
+                        build == null ? null : toChildren400(build, "testResources").findFirst()
+                                .map(node -> toChildren400(node, "testResource")
+                                        .map(Node::getTextContent)
+                                        .toList())
+                                .orElse(null),
                         properties,
                         managedDependencies,
                         dependencies);
@@ -377,11 +398,13 @@ public class MavenPomResolver implements Resolver {
                             version,
                             null,
                             null,
+                            null,
+                            null,
                             Map.of(),
                             Map.of(),
                             Collections.emptyNavigableMap());
                 } else {
-                    pom = assemble(candidate.toInputStream(), null, children, poms);
+                    pom = assemble(candidate.toInputStream(), false, null, children, poms);
                 }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
@@ -575,7 +598,9 @@ public class MavenPomResolver implements Resolver {
                                  String artifactId,
                                  String version,
                                  String sourceDirectory,
+                                 List<String> resourceDirectories,
                                  String testSourceDirectory,
+                                 List<String> testResourceDirectories,
                                  Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
                                  SequencedMap<DependencyKey, DependencyValue> dependencies) {

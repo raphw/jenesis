@@ -11,6 +11,8 @@
     <build>
         <sourceDirectory>sources</sourceDirectory>
         <testSourceDirectory>tests</testSourceDirectory>
+        <resources/>
+        <testResources/>
         <pluginManagement>
             <plugins>
                 <plugin>
