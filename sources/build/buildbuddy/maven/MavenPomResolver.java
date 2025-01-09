@@ -151,9 +151,11 @@ public class MavenPomResolver implements Resolver {
         Queue<ContextualPom> queue = new ArrayDeque<>();
         do {
             for (Map.Entry<MavenDependencyKey, MavenDependencyValue> entry : current.pom().dependencies().entrySet()) {
-                if (current.exclusions().contains(new MavenDependencyName(
-                        entry.getKey().groupId(),
-                        entry.getKey().artifactId()))) {
+                if (current.exclusions().contains(MavenDependencyName.EXCLUDE_ALL)) {
+                    break;
+                } else if (current.exclusions().contains(new MavenDependencyName(entry.getKey().groupId(), entry.getKey().artifactId()))
+                        || current.exclusions().contains(new MavenDependencyName(entry.getKey().groupId(), "*"))
+                        || current.exclusions().contains(new MavenDependencyName("*", entry.getKey().artifactId()))) {
                     continue;
                 }
                 MavenDependencyValue override = managedDependencies.get(entry.getKey()), value;
