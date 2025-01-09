@@ -225,7 +225,7 @@ public class MavenPomResolver implements Resolver {
         return conflicting;
     }
 
-    public SequencedMap<Path, MavenLocalPom> resolve(Path root) throws IOException {
+    public SequencedMap<Path, MavenLocalPom> local(Path root) throws IOException {
         SequencedSet<Path> modules = new LinkedHashSet<>();
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<Path, UnresolvedPom> paths = new HashMap<>();
