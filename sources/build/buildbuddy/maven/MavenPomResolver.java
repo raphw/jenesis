@@ -246,7 +246,7 @@ public class MavenPomResolver implements Resolver {
                 }
                 if (pom.modules() != null) {
                     for (String module : pom.modules()) {
-                        queue.add(current.resolve(module));
+                        queue.add(current.resolve(module).normalize());
                     }
                 }
                 paths.put(current, pom);
