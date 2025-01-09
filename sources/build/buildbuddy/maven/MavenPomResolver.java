@@ -133,9 +133,9 @@ public class MavenPomResolver implements Resolver {
             DependencyResolution resolution = resolutions.get(key);
             results.put(key, new MavenDependencyValue(resolution.currentVersion,
                     resolution.widestScope,
-                    null,
-                    null,
-                    null));
+                    resolution.systemPath,
+                    resolution.exclusions,
+                    resolution.optional));
         });
         return results;
     }
@@ -197,6 +197,9 @@ public class MavenPomResolver implements Resolver {
                             value.version());
                     resolution.observedVersions.add(value.version());
                     resolution.currentScope = resolution.widestScope = scope;
+                    resolution.systemPath = entry.getValue().systemPath();
+                    resolution.exclusions = entry.getValue().exclusions();
+                    resolution.optional = entry.getValue().optional();
                 } else {
                     version = resolution.currentVersion;
                     if (resolution.observedVersions.add(value.version()) || resolution.widestScope.reduces(scope)) {
@@ -621,6 +624,9 @@ public class MavenPomResolver implements Resolver {
     private static class DependencyResolution {
         private final SequencedSet<String> observedVersions = new LinkedHashSet<>();
         private String currentVersion;
-        private MavenDependencyScope widestScope, currentScope;
+        private MavenDependencyScope currentScope, widestScope;
+        private Path systemPath;
+        private List<MavenDependencyName> exclusions;
+        private Boolean optional;
     }
 }
