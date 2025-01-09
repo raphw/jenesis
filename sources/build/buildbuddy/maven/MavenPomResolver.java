@@ -227,36 +227,41 @@ public class MavenPomResolver implements Resolver {
 
     public SequencedMap<Path, MavenLocalPom> resolve(Path root) throws IOException {
         SequencedMap<Path, MavenLocalPom> poms = new LinkedHashMap<>();
-        try {
-            UnresolvedPom pom = assemble(Files.newInputStream(root.resolve("pom.xml")),
-                    true,
-                    root,
-                    new HashSet<>(),
-                    new HashMap<>());
-            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-            SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
-            pom.dependencies().forEach((key, value) -> dependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
-            pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
-            poms.put(root.relativize(root), new MavenLocalPom(property(pom.groupId(), pom.properties()),
-                    property(pom.artifactId(), pom.properties()),
-                    property(pom.version(), pom.properties()),
-                    property(pom.sourceDirectory(), pom.properties()),
-                    pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
-                            .map(resource -> property(resource, pom.properties()))
-                            .toList(),
-                    property(pom.testSourceDirectory(), pom.properties()),
-                    pom.testResourceDirectories() == null ? null : pom.testResourceDirectories().stream()
-                            .map(resource -> property(resource, pom.properties()))
-                            .toList(),
-                    dependencies,
-                    managedDependencies));
-        } catch (SAXException | ParserConfigurationException e) {
-            throw new RuntimeException(e);
-        }
+        Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
+        Queue<Path> queue = new ArrayDeque<>(List.of(root));
+        do {
+            Path current = queue.remove();
+            try {
+                UnresolvedPom pom = assemble(Files.newInputStream(current.resolve("pom.xml")),
+                        true,
+                        root,
+                        new HashSet<>(),
+                        unresolved);
+                SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+                SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+                pom.dependencies().forEach((key, value) -> dependencies.put(
+                        key.resolve(pom.properties()),
+                        value.resolve(pom.properties())));
+                pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
+                        key.resolve(pom.properties()),
+                        value.resolve(pom.properties())));
+                poms.put(root.relativize(current), new MavenLocalPom(property(pom.groupId(), pom.properties()),
+                        property(pom.artifactId(), pom.properties()),
+                        property(pom.version(), pom.properties()),
+                        property(pom.sourceDirectory(), pom.properties()),
+                        pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
+                                .map(resource -> property(resource, pom.properties()))
+                                .toList(),
+                        property(pom.testSourceDirectory(), pom.properties()),
+                        pom.testResourceDirectories() == null ? null : pom.testResourceDirectories().stream()
+                                .map(resource -> property(resource, pom.properties()))
+                                .toList(),
+                        dependencies,
+                        managedDependencies));
+            } catch (SAXException | ParserConfigurationException e) {
+                throw new RuntimeException(e);
+            }
+        } while (!queue.isEmpty());
         return poms;
     }
 
@@ -359,6 +364,9 @@ public class MavenPomResolver implements Resolver {
                 Node build = extended
                         ? toChildren400(document.getDocumentElement(), "build").findFirst().orElse(null)
                         : null;
+                Node modules = extended
+                        ? toChildren400(document.getDocumentElement(), "modules").findFirst().orElse(null)
+                        : null;
                 yield new UnresolvedPom(
                         toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
                         toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
@@ -375,6 +383,9 @@ public class MavenPomResolver implements Resolver {
                                         .map(Node::getTextContent)
                                         .toList())
                                 .orElse(null),
+                        modules == null ? null : toChildren400(modules, "module")
+                                .map(Node::getTextContent)
+                                .toList(),
                         properties,
                         managedDependencies,
                         dependencies);
@@ -403,6 +414,7 @@ public class MavenPomResolver implements Resolver {
                     pom = new UnresolvedPom(groupId,
                             artifactId,
                             version,
+                            null,
                             null,
                             null,
                             null,
@@ -608,6 +620,7 @@ public class MavenPomResolver implements Resolver {
                                  List<String> resourceDirectories,
                                  String testSourceDirectory,
                                  List<String> testResourceDirectories,
+                                 List<String> modules,
                                  Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
                                  SequencedMap<DependencyKey, DependencyValue> dependencies) {
