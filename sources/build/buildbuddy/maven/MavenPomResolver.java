@@ -235,6 +235,7 @@ public class MavenPomResolver implements Resolver {
                 UnresolvedPom pom = assemble(Files.newInputStream(current.resolve("pom.xml")),
                         true,
                         root,
+                        new HashMap<>(),
                         new HashSet<>(),
                         unresolved);
                 SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
@@ -268,6 +269,7 @@ public class MavenPomResolver implements Resolver {
     private UnresolvedPom assemble(InputStream inputStream,
                                    boolean extended,
                                    Path path,
+                                   Map<Path, UnresolvedPom> paths,
                                    Set<DependencyCoordinate> children,
                                    Map<DependencyCoordinate, UnresolvedPom> unresolved)
             throws IOException, SAXException, ParserConfigurationException {
@@ -300,13 +302,20 @@ public class MavenPomResolver implements Resolver {
                     }
                     UnresolvedPom resolution = null;
                     if (path != null && !parent.relativePath().isEmpty()) {
-                        Path candidate = path.resolve(parent.relativePath()), pom = candidate.resolve("pom.xml");
-                        if (Files.exists(pom)) { // TODO: protect from expansion beyond work dir?
-                            resolution = assemble(Files.newInputStream(pom),
-                                    false,
-                                    candidate,
-                                    children,
-                                    unresolved);
+                        resolution = paths.get(path);
+                        if (resolution == null) {
+                            Path candidate = path.resolve(parent.relativePath()), pom = candidate.resolve("pom.xml");
+                            if (Files.exists(pom)) {
+                                resolution = assemble(Files.newInputStream(pom),
+                                        false,
+                                        candidate,
+                                        paths,
+                                        children,
+                                        unresolved);
+                                paths.put(path, resolution);
+                            }
+                        }
+                        if (resolution != null) {
                             groupId = property(resolution.groupId(), resolution.properties());
                             artifactId = property(resolution.artifactId(), resolution.properties());
                             version = property(resolution.version(), resolution.properties());
@@ -423,7 +432,7 @@ public class MavenPomResolver implements Resolver {
                             Map.of(),
                             Collections.emptyNavigableMap());
                 } else {
-                    pom = assemble(candidate.toInputStream(), false, null, children, poms);
+                    pom = assemble(candidate.toInputStream(), false, null, null, children, poms);
                 }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);

@@ -8,7 +8,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.JUnitCore;
-import sample.SampleTest;
+import sample.TestSample;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,17 +47,17 @@ public class JUnit4Test {
         Files.copy(
                 Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
                 artifacts.resolve("hamcrest-core.jar"));
-        try (InputStream input = SampleTest.class.getResourceAsStream(SampleTest.class.getSimpleName() + ".class");
+        try (InputStream input = TestSample.class.getResourceAsStream(TestSample.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files
                      .createDirectories(classes.resolve(Javac.CLASSES + "sample"))
-                     .resolve("SampleTest.class"))) {
+                     .resolve("TestSample.class"))) {
             requireNonNull(input).transferTo(output);
         }
     }
 
     @Test
     public void can_execute_junit4() throws IOException {
-        BuildStepResult result = new JUnit4().apply(
+        BuildStepResult result = new JUnit4(candidate -> candidate.endsWith("TestSample")).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -68,7 +68,7 @@ public class JUnit4Test {
                                         Path.of(BuildStep.ARTIFACTS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Map.of(Path.of(Javac.CLASSES + "sample/TestSample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content()
                 .contains("JUnit")
@@ -79,7 +79,7 @@ public class JUnit4Test {
 
     @Test
     public void can_execute_junit4_non_modular() throws IOException {
-        BuildStepResult result = new JUnit4().modular(false).apply(
+        BuildStepResult result = new JUnit4(candidate -> candidate.endsWith("TestSample")).modular(false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -90,7 +90,7 @@ public class JUnit4Test {
                                         Path.of(BuildStep.ARTIFACTS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of(Javac.CLASSES + "sample/SampleTest.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Map.of(Path.of(Javac.CLASSES + "sample/TestSample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content()
                 .contains("JUnit")

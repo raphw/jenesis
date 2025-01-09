@@ -30,6 +30,10 @@ public class JUnit4 extends Java {
         this.isTest = name -> patterns.stream().anyMatch(pattern -> pattern.matcher(name).matches());
     }
 
+    public JUnit4(Predicate<String> isTest) {
+        this.isTest = isTest;
+    }
+
     public JUnit4(String java, Predicate<String> isTest) {
         super(java);
         this.isTest = isTest;

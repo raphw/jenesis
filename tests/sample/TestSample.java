@@ -2,7 +2,7 @@ package sample;
 
 import org.junit.Test;
 
-public class SampleTest {
+public class TestSample {
 
     @Test
     public void test() {
