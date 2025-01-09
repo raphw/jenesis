@@ -1990,6 +1990,129 @@ public class MavenPomResolverTest {
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
+    @Test
+    public void can_resolve_sub_modules() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <modules>
+                      <module>subproject</module>
+                    </modules>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                    </parent>
+                </project>
+                """);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(project);
+        assertThat(poms).containsOnlyKeys(Path.of(""), Path.of("subproject"));
+        assertThat(poms.get(Path.of("")).dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(poms.get(Path.of("")).managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(poms.get(Path.of("subproject")).dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(poms.get(Path.of("subproject")).managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_sub_modules_reverse_location() throws IOException {
+        Path subproject = Files.createDirectory(project.resolve("subproject"));
+        Files.writeString(subproject.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <modules>
+                      <module>..</module>
+                    </modules>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                        <relativePath>subproject/pom.xml</relativePath>
+                    </parent>
+                </project>
+                """);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.resolve(subproject);
+        assertThat(poms).containsOnlyKeys(Path.of(""), Path.of(".."));
+        assertThat(poms.get(Path.of("")).dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(poms.get(Path.of("")).managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(poms.get(Path.of("..")).dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+        assertThat(poms.get(Path.of("..")).managedDependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
     private void addToRepository(String groupId, String artifactId, String version, String pom) throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
