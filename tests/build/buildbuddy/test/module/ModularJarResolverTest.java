@@ -51,7 +51,7 @@ public class ModularJarResolverTest {
         try (JarOutputStream jarOutputStream = new JarOutputStream(outputStream)) {
             jarOutputStream.putNextEntry(new JarEntry("module-info.class"));
             jarOutputStream.write(ClassFile.of().buildModule(ModuleAttribute.of(
-                    ModuleDesc.of("sample"),
+                    ModuleDesc.of(module),
                     builder -> {
                         builder.requires(ModuleRequireInfo.of(ModuleDesc.of("java.base"), 0, null));
                         for (String require : requires) {
