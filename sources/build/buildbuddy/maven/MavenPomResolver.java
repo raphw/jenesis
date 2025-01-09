@@ -226,44 +226,58 @@ public class MavenPomResolver implements Resolver {
     }
 
     public SequencedMap<Path, MavenLocalPom> resolve(Path root) throws IOException {
-        SequencedMap<Path, MavenLocalPom> poms = new LinkedHashMap<>();
+        SequencedSet<Path> modules = new LinkedHashSet<>();
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
+        Map<Path, UnresolvedPom> paths = new HashMap<>();
         Queue<Path> queue = new ArrayDeque<>(List.of(root));
         do {
             Path current = queue.remove();
-            try {
-                UnresolvedPom pom = assemble(Files.newInputStream(current.resolve("pom.xml")),
-                        true,
-                        root,
-                        new HashMap<>(),
-                        new HashSet<>(),
-                        unresolved);
-                SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-                SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
-                pom.dependencies().forEach((key, value) -> dependencies.put(
-                        key.resolve(pom.properties()),
-                        value.resolve(pom.properties())));
-                pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
-                        key.resolve(pom.properties()),
-                        value.resolve(pom.properties())));
-                poms.put(root.relativize(current), new MavenLocalPom(property(pom.groupId(), pom.properties()),
-                        property(pom.artifactId(), pom.properties()),
-                        property(pom.version(), pom.properties()),
-                        property(pom.sourceDirectory(), pom.properties()),
-                        pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
-                                .map(resource -> property(resource, pom.properties()))
-                                .toList(),
-                        property(pom.testSourceDirectory(), pom.properties()),
-                        pom.testResourceDirectories() == null ? null : pom.testResourceDirectories().stream()
-                                .map(resource -> property(resource, pom.properties()))
-                                .toList(),
-                        dependencies,
-                        managedDependencies));
-            } catch (SAXException | ParserConfigurationException e) {
-                throw new RuntimeException(e);
+            if (modules.add(current)) {
+                UnresolvedPom pom;
+                try {
+                    pom = assemble(Files.newInputStream(current.resolve("pom.xml")),
+                            true,
+                            root,
+                            paths,
+                            new HashSet<>(),
+                            unresolved);
+                } catch (SAXException | ParserConfigurationException e) {
+                    throw new RuntimeException(e);
+                }
+                if (pom.modules() != null) {
+                    pom.modules().forEach(module -> queue.add(current.resolve(module)));
+                }
+                paths.put(current, pom);
+            } else {
+                throw new IllegalArgumentException("Circular POM project declaration");
             }
         } while (!queue.isEmpty());
-        return poms;
+        SequencedMap<Path, MavenLocalPom> results = new LinkedHashMap<>();
+        modules.forEach(module -> {
+            UnresolvedPom pom = paths.get(module);
+            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+            SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+            pom.dependencies().forEach((key, value) -> dependencies.put(
+                    key.resolve(pom.properties()),
+                    value.resolve(pom.properties())));
+            pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
+                    key.resolve(pom.properties()),
+                    value.resolve(pom.properties())));
+            results.put(root.relativize(module), new MavenLocalPom(property(pom.groupId(), pom.properties()),
+                    property(pom.artifactId(), pom.properties()),
+                    property(pom.version(), pom.properties()),
+                    property(pom.sourceDirectory(), pom.properties()),
+                    pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
+                            .map(resource -> property(resource, pom.properties()))
+                            .toList(),
+                    property(pom.testSourceDirectory(), pom.properties()),
+                    pom.testResourceDirectories() == null ? null : pom.testResourceDirectories().stream()
+                            .map(resource -> property(resource, pom.properties()))
+                            .toList(),
+                    dependencies,
+                    managedDependencies));
+        });
+        return results;
     }
 
     private UnresolvedPom assemble(InputStream inputStream,
