@@ -7,7 +7,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class MavenModuleDelegatingResolverTest {
+public class MavenUriParserTest {
 
     @Test
     public void can_resolve_module() {

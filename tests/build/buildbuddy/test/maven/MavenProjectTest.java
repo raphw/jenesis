@@ -24,13 +24,13 @@ public class MavenProjectTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path repository, project, build;
+    private Path project, build;
 
     private MavenPomResolver mavenPomResolver;
 
     @Before
     public void setUp() throws Exception {
-        repository = temporaryFolder.newFolder("repository").toPath();
+        Path repository = temporaryFolder.newFolder("repository").toPath();
         project = temporaryFolder.newFolder("project").toPath();
         build = temporaryFolder.newFolder("build").toPath();
         mavenPomResolver = new MavenPomResolver(
