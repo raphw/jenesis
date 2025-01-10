@@ -22,7 +22,7 @@ import static build.buildbuddy.BuildStep.DEPENDENCIES;
 
 public class MavenProject implements BuildExecutorDelegate {
 
-    public static final String POMS = "poms/", MAVEN = "maven/";
+    public static final String POM = "pom/", MAVEN = "maven/";
 
     private final String prefix;
     private final Path root;
@@ -45,7 +45,7 @@ public class MavenProject implements BuildExecutorDelegate {
                                                           BuildStepContext context,
                                                           SequencedMap<String, BuildStepArgument> arguments)
                     throws IOException {
-                Path poms = Files.createDirectory(context.next().resolve(POMS));
+                Path poms = Files.createDirectory(context.next().resolve(POM));
                 Files.walkFileTree(root, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -69,7 +69,7 @@ public class MavenProject implements BuildExecutorDelegate {
             Path maven = Files.createDirectory(context.next().resolve(MAVEN));
             for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(arguments.get("scan")
                     .folder()
-                    .resolve(POMS)).entrySet()) {
+                    .resolve(POM)).entrySet()) {
                 if (Objects.equals("pom", entry.getValue().packaging())) {
                     continue;
                 }
