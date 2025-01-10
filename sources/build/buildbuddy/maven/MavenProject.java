@@ -107,7 +107,7 @@ public class MavenProject implements BuildExecutorDelegate {
                         ? "jar"
                         : entry.getValue().packaging());
                 testModule.setProperty("classifier", "test-jar");
-                testModule.setProperty("dependencies", toString(
+                testModule.setProperty("dependencies", toString( // TODO: add dependency to root module.
                         entry.getValue().dependencies(),
                         MavenDependencyScope.TEST));
                 testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
@@ -136,13 +136,11 @@ public class MavenProject implements BuildExecutorDelegate {
                             properties.load(reader);
                         }
                         Path base = root.resolve(properties.getProperty("path"));
-                        boolean declared = false;
                         if (!properties.getProperty("sources").isEmpty()) {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {
                                 module.addSource("path-sources", sources);
                                 module.addStep("sources", Bind.asSources(), "path-sources");
-                                declared = true;
                             }
                         }
                         int index = 0;
@@ -152,34 +150,31 @@ public class MavenProject implements BuildExecutorDelegate {
                                 if (Files.exists(resources)) {
                                     module.addSource("path-resources-" + ++index, resources);
                                     module.addStep("resources-" + index, Bind.asResources(), "path-resources-" + index);
-                                    declared = true;
                                 }
                             }
                         }
-                        if (declared) {
-                            module.addStep("declare", (_, context, _) -> {
-                                Properties coordinates = new SequencedProperties();
-                                coordinates.setProperty(prefix
-                                        + "/" + properties.getProperty("groupId")
-                                        + "/" + properties.getProperty("artifactId")
-                                        + "/" + properties.getProperty("type")
-                                        + (properties.containsKey("classifier") ? "/" + properties.getProperty("classifier") : "")
-                                        + "/" + (properties.getProperty("version")), "");
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
-                                    coordinates.store(writer, null);
+                        module.addStep("declare", (_, context, _) -> {
+                            Properties coordinates = new SequencedProperties();
+                            coordinates.setProperty(prefix
+                                    + "/" + properties.getProperty("groupId")
+                                    + "/" + properties.getProperty("artifactId")
+                                    + "/" + properties.getProperty("type")
+                                    + (properties.containsKey("classifier") ? "/" + properties.getProperty("classifier") : "")
+                                    + "/" + (properties.getProperty("version")), "");
+                            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
+                                coordinates.store(writer, null);
+                            }
+                            Properties dependencies = new SequencedProperties();
+                            if (!properties.getProperty("dependencies").isEmpty()) {
+                                for (String dependency : properties.getProperty("dependencies").split(",")) {
+                                    dependencies.setProperty(prefix + "/" + dependency, "");
                                 }
-                                Properties dependencies = new SequencedProperties();
-                                if (!properties.getProperty("dependencies").isEmpty()) {
-                                    for (String dependency : properties.getProperty("dependencies").split(",")) {
-                                        dependencies.setProperty(prefix + "/" + dependency, "");
-                                    }
-                                }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
-                                    dependencies.store(writer, null);
-                                }
-                                return CompletableFuture.completedStage(new BuildStepResult(true));
-                            });
-                        }
+                            }
+                            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
+                                dependencies.store(writer, null);
+                            }
+                            return CompletableFuture.completedStage(new BuildStepResult(true));
+                        });
                     });
                 }
             }

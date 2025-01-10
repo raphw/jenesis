@@ -56,22 +56,21 @@ public class MavenProjectTest {
                     </dependencies>
                 </project>
                 """);
-        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
         executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/define/module-/declare");
-        Path folder = results.get("maven/define/module-/declare");
-        assertThat(folder.resolve(BuildStep.COORDINATES)).exists();
+        assertThat(results).containsKeys("maven/define/module-/declare", "maven/define/test-module-/declare");
+        Path module = results.get("maven/define/module-/declare");
+        assertThat(module.resolve(BuildStep.COORDINATES)).exists();
         Properties coordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(folder.resolve(BuildStep.COORDINATES))) {
+        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.COORDINATES))) {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsOnlyKeys("maven/group/artifact/jar/1");
         assertThat(coordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
-        assertThat(folder.resolve(BuildStep.DEPENDENCIES)).exists();
+        assertThat(module.resolve(BuildStep.DEPENDENCIES)).exists();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(folder.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.DEPENDENCIES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies).containsOnlyKeys("maven/other/artifact/jar/1");
@@ -92,7 +91,6 @@ public class MavenProjectTest {
                     </modules>
                 </project>
                 """);
-        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Path subproject = Files.createDirectory(project.resolve("subproject"));
         Files.writeString(subproject.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -187,5 +185,61 @@ public class MavenProjectTest {
         assertThat(results.get("maven/define/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
         assertThat(results.get("maven/define/module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
         assertThat(results.get("maven/define/module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
+    }
+
+    @Test
+    public void can_resolve_test_sources_and_resources() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/resources")).resolve("resource"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
+        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(results).containsKeys("maven/define/test-module-/declare",
+                "maven/define/test-module-/sources",
+                "maven/define/test-module-/resources-1");
+        assertThat(results.get("maven/define/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/define/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
+    }
+
+    @Test
+    public void can_resolve_test_sources_and_resources_explicit() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <build>
+                       <testSourceDirectory>sources</testSourceDirectory>
+                       <testResources>
+                         <testResource>resources-1</testResource>
+                         <testResource>resources-2</testResource>
+                       </testResources>
+                    </build>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("sources")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("resources-1")).resolve("resource1"), "bar");
+        Files.writeString(Files.createDirectories(project.resolve("resources-2")).resolve("resource2"), "qux");
+        BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
+        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(results).containsKeys("maven/define/test-module-/declare",
+                "maven/define/test-module-/sources",
+                "maven/define/test-module-/resources-1",
+                "maven/define/test-module-/resources-2");
+        assertThat(results.get("maven/define/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/define/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
+        assertThat(results.get("maven/define/test-module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
     }
 }
