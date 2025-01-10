@@ -268,6 +268,7 @@ public class MavenPomResolver implements Resolver {
             results.put(root.relativize(module), new MavenLocalPom(property(pom.groupId(), pom.properties()),
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
+                    property(pom.packaging(), pom.properties()),
                     property(pom.sourceDirectory(), pom.properties()),
                     pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
                             .map(resource -> property(resource, pom.properties()))
@@ -396,6 +397,7 @@ public class MavenPomResolver implements Resolver {
                         toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
                         toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
                         toTextChild400(document.getDocumentElement(), "version").orElse(version),
+                        extended ? null : toTextChild400(document.getDocumentElement(), "packaging").orElse(null),
                         build == null ? null : toTextChild400(build, "sourceDirectory").orElse(null),
                         build == null ? null : toChildren400(build, "resources").findFirst()
                                 .map(node -> toChildren400(node, "resource")
@@ -439,6 +441,7 @@ public class MavenPomResolver implements Resolver {
                     pom = new UnresolvedPom(groupId,
                             artifactId,
                             version,
+                            null,
                             null,
                             null,
                             null,
@@ -641,6 +644,7 @@ public class MavenPomResolver implements Resolver {
     private record UnresolvedPom(String groupId,
                                  String artifactId,
                                  String version,
+                                 String packaging,
                                  String sourceDirectory,
                                  List<String> resourceDirectories,
                                  String testSourceDirectory,

@@ -6,6 +6,7 @@ import java.util.SequencedMap;
 public record MavenLocalPom(String groupId,
                             String artifactId,
                             String version,
+                            String packaging,
                             String sourceDirectory,
                             List<String> resourceDirectories,
                             String testSourceDirectory,
