@@ -11,10 +11,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.SequencedMap;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -76,7 +73,13 @@ public class MavenProject implements BuildExecutorDelegate {
                 if (Objects.equals("pom", entry.getValue().packaging())) {
                     continue;
                 }
+                String coordinate = prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
+                        + "/" + entry.getValue().version();
                 Properties module = new SequencedProperties();
+                module.setProperty("coordinate", coordinate);
                 module.setProperty("path", entry.getKey().toString());
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
@@ -84,9 +87,9 @@ public class MavenProject implements BuildExecutorDelegate {
                 module.setProperty("type", entry.getValue().packaging() == null
                         ? "jar"
                         : entry.getValue().packaging());
-                module.setProperty("dependencies", toString(
+                module.setProperty("dependencies", toDependencies(
                         entry.getValue().dependencies(),
-                        MavenDependencyScope.COMPILE));
+                        Set.of(MavenDependencyScope.COMPILE, MavenDependencyScope.PROVIDED)));
                 module.setProperty("sources", entry.getValue().sourceDirectory() == null
                         ? "src/main/java"
                         : entry.getValue().sourceDirectory());
@@ -99,17 +102,19 @@ public class MavenProject implements BuildExecutorDelegate {
                     module.store(writer, null);
                 }
                 Properties testModule = new SequencedProperties();
+                testModule.setProperty("coordinate", prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
+                        + "/tests"
+                        + "/" + entry.getValue().version());
                 testModule.setProperty("path", entry.getKey().toString());
-                testModule.setProperty("groupId", entry.getValue().groupId());
-                testModule.setProperty("artifactId", entry.getValue().artifactId());
-                testModule.setProperty("version", entry.getValue().version());
-                testModule.setProperty("type", entry.getValue().packaging() == null
-                        ? "jar"
-                        : entry.getValue().packaging());
-                testModule.setProperty("classifier", "test-jar");
-                testModule.setProperty("dependencies", toString( // TODO: add dependency to root module.
+                String dependencies = toDependencies(
                         entry.getValue().dependencies(),
-                        MavenDependencyScope.TEST));
+                        Set.of(MavenDependencyScope.TEST, MavenDependencyScope.RUNTIME));
+                testModule.setProperty("dependencies", dependencies.isEmpty()
+                        ? coordinate
+                        : dependencies + "," + coordinate);
                 testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
                         ? "src/test/java"
                         : entry.getValue().testSourceDirectory());
@@ -155,19 +160,14 @@ public class MavenProject implements BuildExecutorDelegate {
                         }
                         module.addStep("declare", (_, context, _) -> {
                             Properties coordinates = new SequencedProperties();
-                            coordinates.setProperty(prefix
-                                    + "/" + properties.getProperty("groupId")
-                                    + "/" + properties.getProperty("artifactId")
-                                    + "/" + properties.getProperty("type")
-                                    + (properties.containsKey("classifier") ? "/" + properties.getProperty("classifier") : "")
-                                    + "/" + (properties.getProperty("version")), "");
+                            coordinates.setProperty(properties.getProperty("coordinate"), "");
                             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
                                 coordinates.store(writer, null);
                             }
                             Properties dependencies = new SequencedProperties();
                             if (!properties.getProperty("dependencies").isEmpty()) {
                                 for (String dependency : properties.getProperty("dependencies").split(",")) {
-                                    dependencies.setProperty(prefix + "/" + dependency, "");
+                                    dependencies.setProperty(dependency, "");
                                 }
                             }
                             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
@@ -181,11 +181,12 @@ public class MavenProject implements BuildExecutorDelegate {
         }, "prepare");
     }
 
-    private static String toString(SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
-                                   MavenDependencyScope scope) {
+    private String toDependencies(SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
+                                         Set<MavenDependencyScope> scopes) {
         return values == null ? "" : values.entrySet().stream()
-                .filter(dependency -> !dependency.getValue().scope().reduces(scope))
-                .map(entry -> entry.getKey().groupId()
+                .filter(dependency -> scopes.contains(dependency.getValue().scope()))
+                .map(entry -> prefix
+                        + "/" + entry.getKey().groupId()
                         + "/" + entry.getKey().artifactId()
                         + "/" + (entry.getKey().type() == null ? "jar" : entry.getKey().type())
                         + (entry.getKey().classifier() == null ? "" : "/" + entry.getKey().classifier())
