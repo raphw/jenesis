@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
@@ -77,7 +78,7 @@ public class MavenProject implements BuildExecutorDelegate {
                 properties.setProperty("groupId", entry.getValue().groupId());
                 properties.setProperty("artifactId", entry.getValue().artifactId());
                 properties.setProperty("version", entry.getValue().version());
-                properties.setProperty("packaging", entry.getValue().packaging() == null
+                properties.setProperty("type", entry.getValue().packaging() == null
                         ? "jar"
                         : entry.getValue().packaging());
                 properties.setProperty("dependencies", toString(
@@ -109,17 +110,21 @@ public class MavenProject implements BuildExecutorDelegate {
                             properties.load(reader);
                         }
                         Path base = root.resolve(properties.getProperty("path"));
-                        Path sources = base.resolve(properties.getProperty("sources"));
-                        if (Files.exists(sources)) {
-                            module.addSource("sources", sources);
-                            module.addStep("bind-sources", Bind.asSources(), "sources");
+                        if (!properties.getProperty("sources").isEmpty()) {
+                            Path sources = base.resolve(properties.getProperty("sources"));
+                            if (Files.exists(sources)) {
+                                module.addSource("sources", sources);
+                                module.addStep("bind-sources", Bind.asSources(), "sources");
+                            }
                         }
                         int index = 0;
-                        for (String resource : properties.getProperty("resources").split(",")) {
-                            Path resources = base.resolve(resource);
-                            if (Files.exists(sources)) {
-                                module.addSource("resources-" + ++index, resources);
-                                module.addStep("bind-resources-" + index, Bind.asResources(), "resources");
+                        if (!properties.getProperty("resources").isEmpty()) {
+                            for (String resource : properties.getProperty("resources").split(",")) {
+                                Path resources = base.resolve(resource);
+                                if (Files.exists(resources)) {
+                                    module.addSource("resources-" + ++index, resources);
+                                    module.addStep("bind-resources-" + index, Bind.asResources(), "resources");
+                                }
                             }
                         }
                         module.addStep("declare", (_, context, _) -> {
@@ -127,14 +132,16 @@ public class MavenProject implements BuildExecutorDelegate {
                             coordinates.setProperty(prefix
                                     + "/" + properties.getProperty("groupId")
                                     + "/" + properties.getProperty("artifactId")
-                                    + "/" + properties.getProperty("jar")
+                                    + "/" + properties.getProperty("type")
                                     + "/" + (properties.getProperty("version")), "");
                             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
                                 coordinates.store(writer, null);
                             }
                             Properties dependencies = new SequencedProperties();
-                            for (String dependency : properties.getProperty("dependencies").split(",")) {
-                                dependencies.setProperty(prefix + "/" + dependency, "");
+                            if (!properties.getProperty("dependencies").isEmpty()) {
+                                for (String dependency : properties.getProperty("dependencies").split(",")) {
+                                    dependencies.setProperty(prefix + "/" + dependency, "");
+                                }
                             }
                             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
                                 dependencies.store(writer, null);
@@ -150,7 +157,7 @@ public class MavenProject implements BuildExecutorDelegate {
     private static String toString(SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
                                    MavenDependencyScope scope) {
         return values == null ? "" : values.entrySet().stream()
-                .filter(dependency -> dependency.getValue().scope().reduces(scope))
+                .filter(dependency -> !dependency.getValue().scope().reduces(scope))
                 .map(entry -> entry.getKey().groupId()
                         + "/" + entry.getKey().artifactId()
                         + "/" + entry.getValue().version()
