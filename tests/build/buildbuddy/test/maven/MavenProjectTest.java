@@ -56,11 +56,12 @@ public class MavenProjectTest {
                     </dependencies>
                 </project>
                 """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
         executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/define/pom-/declare");
-        Path folder = results.get("maven/define/pom-/declare");
+        assertThat(results).containsKeys("maven/define/module-/declare");
+        Path folder = results.get("maven/define/module-/declare");
         assertThat(folder.resolve(BuildStep.COORDINATES)).exists();
         Properties coordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(folder.resolve(BuildStep.COORDINATES))) {
@@ -91,6 +92,7 @@ public class MavenProjectTest {
                     </modules>
                 </project>
                 """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Path subproject = Files.createDirectory(project.resolve("subproject"));
         Files.writeString(subproject.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -106,11 +108,12 @@ public class MavenProjectTest {
                     </parent>
                 </project>
                 """);
+        Files.writeString(Files.createDirectories(subproject.resolve("src/main/java")).resolve("source"), "foo");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
         executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/define/pom-/declare", "maven/define/pom-subproject/declare");
-        Path parent = results.get("maven/define/pom-/declare");
+        assertThat(results).containsKeys("maven/define/module-/declare", "maven/define/module-subproject/declare");
+        Path parent = results.get("maven/define/module-/declare");
         assertThat(parent.resolve(BuildStep.COORDINATES)).exists();
         Properties parentCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(parent.resolve(BuildStep.COORDINATES))) {
@@ -119,7 +122,7 @@ public class MavenProjectTest {
         assertThat(parentCoordinates).containsOnlyKeys("maven/parent/artifact/jar/1");
         assertThat(parentCoordinates.getProperty("maven/parent/artifact/jar/1")).isEmpty();
         assertThat(parent.resolve(BuildStep.DEPENDENCIES)).exists().content().isEmpty();
-        Path child = results.get("maven/define/pom-/declare");
+        Path child = results.get("maven/define/module-/declare");
         assertThat(child.resolve(BuildStep.COORDINATES)).exists();
         Properties childCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(child.resolve(BuildStep.COORDINATES))) {
@@ -146,11 +149,11 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
         executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/define/pom-/declare",
-                "maven/define/pom-/bound-sources",
-                "maven/define/pom-/bound-resources-1");
-        assertThat(results.get("maven/define/pom-/bound-sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
-        assertThat(results.get("maven/define/pom-/bound-resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
+        assertThat(results).containsKeys("maven/define/module-/declare",
+                "maven/define/module-/sources",
+                "maven/define/module-/resources-1");
+        assertThat(results.get("maven/define/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/define/module-/resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
     }
 
     @Test
@@ -177,12 +180,12 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
         executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/define/pom-/declare",
-                "maven/define/pom-/bound-sources",
-                "maven/define/pom-/bound-resources-1",
-                "maven/define/pom-/bound-resources-2");
-        assertThat(results.get("maven/define/pom-/bound-sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
-        assertThat(results.get("maven/define/pom-/bound-resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
-        assertThat(results.get("maven/define/pom-/bound-resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
+        assertThat(results).containsKeys("maven/define/module-/declare",
+                "maven/define/module-/sources",
+                "maven/define/module-/resources-1",
+                "maven/define/module-/resources-2");
+        assertThat(results.get("maven/define/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/define/module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
+        assertThat(results.get("maven/define/module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
     }
 }

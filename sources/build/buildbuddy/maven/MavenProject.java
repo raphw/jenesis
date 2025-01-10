@@ -73,27 +73,53 @@ public class MavenProject implements BuildExecutorDelegate {
             for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(arguments.get("scan")
                     .folder()
                     .resolve(POMS)).entrySet()) {
-                Properties properties = new SequencedProperties();
-                properties.setProperty("path", entry.getKey().toString());
-                properties.setProperty("groupId", entry.getValue().groupId());
-                properties.setProperty("artifactId", entry.getValue().artifactId());
-                properties.setProperty("version", entry.getValue().version());
-                properties.setProperty("type", entry.getValue().packaging() == null
+                if (Objects.equals("pom", entry.getValue().packaging())) {
+                    continue;
+                }
+                Properties module = new SequencedProperties();
+                module.setProperty("path", entry.getKey().toString());
+                module.setProperty("groupId", entry.getValue().groupId());
+                module.setProperty("artifactId", entry.getValue().artifactId());
+                module.setProperty("version", entry.getValue().version());
+                module.setProperty("type", entry.getValue().packaging() == null
                         ? "jar"
                         : entry.getValue().packaging());
-                properties.setProperty("dependencies", toString(
+                module.setProperty("dependencies", toString(
                         entry.getValue().dependencies(),
                         MavenDependencyScope.COMPILE));
-                properties.setProperty("sources", entry.getValue().sourceDirectory() == null
+                module.setProperty("sources", entry.getValue().sourceDirectory() == null
                         ? "src/main/java"
                         : entry.getValue().sourceDirectory());
-                properties.setProperty("resources", entry.getValue().resourceDirectories() == null
+                module.setProperty("resources", entry.getValue().resourceDirectories() == null
                         ? "src/main/resources"
-                        : String.join(",", entry.getValue().resourceDirectories()));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("pom-" + URLEncoder.encode(
+                        : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + URLEncoder.encode(
                         entry.getKey().toString(),
                         StandardCharsets.UTF_8) + ".properties"))) {
-                    properties.store(writer, null);
+                    module.store(writer, null);
+                }
+                Properties testModule = new SequencedProperties();
+                testModule.setProperty("path", entry.getKey().toString());
+                testModule.setProperty("groupId", entry.getValue().groupId());
+                testModule.setProperty("artifactId", entry.getValue().artifactId());
+                testModule.setProperty("version", entry.getValue().version());
+                testModule.setProperty("type", entry.getValue().packaging() == null
+                        ? "jar"
+                        : entry.getValue().packaging());
+                testModule.setProperty("classifier", "test-jar");
+                testModule.setProperty("dependencies", toString(
+                        entry.getValue().dependencies(),
+                        MavenDependencyScope.TEST));
+                testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
+                        ? "src/test/java"
+                        : entry.getValue().testSourceDirectory());
+                testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
+                        ? "src/test/resources"
+                        : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + URLEncoder.encode(
+                        entry.getKey().toString(),
+                        StandardCharsets.UTF_8) + ".properties"))) {
+                    testModule.store(writer, null);
                 }
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -110,11 +136,13 @@ public class MavenProject implements BuildExecutorDelegate {
                             properties.load(reader);
                         }
                         Path base = root.resolve(properties.getProperty("path"));
+                        boolean declared = false;
                         if (!properties.getProperty("sources").isEmpty()) {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {
-                                module.addSource("sources", sources);
-                                module.addStep("bound-sources", Bind.asSources(), "sources");
+                                module.addSource("path-sources", sources);
+                                module.addStep("sources", Bind.asSources(), "path-sources");
+                                declared = true;
                             }
                         }
                         int index = 0;
@@ -122,32 +150,36 @@ public class MavenProject implements BuildExecutorDelegate {
                             for (String resource : properties.getProperty("resources").split(",")) {
                                 Path resources = base.resolve(resource);
                                 if (Files.exists(resources)) {
-                                    module.addSource("resources-" + ++index, resources);
-                                    module.addStep("bound-resources-" + index, Bind.asResources(), "resources-" + index);
+                                    module.addSource("path-resources-" + ++index, resources);
+                                    module.addStep("resources-" + index, Bind.asResources(), "path-resources-" + index);
+                                    declared = true;
                                 }
                             }
                         }
-                        module.addStep("declare", (_, context, _) -> {
-                            Properties coordinates = new SequencedProperties();
-                            coordinates.setProperty(prefix
-                                    + "/" + properties.getProperty("groupId")
-                                    + "/" + properties.getProperty("artifactId")
-                                    + "/" + properties.getProperty("type")
-                                    + "/" + (properties.getProperty("version")), "");
-                            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
-                                coordinates.store(writer, null);
-                            }
-                            Properties dependencies = new SequencedProperties();
-                            if (!properties.getProperty("dependencies").isEmpty()) {
-                                for (String dependency : properties.getProperty("dependencies").split(",")) {
-                                    dependencies.setProperty(prefix + "/" + dependency, "");
+                        if (declared) {
+                            module.addStep("declare", (_, context, _) -> {
+                                Properties coordinates = new SequencedProperties();
+                                coordinates.setProperty(prefix
+                                        + "/" + properties.getProperty("groupId")
+                                        + "/" + properties.getProperty("artifactId")
+                                        + "/" + properties.getProperty("type")
+                                        + (properties.containsKey("classifier") ? "/" + properties.getProperty("classifier") : "")
+                                        + "/" + (properties.getProperty("version")), "");
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
+                                    coordinates.store(writer, null);
                                 }
-                            }
-                            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
-                                dependencies.store(writer, null);
-                            }
-                            return CompletableFuture.completedStage(new BuildStepResult(true));
-                        });
+                                Properties dependencies = new SequencedProperties();
+                                if (!properties.getProperty("dependencies").isEmpty()) {
+                                    for (String dependency : properties.getProperty("dependencies").split(",")) {
+                                        dependencies.setProperty(prefix + "/" + dependency, "");
+                                    }
+                                }
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
+                                    dependencies.store(writer, null);
+                                }
+                                return CompletableFuture.completedStage(new BuildStepResult(true));
+                            });
+                        }
                     });
                 }
             }
