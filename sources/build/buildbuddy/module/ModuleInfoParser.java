@@ -23,8 +23,7 @@ public class ModuleInfoParser {
 
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
-    public ModuleInfo identify(Path folder) throws IOException {
-        Path moduleInfo = folder.resolve("module-info.java");
+    public ModuleInfo identify(Path moduleInfo) throws IOException {
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
                 compiler.getStandardFileManager(null, null, null),
                 null,

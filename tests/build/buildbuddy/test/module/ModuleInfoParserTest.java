@@ -36,7 +36,7 @@ public class ModuleInfoParserTest {
                   exports baz;
                 }
                 """);
-        assertThat(new ModuleInfoParser().identify(folder)).isEqualTo(
+        assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java"))).isEqualTo(
                 new ModuleInfo("foo", new LinkedHashSet<>(List.of("bar"))));
     }
 }
