@@ -114,7 +114,7 @@ public class MavenProject implements BuildExecutorDelegate {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {
                                 module.addSource("sources", sources);
-                                module.addStep("bind-sources", Bind.asSources(), "sources");
+                                module.addStep("bound-sources", Bind.asSources(), "sources");
                             }
                         }
                         int index = 0;
@@ -123,7 +123,7 @@ public class MavenProject implements BuildExecutorDelegate {
                                 Path resources = base.resolve(resource);
                                 if (Files.exists(resources)) {
                                     module.addSource("resources-" + ++index, resources);
-                                    module.addStep("bind-resources-" + index, Bind.asResources(), "resources");
+                                    module.addStep("bound-resources-" + index, Bind.asResources(), "resources-" + index);
                                 }
                             }
                         }
@@ -160,9 +160,9 @@ public class MavenProject implements BuildExecutorDelegate {
                 .filter(dependency -> !dependency.getValue().scope().reduces(scope))
                 .map(entry -> entry.getKey().groupId()
                         + "/" + entry.getKey().artifactId()
-                        + "/" + entry.getValue().version()
                         + "/" + (entry.getKey().type() == null ? "jar" : entry.getKey().type())
-                        + (entry.getKey().classifier() == null ? "" : "/" + entry.getKey().classifier()))
+                        + (entry.getKey().classifier() == null ? "" : "/" + entry.getKey().classifier())
+                        + "/" + entry.getValue().version())
                 .collect(Collectors.joining(","));
     }
 }
