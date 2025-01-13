@@ -10,19 +10,13 @@ import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.JavaBuildModule;
-import build.buildbuddy.project.JavaPipelineModule;
 import build.buildbuddy.step.Bind;
-import build.buildbuddy.step.Download;
-import build.buildbuddy.step.JUnit4;
-import build.buildbuddy.step.Jar;
-import build.buildbuddy.step.Javac;
-import build.buildbuddy.step.Resolve;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 
-public class Manual {
+public class Modules {
 
     public static void main(String[] args) throws IOException {
         MavenRepository mavenRepository = new MavenDefaultRepository();
@@ -35,12 +29,12 @@ public class Manual {
         root.addSource("dependencies", Path.of("dependencies"));
 
         root.addStep("main-deps", Bind.asDependencies("main.properties"), "dependencies");
-        root.addModule("main-artifacts", new DependenciesModule(resolvers, repositories), "main-deps");
+        root.addModule("main-artifacts", new DependenciesModule(repositories, resolvers), "main-deps");
         root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
         root.addModule("main", new JavaBuildModule(), "main-artifacts", "main-sources");
 
         root.addStep("test-deps", Bind.asDependencies("test.properties"), "dependencies");
-        root.addModule("test-artifacts", new DependenciesModule(resolvers, repositories), "test-deps");
+        root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaBuildModule().tests(), "test-artifacts", "test-sources", "main");
 
