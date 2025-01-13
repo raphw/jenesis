@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -329,6 +330,48 @@ public class BuildExecutorTest {
         });
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("step/source", "step/step1", "step/step2");
+        assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
+                .content()
+                .isEqualTo("foobarqux");
+    }
+
+    @Test
+    public void can_execute_nested_resolved() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
+            assertThat(inherited).isEmpty();
+            buildExecutor.addSource("source", source);
+            buildExecutor.addStep("step1", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("source");
+                assertThat(arguments.get("source").folder()).isEqualTo(source);
+                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+            buildExecutor.addStep("step2", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("step1");
+                assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
+                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "step1");
+        }, identity -> switch (identity) {
+            case "source" -> Optional.of("renamed");
+            case "step1" -> Optional.empty();
+            case "step2" -> Optional.of("");
+            default -> throw new AssertionError();
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("step/renamed", "step");
         assertThat(root.resolve("step").resolve("step2").resolve("output").resolve("file"))
                 .content()
                 .isEqualTo("foobarqux");
