@@ -106,7 +106,7 @@ public class JavaModuleTest {
                 Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
                 artifacts.resolve("hamcrest-core.jar"));
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().test(), "input");
+        buildExecutor.addModule("output", new JavaModule().tested(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/tests");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/SampleTest.class")).exists();
