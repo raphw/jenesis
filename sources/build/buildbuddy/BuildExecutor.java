@@ -14,7 +14,9 @@ import java.util.regex.Pattern;
 
 public class BuildExecutor {
 
-    private static final Pattern VALIDATE = Pattern.compile("[a-zA-Z0-9-]+");
+    private static final Pattern
+            VALIDATE_ORIGINAL = Pattern.compile("[a-zA-Z0-9-]+"),
+            VALIDATE_RESOLVED = Pattern.compile("[a-zA-Z0-9/-]+");
 
     private final Path root;
     private final HashFunction hash;
@@ -203,7 +205,14 @@ public class BuildExecutor {
                 module.accept(buildExecutor, folders);
                 return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
-                    results.forEach((identity, values) -> prefixed.put(prefix + "/" + identity, values));
+                    results.forEach((identity, values) -> {
+                        String resolved = module.resolve(identity).orElse(null);
+                        if (resolved != null && prefixed.putIfAbsent(
+                                resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
+                                values) != null) {
+                            throw new IllegalArgumentException("Duplicate resolution " + resolved + " for " + prefix);
+                        }
+                    });
                     return Map.of(prefix, prefixed);
                 }, executor);
             } catch (Throwable t) {
@@ -226,7 +235,7 @@ public class BuildExecutor {
             }
         });
         if (registrations.putIfAbsent(
-                validated(identity),
+                validated(identity, VALIDATE_ORIGINAL),
                 new Registration(bound, preliminaries, dependencies)) != null) {
             throw new IllegalArgumentException("Step already registered: " + identity);
         }
@@ -247,7 +256,7 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        if (registrations.putIfAbsent(validated(prepended), new Registration(bound,
+        if (registrations.putIfAbsent(validated(prepended, VALIDATE_ORIGINAL), new Registration(bound,
                 registration.preliminaries(),
                 registration.dependencies())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
@@ -260,7 +269,7 @@ public class BuildExecutor {
         if (registration == null) {
             throw new IllegalArgumentException("Unknown step: " + identity);
         }
-        if (registrations.putIfAbsent(validated(appended), registration) != null) {
+        if (registrations.putIfAbsent(validated(appended, VALIDATE_ORIGINAL), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
         registrations.replace(identity, new Registration(bound, Set.of(appended), Set.of(appended)));
@@ -332,11 +341,11 @@ public class BuildExecutor {
         return result;
     }
 
-    private static String validated(String identity) {
-        if (VALIDATE.matcher(identity).matches()) {
+    private static String validated(String identity, Pattern pattern) {
+        if (pattern.matcher(identity).matches()) {
             return identity;
         }
-        throw new IllegalArgumentException("Identity '" + identity + "' does not match pattern: " + VALIDATE.pattern());
+        throw new IllegalArgumentException("Identity '" + identity + "' does not match pattern: " + pattern.pattern());
     }
 
     @FunctionalInterface

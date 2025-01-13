@@ -37,7 +37,7 @@ public class MavenPomEmitter {
         } catch (ParserConfigurationException e) {
             throw new IllegalStateException(e);
         }
-        Element project = (Element) document.appendChild(document.createElementNS(NAMESPACE_4_0_0, "build/buildbuddy/project"));
+        Element project = (Element) document.appendChild(document.createElementNS(NAMESPACE_4_0_0, "project"));
         project.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance",
                 "xsi:schemaLocation",
                 "http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd");

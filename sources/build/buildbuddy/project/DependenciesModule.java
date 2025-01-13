@@ -31,7 +31,7 @@ public class DependenciesModule implements BuildExecutorModule {
         this.checksum = checksum;
     }
 
-    public DependenciesModule withChecksums(String algorithm) {
+    public DependenciesModule computeChecksums(String algorithm) {
         return new DependenciesModule(repositories, resolvers, algorithm);
     }
 
@@ -54,12 +54,13 @@ public class DependenciesModule implements BuildExecutorModule {
     }
 
     private void doAccept(BuildExecutor buildExecutor, String origin) {
-        buildExecutor.addStep("resolved", new Resolve(resolvers), origin);
         if (checksum != null) {
-            buildExecutor.addStep("checksum", new Checksum(checksum, repositories), "resolved");
-            buildExecutor.addStep(ARTIFACTS, new Download(repositories), "checksum");
+            buildExecutor.addStep("prepare", new Resolve(resolvers), origin);
+            buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), "prepare");
+            buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
         } else {
-            buildExecutor.addStep(ARTIFACTS, new Download(repositories), "resolved");
+            buildExecutor.addStep(RESOLVED, new Resolve(resolvers), origin);
         }
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
     }
 }

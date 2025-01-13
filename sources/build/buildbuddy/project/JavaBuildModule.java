@@ -13,20 +13,20 @@ import java.util.SequencedSet;
 
 public class JavaBuildModule implements BuildExecutorModule {
 
-    public static final String JAR = "jar", ARTIFACTS = "artifacts";
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes";
 
     public BuildExecutorModule tests() {
         return (buildExecutor, inherited) -> {
             accept(buildExecutor, inherited);
             SequencedSet<String> dependencies = new LinkedHashSet<>(inherited.sequencedKeySet());
-            dependencies.add(JAR);
+            dependencies.add(ARTIFACTS);
             buildExecutor.addStep("test", new JUnit4(), dependencies);
         };
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep("javac", new Javac(), inherited.sequencedKeySet());
-        buildExecutor.addStep(JAR, new Jar(), "javac");
+        buildExecutor.addStep(CLASSES, new Javac(), inherited.sequencedKeySet());
+        buildExecutor.addStep(ARTIFACTS, new Jar(), CLASSES);
     }
 }

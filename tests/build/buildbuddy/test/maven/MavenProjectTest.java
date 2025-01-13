@@ -31,7 +31,7 @@ public class MavenProjectTest {
     @Before
     public void setUp() throws Exception {
         Path repository = temporaryFolder.newFolder("repository").toPath();
-        project = temporaryFolder.newFolder("build/buildbuddy/project").toPath();
+        project = temporaryFolder.newFolder("project").toPath();
         build = temporaryFolder.newFolder("build").toPath();
         mavenPomResolver = new MavenPomResolver(
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),

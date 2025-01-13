@@ -27,7 +27,7 @@ public class ModularProjectTest {
 
     @Before
     public void setUp() throws Exception {
-        project = temporaryFolder.newFolder("build/buildbuddy/project").toPath();
+        project = temporaryFolder.newFolder("project").toPath();
         build = temporaryFolder.newFolder("build").toPath();
     }
 
