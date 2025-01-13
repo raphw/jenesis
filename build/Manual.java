@@ -34,28 +34,26 @@ public class Manual {
         root.addSource("deps", Path.of("dependencies"));
 
         root.addModule("main-deps", (module, _) -> {
-            module.addStep("bound", Bind.asDependencies("main.properties"), "../deps");
-            module.addStep("resolved", new Resolve(resolvers), "bound");
+            module.addStep("properties", Bind.asDependencies("main.properties"), "../deps");
+            module.addStep("resolved", new Resolve(resolvers), "properties");
             module.addStep("artifacts", new Download(repositories), "resolved");
         }, "deps");
         root.addModule("main", (module, _) -> {
-            module.addSource("sources", Path.of("sources"));
-            module.addStep("bound", Bind.asSources(), "sources");
-            module.addStep("javac", new Javac(), "bound", "../main-deps/artifacts");
-            module.addStep("jar", new Jar(), "javac");
+            module.addStep("sources", Bind.asSources(), Path.of("sources"));
+            module.addStep("classes", new Javac(), "sources", "../main-deps/artifacts");
+            module.addStep("artifacts", new Jar(), "classes");
         }, "main-deps");
 
         root.addModule("test-deps", (module, _) -> {
-            module.addStep("bound", Bind.asDependencies("test.properties"), "../deps");
-            module.addStep("resolved", new Resolve(resolvers), "bound");
+            module.addStep("properties", Bind.asDependencies("test.properties"), "../deps");
+            module.addStep("resolved", new Resolve(resolvers), "properties");
             module.addStep("artifacts", new Download(repositories), "resolved");
         }, "deps");
         root.addModule("test", (module, _) -> {
-            module.addSource("sources", Path.of("tests"));
-            module.addStep("bound", Bind.asSources(), "sources");
-            module.addStep("javac", new Javac(), "bound", "../main/jar", "../test-deps/artifacts");
-            module.addStep("jar", new Jar(), "javac", "../test-deps/artifacts");
-            module.addStep("junit", new JUnit4(), "jar", "../main/jar", "../test-deps/artifacts");
+            module.addStep("sources", Bind.asSources(), Path.of("tests"));
+            module.addStep("classes", new Javac(), "sources", "../main/artifacts", "../test-deps/artifacts");
+            module.addStep("artifacts", new Jar(), "classes", "../test-deps/artifacts");
+            module.addStep("tests", new JUnit4(), "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
         System.out.println("Built: " + root.execute());
