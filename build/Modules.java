@@ -41,8 +41,8 @@ public class Manual {
         root.addModule("test-deps",
                 new DependenciesModule(resolvers, repositories).bound("test.properties"),
                 DependenciesModule.DEPENDENCIES);
-        root.addModule("main", new JavaBuildModule(), "main-deps");
-        root.addModule("test", new JavaBuildModule().tests(), "test-deps", "main");
+        root.addModule("main", new JavaBuildModule(), "main-deps", "main-sources");
+        root.addModule("test", new JavaBuildModule().tests(), "test-deps", "test-sources", "main");
 
         Map<String, Path> steps = root.execute();
         System.out.println("Built: " + steps);
