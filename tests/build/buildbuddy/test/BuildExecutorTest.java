@@ -11,7 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,6 +54,14 @@ public class BuildExecutorTest {
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("foobar");
+    }
+
+    @Test
+    public void does_not_except_non_alphanumeric() throws IOException {
+        assertThatThrownBy(() -> buildExecutor.addStep("foo/bar", (_, _, _) -> {
+            throw new AssertionError();
+        })).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(
+                "foo/bar does not match pattern: [a-zA-Z0-9-]+");
     }
 
     @Test
