@@ -36,16 +36,24 @@ public class BuildExecutor {
         add(identity, bindSource(path), Set.of());
     }
 
-    public void addSource(String identity, Path path, BuildStep step) {
-        add(identity, bindStep(step).summaries(hash, path), Set.of());
+    public void addSource(String identity, BuildStep step, Path... paths) {
+        add(identity, bindStep(step).summaries(hash, Set.of(paths)), Set.of());
+    }
+
+    public void addSource(String identity, BuildStep step, SequencedSet<Path> paths) {
+        add(identity, bindStep(step).summaries(hash, paths), Set.of());
     }
 
     public void replaceSource(String identity, Path path) {
         replace(identity, bindSource(path));
     }
 
-    public void replaceSource(String identity, Path path, BuildStep step) {
-        replace(identity, bindStep(step).summaries(hash, path));
+    public void replaceSource(String identity, BuildStep step, Path... paths) {
+        replace(identity, bindStep(step).summaries(hash, Set.of(paths)));
+    }
+
+    public void replaceSource(String identity, BuildStep step, SequencedSet<Path> paths) {
+        replace(identity, bindStep(step).summaries(hash, paths));
     }
 
     private Bound bindSource(Path path) {
@@ -339,12 +347,14 @@ public class BuildExecutor {
                                                                      Map<String, StepSummary> summaries)
                 throws IOException;
 
-        default Bound summaries(HashFunction hash, Path path) {
+        default Bound summaries(HashFunction hash, Set<Path> paths) {
             return (identity, executor, summaries) -> {
                 SequencedMap<String, StepSummary> extended = new LinkedHashMap<>(summaries);
-                extended.put(
-                        ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
-                        new StepSummary(path, HashFunction.read(path, hash)));
+                for (Path path : paths) {
+                    extended.put(
+                            ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
+                            new StepSummary(path, HashFunction.read(path, hash)));
+                }
                 return apply(identity, executor, extended);
             };
         }
