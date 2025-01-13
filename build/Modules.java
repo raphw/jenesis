@@ -38,7 +38,6 @@ public class Modules {
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaBuildModule().tests(), "test-artifacts", "test-sources", "main");
 
-        Map<String, Path> steps = root.execute();
-        System.out.println("Built: " + steps);
+        System.out.println("Built: " + root.execute());
     }
 }

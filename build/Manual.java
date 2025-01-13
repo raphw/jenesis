@@ -58,7 +58,6 @@ public class Manual {
             module.addStep("junit", new JUnit4(), "jar", "../main/jar", "../test-deps/artifacts");
         }, "test-deps", "main");
 
-        Map<String, Path> steps = root.execute();
-        System.out.println("Built: " + steps);
+        System.out.println("Built: " + root.execute());
     }
 }
