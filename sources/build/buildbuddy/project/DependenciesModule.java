@@ -4,7 +4,6 @@ import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorModule;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
-import build.buildbuddy.step.Bind;
 import build.buildbuddy.step.Checksum;
 import build.buildbuddy.step.Download;
 import build.buildbuddy.step.Resolve;
@@ -15,7 +14,8 @@ import java.util.SequencedMap;
 
 public class DependenciesModule implements BuildExecutorModule {
 
-    public static final String DEPENDENCIES = "dependencies", RESOLVED = "resolved", ARTIFACTS = "artifacts";
+    public static final String RESOLVED = "resolved", ARTIFACTS = "artifacts";
+    private static final String PREPARE = "prepare";
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -35,31 +35,14 @@ public class DependenciesModule implements BuildExecutorModule {
         return new DependenciesModule(repositories, resolvers, algorithm);
     }
 
-    public BuildExecutorModule bound(String file) {
-        return (buildExecutor, inherited) -> {
-            if (!inherited.containsKey(DEPENDENCIES)) {
-                throw new IllegalArgumentException("Expected to receive '" + DEPENDENCIES + "' as input");
-            }
-            buildExecutor.addStep("bound", Bind.asDependencies(file), DEPENDENCIES);
-            doAccept(buildExecutor, "bound");
-        };
-    }
-
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        if (!inherited.containsKey(RESOLVED)) {
-            throw new IllegalArgumentException("Expected to receive " + RESOLVED + " as input");
-        }
-        doAccept(buildExecutor, RESOLVED);
-    }
-
-    private void doAccept(BuildExecutor buildExecutor, String origin) {
         if (checksum != null) {
-            buildExecutor.addStep("prepare", new Resolve(resolvers), origin);
-            buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), "prepare");
+            buildExecutor.addStep(PREPARE, new Resolve(resolvers), inherited.sequencedKeySet());
+            buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), PREPARE);
             buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
         } else {
-            buildExecutor.addStep(RESOLVED, new Resolve(resolvers), origin);
+            buildExecutor.addStep(RESOLVED, new Resolve(resolvers), inherited.sequencedKeySet());
         }
         buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
     }

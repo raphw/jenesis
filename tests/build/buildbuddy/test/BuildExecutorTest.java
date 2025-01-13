@@ -429,8 +429,8 @@ public class BuildExecutorTest {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
-            assertThat(inherited).containsOnlyKeys("source");
-            assertThat(inherited.get("source")).isEqualTo(source);
+            assertThat(inherited).containsOnlyKeys("../source");
+            assertThat(inherited.get("../source")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
@@ -493,8 +493,8 @@ public class BuildExecutorTest {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
-            assertThat(inherited).containsOnlyKeys("source");
-            assertThat(inherited.get("source")).isEqualTo(source);
+            assertThat(inherited).containsOnlyKeys("../source");
+            assertThat(inherited.get("../source")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
@@ -536,8 +536,8 @@ public class BuildExecutorTest {
             buildExecutor.addSource("source1", source);
         });
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
-            assertThat(inherited).containsOnlyKeys("source/source1");
-            assertThat(inherited.get("source/source1")).isEqualTo(source);
+            assertThat(inherited).containsOnlyKeys("../source/source1");
+            assertThat(inherited.get("../source/source1")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, _, _) -> {
                 throw new AssertionError();
             }, "../source");
@@ -557,8 +557,8 @@ public class BuildExecutorTest {
             buildExecutor.addSource("source1", source);
         });
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
-            assertThat(inherited).containsOnlyKeys("source/source1");
-            assertThat(inherited.get("source/source1")).isEqualTo(source);
+            assertThat(inherited).containsOnlyKeys("../source/source1");
+            assertThat(inherited.get("../source/source1")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
@@ -595,11 +595,11 @@ public class BuildExecutorTest {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
-            assertThat(inherited).containsOnlyKeys("source");
-            assertThat(inherited.get("source")).isEqualTo(source);
+            assertThat(inherited).containsOnlyKeys("../source");
+            assertThat(inherited.get("../source")).isEqualTo(source);
             buildExecutor.addModule("step1", (nestedBuildExecutor, nestedInherited) -> {
-                assertThat(nestedInherited).containsOnlyKeys("../source");
-                assertThat(nestedInherited.get("../source")).isEqualTo(source);
+                assertThat(nestedInherited).containsOnlyKeys("../../source");
+                assertThat(nestedInherited.get("../../source")).isEqualTo(source);
                 nestedBuildExecutor.addStep("step2", (_, context, arguments) -> {
                     assertThat(context.previous()).isNull();
                     assertThat(context.next()).isDirectory();

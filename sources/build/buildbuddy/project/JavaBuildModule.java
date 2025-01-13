@@ -13,14 +13,15 @@ import java.util.SequencedSet;
 
 public class JavaBuildModule implements BuildExecutorModule {
 
-    public static final String ARTIFACTS = "artifacts", CLASSES = "classes";
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TEST = "test";
 
     public BuildExecutorModule tests() {
         return (buildExecutor, inherited) -> {
             accept(buildExecutor, inherited);
             SequencedSet<String> dependencies = new LinkedHashSet<>(inherited.sequencedKeySet());
             dependencies.add(ARTIFACTS);
-            buildExecutor.addStep("test", new JUnit4(), dependencies);
+            dependencies.add(CLASSES);
+            buildExecutor.addStep(TEST, new JUnit4(), dependencies);
         };
     }
 

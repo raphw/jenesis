@@ -225,8 +225,9 @@ public class BuildExecutor {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
                 SequencedMap<String, StepSummary> inherited = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                    folders.put(entry.getKey(), entry.getValue().folder());
-                    inherited.put("../" + entry.getKey(), entry.getValue());
+                    String identity = BuildExecutorModule.PREVIOUS + entry.getKey();
+                    folders.put(identity, entry.getValue().folder());
+                    inherited.put(identity, entry.getValue());
                 }
                 BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, inherited);
                 module.accept(buildExecutor, folders);
@@ -251,7 +252,7 @@ public class BuildExecutor {
     private void add(String identity, Bound bound, Set<String> dependencies) {
         SequencedSet<String> preliminaries = new LinkedHashSet<>();
         dependencies.forEach(dependency -> {
-            if (dependency.startsWith("../")) {
+            if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                 if (!inherited.containsKey(dependency)) {
                     throw new IllegalArgumentException("Did not inherit: " + dependency);
                 }
@@ -342,7 +343,7 @@ public class BuildExecutor {
                         try {
                             SequencedMap<String, StepSummary> propagated = new LinkedHashMap<>();
                             entry.getValue().dependencies().forEach(dependency -> {
-                                if (dependency.startsWith("../")) {
+                                if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                                     propagated.put(dependency, inherited.get(dependency));
                                 } else {
                                     propagated.putAll(summaries.get(dependency));

@@ -31,24 +31,23 @@ public class Manual {
                 MavenDefaultVersionNegotiator.maven(mavenRepository)));
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
+        module.addSource("dependencies", Path.of("dependencies"));
         root.addModule("main-deps", (module, _) -> {
-            module.addSource("sources", Path.of("dependencies"));
-            module.addStep("bound", Bind.asDependencies("main.properties"), "sources");
+            module.addStep("bound", Bind.asDependencies("main.properties"), "../dependencies");
             module.addStep("resolved", new Resolve(resolvers), "bound");
             module.addStep("artifacts", new Download(repositories), "resolved");
-        });
+        }, "dependencies");
         root.addModule("main", (module, _) -> {
             module.addSource("sources", Path.of("sources"));
             module.addStep("bound", Bind.asSources(), "sources");
-            module.addStep("javac", new Javac(), "bound", "../main-deps/artifacts");
+            module.addStep("javac", new Javac(), "bound", "../main-dependencies/artifacts");
             module.addStep("jar", new Jar(), "javac");
         }, "main-deps");
-        root.addModule("test-deps", (module, _) -> {
-            module.addSource("sources", Path.of("dependencies"));
-            module.addStep("bound", Bind.asDependencies("test.properties"), "sources");
+        root.addModule("test-dependencies", (module, _) -> {
+            module.addStep("bound", Bind.asDependencies("test.properties"), "../dependencies");
             module.addStep("resolved", new Resolve(resolvers), "bound");
             module.addStep("artifacts", new Download(repositories), "resolved");
-        });
+        }, "dependencies");
         root.addModule("test", (module, _) -> {
             module.addSource("sources", Path.of("tests"));
             module.addStep("bound", Bind.asSources(), "sources");

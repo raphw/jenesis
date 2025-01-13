@@ -131,7 +131,7 @@ public class MavenProject implements BuildExecutorModule {
         }, "scan");
         buildExecutor.addModule("define", (modules, paths) -> {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
-                    paths.get("prepare").resolve(MAVEN),
+                    paths.get("../prepare").resolve(MAVEN),
                     "*.properties")) {
                 for (Path file : files) {
                     String name = file.getFileName().toString();

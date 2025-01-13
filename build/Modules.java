@@ -32,17 +32,15 @@ public class Manual {
                 MavenDefaultVersionNegotiator.maven(mavenRepository)));
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
-        root.addSource(DependenciesModule.DEPENDENCIES, Path.of("dependencies"));
+        root.addSource("dependencies", Path.of("dependencies"));
+        root.addStep("main-dependencies", Bind.asDependencies("main.properties"), "dependencies");
+        root.addStep("test-dependencies", Bind.asDependencies("test.properties"), "dependencies");
         root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
-        root.addModule("main-deps",
-                new DependenciesModule(resolvers, repositories).bound("main.properties"),
-                DependenciesModule.DEPENDENCIES);
-        root.addModule("test-deps",
-                new DependenciesModule(resolvers, repositories).bound("test.properties"),
-                DependenciesModule.DEPENDENCIES);
-        root.addModule("main", new JavaBuildModule(), "main-deps", "main-sources");
-        root.addModule("test", new JavaBuildModule().tests(), "test-deps", "test-sources", "main");
+        root.addModule("main-artifacts", new DependenciesModule(resolvers, repositories), "main-dependencies");
+        root.addModule("test-artifacts", new DependenciesModule(resolvers, repositories), "test-dependencies");
+        root.addModule("main", new JavaBuildModule(), "main-artifacts", "main-sources");
+        root.addModule("test", new JavaBuildModule().tests(), "test-artifacts", "test-sources", "main");
 
         Map<String, Path> steps = root.execute();
         System.out.println("Built: " + steps);
