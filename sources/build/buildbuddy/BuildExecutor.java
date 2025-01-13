@@ -163,7 +163,7 @@ public class BuildExecutor {
                             HashFunction.write(checksum.resolve("checksums"), checksums);
                             return Map.of(identity, Map.of(identity, new StepSummary(output, checksums)));
                         } catch (Throwable t) {
-                            throw new CompletionException(t);
+                            throw new CompletionException(new RuntimeException("Failed executing " + identity, t));
                         }
                     }, executor);
                 } else {
@@ -243,7 +243,10 @@ public class BuildExecutor {
                 }
                 BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, inherited);
                 module.accept(buildExecutor, folders);
-                return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
+                return buildExecutor.doExecute(executor).handleAsync((results, throwable) -> {
+                    if (throwable != null) {
+                        throw new RuntimeException("Failed executing " + prefix, throwable);
+                    }
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
                     results.forEach((identity, values) -> {
                         String resolved = resolver.apply(identity).orElse(null);
