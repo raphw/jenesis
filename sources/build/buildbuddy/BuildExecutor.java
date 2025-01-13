@@ -36,8 +36,16 @@ public class BuildExecutor {
         add(identity, bindSource(path), Set.of());
     }
 
+    public void addSource(String identity, Path path, BuildStep step) {
+        add(identity, bindStep(step).summaries(hash, path), Set.of());
+    }
+
     public void replaceSource(String identity, Path path) {
         replace(identity, bindSource(path));
+    }
+
+    public void replaceSource(String identity, Path path, BuildStep step) {
+        replace(identity, bindStep(step).summaries(hash, path));
     }
 
     private Bound bindSource(Path path) {
@@ -287,15 +295,19 @@ public class BuildExecutor {
                                 executor);
                     }
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
-                        SequencedMap<String, StepSummary> propagated = new LinkedHashMap<>();
-                        entry.getValue().dependencies().forEach(dependency -> {
-                            if (dependency.startsWith("../")) {
-                                propagated.put(dependency, inherited.get(dependency));
-                            } else {
-                                propagated.putAll(summaries.get(dependency));
-                            }
-                        });
-                        return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
+                        try {
+                            SequencedMap<String, StepSummary> propagated = new LinkedHashMap<>();
+                            entry.getValue().dependencies().forEach(dependency -> {
+                                if (dependency.startsWith("../")) {
+                                    propagated.put(dependency, inherited.get(dependency));
+                                } else {
+                                    propagated.putAll(summaries.get(dependency));
+                                }
+                            });
+                            return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
+                        } catch (Throwable t) {
+                            return CompletableFuture.failedStage(t);
+                        }
                     }, executor));
                     it.remove();
                 }
@@ -324,7 +336,18 @@ public class BuildExecutor {
 
         CompletionStage<Map<String, Map<String, StepSummary>>> apply(String identity,
                                                                      Executor executor,
-                                                                     Map<String, StepSummary> summaries);
+                                                                     Map<String, StepSummary> summaries)
+                throws IOException;
+
+        default Bound summaries(HashFunction hash, Path path) {
+            return (identity, executor, summaries) -> {
+                SequencedMap<String, StepSummary> extended = new LinkedHashMap<>(summaries);
+                extended.put(
+                        ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
+                        new StepSummary(path, HashFunction.read(path, hash)));
+                return apply(identity, executor, extended);
+            };
+        }
     }
 
     private record Registration(Bound bound, Set<String> preliminaries, Set<String> dependencies) {
