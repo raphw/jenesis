@@ -83,10 +83,6 @@ public class BuildExecutor {
         add(identity, bindStep(step), dependencies);
     }
 
-    public void addStepAtEnd(String identity, BuildStep step) {
-        addStep(identity, step, new LinkedHashSet<>(registrations.keySet()));
-    }
-
     public void replaceStep(String identity, BuildStep step) {
         replace(identity, bindStep(step));
     }
@@ -189,16 +185,6 @@ public class BuildExecutor {
                           Function<String, Optional<String>> resolver,
                           SequencedSet<String> dependencies) {
         add(identity, bindModule(module, resolver), dependencies);
-    }
-
-    public void addModuleAtEnd(String identity, BuildExecutorModule module) {
-        add(identity, bindModule(module, Optional::of), new LinkedHashSet<>(registrations.keySet()));
-    }
-
-    public void addModuleAtEnd(String identity,
-                               BuildExecutorModule module,
-                               Function<String, Optional<String>> resolver) {
-        add(identity, bindModule(module, resolver), new LinkedHashSet<>(registrations.keySet()));
     }
 
     public void replaceModule(String identity, BuildExecutorModule module) {
