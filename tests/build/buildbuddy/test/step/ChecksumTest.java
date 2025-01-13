@@ -61,9 +61,9 @@ public class ChecksumTest {
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux", "foo/baz");
         assertThat(dependencies.getProperty("foo/qux")).isEqualTo("SHA256/" + HexFormat.of().formatHex(
-                MessageDigest.getInstance("SHA256").digest("foo/qux".getBytes(StandardCharsets.UTF_8))));
+                MessageDigest.getInstance("SHA256").digest("qux".getBytes(StandardCharsets.UTF_8))));
         assertThat(dependencies.getProperty("foo/baz")).isEqualTo("SHA256/" + HexFormat.of().formatHex(
-                MessageDigest.getInstance("SHA256").digest("foo/baz".getBytes(StandardCharsets.UTF_8))));
+                MessageDigest.getInstance("SHA256").digest("baz".getBytes(StandardCharsets.UTF_8))));
     }
 
     @Test
@@ -92,6 +92,6 @@ public class ChecksumTest {
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux", "foo/baz");
         assertThat(dependencies.getProperty("foo/qux")).isEqualTo("baz");
         assertThat(dependencies.getProperty("foo/baz")).isEqualTo("SHA256/" + HexFormat.of().formatHex(
-                MessageDigest.getInstance("SHA256").digest("foo/baz".getBytes(StandardCharsets.UTF_8))));
+                MessageDigest.getInstance("SHA256").digest("baz".getBytes(StandardCharsets.UTF_8))));
     }
 }

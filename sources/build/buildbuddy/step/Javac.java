@@ -16,7 +16,6 @@ import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 public class Javac implements ProcessBuildStep {
 
@@ -38,7 +37,7 @@ public class Javac implements ProcessBuildStep {
                                                    SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
-        List<String> files = new ArrayList<>(), classPath = new ArrayList<>(), commands = new ArrayList<>(List.of(javac,
+        List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(javac,
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
                 "-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
@@ -46,13 +45,13 @@ public class Javac implements ProcessBuildStep {
                     classes = argument.folder().resolve(CLASSES),
                     artifacts = argument.folder().resolve(ARTIFACTS);
             if (Files.exists(classes)) {
-                classPath.add(classes.toString());
+                path.add(classes.toString());
             }
             if (Files.exists(artifacts)) {
                 Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        classPath.add(file.toString());
+                        path.add(file.toString());
                         return FileVisitResult.CONTINUE;
                     }
                 });
@@ -78,9 +77,9 @@ public class Javac implements ProcessBuildStep {
                 });
             }
         }
-        if (!classPath.isEmpty()) {
-            commands.add("--module-path"); // TODO: distinguish module and class path properly
-            commands.add(String.join(File.pathSeparator, classPath)); // TODO: escape path
+        if (!path.isEmpty()) {
+            commands.add(path.contains("module-info.java") ? "--module-path" : "-classpath");
+            commands.add(String.join(File.pathSeparator, path)); // TODO: escape path
         }
         commands.addAll(files);
         return CompletableFuture.completedStage(new ProcessBuilder(commands));

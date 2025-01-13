@@ -46,7 +46,7 @@ public class Checksum implements DependencyTransformingBuildStep {
                     } catch (NoSuchAlgorithmException e) {
                         throw new RuntimeException(e);
                     }
-                    RepositoryItem item = repository.fetch(executor, dependency).orElseThrow(
+                    RepositoryItem item = repository.fetch(executor, entry.getKey()).orElseThrow(
                             () -> new IllegalStateException("Cannot resolve " + dependency));
                     Path file = item.getFile().orElse(null);
                     if (file == null) {
@@ -64,7 +64,6 @@ public class Checksum implements DependencyTransformingBuildStep {
                         }
                     }
                     properties.setProperty(dependency, algorithm + "/" + HexFormat.of().formatHex(digest.digest()));
-
                 }
             }
         }

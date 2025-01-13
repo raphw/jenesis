@@ -1,9 +1,6 @@
 package build.buildbuddy.test.step;
 
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.*;
 import build.buildbuddy.step.Bind;
 import build.buildbuddy.step.Javac;
 import org.junit.Before;
@@ -38,7 +35,7 @@ public class JavacTest {
 
     @Test
     public void can_execute_javac() throws IOException {
-        Path folder = Files.createDirectories(sources.resolve(Bind.SOURCES + "sample"));
+        Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
             writer.newLine();
@@ -56,7 +53,7 @@ public class JavacTest {
 
     @Test
     public void can_execute_javac_with_resources() throws IOException {
-        Path folder = Files.createDirectories(sources.resolve(Bind.SOURCES + "sample"));
+        Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
             writer.newLine();
@@ -64,7 +61,7 @@ public class JavacTest {
             writer.newLine();
         }
         Files.writeString(folder.resolve("foo"), "bar");
-        Files.createDirectory(sources.resolve(Bind.SOURCES + "folder"));
+        Files.createDirectory(sources.resolve(BuildStep.SOURCES + "folder"));
         BuildStepResult result = new Javac().apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(

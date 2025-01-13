@@ -9,7 +9,7 @@ import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.project.DependenciesModule;
-import build.buildbuddy.project.JavaBuildModule;
+import build.buildbuddy.project.JavaModule;
 import build.buildbuddy.step.Bind;
 
 import java.io.IOException;
@@ -31,12 +31,12 @@ public class Modules {
         root.addStep("main-deps", Bind.asDependencies("main.properties"), "deps");
         root.addModule("main-artifacts", new DependenciesModule(repositories, resolvers), "main-deps");
         root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
-        root.addModule("main", new JavaBuildModule(), "main-artifacts", "main-sources");
+        root.addModule("main", new JavaModule(), "main-artifacts", "main-sources");
 
         root.addStep("test-deps", Bind.asDependencies("test.properties"), "deps");
         root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
-        root.addModule("test", new JavaBuildModule().tests(), "test-artifacts", "test-sources", "main");
+        root.addModule("test", new JavaModule().tests(), "test-artifacts", "test-sources", "main");
 
         System.out.println("Built: " + root.execute());
     }

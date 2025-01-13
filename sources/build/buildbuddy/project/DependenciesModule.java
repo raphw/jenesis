@@ -14,8 +14,7 @@ import java.util.SequencedMap;
 
 public class DependenciesModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", ARTIFACTS = "artifacts";
-    private static final String PREPARE = "prepare";
+    public static final String RESOLVED = "resolved", ARTIFACTS = "artifacts", PREPARED = "prepared";
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -38,9 +37,8 @@ public class DependenciesModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         if (checksum != null) {
-            buildExecutor.addStep(PREPARE, new Resolve(resolvers), inherited.sequencedKeySet());
-            buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), PREPARE);
-            buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
+            buildExecutor.addStep(PREPARED, new Resolve(resolvers), inherited.sequencedKeySet());
+            buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), PREPARED);
         } else {
             buildExecutor.addStep(RESOLVED, new Resolve(resolvers), inherited.sequencedKeySet());
         }

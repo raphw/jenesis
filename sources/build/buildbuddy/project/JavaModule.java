@@ -11,9 +11,9 @@ import java.util.LinkedHashSet;
 import java.util.SequencedMap;
 import java.util.SequencedSet;
 
-public class JavaBuildModule implements BuildExecutorModule {
+public class JavaModule implements BuildExecutorModule {
 
-    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TEST = "test";
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
     public BuildExecutorModule tests() {
         return (buildExecutor, inherited) -> {
@@ -21,7 +21,7 @@ public class JavaBuildModule implements BuildExecutorModule {
             SequencedSet<String> dependencies = new LinkedHashSet<>(inherited.sequencedKeySet());
             dependencies.add(ARTIFACTS);
             dependencies.add(CLASSES);
-            buildExecutor.addStep(TEST, new JUnit4(), dependencies);
+            buildExecutor.addStep(TESTS, new JUnit4(), dependencies);
         };
     }
 
