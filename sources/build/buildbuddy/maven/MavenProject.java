@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 import static build.buildbuddy.BuildStep.COORDINATES;
 import static build.buildbuddy.BuildStep.DEPENDENCIES;
 
-public class MavenProject implements BuildExecutorDelegate {
+public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
@@ -129,13 +129,13 @@ public class MavenProject implements BuildExecutorDelegate {
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "scan");
-        buildExecutor.add("define", (modules, paths) -> {
+        buildExecutor.addModule("define", (modules, paths) -> {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
                     paths.get("prepare").resolve(MAVEN),
                     "*.properties")) {
                 for (Path file : files) {
                     String name = file.getFileName().toString();
-                    modules.add(name.substring(0, name.length() - 11), (module, _) -> {
+                    modules.addModule(name.substring(0, name.length() - 11), (module, _) -> {
                         Properties properties = new SequencedProperties();
                         try (Reader reader = Files.newBufferedReader(file)) {
                             properties.load(reader);

@@ -20,7 +20,7 @@ import java.util.function.Predicate;
 import static build.buildbuddy.BuildStep.COORDINATES;
 import static build.buildbuddy.BuildStep.DEPENDENCIES;
 
-public class ModularProject implements BuildExecutorDelegate {
+public class ModularProject implements BuildExecutorModule {
 
     private final String prefix;
     private final Path root;
@@ -42,7 +42,7 @@ public class ModularProject implements BuildExecutorDelegate {
                 if (file.getFileName().toString().equals("module-info.java")) {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
-                        buildExecutor.add("module-" + URLEncoder.encode(
+                        buildExecutor.addModule("module-" + URLEncoder.encode(
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("path", parent);

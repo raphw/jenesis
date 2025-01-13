@@ -8,17 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
 public class BuildExecutor {
@@ -159,31 +150,31 @@ public class BuildExecutor {
         };
     }
 
-    public void add(String identity, BuildExecutorDelegate consumer, String... dependencies) {
-        add(identity, bindConsumer(consumer), Set.of(dependencies));
+    public void addModule(String identity, BuildExecutorModule module, String... dependencies) {
+        add(identity, bindModule(module), Set.of(dependencies));
     }
 
-    public void add(String identity, BuildExecutorDelegate consumer, SequencedSet<String> dependencies) {
-        add(identity, bindConsumer(consumer), dependencies);
+    public void addModule(String identity, BuildExecutorModule module, SequencedSet<String> dependencies) {
+        add(identity, bindModule(module), dependencies);
     }
 
-    public void addAtEnd(String identity, BuildExecutorDelegate consumer) {
-        add(identity, bindConsumer(consumer), new LinkedHashSet<>(registrations.keySet()));
+    public void addModuleAtEnd(String identity, BuildExecutorModule module) {
+        add(identity, bindModule(module), new LinkedHashSet<>(registrations.keySet()));
     }
 
-    public void replace(String identity, BuildExecutorDelegate consumer) {
-        replace(identity, bindConsumer(consumer));
+    public void replaceModule(String identity, BuildExecutorModule module) {
+        replace(identity, bindModule(module));
     }
 
-    public void prepend(String identity, String prepended, BuildExecutorDelegate consumer) {
-        prepend(identity, prepended, bindConsumer(consumer));
+    public void prependModule(String identity, String prepended, BuildExecutorModule module) {
+        prepend(identity, prepended, bindModule(module));
     }
 
-    public void append(String identity, String appended, BuildExecutorDelegate consumer) {
-        append(identity, appended, bindConsumer(consumer));
+    public void appendModule(String identity, String appended, BuildExecutorModule module) {
+        append(identity, appended, bindModule(module));
     }
 
-    private Bound bindConsumer(BuildExecutorDelegate consumer) {
+    private Bound bindModule(BuildExecutorModule module) {
         return (prefix, executor, summaries) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
@@ -193,7 +184,7 @@ public class BuildExecutor {
                     inherited.put("../" + entry.getKey(), entry.getValue());
                 }
                 BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, inherited);
-                consumer.accept(buildExecutor, folders);
+                module.accept(buildExecutor, folders);
                 return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
                     results.forEach((identity, values) -> prefixed.put(prefix + "/" + identity, values));
@@ -257,6 +248,12 @@ public class BuildExecutor {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
         registrations.replace(identity, new Registration(bound, Set.of(appended), Set.of(appended)));
+    }
+
+    public SequencedMap<String, Path> execute() {
+        try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
+            return execute(executorService).toCompletableFuture().join();
+        }
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {

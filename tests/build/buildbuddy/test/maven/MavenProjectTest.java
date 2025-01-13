@@ -31,7 +31,7 @@ public class MavenProjectTest {
     @Before
     public void setUp() throws Exception {
         Path repository = temporaryFolder.newFolder("repository").toPath();
-        project = temporaryFolder.newFolder("project").toPath();
+        project = temporaryFolder.newFolder("build/buildbuddy/project").toPath();
         build = temporaryFolder.newFolder("build").toPath();
         mavenPomResolver = new MavenPomResolver(
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
@@ -57,7 +57,7 @@ public class MavenProjectTest {
                 </project>
                 """);
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        executor.addModule("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/define/module-/declare", "maven/define/test-module-/declare");
         Path module = results.get("maven/define/module-/declare");
@@ -123,7 +123,7 @@ public class MavenProjectTest {
                 """);
         Files.writeString(Files.createDirectories(subproject.resolve("src/main/java")).resolve("source"), "foo");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        executor.addModule("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/define/module-/declare", "maven/define/module-subproject/declare");
         Path parent = results.get("maven/define/module-/declare");
@@ -188,7 +188,7 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/main/resources")).resolve("resource"), "bar");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        executor.addModule("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/define/module-/declare",
                 "maven/define/module-/sources",
@@ -219,7 +219,7 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("resources-1")).resolve("resource1"), "bar");
         Files.writeString(Files.createDirectories(project.resolve("resources-2")).resolve("resource2"), "qux");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        executor.addModule("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/define/module-/declare",
                 "maven/define/module-/sources",
@@ -244,7 +244,7 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/resources")).resolve("resource"), "bar");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        executor.addModule("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/define/test-module-/declare",
                 "maven/define/test-module-/sources",
@@ -275,7 +275,7 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("resources-1")).resolve("resource1"), "bar");
         Files.writeString(Files.createDirectories(project.resolve("resources-2")).resolve("resource2"), "qux");
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("maven", new MavenProject("maven", project, mavenPomResolver));
+        executor.addModule("maven", new MavenProject("maven", project, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/define/test-module-/declare",
                 "maven/define/test-module-/sources",

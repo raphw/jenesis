@@ -28,7 +28,7 @@ public class MavenPomResolverTest {
     @Before
     public void setUp() throws Exception {
         repository = temporaryFolder.newFolder("repository").toPath();
-        project = temporaryFolder.newFolder("project").toPath();
+        project = temporaryFolder.newFolder("build/buildbuddy/project").toPath();
         mavenPomResolver = new MavenPomResolver(
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 MavenDefaultVersionNegotiator.maven(new MavenDefaultRepository(repository.toUri(), null, Map.of())));
@@ -1592,7 +1592,7 @@ public class MavenPomResolverTest {
         SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(project);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
-        assertThat(pom.groupId()).isEqualTo("project");
+        assertThat(pom.groupId()).isEqualTo("build/buildbuddy/project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
         assertThat(pom.sourceDirectory()).isEqualTo("sources");
@@ -1666,7 +1666,7 @@ public class MavenPomResolverTest {
         SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
-        assertThat(pom.groupId()).isEqualTo("project");
+        assertThat(pom.groupId()).isEqualTo("build/buildbuddy/project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
         assertThat(pom.dependencies()).containsExactly(
@@ -1745,7 +1745,7 @@ public class MavenPomResolverTest {
         SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
-        assertThat(pom.groupId()).isEqualTo("project");
+        assertThat(pom.groupId()).isEqualTo("build/buildbuddy/project");
         assertThat(pom.artifactId()).isEqualTo("artifact");
         assertThat(pom.version()).isEqualTo("1");
         assertThat(pom.dependencies()).containsExactly(

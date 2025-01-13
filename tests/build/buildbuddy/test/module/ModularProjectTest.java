@@ -27,7 +27,7 @@ public class ModularProjectTest {
 
     @Before
     public void setUp() throws Exception {
-        project = temporaryFolder.newFolder("project").toPath();
+        project = temporaryFolder.newFolder("build/buildbuddy/project").toPath();
         build = temporaryFolder.newFolder("build").toPath();
     }
 
@@ -39,7 +39,7 @@ public class ModularProjectTest {
                 }
                 """);
         BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
-        executor.add("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("module/module-/source", "module/module-/module");
         assertThat(results.get("module/module-/source").resolve(BuildStep.SOURCES + "module-info.java")).exists();

@@ -16,8 +16,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
-import static java.util.Objects.requireNonNull;
-
 public class Checksum implements DependencyTransformingBuildStep {
 
     private final String algorithm;

@@ -301,7 +301,7 @@ public class BuildExecutorTest {
     public void can_execute_nested() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
             buildExecutor.addSource("source", source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -339,7 +339,7 @@ public class BuildExecutorTest {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).containsOnlyKeys("source");
             assertThat(inherited.get("source")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -376,7 +376,7 @@ public class BuildExecutorTest {
     public void can_execute_child_reference() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.add("source", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("source", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
             buildExecutor.addSource("source1", source);
         });
@@ -403,7 +403,7 @@ public class BuildExecutorTest {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).containsOnlyKeys("source");
             assertThat(inherited.get("source")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -426,7 +426,7 @@ public class BuildExecutorTest {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
             buildExecutor.addStep("step1", (_, _, _) -> {
                 throw new AssertionError();
@@ -442,11 +442,11 @@ public class BuildExecutorTest {
     public void can_detect_faulty_root_reference() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.add("source", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("source", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
             buildExecutor.addSource("source1", source);
         });
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).containsOnlyKeys("source/source1");
             assertThat(inherited.get("source/source1")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, _, _) -> {
@@ -463,11 +463,11 @@ public class BuildExecutorTest {
     public void can_execute_nested_parent_child_reference() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.add("source", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("source", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
             buildExecutor.addSource("source1", source);
         });
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).containsOnlyKeys("source/source1");
             assertThat(inherited.get("source/source1")).isEqualTo(source);
             buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -505,10 +505,10 @@ public class BuildExecutorTest {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
-        buildExecutor.add("step", (buildExecutor, inherited) -> {
+        buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).containsOnlyKeys("source");
             assertThat(inherited.get("source")).isEqualTo(source);
-            buildExecutor.add("step1", (nestedBuildExecutor, nestedInherited) -> {
+            buildExecutor.addModule("step1", (nestedBuildExecutor, nestedInherited) -> {
                 assertThat(nestedInherited).containsOnlyKeys("../source");
                 assertThat(nestedInherited.get("../source")).isEqualTo(source);
                 nestedBuildExecutor.addStep("step2", (_, context, arguments) -> {
@@ -532,7 +532,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_replace_step() throws IOException {
+    public void can_replace_Module_step() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
@@ -558,7 +558,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_prepend_step() throws IOException {
+    public void can_prepend_Module_step() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
@@ -603,7 +603,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_append_step() throws IOException {
+    public void can_append_Module_step() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
