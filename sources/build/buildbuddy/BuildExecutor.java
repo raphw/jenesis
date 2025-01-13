@@ -10,6 +10,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class BuildExecutor {
@@ -169,30 +170,70 @@ public class BuildExecutor {
     }
 
     public void addModule(String identity, BuildExecutorModule module, String... dependencies) {
-        add(identity, bindModule(module), Set.of(dependencies));
+        add(identity, bindModule(module, Optional::of), Set.of(dependencies));
+    }
+
+    public void addModule(String identity,
+                          BuildExecutorModule module,
+                          Function<String, Optional<String>> resolver,
+                          String... dependencies) {
+        add(identity, bindModule(module, resolver), Set.of(dependencies));
     }
 
     public void addModule(String identity, BuildExecutorModule module, SequencedSet<String> dependencies) {
-        add(identity, bindModule(module), dependencies);
+        add(identity, bindModule(module, Optional::of), dependencies);
+    }
+
+    public void addModule(String identity,
+                          BuildExecutorModule module,
+                          Function<String, Optional<String>> resolver,
+                          SequencedSet<String> dependencies) {
+        add(identity, bindModule(module, resolver), dependencies);
     }
 
     public void addModuleAtEnd(String identity, BuildExecutorModule module) {
-        add(identity, bindModule(module), new LinkedHashSet<>(registrations.keySet()));
+        add(identity, bindModule(module, Optional::of), new LinkedHashSet<>(registrations.keySet()));
+    }
+
+    public void addModuleAtEnd(String identity,
+                               BuildExecutorModule module,
+                               Function<String, Optional<String>> resolver) {
+        add(identity, bindModule(module, resolver), new LinkedHashSet<>(registrations.keySet()));
     }
 
     public void replaceModule(String identity, BuildExecutorModule module) {
-        replace(identity, bindModule(module));
+        replace(identity, bindModule(module, Optional::of));
+    }
+
+    public void replaceModule(String identity,
+                              BuildExecutorModule module,
+                              Function<String, Optional<String>> resolver) {
+        replace(identity, bindModule(module, resolver));
     }
 
     public void prependModule(String identity, String prepended, BuildExecutorModule module) {
-        prepend(identity, prepended, bindModule(module));
+        prepend(identity, prepended, bindModule(module, Optional::of));
+    }
+
+    public void prependModule(String identity,
+                              String prepended,
+                              BuildExecutorModule module,
+                              Function<String, Optional<String>> resolver) {
+        prepend(identity, prepended, bindModule(module, resolver));
     }
 
     public void appendModule(String identity, String appended, BuildExecutorModule module) {
-        append(identity, appended, bindModule(module));
+        append(identity, appended, bindModule(module, Optional::of));
     }
 
-    private Bound bindModule(BuildExecutorModule module) {
+    public void appendModule(String identity,
+                             String appended,
+                             BuildExecutorModule module,
+                             Function<String, Optional<String>> resolver) {
+        append(identity, appended, bindModule(module, resolver));
+    }
+
+    private Bound bindModule(BuildExecutorModule module, Function<String, Optional<String>> resolver) {
         return (prefix, executor, summaries) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
@@ -206,7 +247,7 @@ public class BuildExecutor {
                 return buildExecutor.doExecute(executor).thenApplyAsync(results -> {
                     SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
                     results.forEach((identity, values) -> {
-                        String resolved = module.resolve(identity).orElse(null);
+                        String resolved = resolver.apply(identity).orElse(null);
                         if (resolved != null && prefixed.putIfAbsent(
                                 resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
                                 values) != null) {
