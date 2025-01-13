@@ -32,6 +32,7 @@ public class Manual {
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
         module.addSource("dependencies", Path.of("dependencies"));
+
         root.addModule("main-deps", (module, _) -> {
             module.addStep("bound", Bind.asDependencies("main.properties"), "../dependencies");
             module.addStep("resolved", new Resolve(resolvers), "bound");
@@ -43,6 +44,7 @@ public class Manual {
             module.addStep("javac", new Javac(), "bound", "../main-dependencies/artifacts");
             module.addStep("jar", new Jar(), "javac");
         }, "main-deps");
+
         root.addModule("test-dependencies", (module, _) -> {
             module.addStep("bound", Bind.asDependencies("test.properties"), "../dependencies");
             module.addStep("resolved", new Resolve(resolvers), "bound");

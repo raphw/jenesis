@@ -33,13 +33,15 @@ public class Manual {
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
         root.addSource("dependencies", Path.of("dependencies"));
-        root.addStep("main-dependencies", Bind.asDependencies("main.properties"), "dependencies");
-        root.addStep("test-dependencies", Bind.asDependencies("test.properties"), "dependencies");
+
+        root.addStep("main-deps", Bind.asDependencies("main.properties"), "dependencies");
+        root.addModule("main-artifacts", new DependenciesModule(resolvers, repositories), "main-deps");
         root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
-        root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
-        root.addModule("main-artifacts", new DependenciesModule(resolvers, repositories), "main-dependencies");
-        root.addModule("test-artifacts", new DependenciesModule(resolvers, repositories), "test-dependencies");
         root.addModule("main", new JavaBuildModule(), "main-artifacts", "main-sources");
+
+        root.addStep("test-deps", Bind.asDependencies("test.properties"), "dependencies");
+        root.addModule("test-artifacts", new DependenciesModule(resolvers, repositories), "test-deps");
+        root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaBuildModule().tests(), "test-artifacts", "test-sources", "main");
 
         Map<String, Path> steps = root.execute();
