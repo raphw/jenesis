@@ -532,7 +532,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_replace_Module_step() throws IOException {
+    public void can_replace_module() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
@@ -558,7 +558,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_prepend_Module_step() throws IOException {
+    public void can_prepend_module() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
@@ -603,7 +603,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_append_Module_step() throws IOException {
+    public void can_append_module() throws IOException {
         Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
