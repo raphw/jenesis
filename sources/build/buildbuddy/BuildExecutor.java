@@ -17,7 +17,6 @@ import java.util.SequencedMap;
 import java.util.SequencedSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -163,7 +162,7 @@ public class BuildExecutor {
                             HashFunction.write(checksum.resolve("checksums"), checksums);
                             return Map.of(identity, Map.of(identity, new StepSummary(output, checksums)));
                         } catch (Throwable t) {
-                            throw new CompletionException(new BuildExecutionException(identity, t));
+                            throw new BuildExecutionException(identity, t);
                         }
                     }, executor);
                 } else {

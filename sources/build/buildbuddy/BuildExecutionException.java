@@ -1,6 +1,8 @@
 package build.buildbuddy;
 
-public class BuildExecutionException extends RuntimeException {
+import java.util.concurrent.CompletionException;
+
+public class BuildExecutionException extends CompletionException {
 
     private final String step;
 
@@ -9,7 +11,7 @@ public class BuildExecutionException extends RuntimeException {
     }
 
     BuildExecutionException(String step, Throwable throwable) {
-        super("Failed to execute " + step, throwable, false, false);
+        super("Failed to execute " + step, throwable);
         this.step = step;
     }
 }
