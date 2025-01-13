@@ -33,13 +33,13 @@ public class Manual {
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
         root.addSource(DependenciesModule.DEPENDENCIES, Path.of("dependencies"));
-        root.addSource("main-sources", Path.of("sources")); // TODO: add possibility to append step
-        root.addSource("test-sources", Path.of("tests"));
+        root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
+        root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("main-deps",
-                new DependenciesModule(resolvers, repositories).withBinding("main.properties"),
+                new DependenciesModule(resolvers, repositories).bound("main.properties"),
                 DependenciesModule.DEPENDENCIES);
         root.addModule("test-deps",
-                new DependenciesModule(resolvers, repositories).withBinding("test.properties"),
+                new DependenciesModule(resolvers, repositories).bound("test.properties"),
                 DependenciesModule.DEPENDENCIES);
         root.addModule("main", new JavaBuildModule(), "main-deps");
         root.addModule("test", new JavaBuildModule().withTests(), "test-deps", "main");

@@ -35,7 +35,7 @@ public class DependenciesModule implements BuildExecutorModule {
         return new DependenciesModule(repositories, resolvers, algorithm);
     }
 
-    public BuildExecutorModule withBinding(String file) {
+    public BuildExecutorModule bound(String file) {
         return (buildExecutor, inherited) -> {
             if (!inherited.containsKey(DEPENDENCIES)) {
                 throw new IllegalArgumentException("Expected to receive '" + DEPENDENCIES + "' as input");
