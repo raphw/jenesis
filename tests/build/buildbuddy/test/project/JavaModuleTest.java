@@ -4,11 +4,11 @@ import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.JavaModule;
-import build.buildbuddy.step.Bind;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.JUnitCore;
 import sample.Sample;
 
 import java.io.BufferedWriter;
@@ -75,6 +75,50 @@ public class JavaModuleTest {
             assertThat(inputStream.getNextJarEntry())
                     .extracting(ZipEntry::getName)
                     .isEqualTo("other/Sample.class");
+            assertThat(inputStream.getNextJarEntry()).isNull();
+        }
+    }
+
+    @Test
+    public void can_build_java_with_tests() throws Exception {
+        Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
+        try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("SampleTest.java"))) {
+            writer.append("package other;");
+            writer.newLine();
+            writer.append("public class SampleTest {");
+            writer.newLine();
+            writer.append("  @org.junit.Test");
+            writer.newLine();
+            writer.append("  public void test() {");
+            writer.newLine();
+            writer.append("    System.out.println(\"Hello world!\");");
+            writer.newLine();
+            writer.append("  }");
+            writer.newLine();
+            writer.append("}");
+            writer.newLine();
+        }
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Files.copy(
+                Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                artifacts.resolve("junit.jar"));
+        Files.copy(
+                Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
+                artifacts.resolve("hamcrest-core.jar"));
+        buildExecutor.addSource("input", input);
+        buildExecutor.addModule("output", new JavaModule().test(), "input");
+        SequencedMap<String, Path> steps = buildExecutor.execute();
+        assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/tests");
+        assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/SampleTest.class")).exists();
+        try (JarInputStream inputStream = new JarInputStream(Files.newInputStream(steps.get("output/artifacts")
+                .resolve(BuildStep.ARTIFACTS)
+                .resolve("classes.jar")))) {
+            assertThat(inputStream.getNextJarEntry())
+                    .extracting(ZipEntry::getName)
+                    .isEqualTo("other/");
+            assertThat(inputStream.getNextJarEntry())
+                    .extracting(ZipEntry::getName)
+                    .isEqualTo("other/SampleTest.class");
             assertThat(inputStream.getNextJarEntry()).isNull();
         }
     }

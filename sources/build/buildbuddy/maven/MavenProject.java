@@ -1,6 +1,12 @@
 package build.buildbuddy.maven;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorModule;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -11,7 +17,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.SequencedMap;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;

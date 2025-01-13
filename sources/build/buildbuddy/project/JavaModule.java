@@ -15,7 +15,7 @@ public class JavaModule implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
-    public BuildExecutorModule tests() {
+    public BuildExecutorModule test() {
         return (buildExecutor, inherited) -> {
             accept(buildExecutor, inherited);
             SequencedSet<String> dependencies = new LinkedHashSet<>(inherited.sequencedKeySet());

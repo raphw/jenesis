@@ -1,6 +1,10 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.SequencedProperties;
 
 import java.io.IOException;
 import java.io.Reader;

@@ -1,6 +1,10 @@
 package build.buildbuddy.test.maven;
 
-import build.buildbuddy.maven.*;
+import build.buildbuddy.maven.MavenDependencyKey;
+import build.buildbuddy.maven.MavenDependencyName;
+import build.buildbuddy.maven.MavenDependencyScope;
+import build.buildbuddy.maven.MavenDependencyValue;
+import build.buildbuddy.maven.MavenPomEmitter;
 import org.junit.Test;
 
 import java.io.IOException;

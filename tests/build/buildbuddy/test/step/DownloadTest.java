@@ -1,6 +1,11 @@
 package build.buildbuddy.test.step;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.RepositoryItem;
 import build.buildbuddy.step.Download;
 import org.junit.Before;
 import org.junit.Rule;
@@ -16,7 +21,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

@@ -10,13 +10,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.HexFormat;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

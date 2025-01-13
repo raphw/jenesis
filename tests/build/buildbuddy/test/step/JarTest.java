@@ -1,6 +1,10 @@
 package build.buildbuddy.test.step;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import org.junit.Before;

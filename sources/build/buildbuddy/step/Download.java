@@ -1,6 +1,10 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.Repository;
+import build.buildbuddy.RepositoryItem;
+import build.buildbuddy.SequencedProperties;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,8 +18,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-
-import static java.util.Objects.requireNonNull;
 
 public class Download implements DependencyTransformingBuildStep {
 

@@ -1,6 +1,10 @@
 package build.buildbuddy.module;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorModule;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -16,9 +20,6 @@ import java.util.Properties;
 import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
-
-import static build.buildbuddy.BuildStep.COORDINATES;
-import static build.buildbuddy.BuildStep.DEPENDENCIES;
 
 public class ModularProject implements BuildExecutorModule {
 
@@ -53,14 +54,18 @@ public class ModularProject implements BuildExecutorModule {
                                         .resolve("module-info.java"));
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(prefix + "/" + info.coordinate(), "");
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
+                                try (BufferedWriter writer = Files.newBufferedWriter(context
+                                        .next()
+                                        .resolve(BuildStep.COORDINATES))) {
                                     coordinates.store(writer, null);
                                 }
                                 Properties dependencies = new SequencedProperties();
                                 for (String dependency : info.requires()) {
                                     dependencies.setProperty(prefix + "/" + dependency, "");
                                 }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
+                                try (BufferedWriter writer = Files.newBufferedWriter(context
+                                        .next()
+                                        .resolve(BuildStep.DEPENDENCIES))) {
                                     dependencies.store(writer, null);
                                 }
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
