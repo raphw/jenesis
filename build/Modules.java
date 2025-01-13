@@ -36,7 +36,7 @@ public class Modules {
         root.addStep("test-deps", Bind.asDependencies("test.properties"), "deps");
         root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
-        root.addModule("test", new JavaModule().tests(), "test-artifacts", "test-sources", "main");
+        root.addModule("test", new JavaModule().tested(), "test-artifacts", "test-sources", "main");
 
         System.out.println("Built: " + root.execute());
     }

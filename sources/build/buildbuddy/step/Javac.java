@@ -78,7 +78,7 @@ public class Javac implements ProcessBuildStep {
             }
         }
         if (!path.isEmpty()) {
-            commands.add(path.contains("module-info.java") ? "--module-path" : "-classpath");
+            commands.add(files.contains("module-info.java") ? "--module-path" : "-classpath"); // TODO: improve
             commands.add(String.join(File.pathSeparator, path)); // TODO: escape path
         }
         commands.addAll(files);
