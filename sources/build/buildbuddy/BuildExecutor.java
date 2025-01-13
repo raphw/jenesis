@@ -386,7 +386,7 @@ public class BuildExecutor {
         if (pattern.matcher(identity).matches()) {
             return identity;
         }
-        throw new IllegalArgumentException("Identity '" + identity + "' does not match pattern: " + pattern.pattern());
+        throw new IllegalArgumentException(identity + " does not match pattern: " + pattern.pattern());
     }
 
     @FunctionalInterface
