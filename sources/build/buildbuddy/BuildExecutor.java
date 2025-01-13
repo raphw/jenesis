@@ -212,6 +212,24 @@ public class BuildExecutor {
         };
     }
 
+    public void alias(String identity, String target, String... dependencies) {
+        Set<String> merged = new HashSet<>(Set.of(dependencies));
+        merged.add(target);
+        add(identity, bindAlias(target), merged);
+    }
+
+    public void alias(String identity, String target, SequencedSet<String> dependencies) {
+        Set<String> merged = new HashSet<>(dependencies);
+        merged.add(target);
+        add(identity, bindAlias(target), merged);
+    }
+
+    private Bound bindAlias(String original) {
+        return (identity, _, summaries) -> CompletableFuture.completedStage(Map.of(
+                identity,
+                Map.of(identity, summaries.get(original)))); // TODO: consider duplicates of aliased content in diffs?
+    }
+
     private void add(String identity, Bound bound, Set<String> dependencies) {
         SequencedSet<String> preliminaries = new LinkedHashSet<>();
         dependencies.forEach(dependency -> {
