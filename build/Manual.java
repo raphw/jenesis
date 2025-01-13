@@ -39,7 +39,7 @@ public class Manual {
             module.addStep("artifacts", new Download(repositories), "resolved");
         }, "deps");
         root.addModule("main", (module, _) -> {
-            module.addStep("sources", Bind.asSources(), Path.of("sources"));
+            module.addSource("sources", Bind.asSources(), Path.of("sources"));
             module.addStep("classes", new Javac(), "sources", "../main-deps/artifacts");
             module.addStep("artifacts", new Jar(), "classes");
         }, "main-deps");
@@ -50,7 +50,7 @@ public class Manual {
             module.addStep("artifacts", new Download(repositories), "resolved");
         }, "deps");
         root.addModule("test", (module, _) -> {
-            module.addStep("sources", Bind.asSources(), Path.of("tests"));
+            module.addSource("sources", Bind.asSources(), Path.of("tests"));
             module.addStep("classes", new Javac(), "sources", "../main/artifacts", "../test-deps/artifacts");
             module.addStep("artifacts", new Jar(), "classes", "../test-deps/artifacts");
             module.addStep("tests", new JUnit4(), "artifacts", "../main/artifacts", "../test-deps/artifacts");

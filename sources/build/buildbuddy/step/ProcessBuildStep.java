@@ -67,8 +67,12 @@ public interface ProcessBuildStep extends BuildStep {
                         if (acceptableExitCode(process.waitFor(), executor, context, arguments)) {
                             future.complete(new BuildStepResult(true));
                         } else {
-                            String output = Files.readString(context.supplement().resolve("output"));
-                            String error = Files.readString(context.supplement().resolve("error"));
+                            String output = Files.exists(context.supplement().resolve("output"))
+                                    ? Files.readString(context.supplement().resolve("output"))
+                                    : "";
+                            String error = Files.exists(context.supplement().resolve("error"))
+                                    ? Files.readString(context.supplement().resolve("error"))
+                                    : "";
                             throw new IllegalStateException("Unexpected exit code: " + process.exitValue() + "\n"
                                     + "To reproduce, execute:\n " + String.join(" ", prepared.command())
                                     + (output.isBlank() ? "" : ("\n\nOutput:\n" + output))
