@@ -1,10 +1,6 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -17,10 +13,19 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
+
+import static java.util.Objects.requireNonNull;
 
 public class Group implements BuildStep {
 
     public static final String GROUPS = "groups/";
+
+    private final Function<String, String> resolver;
+
+    public Group(Function<String, String> resolver) {
+        this.resolver = resolver;
+    }
 
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -55,17 +60,21 @@ public class Group implements BuildStep {
             sources.forEach(source -> link.computeIfAbsent(source, _ -> new LinkedHashSet<>()).addAll(targets));
             sources.forEach(source -> to.computeIfAbsent(source, _ -> new LinkedHashSet<>()).add(entry.getKey()));
         }
-        Path folder = Files.createDirectory(context.next().resolve(GROUPS));
+        SequencedMap<String, Properties> properties = new LinkedHashMap<>();
         for (String name : arguments.keySet()) {
-            Properties properties = new SequencedProperties();
             from.get(name).stream()
                     .flatMap(value -> link.getOrDefault(value, Set.of()).stream())
                     .flatMap(value -> to.getOrDefault(value, Set.of()).stream())
-                    .forEach(value -> properties.setProperty(value, ""));
+                    .forEach(value -> properties.computeIfAbsent(
+                            requireNonNull(resolver.apply(name), "Did not resolve " + name),
+                            _ -> new SequencedProperties()).setProperty(value, ""));
+        }
+        Path folder = Files.createDirectory(context.next().resolve(GROUPS));
+        for (Map.Entry<String, Properties> entry : properties.entrySet()) {
             try (Writer writer = Files.newBufferedWriter(folder.resolve(URLEncoder.encode(
-                    name,
+                    entry.getKey(),
                     StandardCharsets.UTF_8) + ".properties"))) {
-                properties.store(writer, null);
+                entry.getValue().store(writer, null);
             }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));

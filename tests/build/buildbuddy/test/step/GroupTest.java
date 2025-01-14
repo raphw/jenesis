@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -60,7 +61,7 @@ public class GroupTest {
         try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.DEPENDENCIES))) {
             rightDependencies.store(writer, null);
         }
-        BuildStepResult result = new Group().apply(
+        BuildStepResult result = new Group(Function.identity()).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -106,7 +107,7 @@ public class GroupTest {
         try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.DEPENDENCIES))) {
             rightDependencies.store(writer, null);
         }
-        BuildStepResult result = new Group().apply(
+        BuildStepResult result = new Group(Function.identity()).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
