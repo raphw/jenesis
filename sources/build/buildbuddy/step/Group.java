@@ -19,10 +19,10 @@ public class Group implements BuildStep {
 
     public static final String GROUPS = "groups/";
 
-    private final Function<String, Optional<String>> naming;
+    private final Function<String, Optional<String>> identification;
 
-    public Group(Function<String, Optional<String>> naming) {
-        this.naming = naming;
+    public Group(Function<String, Optional<String>> identification) {
+        this.identification = identification;
     }
 
     @Override
@@ -33,7 +33,7 @@ public class Group implements BuildStep {
         // TODO: improve incremental resolve
         Map<String, Set<String>> from = new HashMap<>(), to = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            String name = naming.apply(entry.getKey()).orElse(null);
+            String name = identification.apply(entry.getKey()).orElse(null);
             if (name == null) {
                 continue;
             }
