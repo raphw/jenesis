@@ -49,6 +49,10 @@ public class MultiProjectModule implements BuildExecutorModule {
             module.addModule("execute", (build, paths) -> {
                 Path groups = paths.get("../group").resolve(Group.GROUPS);
                 SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>();
+
+
+
+
                 for (String name : identifiers.sequencedKeySet()) {
                     Path file = groups.resolve(name + ".properties");
                     if (Files.exists(file)) {

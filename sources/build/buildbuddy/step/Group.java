@@ -19,10 +19,10 @@ public class Group implements BuildStep {
 
     public static final String GROUPS = "groups/";
 
-    private final Function<String, Optional<String>> modules;
+    private final Function<String, Optional<String>> naming;
 
-    public Group(Function<String, Optional<String>> modules) {
-        this.modules = modules;
+    public Group(Function<String, Optional<String>> naming) {
+        this.naming = naming;
     }
 
     @Override
@@ -33,14 +33,14 @@ public class Group implements BuildStep {
         // TODO: improve incremental resolve
         Map<String, Set<String>> from = new HashMap<>(), to = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            String module = modules.apply(entry.getKey()).orElse(null);
-            if (module == null) {
+            String name = naming.apply(entry.getKey()).orElse(null);
+            if (name == null) {
                 continue;
             }
             toProperties(entry.getValue().folder().resolve(COORDINATES)).forEach(dependency -> from.computeIfAbsent(
                     dependency,
-                    _ -> new LinkedHashSet<>()).add(module));
-            to.computeIfAbsent(module, _ -> new LinkedHashSet<>()).addAll(toProperties(entry.getValue()
+                    _ -> new LinkedHashSet<>()).add(name));
+            to.computeIfAbsent(name, _ -> new LinkedHashSet<>()).addAll(toProperties(entry.getValue()
                     .folder()
                     .resolve(DEPENDENCIES)));
         }
@@ -50,7 +50,7 @@ public class Group implements BuildStep {
             entry.getValue().stream()
                     .flatMap(dependency -> from.getOrDefault(dependency, Set.of()).stream())
                     .distinct()
-                    .forEach(module -> properties.setProperty(module, ""));
+                    .forEach(name -> properties.setProperty(name, ""));
             try (Writer writer = Files.newBufferedWriter(folder.resolve(URLEncoder.encode(
                     entry.getKey(),
                     StandardCharsets.UTF_8) + ".properties"))) {
