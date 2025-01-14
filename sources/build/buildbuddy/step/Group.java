@@ -15,16 +15,14 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-import static java.util.Objects.requireNonNull;
-
 public class Group implements BuildStep {
 
     public static final String GROUPS = "groups/";
 
-    private final Function<String, String> resolver;
+    private final Function<String, Optional<String>> modules;
 
-    public Group(Function<String, String> resolver) {
-        this.resolver = resolver;
+    public Group(Function<String, Optional<String>> modules) {
+        this.modules = modules;
     }
 
     @Override
@@ -33,50 +31,44 @@ public class Group implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         // TODO: improve incremental resolve
-        Map<String, Set<String>> from = new LinkedHashMap<>(), link = new LinkedHashMap<>(), to = new LinkedHashMap<>();
+        Map<String, Set<String>> from = new HashMap<>(), to = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            Path coordinates = entry.getValue().folder().resolve(COORDINATES);
-            if (!Files.exists(coordinates)) {
+            String module = modules.apply(entry.getKey()).orElse(null);
+            if (module == null) {
                 continue;
             }
-            Set<String> sources;
-            try (Reader reader = Files.newBufferedReader(coordinates)) {
-                Properties properties = new SequencedProperties();
-                properties.load(reader);
-                sources = properties.stringPropertyNames();
-            }
-            Path dependencies = entry.getValue().folder().resolve(DEPENDENCIES);
-            Set<String> targets;
-            if (Files.exists(coordinates)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(dependencies)) {
-                    properties.load(reader);
-                }
-                targets = properties.stringPropertyNames();
-            } else {
-                targets = Set.of();
-            }
-            from.computeIfAbsent(entry.getKey(), _ -> new LinkedHashSet<>()).addAll(sources);
-            sources.forEach(source -> link.computeIfAbsent(source, _ -> new LinkedHashSet<>()).addAll(targets));
-            sources.forEach(source -> to.computeIfAbsent(source, _ -> new LinkedHashSet<>()).add(entry.getKey()));
-        }
-        SequencedMap<String, Properties> properties = new LinkedHashMap<>();
-        for (String name : arguments.keySet()) {
-            from.get(name).stream()
-                    .flatMap(value -> link.getOrDefault(value, Set.of()).stream())
-                    .flatMap(value -> to.getOrDefault(value, Set.of()).stream())
-                    .forEach(value -> properties.computeIfAbsent(
-                            requireNonNull(resolver.apply(name), "Did not resolve " + name),
-                            _ -> new SequencedProperties()).setProperty(value, ""));
+            toProperties(entry.getValue().folder().resolve(COORDINATES)).forEach(dependency -> from.computeIfAbsent(
+                    dependency,
+                    _ -> new LinkedHashSet<>()).add(module));
+            to.computeIfAbsent(module, _ -> new LinkedHashSet<>()).addAll(toProperties(entry.getValue()
+                    .folder()
+                    .resolve(DEPENDENCIES)));
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));
-        for (Map.Entry<String, Properties> entry : properties.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : to.entrySet()) {
+            Properties properties = new SequencedProperties();
+            entry.getValue().stream()
+                    .flatMap(dependency -> from.getOrDefault(dependency, Set.of()).stream())
+                    .distinct()
+                    .forEach(module -> properties.setProperty(module, ""));
             try (Writer writer = Files.newBufferedWriter(folder.resolve(URLEncoder.encode(
                     entry.getKey(),
                     StandardCharsets.UTF_8) + ".properties"))) {
-                entry.getValue().store(writer, null);
+                properties.store(writer, null);
             }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static Set<String> toProperties(Path file) throws IOException {
+        if (Files.exists(file)) {
+            Properties properties = new SequencedProperties();
+            try (Reader reader = Files.newBufferedReader(file)) {
+                properties.load(reader);
+            }
+            return properties.stringPropertyNames();
+        } else {
+            return Set.of();
+        }
     }
 }
