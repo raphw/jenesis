@@ -12,6 +12,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MultiProjectModule implements BuildExecutorModule {
 
@@ -32,57 +34,45 @@ public class MultiProjectModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addModule("identify", identifier, resolver);
-        buildExecutor.addModule("process", (module, identified) -> {
-            SequencedMap<String, String> names = new LinkedHashMap<>();
+        buildExecutor.addModule("process", (process, identified) -> {
+            SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.keySet()) {
                 Matcher matcher = QUALIFIER.matcher(identifier);
                 if (matcher.matches()) {
                     String name = matcher.group(1);
-                    names.put(identifier, name);
+                    modules.put(identifier, name);
                     identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
                 }
             }
-            module.addStep("group",
-                    new Group(identifier -> Optional.of(names.get(identifier))),
-                    names.sequencedKeySet());
-            module.addModule("execute", (build, paths) -> {
-                Path groups = paths.get("../group").resolve(Group.GROUPS);
+            process.addStep("group",
+                    new Group(identifier -> Optional.of(modules.get(identifier))),
+                    modules.sequencedKeySet());
+            process.addModule("build", (build, paths) -> {
                 SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>();
-
-
-
-
-                for (String name : identifiers.sequencedKeySet()) {
-                    Path file = groups.resolve(name + ".properties");
-                    if (Files.exists(file)) {
-                        Properties properties = new SequencedProperties();
-                        try (Reader reader = Files.newBufferedReader(file)) {
-                            properties.load(reader);
-                        }
-                        pending.put(name, new LinkedHashSet<>(properties.stringPropertyNames()));
-                    } else {
-                        pending.put(name, new LinkedHashSet<>());
+                Path groups = paths.get("../group").resolve(Group.GROUPS);
+                for (Map.Entry<String, SequencedSet<String>> entry : identifiers.entrySet()) {
+                    Properties properties = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(groups.resolve(entry.getKey() + ".properties"))) {
+                        properties.load(reader);
                     }
+                    pending.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
                 while (!pending.isEmpty()) {
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
                         Map.Entry<String, SequencedSet<String>> entry = it.next();
                         if (Collections.disjoint(entry.getValue(), pending.keySet())) {
-                            SequencedSet<String> dependencies = new LinkedHashSet<>();
-                            SequencedMap<String, SequencedSet<String>> x = new LinkedHashMap<>();
-                            entry.getValue().forEach(dependency -> {
-                                SequencedSet<String> dependents = identifiers.get(dependency);
-                                x.put(dependency, dependents);
-                                dependencies.addAll(dependents);
-                            });
-                            build.addModule(entry.getKey(), builder.apply(entry.getKey(), x), dependencies);
+                            SequencedSet<String> dependencies = new LinkedHashSet<>(entry.getValue());
+                            identifiers.get(entry.getKey()).forEach(identifier -> dependencies.add("../" + identifier));
+                            build.addModule(entry.getKey(), builder.apply(entry.getKey(), identifiers), dependencies);
                             it.remove();
                         }
                     }
                 }
-            }, "group");
+            }, Stream.concat(
+                    Stream.of("group"),
+                    identified.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
         }, "identify");
     }
 }
