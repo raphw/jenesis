@@ -10,7 +10,7 @@ import java.util.SequencedSet;
 @FunctionalInterface
 public interface MultiProject {
 
-    BuildExecutorModule make(String name,
-                             SequencedMap<String, Path> arguments,
-                             SequencedSet<String> dependencies) throws IOException;
+    BuildExecutorModule module(String name,
+                               SequencedMap<String, Path> arguments,
+                               SequencedSet<String> dependencies) throws IOException;
 }
