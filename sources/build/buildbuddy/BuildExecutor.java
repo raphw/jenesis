@@ -155,12 +155,17 @@ public class BuildExecutor {
                             return CompletableFuture.failedStage(new BuildExecutorException(location + identity, t));
                         }
                     }, executor).exceptionallyComposeAsync(t -> {
+                        BuildExecutorException wrapped = switch (t) {
+                            case BuildExecutorException e -> e;
+                            case CompletionException e -> new BuildExecutorException(location + identity, e.getCause());
+                            default -> new BuildExecutorException(location + identity, t);
+                        };
                         try {
                             Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
                         } catch (IOException e) {
-                            t.addSuppressed(e);
+                            wrapped.addSuppressed(e);
                         }
-                        return CompletableFuture.failedStage(t);
+                        return CompletableFuture.failedStage(wrapped);
                     }, executor);
                 } else {
                     return CompletableFuture.completedStage(Map.of(identity, Map.of(
