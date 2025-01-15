@@ -8,7 +8,15 @@ import build.buildbuddy.step.Group;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.SequencedMap;
+import java.util.SequencedSet;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,14 +30,14 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;
-    private final MultiProject builder;
+    private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> project;
 
     public MultiProjectModule(BuildExecutorModule identifier,
                               Function<String, Optional<String>> resolver,
-                              MultiProject builder) {
+                              Function<SequencedMap<String, SequencedSet<String>>, MultiProject> project) {
         this.identifier = identifier;
         this.resolver = resolver;
-        this.builder = builder;
+        this.project = project;
     }
 
     @Override
@@ -59,15 +67,18 @@ public class MultiProjectModule implements BuildExecutorModule {
                     }
                     pending.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
+                MultiProject dispatcher = project.apply(pending);
                 while (!pending.isEmpty()) {
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
                         Map.Entry<String, SequencedSet<String>> entry = it.next();
                         if (Collections.disjoint(entry.getValue(), pending.keySet())) {
                             SequencedSet<String> dependencies = new LinkedHashSet<>();
-                            identifiers.get(entry.getKey()).forEach(identifier -> dependencies.add(PREVIOUS + identifier));
+                            identifiers
+                                    .get(entry.getKey())
+                                    .forEach(identifier -> dependencies.add(PREVIOUS + identifier));
                             build.addModule(entry.getKey(),
-                                    builder.make(entry.getKey(), dependencies, entry.getValue()),
+                                    dispatcher.make(entry.getKey(), dependencies, entry.getValue()),
                                     Stream.concat(
                                             dependencies.stream(),
                                             entry.getValue().stream()).toArray(String[]::new));
