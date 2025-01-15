@@ -1,10 +1,6 @@
 package build.buildbuddy.test;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.HashFunction;
+import build.buildbuddy.*;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,10 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
-import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,8 +78,11 @@ public class BuildExecutorTest {
             return CompletableFuture.completedStage(new BuildStepResult(false));
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .hasRootCauseMessage("Cannot reuse non-existing location for step");
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step")
+                .cause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Cannot reuse non-existing location for step");
         assertThat(root.resolve("step")).doesNotExist();
     }
 
@@ -104,8 +100,33 @@ public class BuildExecutorTest {
             throw new RuntimeException("baz");
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasRootCauseInstanceOf(RuntimeException.class)
-                .hasRootCauseMessage("baz");
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step")
+                .cause()
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("baz");
+        assertThat(root.resolve("step")).doesNotExist();
+    }
+
+    @Test
+    public void handles_error_in_step_async() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath();
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("source");
+            assertThat(arguments.get("source").folder()).isEqualTo(source);
+            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            return CompletableFuture.failedStage(new RuntimeException("baz"));
+        }, "source");
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step")
+                .cause()
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("baz");
         assertThat(root.resolve("step")).doesNotExist();
     }
 
@@ -423,8 +444,11 @@ public class BuildExecutorTest {
             }, "step1");
         }, _ -> Optional.of("duplicate"));
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasRootCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("Duplicate resolution duplicate for step");
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Duplicate resolution duplicate");
     }
 
     @Test
@@ -509,8 +533,11 @@ public class BuildExecutorTest {
             }, "../source");
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasRootCauseInstanceOf(RuntimeException.class)
-                .hasRootCauseMessage("baz");
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step/step1")
+                .cause()
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("baz");
         assertThat(root.resolve("step").resolve("step1").resolve("output")).doesNotExist();
     }
 
@@ -526,8 +553,11 @@ public class BuildExecutorTest {
             }, "../source");
         });
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasRootCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("Did not inherit: ../source");
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Did not inherit: ../source");
         assertThat(root.resolve("step").resolve("step1").resolve("output")).doesNotExist();
     }
 
@@ -547,8 +577,11 @@ public class BuildExecutorTest {
             }, "../source");
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
-                .hasRootCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("Did not inherit: ../source");
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Did not inherit: ../source");
         assertThat(root.resolve("step").resolve("step1").resolve("output")).doesNotExist();
     }
 

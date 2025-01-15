@@ -8,19 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -32,18 +21,20 @@ public class BuildExecutor {
 
     private final Path root;
     private final HashFunction hash;
+    private final String location;
 
     private final Map<String, StepSummary> inherited;
     private final SequencedMap<String, Registration> registrations = new LinkedHashMap<>();
 
-    private BuildExecutor(Path root, HashFunction hash, Map<String, StepSummary> inherited) throws IOException {
+    private BuildExecutor(Path root, HashFunction hash, String location, Map<String, StepSummary> inherited) throws IOException {
         this.root = Files.isDirectory(root) ? root : Files.createDirectory(root);
         this.hash = hash;
+        this.location = location;
         this.inherited = inherited;
     }
 
     public static BuildExecutor of(Path root, HashFunction hash) throws IOException {
-        return new BuildExecutor(root, hash, Map.of());
+        return new BuildExecutor(root, hash, "", Map.of());
     }
 
     public void addSource(String identity, Path path) {
@@ -135,12 +126,9 @@ public class BuildExecutor {
                                     consistent ? output : null,
                                     Files.createDirectory(next.resolve("output")),
                                     Files.createDirectory(next.resolve("supplement"))),
-                            arguments).handleAsync((result, throwable) -> {
+                            arguments).thenComposeAsync(result -> {
                         try {
-                            if (throwable != null) {
-                                Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
-                                throw throwable;
-                            } else if (result.next()) {
+                            if (result.next()) {
                                 Files.move(next, exists
                                         ? Files.walkFileTree(previous, new RecursiveFolderDeletion(null))
                                         : previous);
@@ -160,10 +148,19 @@ public class BuildExecutor {
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
-                            return Map.of(identity, Map.of(identity, new StepSummary(output, checksums)));
+                            return CompletableFuture.completedStage(Map.of(
+                                    identity,
+                                    Map.of(identity, new StepSummary(output, checksums))));
                         } catch (Throwable t) {
-                            throw new BuildExecutionException(identity, t);
+                            return CompletableFuture.failedStage(new BuildExecutorException(location + identity, t));
                         }
+                    }, executor).exceptionallyComposeAsync(t -> {
+                        try {
+                            Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
+                        } catch (IOException e) {
+                            t.addSuppressed(e);
+                        }
+                        return CompletableFuture.failedStage(t);
                     }, executor);
                 } else {
                     return CompletableFuture.completedStage(Map.of(identity, Map.of(
@@ -171,7 +168,7 @@ public class BuildExecutor {
                             new StepSummary(output, current))));
                 }
             } catch (Throwable t) {
-                return CompletableFuture.failedFuture(t);
+                return CompletableFuture.failedFuture(new BuildExecutorException(location + identity, t));
             }
         };
     }
@@ -240,27 +237,29 @@ public class BuildExecutor {
                     folders.put(identity, entry.getValue().folder());
                     inherited.put(identity, entry.getValue());
                 }
-                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix), hash, inherited);
+                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix),
+                        hash,
+                        location + prefix + "/",
+                        inherited);
                 module.accept(buildExecutor, folders);
-                return buildExecutor.doExecute(executor).handleAsync((results, throwable) -> {
-                    if (throwable != null) {
-                        throw throwable instanceof BuildExecutionException exception
-                                ? new BuildExecutionException(prefix, exception)
-                                : new BuildExecutionException(prefix, throwable);
+                return buildExecutor.doExecute(executor).thenComposeAsync(results -> {
+                    try {
+                        Map<String, StepSummary> prefixed = new LinkedHashMap<>();
+                        results.forEach((identity, values) -> {
+                            String resolved = resolver.apply(identity).orElse(null);
+                            if (resolved != null && prefixed.putIfAbsent(
+                                    resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
+                                    values) != null) {
+                                throw new IllegalArgumentException("Duplicate resolution " + resolved);
+                            }
+                        });
+                        return CompletableFuture.completedStage(Map.of(prefix, prefixed));
+                    } catch (Throwable t) {
+                        return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
                     }
-                    SequencedMap<String, StepSummary> prefixed = new LinkedHashMap<>();
-                    results.forEach((identity, values) -> {
-                        String resolved = resolver.apply(identity).orElse(null);
-                        if (resolved != null && prefixed.putIfAbsent(
-                                resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
-                                values) != null) {
-                            throw new IllegalArgumentException("Duplicate resolution " + resolved + " for " + prefix);
-                        }
-                    });
-                    return Map.of(prefix, prefixed);
                 }, executor);
             } catch (Throwable t) {
-                return CompletableFuture.failedStage(t);
+                return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
             }
         };
     }
@@ -367,7 +366,9 @@ public class BuildExecutor {
                             });
                             return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
                         } catch (Throwable t) {
-                            return CompletableFuture.failedStage(t);
+                            return CompletableFuture.failedStage(new BuildExecutorException(
+                                    location + entry.getKey(),
+                                    t));
                         }
                     }, executor));
                     it.remove();
