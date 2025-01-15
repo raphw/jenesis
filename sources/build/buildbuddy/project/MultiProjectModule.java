@@ -30,14 +30,14 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;
-    private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> project;
+    private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory;
 
     public MultiProjectModule(BuildExecutorModule identifier,
                               Function<String, Optional<String>> resolver,
-                              Function<SequencedMap<String, SequencedSet<String>>, MultiProject> project) {
+                              Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory) {
         this.identifier = identifier;
         this.resolver = resolver;
-        this.project = project;
+        this.factory = factory;
     }
 
     @Override
@@ -67,7 +67,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                     }
                     pending.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
-                MultiProject dispatcher = project.apply(pending);
+                MultiProject project = factory.apply(pending);
                 while (!pending.isEmpty()) {
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
@@ -78,7 +78,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                                     PREVIOUS + identifier,
                                     paths.get(PREVIOUS + identifier)));
                             build.addModule(entry.getKey(),
-                                    dispatcher.make(entry.getKey(), arguments, entry.getValue()),
+                                    project.make(entry.getKey(), arguments, entry.getValue()),
                                     entry.getValue());
                             it.remove();
                         }
