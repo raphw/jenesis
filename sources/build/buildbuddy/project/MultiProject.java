@@ -4,7 +4,6 @@ import build.buildbuddy.BuildExecutorModule;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.SequencedMap;
 import java.util.SequencedSet;
 
@@ -12,6 +11,6 @@ import java.util.SequencedSet;
 public interface MultiProject {
 
     BuildExecutorModule make(String name,
-                             SequencedMap<String, Path> identifiers,
+                             SequencedMap<String, Path> arguments,
                              SequencedSet<String> dependencies) throws IOException;
 }

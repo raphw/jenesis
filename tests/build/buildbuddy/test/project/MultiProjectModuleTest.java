@@ -71,7 +71,7 @@ public class MultiProjectModuleTest {
                 assertThat(identifiers).containsOnlyKeys("../../identify/module/1/module", "../../identify/module/1/source");
                 assertThat(dependencies).isEmpty();
                 yield (module1, inherited) -> module1.addStep("step", (_, context, _) -> {
-                    assertThat(inherited).containsKeys("../../../identify/module/1/module", "../../../identify/module/1/source");
+                    assertThat(inherited).isEmpty();
                     Files.writeString(context.next().resolve("file"), "foo");
                     return CompletableFuture.completedStage(new BuildStepResult(true));
                 });
@@ -80,9 +80,7 @@ public class MultiProjectModuleTest {
                 assertThat(identifiers).containsOnlyKeys("../../identify/module/2/module", "../../identify/module/2/source");
                 assertThat(dependencies).containsExactly("1");
                 yield  (module2, inherited) -> {
-                    assertThat(inherited).containsKeys("../../../identify/module/2/module",
-                            "../../../identify/module/2/source",
-                            "../1/step");
+                    assertThat(inherited).containsKeys("../1/step");
                     module2.addStep("step", (_, context, arguments) -> {
                         Files.writeString(
                                 context.next().resolve("file"),

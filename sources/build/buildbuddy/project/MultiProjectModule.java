@@ -73,15 +73,13 @@ public class MultiProjectModule implements BuildExecutorModule {
                     while (it.hasNext()) {
                         Map.Entry<String, SequencedSet<String>> entry = it.next();
                         if (Collections.disjoint(entry.getValue(), pending.keySet())) {
-                            SequencedMap<String, Path> dependencies = new LinkedHashMap<>();
-                            identifiers.get(entry.getKey()).forEach(identifier -> dependencies.put(
+                            SequencedMap<String, Path> arguments = new LinkedHashMap<>();
+                            identifiers.get(entry.getKey()).forEach(identifier -> arguments.put(
                                     PREVIOUS + identifier,
                                     paths.get(PREVIOUS + identifier)));
                             build.addModule(entry.getKey(),
-                                    dispatcher.make(entry.getKey(), dependencies, entry.getValue()),
-                                    Stream.concat(
-                                            dependencies.keySet().stream(),
-                                            entry.getValue().stream()).toArray(String[]::new));
+                                    dispatcher.make(entry.getKey(), arguments, entry.getValue()),
+                                    entry.getValue());
                             it.remove();
                         }
                     }
