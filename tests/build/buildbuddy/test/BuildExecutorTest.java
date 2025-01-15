@@ -1,6 +1,11 @@
 package build.buildbuddy.test;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorException;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.HashFunction;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
