@@ -66,9 +66,9 @@ public class MultiProjectModuleTest {
                     .newFolder("source-2")
                     .toPath()
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-        }, identifier -> Optional.of(identifier.replace('-', '/')), (name, identifiers, dependencies) -> switch (name) {
+        }, identifier -> Optional.of(identifier.replace('-', '/')), _ -> (name, identifiers, dependencies) -> switch (name) {
             case "1" -> {
-                assertThat(identifiers).containsExactly("../../identify/module/1/module", "../../identify/module/1/source");
+                assertThat(identifiers).containsOnlyKeys("../../identify/module/1/module", "../../identify/module/1/source");
                 assertThat(dependencies).isEmpty();
                 yield (module1, inherited) -> module1.addStep("step", (_, context, _) -> {
                     assertThat(inherited).containsKeys("../../../identify/module/1/module", "../../../identify/module/1/source");
@@ -77,7 +77,7 @@ public class MultiProjectModuleTest {
                 });
             }
             case "2" -> {
-                assertThat(identifiers).containsExactly("../../identify/module/2/module", "../../identify/module/2/source");
+                assertThat(identifiers).containsOnlyKeys("../../identify/module/2/module", "../../identify/module/2/source");
                 assertThat(dependencies).containsExactly("1");
                 yield  (module2, inherited) -> {
                     assertThat(inherited).containsKeys("../../../identify/module/2/module",
