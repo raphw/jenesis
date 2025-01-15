@@ -2,17 +2,21 @@ package build.buildbuddy;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 @FunctionalInterface
 public interface Repository {
@@ -67,6 +71,13 @@ public interface Repository {
         };
     }
 
+    static Repository ofFiles(Map<String, Path> files) {
+        return (_, coordinate) -> {
+            Path file = files.get(coordinate);
+            return file == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(file));
+        };
+    }
+
     static Repository empty() {
         return (_, _) -> Optional.empty();
     }
@@ -76,5 +87,31 @@ public interface Repository {
             Path file = Paths.get(coordinate);
             return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
         };
+    }
+
+    static Map<String, Repository> ofCoordinates(Iterable<Path> folders) throws IOException {
+        Map<String, Map<String, Path>> artifacts = new HashMap<>();
+        for (Path folder : folders) {
+            Path file = folder.resolve(BuildStep.COORDINATES);
+            if (Files.exists(file)) {
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(file)) {
+                    properties.load(reader);
+                }
+                for (String coordinate : properties.stringPropertyNames()) {
+                    String location = properties.getProperty(coordinate);
+                    if (location.isEmpty()) {
+                        throw new IllegalStateException("Unresolved location for " + coordinate);
+                    }
+                    int index = coordinate.indexOf('/');
+                    artifacts.computeIfAbsent(
+                            coordinate.substring(0, index),
+                            _ -> new HashMap<>()).put(coordinate.substring(index + 1), file);
+                }
+            }
+        }
+        return artifacts.entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> ofFiles(entry.getValue())));
     }
 }
