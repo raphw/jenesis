@@ -78,7 +78,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                                     PREVIOUS + identifier,
                                     paths.get(PREVIOUS + identifier)));
                             build.addModule(entry.getKey(),
-                                    project.module(entry.getKey(), arguments, entry.getValue()),
+                                    project.module(entry.getKey(), entry.getValue(), arguments),
                                     entry.getValue());
                             it.remove();
                         }

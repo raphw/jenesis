@@ -66,7 +66,7 @@ public class MultiProjectModuleTest {
             assertThat(modules).containsExactly(
                     Map.entry("1", new LinkedHashSet<>()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))));
-            return (name, identifiers, dependencies) -> switch (name) {
+            return (name, dependencies, identifiers) -> switch (name) {
                 case "1" -> {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identify/module/1/module",
