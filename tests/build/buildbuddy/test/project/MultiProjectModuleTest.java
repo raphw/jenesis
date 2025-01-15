@@ -2,6 +2,7 @@ package build.buildbuddy.test.project;
 
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.MultiProjectModule;
 import org.junit.Before;
@@ -13,9 +14,13 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.SequencedMap;
+import java.util.concurrent.CompletableFuture;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class MultiProjectModuleTest {
 
@@ -61,8 +66,35 @@ public class MultiProjectModuleTest {
                     .newFolder("source-2")
                     .toPath()
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-        }, identifier -> Optional.of(identifier.replace('-', '/')), (name, dependencies) -> null)); // TODO fix
+        }, identifier -> Optional.of(identifier.replace('-', '/')), (name, identifiers, dependencies) -> switch (name) {
+            case "1" -> {
+                assertThat(identifiers).containsExactly("../../identify/module/1/module", "../../identify/module/1/source");
+                assertThat(dependencies).isEmpty();
+                yield (module1, inherited) -> module1.addStep("step", (_, context, _) -> {
+                    assertThat(inherited).containsKeys("../../../identify/module/1/module", "../../../identify/module/1/source");
+                    Files.writeString(context.next().resolve("file"), "foo");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                });
+            }
+            case "2" -> {
+                assertThat(identifiers).containsExactly("../../identify/module/2/module", "../../identify/module/2/source");
+                assertThat(dependencies).containsExactly("1");
+                yield  (module2, inherited) -> {
+                    assertThat(inherited).containsKeys("../../../identify/module/2/module",
+                            "../../../identify/module/2/source",
+                            "../1/step");
+                    module2.addStep("step", (_, context, arguments) -> {
+                        Files.writeString(
+                                context.next().resolve("file"),
+                                Files.readString(arguments.get("../1/step").folder().resolve("file")) + "bar");
+                        return CompletableFuture.completedStage(new BuildStepResult(true));
+                    }, "../1/step");
+                };
+            }
+            default -> throw new AssertionError();
+        }));
         SequencedMap<String, Path> paths = buildExecutor.execute();
-        System.out.println(paths);
+        assertThat(paths).containsKeys("project/build/module/2/step");
+        assertThat(paths.get("project/build/module/2/step").resolve("file")).content().contains("foobar");
     }
 }

@@ -12,20 +12,21 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class MultiProjectModule implements BuildExecutorModule {
+
+    public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
 
     private final Pattern QUALIFIER = Pattern.compile("../identify/module/([a-zA-Z0-9-]+)(?:/[a-zA-Z0-9-]+)?");
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;
-    private final MultiProjectBuilder builder;
+    private final MultiProject builder;
 
     public MultiProjectModule(BuildExecutorModule identifier,
                               Function<String, Optional<String>> resolver,
-                              MultiProjectBuilder builder) {
+                              MultiProject builder) {
         this.identifier = identifier;
         this.resolver = resolver;
         this.builder = builder;
@@ -33,8 +34,8 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addModule("identify", identifier, resolver);
-        buildExecutor.addModule("process", (process, identified) -> {
+        buildExecutor.addModule(IDENTIFY, identifier, resolver);
+        buildExecutor.addModule(BUILD, (process, identified) -> {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.keySet()) {
@@ -45,12 +46,12 @@ public class MultiProjectModule implements BuildExecutorModule {
                     identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
                 }
             }
-            process.addStep("group",
+            process.addStep(GROUP,
                     new Group(identifier -> Optional.of(modules.get(identifier))),
                     modules.sequencedKeySet());
-            process.addModule("build", (build, paths) -> {
+            process.addModule(MODULE, (build, paths) -> {
                 SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>();
-                Path groups = paths.get("../group").resolve(Group.GROUPS);
+                Path groups = paths.get(PREVIOUS + GROUP).resolve(Group.GROUPS);
                 for (Map.Entry<String, SequencedSet<String>> entry : identifiers.entrySet()) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(groups.resolve(entry.getKey() + ".properties"))) {
@@ -63,16 +64,18 @@ public class MultiProjectModule implements BuildExecutorModule {
                     while (it.hasNext()) {
                         Map.Entry<String, SequencedSet<String>> entry = it.next();
                         if (Collections.disjoint(entry.getValue(), pending.keySet())) {
-                            SequencedSet<String> dependencies = new LinkedHashSet<>(entry.getValue());
-                            identifiers.get(entry.getKey()).forEach(identifier -> dependencies.add("../" + identifier));
-                            build.addModule(entry.getKey(), builder.apply(entry.getKey(), identifiers), dependencies);
+                            SequencedSet<String> dependencies = new LinkedHashSet<>();
+                            identifiers.get(entry.getKey()).forEach(identifier -> dependencies.add(PREVIOUS + identifier));
+                            build.addModule(entry.getKey(),
+                                    builder.make(entry.getKey(), dependencies, entry.getValue()),
+                                    Stream.concat(
+                                            dependencies.stream(),
+                                            entry.getValue().stream()).toArray(String[]::new));
                             it.remove();
                         }
                     }
                 }
-            }, Stream.concat(
-                    Stream.of("group"),
-                    identified.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
-        }, "identify");
+            }, Stream.concat(Stream.of(GROUP), identified.sequencedKeySet().stream()).toArray(String[]::new));
+        }, IDENTIFY);
     }
 }
