@@ -1,9 +1,6 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.Resolver;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 
 import java.io.IOException;
 import java.util.Map;
@@ -17,9 +14,11 @@ import static java.util.Objects.requireNonNull;
 
 public class Resolve implements DependencyTransformingBuildStep {
 
+    private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
 
-    public Resolve(Map<String, Resolver> resolvers) {
+    public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
+        this.repositories = repositories;
         this.resolvers = resolvers;
     }
 
@@ -35,6 +34,7 @@ public class Resolve implements DependencyTransformingBuildStep {
                     resolvers.get(group.getKey()),
                     "Unknown resolver: " + group.getKey()).dependencies(
                     executor,
+                    repositories.getOrDefault(group.getKey(), Repository.empty()),
                     group.getValue().sequencedKeySet()).entrySet()) {
                 properties.setProperty(
                         group.getKey() + "/" + entry.getKey(),

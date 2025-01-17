@@ -1,10 +1,6 @@
 package build.buildbuddy.test.step;
 
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
+import build.buildbuddy.*;
 import build.buildbuddy.step.Resolve;
 import org.junit.Before;
 import org.junit.Rule;
@@ -47,14 +43,14 @@ public class ResolveTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Resolve(Map.of("foo", (_, descriptors) -> {
-            SequencedMap<String, String> resolved = new LinkedHashMap<>();
-            descriptors.forEach(descriptor -> {
-                resolved.put(descriptor, "");
-                resolved.put("transitive/" + descriptor, "");
-            });
-            return resolved;
-        })).apply(
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, _, descriptors) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.forEach(descriptor -> {
+                        resolved.put(descriptor, "");
+                        resolved.put("transitive/" + descriptor, "");
+                    });
+                    return resolved;
+                })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -84,7 +80,7 @@ public class ResolveTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Resolve(Map.of("foo", (_, descriptors) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, _, descriptors) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(descriptor, "");
@@ -122,7 +118,7 @@ public class ResolveTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Resolve(Map.of("foo", (_, descriptors) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, _, descriptors) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(descriptor, "qux/" + descriptor);

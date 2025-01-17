@@ -22,15 +22,15 @@ import java.util.zip.ZipInputStream;
 public class ModularJarResolver implements Resolver {
 
     private final boolean resolveAutomaticModules;
-    private final Repository repository;
 
-    public ModularJarResolver(boolean resolveAutomaticModules, Repository repository) {
+    public ModularJarResolver(boolean resolveAutomaticModules) {
         this.resolveAutomaticModules = resolveAutomaticModules;
-        this.repository = repository;
     }
 
     @Override
-    public SequencedMap<String, String> dependencies(Executor executor, SequencedSet<String> coordinates) throws IOException {
+    public SequencedMap<String, String> dependencies(Executor executor,
+                                                     Repository repository,
+                                                     SequencedSet<String> coordinates) throws IOException {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> dependencies.put(coordinate, ""));
         Queue<String> queue = new ArrayDeque<>(coordinates);

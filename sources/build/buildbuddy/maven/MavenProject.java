@@ -40,11 +40,13 @@ public class MavenProject implements BuildExecutorModule {
 
     private final String prefix;
     private final Path root;
+    private final MavenRepository repository;
     private final MavenPomResolver resolver;
 
-    public MavenProject(String prefix, Path root, MavenPomResolver resolver) {
+    public MavenProject(String prefix, Path root, MavenRepository repository, MavenPomResolver resolver) {
         this.prefix = prefix;
         this.root = root;
+        this.repository = repository;
         this.resolver = resolver;
     }
 
@@ -82,6 +84,7 @@ public class MavenProject implements BuildExecutorModule {
         buildExecutor.addStep("prepare", (executor, context, arguments) -> {
             Path maven = Files.createDirectory(context.next().resolve(MAVEN));
             for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(executor,
+                    repository,
                     arguments.get("scan")
                     .folder()
                     .resolve(POM)).entrySet()) {

@@ -11,16 +11,12 @@ import java.util.function.Function;
 @FunctionalInterface
 public interface Resolver {
 
-    SequencedMap<String, String> dependencies(Executor executor, SequencedSet<String> coordinates) throws IOException;
-
-    default Resolver andThen(Resolver resolver) {
-        return (executor, coordinates) -> resolver.dependencies(
-                executor,
-                dependencies(executor, coordinates).sequencedKeySet());
-    }
+    SequencedMap<String, String> dependencies(Executor executor,
+                                              Repository repository,
+                                              SequencedSet<String> coordinates) throws IOException;
 
     static Resolver identity() {
-        return (_, coordinates) -> {
+        return (_, _, coordinates) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             coordinates.forEach(coordinate -> resolved.put(coordinate, ""));
             return resolved;
@@ -28,7 +24,7 @@ public interface Resolver {
     }
 
     static Resolver of(Function<String, SequencedCollection<String>> translator) {
-        return (_, coordinates) -> {
+        return (_, _, coordinates) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             coordinates.stream()
                     .flatMap(coordinate -> translator.apply(coordinate).stream())

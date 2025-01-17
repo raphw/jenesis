@@ -37,10 +37,10 @@ public class DependenciesModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         if (checksum != null) {
-            buildExecutor.addStep(PREPARED, new Resolve(resolvers), inherited.sequencedKeySet());
+            buildExecutor.addStep(PREPARED, new Resolve(repositories, resolvers), inherited.sequencedKeySet());
             buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), PREPARED);
         } else {
-            buildExecutor.addStep(RESOLVED, new Resolve(resolvers), inherited.sequencedKeySet());
+            buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers), inherited.sequencedKeySet());
         }
         buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
     }

@@ -22,12 +22,10 @@ import static build.buildbuddy.maven.MavenPomResolver.toChildren;
 
 public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 
-    private final MavenRepository repository;
     private final DocumentBuilderFactory documentBuilderFactory;
     private final Map<MavenDependencyName, Metadata> cache = new HashMap<>();
 
-    private MavenDefaultVersionNegotiator(MavenRepository repository, DocumentBuilderFactory documentBuilderFactory) {
-        this.repository = repository;
+    private MavenDefaultVersionNegotiator(DocumentBuilderFactory documentBuilderFactory) {
         this.documentBuilderFactory = documentBuilderFactory;
     }
 
@@ -42,11 +40,18 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         return factory;
     }
 
-    public static Supplier<MavenVersionNegotiator> maven(MavenRepository repository) {
+    public static Supplier<MavenVersionNegotiator> maven() {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
+        return () -> new MavenDefaultVersionNegotiator(factory) {
             @Override
-            public String resolve(Executor executor, String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
+            public String resolve(Executor executor,
+                                  MavenRepository repository,
+                                  String groupId,
+                                  String artifactId,
+                                  String type,
+                                  String classifier,
+                                  String current,
+                                  SequencedSet<String> versions) throws IOException {
                 String lower = null, upper = null;
                 for (String version : versions) {
                     if ((version.startsWith("[") || version.startsWith("(")) && (version.endsWith("]") || version.endsWith(")"))) {
@@ -68,7 +73,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                         } else {
                             upper = maximum;
                         }
-                        current = toMetadata(executor, groupId, artifactId).versions().stream()
+                        current = toMetadata(executor, repository, groupId, artifactId).versions().stream()
                                 .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                                 .filter(candidate -> compare(candidate, maximum) < includeMaximum)
                                 .reduce((_, right) -> right)
@@ -80,41 +85,54 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         };
     }
 
-    public static Supplier<MavenVersionNegotiator> latest(MavenRepository repository) {
+    public static Supplier<MavenVersionNegotiator> latest() {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
+        return () -> new MavenDefaultVersionNegotiator(factory) {
             @Override
-            public String resolve(Executor executor, String groupId, String artifactId, String type, String classifier, String version) throws IOException {
-                return toMetadata(executor, groupId, artifactId).latest();
+            public String resolve(Executor executor,
+                                  MavenRepository repository,
+                                  String groupId,
+                                  String artifactId,
+                                  String type,
+                                  String classifier,
+                                  String version) throws IOException {
+                return toMetadata(executor, repository, groupId, artifactId).latest();
             }
         };
     }
 
-    public static Supplier<MavenVersionNegotiator> release(MavenRepository repository) {
+    public static Supplier<MavenVersionNegotiator> release() {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(repository, factory) {
+        return () -> new MavenDefaultVersionNegotiator(factory) {
             @Override
-            public String resolve(Executor executor, String groupId, String artifactId, String type, String classifier, String version) throws IOException {
-                return toMetadata(executor, groupId, artifactId).release();
+            public String resolve(Executor executor,
+                                  MavenRepository repository,
+                                  String groupId,
+                                  String artifactId,
+                                  String type,
+                                  String classifier,
+                                  String version) throws IOException {
+                return toMetadata(executor, repository, groupId, artifactId).release();
             }
         };
     }
 
-    public static Supplier<MavenVersionNegotiator> closest(MavenRepository repository) {
+    public static Supplier<MavenVersionNegotiator> closest() {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(repository, factory);
+        return () -> new MavenDefaultVersionNegotiator(factory);
     }
 
     @Override
     public String resolve(Executor executor,
+                          MavenRepository repository,
                           String groupId,
                           String artifactId,
                           String type,
                           String classifier,
                           String version) throws IOException {
         return switch (version) {
-            case "RELEASE" -> toMetadata(executor, groupId, artifactId).release();
-            case "LATEST" -> toMetadata(executor, groupId, artifactId).latest();
+            case "RELEASE" -> toMetadata(executor, repository, groupId, artifactId).release();
+            case "LATEST" -> toMetadata(executor, repository, groupId, artifactId).latest();
             case String range when (range.startsWith("[") || range.startsWith("(")) && (range.endsWith("]") || range.endsWith(")")) -> {
                 String value = range.substring(1, range.length() - 1), minimum, maximum;
                 int includeMinimum = range.startsWith("[") ? 1 : 0, includeMaximum = range.endsWith("]") ? 1 : 0, index = value.indexOf(',');
@@ -124,7 +142,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                     minimum = value.substring(0, index).trim();
                     maximum = value.substring(index + 1).trim();
                 }
-                yield toMetadata(executor, groupId, artifactId).versions().stream()
+                yield toMetadata(executor, repository, groupId, artifactId).versions().stream()
                         .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                         .filter(candidate -> compare(candidate, maximum) < includeMaximum)
                         .reduce((_, right) -> right)
@@ -134,7 +152,10 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         };
     }
 
-    Metadata toMetadata(Executor executor, String groupId, String artifactId) throws IOException {
+    Metadata toMetadata(Executor executor,
+                        MavenRepository repository,
+                        String groupId,
+                        String artifactId) throws IOException {
         Metadata metadata = cache.get(new MavenDependencyName(groupId, artifactId));
         if (metadata == null) {
             Document document;

@@ -8,6 +8,7 @@ import java.util.concurrent.Executor;
 public interface MavenVersionNegotiator {
 
     String resolve(Executor executor,
+                   MavenRepository repository,
                    String groupId,
                    String artifactId,
                    String type,
@@ -15,6 +16,7 @@ public interface MavenVersionNegotiator {
                    String version) throws IOException;
 
     default String resolve(Executor executor,
+                           MavenRepository repository,
                            String groupId,
                            String artifactId,
                            String type,

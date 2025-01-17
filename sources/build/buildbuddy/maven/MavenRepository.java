@@ -23,6 +23,7 @@ public interface MavenRepository extends Repository {
 
     @Override
     default MavenRepository prepend(Repository repository) {
+        MavenRepository mavenRepository = of(repository);
         return new MavenRepository() {
             @Override
             public Optional<RepositoryItem> fetch(Executor executor,
@@ -32,17 +33,13 @@ public interface MavenRepository extends Repository {
                                                   String type,
                                                   String classifier,
                                                   String checksum) throws IOException {
-                Optional<RepositoryItem> candidate = repository.fetch(executor, groupId
-                        + "/" + artifactId
-                        + "/" + version
-                        + (type == null ? "/jar" : "/" + type)
-                        + (classifier == null ? "" : "/" + classifier));
-                if (type == null && candidate.isEmpty()) {
-                    candidate = repository.fetch(executor, groupId
-                            + "/" + artifactId
-                            + "/" + version
-                            + (classifier == null ? "" : "/" + classifier));
-                }
+                Optional<RepositoryItem> candidate = mavenRepository.fetch(executor,
+                        groupId,
+                        artifactId,
+                        version,
+                        type,
+                        classifier,
+                        checksum);
                 return candidate.isPresent()
                         ? candidate
                         : MavenRepository.this.fetch(executor, groupId, artifactId, version, type, classifier, checksum);
@@ -72,5 +69,30 @@ public interface MavenRepository extends Repository {
                                                    String artifactId,
                                                    String checksum) throws IOException {
         return Optional.empty();
+    }
+    static MavenRepository of(Repository repository) {
+        return repository instanceof MavenRepository mavenRepository ? mavenRepository : (executor,
+                                                                                          groupId,
+                                                                                          artifactId,
+                                                                                          version,
+                                                                                          type,
+                                                                                          classifier,
+                                                                                          checksum) -> {
+            if (checksum != null) {
+                return Optional.empty();
+            }
+            Optional<RepositoryItem> candidate = repository.fetch(executor, groupId
+                    + "/" + artifactId
+                    + "/" + version
+                    + (type == null ? "/jar" : "/" + type)
+                    + (classifier == null ? "" : "/" + classifier));
+            if (type == null && candidate.isEmpty()) {
+                candidate = repository.fetch(executor, groupId
+                        + "/" + artifactId
+                        + "/" + version
+                        + (classifier == null ? "" : "/" + classifier));
+            }
+            return candidate;
+        };
     }
 }
