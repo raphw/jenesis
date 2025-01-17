@@ -3,14 +3,7 @@ package build.buildbuddy;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -183,6 +176,17 @@ public class SequencedProperties extends Properties {
     @Override
     public Object clone() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Set<String> stringPropertyNames() {
+        SequencedSet<String> keys = new LinkedHashSet<>();
+        delegate.forEach((key, value) -> {
+            if (key instanceof String string && value instanceof String) {
+                keys.add(string);
+            }
+        });
+        return keys;
     }
 
     private static class CommentSuppressingWriter extends BufferedWriter {
