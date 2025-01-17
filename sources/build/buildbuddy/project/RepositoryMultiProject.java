@@ -34,13 +34,12 @@ public interface RepositoryMultiProject extends MultiProject {
                 }
                 for (String coordinate : properties.stringPropertyNames()) {
                     String location = properties.getProperty(coordinate);
-                    if (location.isEmpty()) {
-                        throw new IllegalStateException("Unresolved location for " + coordinate + " in " + file);
+                    if (!location.isEmpty()) {
+                        int index = coordinate.indexOf('/');
+                        artifacts.computeIfAbsent(
+                                coordinate.substring(0, index),
+                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), file);
                     }
-                    int index = coordinate.indexOf('/');
-                    artifacts.computeIfAbsent(
-                            coordinate.substring(0, index),
-                            _ -> new HashMap<>()).put(coordinate.substring(index + 1), file);
                 }
             }
         }
