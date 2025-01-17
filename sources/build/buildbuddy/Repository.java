@@ -37,7 +37,7 @@ public interface Repository {
             if (previous != null) {
                 return Optional.of(RepositoryItem.ofFile(previous));
             }
-            RepositoryItem item = Repository.this.fetch(executor, coordinate).orElse(null);
+            RepositoryItem item = fetch(executor, coordinate).orElse(null);
             if (item == null) {
                 return Optional.empty();
             } else {
