@@ -30,7 +30,7 @@ public interface MultiProjectWithRepository extends MultiProject {
                 for (String coordinate : properties.stringPropertyNames()) {
                     String location = properties.getProperty(coordinate);
                     if (location.isEmpty()) {
-                        throw new IllegalStateException("Unresolved location for " + coordinate);
+                        throw new IllegalStateException("Unresolved location for " + coordinate + " in " + file);
                     }
                     int index = coordinate.indexOf('/');
                     artifacts.computeIfAbsent(
