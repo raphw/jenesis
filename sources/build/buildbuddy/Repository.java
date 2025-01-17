@@ -23,10 +23,10 @@ public interface Repository {
 
     Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException;
 
-    default Repository andThen(Repository repository) {
+    default Repository prepend(Repository repository) {
         return (executor, coordinate) -> {
-            Optional<RepositoryItem> candidate = fetch(executor, coordinate);
-            return candidate.isPresent() ? candidate : repository.fetch(executor, coordinate);
+            Optional<RepositoryItem> candidate = repository.fetch(executor, coordinate);
+            return candidate.isPresent() ? candidate : fetch(executor, coordinate);
         };
     }
 
@@ -57,6 +57,10 @@ public interface Repository {
         };
     }
 
+    static Repository empty() {
+        return (_, _) -> Optional.empty();
+    }
+
     static Repository ofUris(Map<String, URI> uris) {
         return (_, coordinate) -> {
             URI uri = uris.get(coordinate);
@@ -69,10 +73,6 @@ public interface Repository {
             Path file = files.get(coordinate);
             return file == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(file));
         };
-    }
-
-    static Repository empty() {
-        return (_, _) -> Optional.empty();
     }
 
     static Repository files() {

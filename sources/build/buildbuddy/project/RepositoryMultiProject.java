@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,10 +49,10 @@ public interface RepositoryMultiProject extends MultiProject {
         return (RepositoryMultiProject) (name, dependencies, arguments, dynamic) -> module(name,
                 dependencies,
                 arguments,
-                Stream.concat(dynamic.entrySet().stream(), repositories.entrySet().stream()).collect(Collectors.toMap(
+                Stream.concat(repositories.entrySet().stream(), dynamic.entrySet().stream()).collect(Collectors.toMap(
                         Map.Entry::getKey,
                         Map.Entry::getValue,
-                        Repository::andThen)));
+                        Repository::prepend)));
     }
 
     BuildExecutorModule module(String name,

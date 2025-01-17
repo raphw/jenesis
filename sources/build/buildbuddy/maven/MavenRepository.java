@@ -21,6 +21,43 @@ public interface MavenRepository extends Repository {
         };
     }
 
+    @Override
+    default MavenRepository prepend(Repository repository) {
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) throws IOException {
+                Optional<RepositoryItem> candidate = repository.fetch(executor, groupId
+                        + "/" + artifactId
+                        + "/" + version
+                        + (type == null ? "/jar" : "/" + type)
+                        + (classifier == null ? "" : "/" + classifier));
+                if (type == null && candidate.isEmpty()) {
+                    candidate = repository.fetch(executor, groupId
+                            + "/" + artifactId
+                            + "/" + version
+                            + (classifier == null ? "" : "/" + classifier));
+                }
+                return candidate.isPresent()
+                        ? candidate
+                        : MavenRepository.this.fetch(executor, groupId, artifactId, version, type, classifier, checksum);
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
+                                                          String artifactId,
+                                                          String checksum) throws IOException {
+                return MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum); // TODO: update?
+            }
+        };
+    }
+
     Optional<RepositoryItem> fetch(Executor executor,
                                    String groupId,
                                    String artifactId,
