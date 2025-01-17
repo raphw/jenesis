@@ -88,30 +88,4 @@ public interface Repository {
             return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
         };
     }
-
-    static Map<String, Repository> ofCoordinates(Iterable<Path> folders) throws IOException {
-        Map<String, Map<String, Path>> artifacts = new HashMap<>();
-        for (Path folder : folders) {
-            Path file = folder.resolve(BuildStep.COORDINATES);
-            if (Files.exists(file)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(file)) {
-                    properties.load(reader);
-                }
-                for (String coordinate : properties.stringPropertyNames()) {
-                    String location = properties.getProperty(coordinate);
-                    if (location.isEmpty()) {
-                        throw new IllegalStateException("Unresolved location for " + coordinate);
-                    }
-                    int index = coordinate.indexOf('/');
-                    artifacts.computeIfAbsent(
-                            coordinate.substring(0, index),
-                            _ -> new HashMap<>()).put(coordinate.substring(index + 1), file);
-                }
-            }
-        }
-        return artifacts.entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> ofFiles(entry.getValue())));
-    }
 }
