@@ -49,7 +49,7 @@ public class BuildExecutor {
     }
 
     public void addSource(String identity, BuildStep step, Path... paths) {
-        add(identity, bindStep(step).summaries(hash, Set.of(paths)), Set.of());
+        add(identity, bindStep(step).summaries(hash, sequencedSetOf(paths)), Set.of());
     }
 
     public void addSource(String identity, BuildStep step, SequencedSet<Path> paths) {
@@ -61,7 +61,7 @@ public class BuildExecutor {
     }
 
     public void replaceSource(String identity, BuildStep step, Path... paths) {
-        replace(identity, bindStep(step).summaries(hash, Set.of(paths)));
+        replace(identity, bindStep(step).summaries(hash, sequencedSetOf(paths)));
     }
 
     public void replaceSource(String identity, BuildStep step, SequencedSet<Path> paths) {
@@ -85,7 +85,7 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, String... dependencies) {
-        add(identity, bindStep(step), Set.of(dependencies));
+        add(identity, bindStep(step), sequencedSetOf(dependencies));
     }
 
     public void addStep(String identity, BuildStep step, SequencedSet<String> dependencies) {
@@ -186,14 +186,14 @@ public class BuildExecutor {
     }
 
     public void addModule(String identity, BuildExecutorModule module, String... dependencies) {
-        add(identity, bindModule(module, Optional::of), Set.of(dependencies));
+        add(identity, bindModule(module, Optional::of), sequencedSetOf(dependencies));
     }
 
     public void addModule(String identity,
                           BuildExecutorModule module,
                           Function<String, Optional<String>> resolver,
                           String... dependencies) {
-        add(identity, bindModule(module, resolver), Set.of(dependencies));
+        add(identity, bindModule(module, resolver), sequencedSetOf(dependencies));
     }
 
     public void addModule(String identity, BuildExecutorModule module, SequencedSet<String> dependencies) {
@@ -403,6 +403,17 @@ public class BuildExecutor {
             return identity;
         }
         throw new IllegalArgumentException(identity + " does not match pattern: " + pattern.pattern());
+    }
+
+    @SafeVarargs
+    private static <T> SequencedSet<T> sequencedSetOf(T... values) {
+        SequencedSet<T> set = new LinkedHashSet<>();
+        for (T value : values) {
+            if (!set.add(value)) {
+                throw new IllegalArgumentException("Duplicated argument: " + value);
+            }
+        }
+        return set;
     }
 
     @FunctionalInterface
