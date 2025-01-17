@@ -57,13 +57,6 @@ public interface Repository {
         };
     }
 
-    default Repository prepend(Map<String, Path> coordinates) {
-        return (executor, coordinate) -> {
-            Path file = coordinates.get(coordinate);
-            return file == null ? fetch(executor, coordinate) : Optional.of(RepositoryItem.ofFile(file));
-        };
-    }
-
     static Repository ofUris(Map<String, URI> uris) {
         return (_, coordinate) -> {
             URI uri = uris.get(coordinate);
