@@ -251,7 +251,7 @@ public class BuildExecutor {
                     try {
                         Map<String, StepSummary> prefixed = new LinkedHashMap<>();
                         results.forEach((identity, values) -> {
-                            String resolved = resolver.apply(identity).orElse(null);
+                            String resolved = module.resolve(identity).flatMap(resolver).orElse(null);
                             if (resolved != null && prefixed.putIfAbsent(
                                     resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
                                     values) != null) {
