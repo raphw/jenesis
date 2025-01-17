@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @FunctionalInterface
-public interface MultiProjectWithRepository extends MultiProject {
+public interface RepositoryMultiProject extends MultiProject {
 
     @Override
     default BuildExecutorModule module(String name,
