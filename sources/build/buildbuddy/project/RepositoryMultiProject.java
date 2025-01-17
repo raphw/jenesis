@@ -38,7 +38,7 @@ public interface RepositoryMultiProject extends MultiProject {
                         int index = coordinate.indexOf('/');
                         artifacts.computeIfAbsent(
                                 coordinate.substring(0, index),
-                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), file);
+                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), Path.of(location));
                     }
                 }
             }
