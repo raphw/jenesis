@@ -1,6 +1,14 @@
 package build.buildbuddy.test.maven;
 
-import build.buildbuddy.maven.*;
+import build.buildbuddy.maven.MavenDefaultRepository;
+import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
+import build.buildbuddy.maven.MavenDependencyKey;
+import build.buildbuddy.maven.MavenDependencyName;
+import build.buildbuddy.maven.MavenDependencyScope;
+import build.buildbuddy.maven.MavenDependencyValue;
+import build.buildbuddy.maven.MavenLocalPom;
+import build.buildbuddy.maven.MavenPomResolver;
+import build.buildbuddy.maven.MavenRepository;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
