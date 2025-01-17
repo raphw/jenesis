@@ -11,6 +11,6 @@ import java.util.SequencedSet;
 public interface MultiProject {
 
     BuildExecutorModule module(String name,
-                               SequencedSet<String> dependencies,
+                               SequencedMap<String, SequencedSet<String>> dependencies,
                                SequencedMap<String, Path> arguments) throws IOException;
 }

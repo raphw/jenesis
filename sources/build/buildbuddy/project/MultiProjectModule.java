@@ -8,18 +8,11 @@ import build.buildbuddy.step.Group;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class MultiProjectModule implements BuildExecutorModule {
@@ -58,16 +51,17 @@ public class MultiProjectModule implements BuildExecutorModule {
                     new Group(identifier -> Optional.of(modules.get(identifier))),
                     modules.sequencedKeySet());
             process.addModule(MODULE, (build, paths) -> {
-                SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>();
+                SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();
                 Path groups = paths.get(PREVIOUS + GROUP).resolve(Group.GROUPS);
                 for (Map.Entry<String, SequencedSet<String>> entry : identifiers.entrySet()) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(groups.resolve(entry.getKey() + ".properties"))) {
                         properties.load(reader);
                     }
-                    pending.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
+                    projects.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
-                MultiProject project = factory.apply(pending);
+                MultiProject project = factory.apply(projects);
+                SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>(projects);
                 while (!pending.isEmpty()) {
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
@@ -77,14 +71,26 @@ public class MultiProjectModule implements BuildExecutorModule {
                             identifiers.get(entry.getKey()).forEach(identifier -> arguments.put(
                                     PREVIOUS + identifier,
                                     paths.get(PREVIOUS + identifier)));
+                            SequencedMap<String, SequencedSet<String>> dependencies = new LinkedHashMap<>();
+                            Queue<String> queue = new LinkedList<>(entry.getValue());
+                            while (!queue.isEmpty()) {
+                                String current = queue.remove();
+                                if (!dependencies.containsKey(current)) {
+                                    SequencedSet<String> values = projects.get(current);
+                                    dependencies.put(current, values);
+                                    queue.addAll(values);
+                                }
+                            }
                             build.addModule(entry.getKey(),
-                                    project.module(entry.getKey(), entry.getValue(), arguments),
-                                    entry.getValue());
+                                    project.module(entry.getKey(), dependencies, arguments),
+                                    dependencies.sequencedKeySet());
                             it.remove();
                         }
                     }
                 }
-            }, Stream.concat(Stream.of(GROUP), identified.sequencedKeySet().stream()).toArray(String[]::new));
+            }, Stream.concat(
+                    Stream.of(GROUP),
+                    identified.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
         }, IDENTIFY);
     }
 }

@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.SequencedMap;
 import java.util.SequencedSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class JavaModule implements BuildExecutorModule {
 
@@ -28,6 +30,8 @@ public class JavaModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addStep(CLASSES, new Javac(), inherited.sequencedKeySet());
-        buildExecutor.addStep(ARTIFACTS, new Jar(), CLASSES);
+        buildExecutor.addStep(ARTIFACTS, new Jar(), Stream.concat(
+                Stream.of(CLASSES),
+                inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 }
