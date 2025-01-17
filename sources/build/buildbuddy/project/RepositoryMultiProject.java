@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @FunctionalInterface
 public interface RepositoryMultiProject extends MultiProject {
@@ -42,6 +43,16 @@ public interface RepositoryMultiProject extends MultiProject {
         return module(name, dependencies, arguments, artifacts.entrySet()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> Repository.ofFiles(entry.getValue()))));
+    }
+
+    default MultiProject repositories(Map<String, Repository> repositories) {
+        return (RepositoryMultiProject) (name, dependencies, arguments, dynamic) -> module(name,
+                dependencies,
+                arguments,
+                Stream.concat(dynamic.entrySet().stream(), repositories.entrySet().stream()).collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        Repository::andThen)));
     }
 
     BuildExecutorModule module(String name,
