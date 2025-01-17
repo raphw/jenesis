@@ -79,9 +79,10 @@ public class MavenProject implements BuildExecutorModule {
                 return true;
             }
         });
-        buildExecutor.addStep("prepare", (_, context, arguments) -> {
+        buildExecutor.addStep("prepare", (executor, context, arguments) -> {
             Path maven = Files.createDirectory(context.next().resolve(MAVEN));
-            for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(arguments.get("scan")
+            for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(executor,
+                    arguments.get("scan")
                     .folder()
                     .resolve(POM)).entrySet()) {
                 if (Objects.equals("pom", entry.getValue().packaging())) {

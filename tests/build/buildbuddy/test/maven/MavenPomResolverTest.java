@@ -62,7 +62,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -95,7 +96,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -129,7 +131,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -153,7 +156,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -188,7 +192,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -229,7 +234,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -296,7 +302,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -354,7 +361,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -397,7 +405,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -444,7 +453,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -491,7 +501,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -533,7 +544,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -583,7 +595,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -625,7 +638,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -690,7 +704,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -736,7 +751,8 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -791,7 +807,8 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -868,7 +885,8 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -928,7 +946,8 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1002,7 +1021,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1087,7 +1107,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1185,7 +1206,8 @@ public class MavenPomResolverTest {
                     </dependencies>
                 </project>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1243,7 +1265,8 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1288,7 +1311,8 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1333,7 +1357,8 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1378,7 +1403,8 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1447,7 +1473,8 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1544,7 +1571,8 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies("group",
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 null);
@@ -1596,7 +1624,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(project);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, project);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.groupId()).isEqualTo("project");
@@ -1670,7 +1698,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.groupId()).isEqualTo("project");
@@ -1749,7 +1777,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.groupId()).isEqualTo("project");
@@ -1809,7 +1837,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(project);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, project);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
@@ -1868,7 +1896,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
@@ -1927,7 +1955,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
@@ -1987,7 +2015,7 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""));
         MavenLocalPom pom = poms.get(Path.of(""));
         assertThat(pom.dependencies()).containsExactly(Map.entry(
@@ -2043,7 +2071,7 @@ public class MavenPomResolverTest {
                     </parent>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(project);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, project);
         assertThat(poms).containsOnlyKeys(Path.of(""), Path.of("subproject"));
         assertThat(poms.get(Path.of("")).dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
@@ -2105,7 +2133,7 @@ public class MavenPomResolverTest {
                     </parent>
                 </project>
                 """);
-        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(subproject);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, subproject);
         assertThat(poms).containsOnlyKeys(Path.of(""), Path.of(".."));
         assertThat(poms.get(Path.of("")).dependencies()).containsExactly(Map.entry(
                 new MavenDependencyKey("group", "artifact", "jar", null),
@@ -2153,7 +2181,7 @@ public class MavenPomResolverTest {
                     </modules>
                 </project>
                 """);
-        assertThatThrownBy(() -> mavenPomResolver.local(project))
+        assertThatThrownBy(() -> mavenPomResolver.local(Runnable::run, project))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Circular POM module reference to ");
     }

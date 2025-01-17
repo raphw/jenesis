@@ -39,7 +39,8 @@ public class MavenDefaultRepositoryTest {
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetch("group",
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -57,7 +58,8 @@ public class MavenDefaultRepositoryTest {
                 .resolve("artifact-1.jar"), "foo");
         Path local = temporaryFolder.newFolder("cache").toPath();
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), local, Map.of()).fetch("group",
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), local, Map.of()).fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -85,7 +87,8 @@ public class MavenDefaultRepositoryTest {
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
-                Map.of("MD5", repository.toUri())).fetch("group",
+                Map.of("MD5", repository.toUri())).fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -113,7 +116,8 @@ public class MavenDefaultRepositoryTest {
         MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
-        assertThatThrownBy(() -> repository.fetch("group",
+        assertThatThrownBy(() -> repository.fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -139,7 +143,8 @@ public class MavenDefaultRepositoryTest {
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
-                Map.of("MD5", repository.toUri())).fetch("group",
+                Map.of("MD5", repository.toUri())).fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -168,7 +173,8 @@ public class MavenDefaultRepositoryTest {
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
-                Map.of("MD5", repository.toUri())).fetch("group",
+                Map.of("MD5", repository.toUri())).fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -196,7 +202,8 @@ public class MavenDefaultRepositoryTest {
         MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
-        assertThat(repository.fetch("group",
+        assertThat(repository.fetch(Runnable::run,
+                "group",
                 "artifact",
                 "1",
                 "jar",
@@ -212,7 +219,8 @@ public class MavenDefaultRepositoryTest {
                 .createDirectories(repository.resolve("group/artifact"))
                 .resolve("maven-metadata.xml"), "foo");
         Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
-        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetchMetadata("group",
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetchMetadata(Runnable::run,
+                "group",
                 "artifact",
                 null).orElseThrow().toInputStream()) {
             Files.copy(inputStream, dependency);

@@ -16,7 +16,8 @@ public interface MavenRepository extends Repository {
     default MavenRepository prepend(Map<String, Path> coordinates) {
         return new MavenRepository() {
             @Override
-            public Optional<RepositoryItem> fetch(String groupId,
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
                                                   String artifactId,
                                                   String version,
                                                   String type,
@@ -35,15 +36,16 @@ public interface MavenRepository extends Repository {
                 }
                 return file != null
                         ? Optional.of(RepositoryItem.ofFile(file))
-                        : MavenRepository.this.fetch(groupId, artifactId, version, type, classifier, checksum);
+                        : MavenRepository.this.fetch(executor, groupId, artifactId, version, type, classifier, checksum);
             }
 
             @Override
-            public Optional<RepositoryItem> fetchMetadata(String groupId,
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
                                                           String artifactId,
                                                           String checksum) throws IOException {
                 // TODO: check prepended data for versions?
-                return MavenRepository.this.fetchMetadata(groupId, artifactId, checksum);
+                return MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum);
             }
         };
     }
@@ -51,19 +53,22 @@ public interface MavenRepository extends Repository {
     default MavenRepository andThen(MavenRepository repository) {
         return new MavenRepository() {
             @Override
-            public Optional<RepositoryItem> fetch(String groupId,
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
                                                   String artifactId,
                                                   String version,
                                                   String type,
                                                   String classifier,
                                                   String checksum) throws IOException {
-                Optional<RepositoryItem> candidate = MavenRepository.this.fetch(groupId,
+                Optional<RepositoryItem> candidate = MavenRepository.this.fetch(executor,
+                        groupId,
                         artifactId,
                         version,
                         type,
                         classifier,
                         checksum);
-                return candidate.isPresent() ? candidate : repository.fetch(groupId,
+                return candidate.isPresent() ? candidate : repository.fetch(executor,
+                        groupId,
                         artifactId,
                         version,
                         type,
@@ -72,11 +77,12 @@ public interface MavenRepository extends Repository {
             }
 
             @Override
-            public Optional<RepositoryItem> fetchMetadata(String groupId,
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
                                                           String artifactId,
                                                           String checksum) throws IOException {
-                Optional<RepositoryItem> candidate = MavenRepository.this.fetchMetadata(groupId, artifactId, checksum);
-                return candidate.isPresent() ? candidate : repository.fetchMetadata(groupId, artifactId, checksum);
+                Optional<RepositoryItem> candidate = MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum);
+                return candidate.isPresent() ? candidate : repository.fetchMetadata(executor, groupId, artifactId, checksum);
             }
         };
     }
@@ -85,14 +91,15 @@ public interface MavenRepository extends Repository {
     default Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
         String[] elements = coordinate.split("/", 5);
         return switch (elements.length) {
-            case 3 -> fetch(elements[0], elements[1], elements[2], "jar", null, null);
-            case 4 -> fetch(elements[0], elements[1], elements[3], elements[2], null, null);
-            case 5 -> fetch(elements[0], elements[1], elements[4], elements[2], elements[3], null);
+            case 3 -> fetch(executor, elements[0], elements[1], elements[2], "jar", null, null);
+            case 4 -> fetch(executor, elements[0], elements[1], elements[3], elements[2], null, null);
+            case 5 -> fetch(executor, elements[0], elements[1], elements[4], elements[2], elements[3], null);
             default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
         };
     }
 
-    Optional<RepositoryItem> fetch(String groupId,
+    Optional<RepositoryItem> fetch(Executor executor,
+                                   String groupId,
                                    String artifactId,
                                    String version,
                                    String type,
@@ -100,7 +107,8 @@ public interface MavenRepository extends Repository {
                                    String checksum) throws IOException;
 
 
-    default Optional<RepositoryItem> fetchMetadata(String groupId,
+    default Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                   String groupId,
                                                    String artifactId,
                                                    String checksum) throws IOException {
         return Optional.empty();

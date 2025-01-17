@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 public class MavenDefaultRepository implements MavenRepository {
 
@@ -46,7 +47,8 @@ public class MavenDefaultRepository implements MavenRepository {
     }
 
     @Override
-    public Optional<RepositoryItem> fetch(String groupId,
+    public Optional<RepositoryItem> fetch(Executor executor,
+                                          String groupId,
                                           String artifactId,
                                           String version,
                                           String type,
@@ -60,7 +62,8 @@ public class MavenDefaultRepository implements MavenRepository {
     }
 
     @Override
-    public Optional<RepositoryItem> fetchMetadata(String groupId,
+    public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                  String groupId,
                                                   String artifactId,
                                                   String checksum) throws IOException {
         return fetch(repository, groupId.replace('.', '/')

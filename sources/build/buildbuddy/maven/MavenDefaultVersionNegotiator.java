@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.SequencedSet;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import static build.buildbuddy.maven.MavenPomResolver.missing;
@@ -45,7 +46,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
         return () -> new MavenDefaultVersionNegotiator(repository, factory) {
             @Override
-            public String resolve(String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
+            public String resolve(Executor executor, String groupId, String artifactId, String type, String classifier, String current, SequencedSet<String> versions) throws IOException {
                 String lower = null, upper = null;
                 for (String version : versions) {
                     if ((version.startsWith("[") || version.startsWith("(")) && (version.endsWith("]") || version.endsWith(")"))) {
@@ -67,7 +68,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                         } else {
                             upper = maximum;
                         }
-                        current = toMetadata(groupId, artifactId).versions().stream()
+                        current = toMetadata(executor, groupId, artifactId).versions().stream()
                                 .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                                 .filter(candidate -> compare(candidate, maximum) < includeMaximum)
                                 .reduce((_, right) -> right)
@@ -83,8 +84,8 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
         return () -> new MavenDefaultVersionNegotiator(repository, factory) {
             @Override
-            public String resolve(String groupId, String artifactId, String type, String classifier, String version) throws IOException {
-                return toMetadata(groupId, artifactId).latest();
+            public String resolve(Executor executor, String groupId, String artifactId, String type, String classifier, String version) throws IOException {
+                return toMetadata(executor, groupId, artifactId).latest();
             }
         };
     }
@@ -93,8 +94,8 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         DocumentBuilderFactory factory = toDocumentBuilderFactory();
         return () -> new MavenDefaultVersionNegotiator(repository, factory) {
             @Override
-            public String resolve(String groupId, String artifactId, String type, String classifier, String version) throws IOException {
-                return toMetadata(groupId, artifactId).release();
+            public String resolve(Executor executor, String groupId, String artifactId, String type, String classifier, String version) throws IOException {
+                return toMetadata(executor, groupId, artifactId).release();
             }
         };
     }
@@ -105,14 +106,15 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
     }
 
     @Override
-    public String resolve(String groupId,
+    public String resolve(Executor executor,
+                          String groupId,
                           String artifactId,
                           String type,
                           String classifier,
                           String version) throws IOException {
         return switch (version) {
-            case "RELEASE" -> toMetadata(groupId, artifactId).release();
-            case "LATEST" -> toMetadata(groupId, artifactId).latest();
+            case "RELEASE" -> toMetadata(executor, groupId, artifactId).release();
+            case "LATEST" -> toMetadata(executor, groupId, artifactId).latest();
             case String range when (range.startsWith("[") || range.startsWith("(")) && (range.endsWith("]") || range.endsWith(")")) -> {
                 String value = range.substring(1, range.length() - 1), minimum, maximum;
                 int includeMinimum = range.startsWith("[") ? 1 : 0, includeMaximum = range.endsWith("]") ? 1 : 0, index = value.indexOf(',');
@@ -122,7 +124,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                     minimum = value.substring(0, index).trim();
                     maximum = value.substring(index + 1).trim();
                 }
-                yield toMetadata(groupId, artifactId).versions().stream()
+                yield toMetadata(executor, groupId, artifactId).versions().stream()
                         .filter(candidate -> compare(minimum, candidate) < includeMinimum)
                         .filter(candidate -> compare(candidate, maximum) < includeMaximum)
                         .reduce((_, right) -> right)
@@ -132,11 +134,11 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         };
     }
 
-    Metadata toMetadata(String groupId, String artifactId) throws IOException {
+    Metadata toMetadata(Executor executor, String groupId, String artifactId) throws IOException {
         Metadata metadata = cache.get(new MavenDependencyName(groupId, artifactId));
         if (metadata == null) {
             Document document;
-            try (InputStream inputStream = repository.fetchMetadata(groupId, artifactId, null)
+            try (InputStream inputStream = repository.fetchMetadata(executor, groupId, artifactId, null)
                     .orElseThrow(() -> new IllegalStateException("No metadata for " + groupId + ":" + artifactId))
                     .toInputStream()) {
                 document = documentBuilderFactory.newDocumentBuilder().parse(inputStream);
