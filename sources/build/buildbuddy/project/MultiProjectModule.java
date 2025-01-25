@@ -1,24 +1,15 @@
 package build.buildbuddy.project;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 import build.buildbuddy.step.Group;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import java.util.*;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,6 +19,7 @@ import java.util.stream.Stream;
 public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
+    public static final String RESOLVE = "resolve", ASSEMBLE = "assemble";
 
     private final Pattern QUALIFIER = Pattern.compile("../identify/module/([a-zA-Z0-9-]+)(?:/[a-zA-Z0-9-]+)?");
 
@@ -91,9 +83,18 @@ public class MultiProjectModule implements BuildExecutorModule {
                                     queue.addAll(values);
                                 }
                             }
-                            build.addModule(entry.getKey(),
-                                    project.module(entry.getKey(), dependencies, arguments),
-                                    dependencies.sequencedKeySet());
+                            build.addModule(entry.getKey(), (group, previous) -> {
+                                // TODO: merge coordinates with dependencies
+                                group.addStep(RESOLVE,
+                                        new DependencyCoordinateResolver(),
+                                        previous.sequencedKeySet());
+                                group.addModule(ASSEMBLE,
+                                        project.module(entry.getKey(), dependencies, arguments),
+                                        Stream.concat(
+                                                Stream.of(RESOLVE),
+                                                previous.sequencedKeySet().stream()).collect(
+                                                        Collectors.toCollection(LinkedHashSet::new)));
+                            }, dependencies.sequencedKeySet());
                             it.remove();
                         }
                     }
@@ -102,5 +103,15 @@ public class MultiProjectModule implements BuildExecutorModule {
                     Stream.of(GROUP),
                     identified.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
         }, IDENTIFY);
+    }
+
+    private static class DependencyCoordinateResolver implements BuildStep {
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            return null;
+        }
     }
 }
