@@ -137,9 +137,7 @@ public class BuildExecutor {
                                     : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
                 BiConsumer<Boolean, Throwable> completion = callback.step(location + identity, summaries.keySet());
-                if (!consistent
-                        || step.isAlwaysRun()
-                        || arguments.values().stream().anyMatch(BuildStepArgument::hasChanged)) {
+                if (!consistent || step.runsOn(arguments)) {
                     Path next = Files.createTempDirectory(URLEncoder.encode(identity, StandardCharsets.UTF_8));
                     return step.apply(executor,
                             new BuildStepContext(

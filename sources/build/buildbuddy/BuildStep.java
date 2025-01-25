@@ -11,8 +11,8 @@ public interface BuildStep {
     String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
     String COORDINATES = "coordinates.properties", DEPENDENCIES = "dependencies.properties";
 
-    default boolean isAlwaysRun() {
-        return false;
+    default boolean runsOn(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);
     }
 
     CompletionStage<BuildStepResult> apply(Executor executor,
