@@ -22,6 +22,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -33,20 +34,26 @@ public class BuildExecutor {
 
     private final Path root;
     private final HashFunction hash;
+    private final BuildExecutorCallback callback;
     private final String location;
 
     private final Map<String, StepSummary> inherited;
     private final SequencedMap<String, Registration> registrations = new LinkedHashMap<>();
 
-    private BuildExecutor(Path root, HashFunction hash, String location, Map<String, StepSummary> inherited) throws IOException {
+    private BuildExecutor(Path root,
+                          HashFunction hash,
+                          BuildExecutorCallback callback,
+                          String location,
+                          Map<String, StepSummary> inherited) throws IOException {
         this.root = Files.isDirectory(root) ? root : Files.createDirectory(root);
         this.hash = hash;
+        this.callback = callback;
         this.location = location;
         this.inherited = inherited;
     }
 
-    public static BuildExecutor of(Path root, HashFunction hash) throws IOException {
-        return new BuildExecutor(root, hash, "", Map.of());
+    public static BuildExecutor of(Path root, HashFunction hash, BuildExecutorCallback callback) throws IOException {
+        return new BuildExecutor(root, hash, callback, "", Map.of());
     }
 
     public void addSource(String identity, Path path) {
@@ -129,6 +136,7 @@ public class BuildExecutor {
                                     ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
                                     : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
+                BiConsumer<Boolean, Throwable> completion = callback.step(location + identity, summaries.keySet());
                 if (!consistent
                         || step.isAlwaysRun()
                         || arguments.values().stream().anyMatch(BuildStepArgument::hasChanged)) {
@@ -149,7 +157,7 @@ public class BuildExecutor {
                                 Files.delete(Files.walkFileTree(next, new RecursiveFolderDeletion(next)));
                                 Files.walkFileTree(checksum, new RecursiveFolderDeletion(checksum));
                             } else {
-                                throw new IllegalStateException("Cannot reuse non-existing location for " + identity);
+                                throw new IllegalStateException("Cannot reuse initial run for " + location + identity);
                             }
                             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                                 HashFunction.write(
@@ -160,6 +168,7 @@ public class BuildExecutor {
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
+                            completion.accept(result.next(), null);
                             return CompletableFuture.completedStage(Map.of(
                                     identity,
                                     Map.of(identity, new StepSummary(output, checksums))));
@@ -177,9 +186,11 @@ public class BuildExecutor {
                         } catch (IOException e) {
                             wrapped.addSuppressed(e);
                         }
+                        completion.accept(null, t);
                         return CompletableFuture.failedStage(wrapped);
                     }, executor);
                 } else {
+                    completion.accept(false, null);
                     return CompletableFuture.completedStage(Map.of(identity, Map.of(
                             identity,
                             new StepSummary(output, current))));
@@ -256,6 +267,7 @@ public class BuildExecutor {
                 }
                 BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix),
                         hash,
+                        callback,
                         location + prefix + "/",
                         inherited);
                 module.accept(buildExecutor, folders);

@@ -1,6 +1,7 @@
 package build.buildbuddy.test.project;
 
 import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.JavaModule;
@@ -38,7 +39,8 @@ public class JavaModuleTest {
         input = temporaryFolder.newFolder("input").toPath();
         buildExecutor = BuildExecutor.of(
                 temporaryFolder.newFolder("root").toPath(),
-                new HashDigestFunction("MD5"));
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
     }
 
     @Test

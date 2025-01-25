@@ -1,6 +1,7 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
@@ -25,7 +26,9 @@ public class Modules {
                 mavenRepository,
                 MavenDefaultVersionNegotiator.maven(mavenRepository)));
 
-        BuildExecutor root = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
+        BuildExecutor root = BuildExecutor.of(Path.of("target"),
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.printing(System.out));
         root.addSource("deps", Path.of("dependencies"));
 
         root.addStep("main-deps", Bind.asDependencies("main.properties"), "deps");

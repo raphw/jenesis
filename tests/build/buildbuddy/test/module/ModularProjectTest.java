@@ -1,6 +1,7 @@
 package build.buildbuddy.test.module;
 
 import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.module.ModularProject;
@@ -38,7 +39,9 @@ public class ModularProjectTest {
                   requires bar;
                 }
                 """);
-        BuildExecutor executor = BuildExecutor.of(build, new HashDigestFunction("MD5"));
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("module/module-/source", "module/module-/module");

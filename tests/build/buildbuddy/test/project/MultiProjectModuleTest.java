@@ -1,9 +1,6 @@
 package build.buildbuddy.test.project;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.*;
 import build.buildbuddy.project.MultiProjectModule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,7 +31,8 @@ public class MultiProjectModuleTest {
     public void setUp() throws Exception {
         buildExecutor = BuildExecutor.of(
                 temporaryFolder.newFolder("root").toPath(),
-                new HashDigestFunction("MD5"));
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
     }
 
     @Test

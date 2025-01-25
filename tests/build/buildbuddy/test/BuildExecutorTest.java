@@ -1,11 +1,6 @@
 package build.buildbuddy.test;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorException;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.HashFunction;
+import build.buildbuddy.*;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,7 +29,7 @@ public class BuildExecutorTest {
     public void setUp() throws Exception {
         root = temporaryFolder.newFolder("root").toPath();
         hash = new HashDigestFunction("MD5");
-        buildExecutor = BuildExecutor.of(root, hash);
+        buildExecutor = BuildExecutor.of(root, hash, BuildExecutorCallback.nop());
     }
 
     @Test
@@ -87,7 +82,7 @@ public class BuildExecutorTest {
                 .hasMessage("Failed to execute step")
                 .cause()
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Cannot reuse non-existing location for step");
+                .hasMessage("Cannot reuse initial run for step");
         assertThat(root.resolve("step")).doesNotExist();
     }
 

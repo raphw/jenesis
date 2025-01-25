@@ -1,6 +1,7 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
@@ -28,7 +29,9 @@ public class Minimal {
                 mavenRepository,
                 MavenDefaultVersionNegotiator.maven(mavenRepository)));
 
-        BuildExecutor executor = BuildExecutor.of(Path.of("target"), new HashDigestFunction("MD5"));
+        BuildExecutor executor = BuildExecutor.of(Path.of("target"),
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.printing(System.out));
 
         executor.addSource("sources", Bind.asSources(), Path.of("sources"));
         executor.addStep("main-javac", new Javac(), "sources");
