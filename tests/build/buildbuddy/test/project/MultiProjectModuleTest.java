@@ -37,7 +37,7 @@ public class MultiProjectModuleTest {
 
     @Test
     public void can_resolve_project() {
-        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+        buildExecutor.addModule("project", new MultiProjectModule("SHA256", (buildExecutor, _) -> {
             Path module1 = temporaryFolder.newFolder("module-1").toPath();
             Properties coordinates1 = new Properties();
             coordinates1.put("foo/bar", "");
@@ -106,7 +106,7 @@ public class MultiProjectModuleTest {
 
     @Test
     public void can_resolve_project_transitives() {
-        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+        buildExecutor.addModule("project", new MultiProjectModule("SHA256", (buildExecutor, _) -> {
             Path module1 = temporaryFolder.newFolder("module-1").toPath();
             Properties coordinates1 = new Properties();
             coordinates1.put("foo/bar", "");
