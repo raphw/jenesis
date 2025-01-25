@@ -1,6 +1,11 @@
 package build.buildbuddy.project;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutorModule;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.SequencedProperties;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -10,16 +15,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
-class MultiProjectMerge implements BuildStep {
+public class MultiProjectDependencies implements BuildStep {
 
     private final String algorithm, module;
 
-    MultiProjectMerge(String algorithm, String module) {
+    public MultiProjectDependencies(String algorithm, String module) {
         this.algorithm = algorithm;
         this.module = module;
     }

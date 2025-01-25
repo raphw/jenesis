@@ -1,6 +1,10 @@
 package build.buildbuddy.test.project;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.MultiProjectModule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -37,7 +41,7 @@ public class MultiProjectModuleTest {
 
     @Test
     public void can_resolve_project() {
-        buildExecutor.addModule("project", new MultiProjectModule("SHA256", (buildExecutor, _) -> {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
             Path module1 = temporaryFolder.newFolder("module-1").toPath();
             Properties coordinates1 = new Properties();
             coordinates1.put("foo/bar", "");
@@ -106,7 +110,7 @@ public class MultiProjectModuleTest {
 
     @Test
     public void can_resolve_project_transitives() {
-        buildExecutor.addModule("project", new MultiProjectModule("SHA256", (buildExecutor, _) -> {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
             Path module1 = temporaryFolder.newFolder("module-1").toPath();
             Properties coordinates1 = new Properties();
             coordinates1.put("foo/bar", "");

@@ -1,12 +1,24 @@
 package build.buildbuddy.project;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorModule;
+import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.step.Group;
 
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Queue;
+import java.util.SequencedMap;
+import java.util.SequencedSet;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,20 +28,16 @@ import java.util.stream.Stream;
 public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
-    public static final String RESOLVE = "resolve", ASSEMBLE = "assemble";
 
     private final Pattern QUALIFIER = Pattern.compile("../identify/module/([a-zA-Z0-9-]+)(?:/[a-zA-Z0-9-]+)?");
 
-    private final String algorithm;
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;
     private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory;
 
-    public MultiProjectModule(String algorithm,
-                              BuildExecutorModule identifier,
+    public MultiProjectModule(BuildExecutorModule identifier,
                               Function<String, Optional<String>> resolver,
                               Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory) {
-        this.algorithm = algorithm;
         this.identifier = identifier;
         this.resolver = resolver;
         this.factory = factory;
@@ -83,17 +91,9 @@ public class MultiProjectModule implements BuildExecutorModule {
                                     queue.addAll(values);
                                 }
                             }
-                            build.addModule(entry.getKey(), (group, previous) -> {
-                                group.addStep(RESOLVE,
-                                        new MultiProjectMerge(algorithm, entry.getKey()),
-                                        previous.sequencedKeySet());
-                                group.addModule(ASSEMBLE,
-                                        project.module(entry.getKey(), dependencies, arguments),
-                                        Stream.concat(
-                                                Stream.of(RESOLVE),
-                                                previous.sequencedKeySet().stream()).collect(
-                                                Collectors.toCollection(LinkedHashSet::new)));
-                            }, dependencies.sequencedKeySet());
+                            build.addModule(entry.getKey(),
+                                    project.module(entry.getKey(), dependencies, arguments),
+                                    dependencies.sequencedKeySet());
                             it.remove();
                         }
                     }
