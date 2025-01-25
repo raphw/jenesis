@@ -7,6 +7,7 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.project.MultiProjectModule;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -147,7 +148,7 @@ public class MavenProject implements BuildExecutorModule {
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, "scan");
-        buildExecutor.addModule("define", (modules, paths) -> {
+        buildExecutor.addModule(MultiProjectModule.MODULE, (modules, paths) -> {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
                     paths.get("../prepare").resolve(MAVEN),
                     "*.properties")) {

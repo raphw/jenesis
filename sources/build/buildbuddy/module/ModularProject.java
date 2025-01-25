@@ -5,6 +5,7 @@ import build.buildbuddy.BuildExecutorModule;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.project.MultiProjectModule;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -48,7 +49,7 @@ public class ModularProject implements BuildExecutorModule {
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("path", parent);
                             module.addStep("source", Bind.asSources(), "path");
-                            module.addStep("module", (_, context, arguments) -> {
+                            module.addStep(MultiProjectModule.MODULE, (_, context, arguments) -> {
                                 ModuleInfo info = parser.identify(arguments.get("source").folder()
                                         .resolve(BuildStep.SOURCES)
                                         .resolve("module-info.java"));
@@ -71,7 +72,6 @@ public class ModularProject implements BuildExecutorModule {
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             }, "source");
                         });
-
                     }
                 }
                 return FileVisitResult.CONTINUE;
