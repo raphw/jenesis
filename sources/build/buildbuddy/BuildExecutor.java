@@ -136,7 +136,9 @@ public class BuildExecutor {
                                     ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
                                     : ChecksumStatus.added(entry.getValue().checksums().keySet())));
                 }
-                BiConsumer<Boolean, Throwable> completion = callback.step(location + identity, summaries.keySet());
+                BiConsumer<Boolean, Throwable> completion = callback.step(
+                        location + identity,
+                        new LinkedHashSet<>(summaries.keySet()));
                 if (!consistent || step.shouldRun(arguments)) {
                     Path next = Files.createTempDirectory(URLEncoder.encode(identity, StandardCharsets.UTF_8));
                     return step.apply(executor,
