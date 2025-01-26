@@ -1,6 +1,10 @@
 package build.buildbuddy.test.project;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.Resolver;
 import build.buildbuddy.project.DependenciesModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

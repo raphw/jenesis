@@ -1,6 +1,10 @@
 package build.buildbuddy.test.project;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.project.MultiProjectDependencies;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
