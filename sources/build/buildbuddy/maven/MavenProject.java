@@ -78,7 +78,7 @@ public class MavenProject implements BuildExecutorModule {
             }
 
             @Override
-            public boolean runsOn(SequencedMap<String, BuildStepArgument> arguments) {
+            public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
                 return true;
             }
         });

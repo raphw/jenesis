@@ -11,7 +11,7 @@ public interface BuildStep {
     String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
     String COORDINATES = "coordinates.properties", DEPENDENCIES = "dependencies.properties";
 
-    default boolean runsOn(SequencedMap<String, BuildStepArgument> arguments) {
+    default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);
     }
 
