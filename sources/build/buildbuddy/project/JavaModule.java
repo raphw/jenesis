@@ -2,7 +2,7 @@ package build.buildbuddy.project;
 
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.step.JUnit4;
+import build.buildbuddy.step.JUnit;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 
@@ -23,7 +23,7 @@ public class JavaModule implements BuildExecutorModule {
             SequencedSet<String> dependencies = new LinkedHashSet<>(inherited.sequencedKeySet());
             dependencies.add(ARTIFACTS);
             dependencies.add(CLASSES);
-            buildExecutor.addStep(TESTS, new JUnit4(), dependencies);
+            buildExecutor.addStep(TESTS, new JUnit(), dependencies);
         };
     }
 

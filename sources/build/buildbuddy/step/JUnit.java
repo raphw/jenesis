@@ -4,10 +4,7 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,25 +13,28 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Predicate;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-public class JUnit4 extends Java {
+public class JUnit extends Java {
 
     private final Predicate<String> isTest;
 
-    public JUnit4() {
+    public JUnit() {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
                 .map(Pattern::compile)
                 .toList();
         this.isTest = name -> patterns.stream().anyMatch(pattern -> pattern.matcher(name).matches());
     }
 
-    public JUnit4(Predicate<String> isTest) {
+    public JUnit(Predicate<String> isTest) {
         this.isTest = isTest;
     }
 
-    public JUnit4(String java, Predicate<String> isTest) {
+    public JUnit(String java, Predicate<String> isTest) {
         super(java);
         this.isTest = isTest;
     }
@@ -44,14 +44,43 @@ public class JUnit4 extends Java {
                                                      BuildStepContext context,
                                                      SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
+        Target target = Target.NONE;
+        for (BuildStepArgument argument : arguments.values()) {
+            Path artifacts = argument.folder().resolve(ARTIFACTS);
+            if (Files.exists(artifacts)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
+                    for (Path file : stream) {
+                        try (JarFile jarFile = new JarFile(file.toFile())) {
+                            Manifest manifest = jarFile.getManifest();
+                            if (manifest != null) {
+                                Target candidate = switch (manifest
+                                        .getMainAttributes()
+                                        .getValue(Attributes.Name.IMPLEMENTATION_TITLE)) {
+                                    case "JUnit" -> Target.JUNIT4;
+                                    case "junit-platform-console" -> Target.JUNIT5;
+                                    case null, default -> Target.NONE;
+                                };
+                                if (candidate.ordinal() > target.ordinal()) {
+                                    target = candidate;
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        if (target == Target.NONE) {
+            throw new IllegalStateException("No JUnit artifact discovered");
+        }
         List<String> commands = new ArrayList<>();
-        if (modular) {
+        if (modular && target.module != null) {
             commands.add("--add-modules");
             commands.add("ALL-MODULE-PATH");
             commands.add("-m");
-            commands.add("junit/org.junit.runner.JUnitCore");
+            commands.add(target.module + "/" + target.mainClass);
         } else {
-            commands.add("org.junit.runner.JUnitCore");
+            commands.add(target.mainClass);
         }
         for (BuildStepArgument argument : arguments.values()) {
             Path classes = argument.folder().resolve(Javac.CLASSES);
@@ -72,5 +101,19 @@ public class JUnit4 extends Java {
             }
         }
         return CompletableFuture.completedFuture(commands);
+    }
+
+    private enum Target {
+
+        NONE(null, null),
+        JUNIT4("junit", "org.junit.runner.JUnitCore"),
+        JUNIT5("org.junit.platform.console", "org.junit.platform.console.ConsoleLauncher");
+
+        private final String module, mainClass;
+
+        Target(String module, String mainClass) {
+            this.module = module;
+            this.mainClass = mainClass;
+        }
     }
 }
