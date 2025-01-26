@@ -1,7 +1,7 @@
 package build.buildbuddy.test.maven;
 
 import build.buildbuddy.maven.MavenUriParser;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 

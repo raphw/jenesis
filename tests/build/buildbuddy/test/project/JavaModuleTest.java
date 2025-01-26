@@ -5,11 +5,9 @@ import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.JavaModule;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.JUnitCore;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import sample.Sample;
 
 import java.io.BufferedWriter;
@@ -28,17 +26,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class JavaModuleTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    private Path input;
+    @TempDir
+    private Path input, root;
     private BuildExecutor buildExecutor;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        input = temporaryFolder.newFolder("input").toPath();
-        buildExecutor = BuildExecutor.of(
-                temporaryFolder.newFolder("root").toPath(),
+        buildExecutor = BuildExecutor.of(root,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
     }
@@ -102,10 +96,18 @@ public class JavaModuleTest {
         }
         Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
         Files.copy(
-                Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                Path.of(Class.forName("org.junit.runner.JUnitCore")
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toURI()),
                 artifacts.resolve("junit.jar"));
         Files.copy(
-                Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
+                Path.of(Class.forName("org.hamcrest.CoreMatchers")
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toURI()),
                 artifacts.resolve("hamcrest-core.jar"));
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new JavaModule().tested(), "input");

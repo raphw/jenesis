@@ -9,10 +9,9 @@ import build.buildbuddy.maven.MavenDependencyValue;
 import build.buildbuddy.maven.MavenLocalPom;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,17 +25,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenPomResolverTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    @TempDir
     private Path repository, project;
     private MavenRepository mavenRepository;
     private MavenPomResolver mavenPomResolver;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        repository = temporaryFolder.newFolder("repository").toPath();
-        project = temporaryFolder.newFolder("project").toPath();
         mavenRepository = new MavenDefaultRepository(repository.toUri(), null, Map.of());
         mavenPomResolver = new MavenPomResolver(MavenDefaultVersionNegotiator.maven());
     }

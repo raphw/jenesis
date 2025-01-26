@@ -2,10 +2,8 @@ package build.buildbuddy.test.maven;
 
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenRepository;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,22 +21,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenDefaultRepositoryTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    private Path repository;
-
-    @Before
-    public void setUp() throws Exception {
-        repository = temporaryFolder.newFolder("repository").toPath();
-    }
+    @TempDir
+    private Path repository, local, result;
 
     @Test
     public void can_fetch_dependency() throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
-        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
+        Path dependency = result.resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetch(Runnable::run,
                 "group",
                 "artifact",
@@ -56,8 +47,7 @@ public class MavenDefaultRepositoryTest {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
-        Path local = temporaryFolder.newFolder("cache").toPath();
-        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
+        Path dependency = result.resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), local, Map.of()).fetch(Runnable::run,
                 "group",
                 "artifact",
@@ -83,8 +73,7 @@ public class MavenDefaultRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             writer.write(HexFormat.of().formatHex(hash));
         }
-        Path local = temporaryFolder.newFolder("cache").toPath();
-        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
+        Path dependency = result.resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch(Runnable::run,
@@ -112,7 +101,6 @@ public class MavenDefaultRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             writer.write(HexFormat.of().formatHex(digest.digest("bar".getBytes(StandardCharsets.UTF_8))));
         }
-        Path local = temporaryFolder.newFolder("cache").toPath();
         MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()));
@@ -129,7 +117,6 @@ public class MavenDefaultRepositoryTest {
 
     @Test
     public void can_validate_cached_dependency() throws IOException, NoSuchAlgorithmException {
-        Path local = temporaryFolder.newFolder("cache").toPath();
         Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
@@ -140,7 +127,7 @@ public class MavenDefaultRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             writer.write(HexFormat.of().formatHex(hash));
         }
-        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
+        Path dependency = result.resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch(Runnable::run,
@@ -159,7 +146,6 @@ public class MavenDefaultRepositoryTest {
 
     @Test
     public void can_validate_cached_dependency_with_cached_hash() throws IOException, NoSuchAlgorithmException {
-        Path local = temporaryFolder.newFolder("cache").toPath();
         Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
@@ -170,7 +156,7 @@ public class MavenDefaultRepositoryTest {
                 .resolve("artifact-1.jar.md5"))) {
             writer.write(HexFormat.of().formatHex(hash));
         }
-        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
+        Path dependency = result.resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
                 local,
                 Map.of("MD5", repository.toUri())).fetch(Runnable::run,
@@ -189,7 +175,6 @@ public class MavenDefaultRepositoryTest {
 
     @Test
     public void can_fail_validate_cached_dependency() throws IOException, NoSuchAlgorithmException {
-        Path local = temporaryFolder.newFolder("cache").toPath();
         Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
@@ -218,7 +203,7 @@ public class MavenDefaultRepositoryTest {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact"))
                 .resolve("maven-metadata.xml"), "foo");
-        Path dependency = temporaryFolder.newFolder("result").toPath().resolve("dependency.jar");
+        Path dependency = result.resolve("dependency.jar");
         try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), null, Map.of()).fetchMetadata(Runnable::run,
                 "group",
                 "artifact",

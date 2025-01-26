@@ -6,10 +6,9 @@ import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.Javac;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -22,14 +21,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class JavacTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+    @TempDir
+    private Path root;
     private Path previous, next, supplement, sources;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
         supplement = Files.createDirectory(root.resolve("supplement"));

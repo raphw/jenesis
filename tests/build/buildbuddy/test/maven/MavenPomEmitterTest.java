@@ -5,7 +5,7 @@ import build.buildbuddy.maven.MavenDependencyName;
 import build.buildbuddy.maven.MavenDependencyScope;
 import build.buildbuddy.maven.MavenDependencyValue;
 import build.buildbuddy.maven.MavenPomEmitter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.StringWriter;

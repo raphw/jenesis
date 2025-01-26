@@ -7,10 +7,9 @@ import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.RepositoryItem;
 import build.buildbuddy.step.Download;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -32,14 +31,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DownloadTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+    @TempDir
+    private Path root, files;
     private Path previous, next, supplement, dependencies;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
         supplement = Files.createDirectory(root.resolve("supplement"));
@@ -75,7 +72,7 @@ public class DownloadTest {
             properties.store(writer, null);
         }
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
-            Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
+            Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
                 @Override
                 public InputStream toInputStream() {
@@ -174,7 +171,7 @@ public class DownloadTest {
             properties.store(writer, null);
         }
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
-            Path file = Files.writeString(temporaryFolder.newFile(bar).toPath(), bar);
+            Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
                 @Override
                 public InputStream toInputStream() {

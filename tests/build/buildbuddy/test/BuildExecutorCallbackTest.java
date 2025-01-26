@@ -1,7 +1,7 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.BuildExecutorCallback;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

@@ -6,10 +6,9 @@ import build.buildbuddy.BuildStep;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.MultiProjectModule;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.Writer;
 import java.nio.file.Files;
@@ -26,15 +25,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class MultiProjectModuleTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+    @TempDir
+    private Path root, module1, module2, module3, source1, source2, source3;
     private BuildExecutor buildExecutor;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        buildExecutor = BuildExecutor.of(
-                temporaryFolder.newFolder("root").toPath(),
+        buildExecutor = BuildExecutor.of(root,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
     }
@@ -42,18 +39,14 @@ public class MultiProjectModuleTest {
     @Test
     public void can_resolve_project() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
-            Path module1 = temporaryFolder.newFolder("module-1").toPath();
             Properties coordinates1 = new Properties();
             coordinates1.put("foo/bar", "");
             try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.COORDINATES))) {
                 coordinates1.store(writer, null);
             }
             buildExecutor.addSource("module-1-module", module1);
-            buildExecutor.addSource("module-1-source", Files.writeString(Files.createDirectory(temporaryFolder
-                    .newFolder("source-1")
-                    .toPath()
+            buildExecutor.addSource("module-1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
-            Path module2 = temporaryFolder.newFolder("module-2").toPath();
             Properties coordinates2 = new Properties();
             coordinates2.put("foo/qux", "");
             try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.COORDINATES))) {
@@ -65,9 +58,7 @@ public class MultiProjectModuleTest {
                 dependencies2.store(writer, null);
             }
             buildExecutor.addSource("module-2-module", module2);
-            buildExecutor.addSource("module-2-source", Files.writeString(Files.createDirectory(temporaryFolder
-                    .newFolder("source-2")
-                    .toPath()
+            buildExecutor.addSource("module-2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
         }, identifier -> Optional.of(identifier.replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
@@ -111,18 +102,14 @@ public class MultiProjectModuleTest {
     @Test
     public void can_resolve_project_transitives() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
-            Path module1 = temporaryFolder.newFolder("module-1").toPath();
             Properties coordinates1 = new Properties();
             coordinates1.put("foo/bar", "");
             try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.COORDINATES))) {
                 coordinates1.store(writer, null);
             }
             buildExecutor.addSource("module-1-module", module1);
-            buildExecutor.addSource("module-1-source", Files.writeString(Files.createDirectory(temporaryFolder
-                    .newFolder("source-1")
-                    .toPath()
+            buildExecutor.addSource("module-1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
-            Path module2 = temporaryFolder.newFolder("module-2").toPath();
             Properties coordinates2 = new Properties();
             coordinates2.put("foo/qux", "");
             try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.COORDINATES))) {
@@ -134,11 +121,8 @@ public class MultiProjectModuleTest {
                 dependencies2.store(writer, null);
             }
             buildExecutor.addSource("module-2-module", module2);
-            buildExecutor.addSource("module-2-source", Files.writeString(Files.createDirectory(temporaryFolder
-                    .newFolder("source-2")
-                    .toPath()
+            buildExecutor.addSource("module-2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-            Path module3 = temporaryFolder.newFolder("module-3").toPath();
             Properties coordinates3 = new Properties();
             coordinates3.put("foo/baz", "");
             try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.COORDINATES))) {
@@ -150,9 +134,7 @@ public class MultiProjectModuleTest {
                 dependencies3.store(writer, null);
             }
             buildExecutor.addSource("module-3-module", module3);
-            buildExecutor.addSource("module-3-source", Files.writeString(Files.createDirectory(temporaryFolder
-                    .newFolder("source-3")
-                    .toPath()
+            buildExecutor.addSource("module-3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
         }, identifier -> Optional.of(identifier.replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(

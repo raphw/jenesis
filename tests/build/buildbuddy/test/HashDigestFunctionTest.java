@@ -1,9 +1,8 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.HashDigestFunction;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,12 +15,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class HashDigestFunctionTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir
+    private Path files;
 
     @Test
     public void can_compute_hash() throws IOException, NoSuchAlgorithmException {
-        Path file = Files.writeString(temporaryFolder.newFile("file").toPath(), "bar");
+        Path file = Files.writeString(files.resolve("file"), "bar");
         byte[] hash = new HashDigestFunction("MD5").hash(file);
         assertThat(hash).isEqualTo(MessageDigest.getInstance("MD5").digest("bar".getBytes(StandardCharsets.UTF_8)));
     }

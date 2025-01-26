@@ -2,10 +2,9 @@ package build.buildbuddy.test.project;
 
 import build.buildbuddy.*;
 import build.buildbuddy.project.MultiProjectDependencies;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -23,14 +22,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class MultiProjectDependenciesTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+    @TempDir
+    private Path root, target;
     private Path previous, next, supplement, module, dependency;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
         supplement = Files.createDirectory(root.resolve("supplement"));
@@ -45,7 +42,6 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.DEPENDENCIES))) {
             dependencies.store(writer, null);
         }
-        Path target = temporaryFolder.newFile("target").toPath();
         Files.writeString(target, "qux");
         Properties coordinates = new Properties();
         coordinates.setProperty("baz", target.toString());

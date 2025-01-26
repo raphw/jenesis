@@ -1,7 +1,7 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.ChecksumStatus;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.Map;

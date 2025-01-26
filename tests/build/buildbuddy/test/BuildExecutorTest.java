@@ -1,10 +1,9 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.*;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,23 +20,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BuildExecutorTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private Path root;
+    @TempDir
+    private Path root, source, source2;
     private HashFunction hash;
     private BuildExecutor buildExecutor;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        root = temporaryFolder.newFolder("root").toPath();
         hash = new HashDigestFunction("MD5");
         buildExecutor = BuildExecutor.of(root, hash, BuildExecutorCallback.nop());
     }
 
     @Test
     public void can_execute_build() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (_, context, arguments) -> {
@@ -57,7 +53,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void does_not_except_non_alphanumeric() throws IOException {
+    public void does_not_except_non_alphanumeric() {
         assertThatThrownBy(() -> buildExecutor.addStep("foo/bar", (_, _, _) -> {
             throw new AssertionError();
         })).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(
@@ -66,7 +62,6 @@ public class BuildExecutorTest {
 
     @Test
     public void rejects_use_of_context_if_not_exists() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (_, context, arguments) -> {
@@ -91,7 +86,6 @@ public class BuildExecutorTest {
 
     @Test
     public void handles_error_in_step() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (_, context, arguments) -> {
@@ -113,7 +107,6 @@ public class BuildExecutorTest {
 
     @Test
     public void handles_error_in_step_async() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (_, context, arguments) -> {
@@ -135,8 +128,7 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_build_with_skipped_step() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath(),
-                step = Files.createDirectory(root.resolve("step")),
+        Path step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
@@ -154,8 +146,7 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_build_with_changed_source() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath(),
-                step = Files.createDirectory(root.resolve("step")),
+        Path step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
@@ -181,8 +172,7 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_build_with_changed_source_custom_condition() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath(),
-                step = Files.createDirectory(root.resolve("step")),
+        Path step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
@@ -219,8 +209,7 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_build_with_changed_source_and_use_of_context() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath(),
-                step = Files.createDirectory(root.resolve("step")),
+        Path step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
@@ -246,8 +235,7 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_build_with_inconsistent_output() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath(),
-                step = Files.createDirectory(root.resolve("step")),
+        Path step = Files.createDirectory(root.resolve("step")),
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
@@ -273,7 +261,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_build_multiple_steps() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -305,16 +292,15 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_multiple_sources() throws IOException {
-        Path source1 = temporaryFolder.newFolder("source1").toPath(), source2 = temporaryFolder.newFolder("source2").toPath();
-        Files.writeString(source1.resolve("file"), "foo");
+        Files.writeString(source.resolve("file"), "foo");
         Files.writeString(source2.resolve("file"), "bar");
-        buildExecutor.addSource("source1", source1);
+        buildExecutor.addSource("source1", source);
         buildExecutor.addSource("source2", source2);
         buildExecutor.addStep("step", (_, context, arguments) -> {
             assertThat(context.previous()).isNull();
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source1", "source2");
-            assertThat(arguments.get("source1").folder()).isEqualTo(source1);
+            assertThat(arguments.get("source1").folder()).isEqualTo(source);
             assertThat(arguments.get("source2").folder()).isEqualTo(source2);
             assertThat(arguments.get("source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             assertThat(arguments.get("source2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
@@ -331,7 +317,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_diverging_steps() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -377,7 +362,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_nested() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
@@ -414,7 +398,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_nested_resolved() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
@@ -456,7 +439,6 @@ public class BuildExecutorTest {
 
     @Test
     public void fails_on_duplicate_nested_resolve() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
@@ -494,7 +476,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_nested_parent_reference() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
@@ -532,7 +513,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_child_reference() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("source", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
@@ -558,7 +538,6 @@ public class BuildExecutorTest {
 
     @Test
     public void propagates_nested_error() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
@@ -584,7 +563,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_detect_nested_missing_reference() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
@@ -604,7 +582,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_detect_faulty_root_reference() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("source", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
@@ -628,7 +605,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_nested_parent_child_reference() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("source", (buildExecutor, inherited) -> {
             assertThat(inherited).isEmpty();
@@ -669,7 +645,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_execute_multi_nest() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("step", (buildExecutor, inherited) -> {
@@ -700,7 +675,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_replace_module() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (_, _, _) -> {
@@ -726,7 +700,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_prepend_module() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step0", (_, context, arguments) -> {
@@ -771,7 +744,6 @@ public class BuildExecutorTest {
 
     @Test
     public void can_append_module() throws IOException {
-        Path source = temporaryFolder.newFolder("source").toPath();
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (_, context, arguments) -> {

@@ -1,7 +1,7 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.SequencedProperties;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.StringReader;

@@ -2,9 +2,7 @@ package build.buildbuddy.test.module;
 
 import build.buildbuddy.RepositoryItem;
 import build.buildbuddy.module.ModularJarResolver;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,9 +23,6 @@ import java.util.jar.JarOutputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ModularJarResolverTest {
-
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
     public void can_parse_module_info() throws IOException {

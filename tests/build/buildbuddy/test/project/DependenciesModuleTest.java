@@ -2,10 +2,9 @@ package build.buildbuddy.test.project;
 
 import build.buildbuddy.*;
 import build.buildbuddy.project.DependenciesModule;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -26,17 +25,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class DependenciesModuleTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    private Path input;
+    @TempDir
+    private Path input, root;
     private BuildExecutor buildExecutor;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        input = temporaryFolder.newFolder("input").toPath();
-        buildExecutor = BuildExecutor.of(
-                temporaryFolder.newFolder("root").toPath(),
+        buildExecutor = BuildExecutor.of(root,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
     }

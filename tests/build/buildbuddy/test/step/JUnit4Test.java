@@ -7,11 +7,9 @@ import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.JUnit4;
 import build.buildbuddy.step.Javac;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.JUnitCore;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import sample.TestSample;
 
 import java.io.IOException;
@@ -27,18 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class JUnit4Test {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir
+    private Path root;
+    private Path previous, next, supplement, dependencies, classes;
 
-    private Path previous;
-    private Path next;
-    private Path supplement;
-    private Path dependencies;
-    private Path classes;
-
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        Path root = temporaryFolder.newFolder("root").toPath();
         previous = root.resolve("previous");
         next = Files.createDirectory(root.resolve("next"));
         supplement = Files.createDirectory(root.resolve("supplement"));
@@ -46,10 +38,18 @@ public class JUnit4Test {
         classes = Files.createDirectories(root.resolve("classes"));
         Path artifacts = Files.createDirectory(dependencies.resolve(BuildStep.ARTIFACTS));
         Files.copy(
-                Path.of(JUnitCore.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                Path.of(Class.forName("org.junit.runner.JUnitCore")
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toURI()),
                 artifacts.resolve("junit.jar"));
         Files.copy(
-                Path.of(Class.forName("org.hamcrest.CoreMatchers").getProtectionDomain().getCodeSource().getLocation().toURI()),
+                Path.of(Class.forName("org.hamcrest.CoreMatchers")
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toURI()),
                 artifacts.resolve("hamcrest-core.jar"));
         try (InputStream input = TestSample.class.getResourceAsStream(TestSample.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files

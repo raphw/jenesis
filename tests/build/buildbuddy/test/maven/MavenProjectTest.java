@@ -9,10 +9,9 @@ import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenProject;
 import build.buildbuddy.maven.MavenRepository;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -26,18 +25,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class MavenProjectTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    private Path project, build;
+    @TempDir
+    private Path project, build, repository;
     private MavenRepository mavenRepository;
     private MavenPomResolver mavenPomResolver;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        project = temporaryFolder.newFolder("project").toPath();
-        build = temporaryFolder.newFolder("build").toPath();
-        mavenRepository = new MavenDefaultRepository(temporaryFolder.newFolder("repository").toPath().toUri(),
+        mavenRepository = new MavenDefaultRepository(repository.toUri(),
                 null,
                 Map.of());
         mavenPomResolver = new MavenPomResolver(MavenDefaultVersionNegotiator.maven());

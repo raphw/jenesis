@@ -5,10 +5,8 @@ import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.module.ModularProject;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -21,16 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ModularProjectTest {
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+    @TempDir
     private Path project, build;
-
-    @Before
-    public void setUp() throws Exception {
-        project = temporaryFolder.newFolder("project").toPath();
-        build = temporaryFolder.newFolder("build").toPath();
-    }
 
     @Test
     public void can_resolve_module() throws IOException {
