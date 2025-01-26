@@ -6,6 +6,7 @@ import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.JavaModule;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import sample.Sample;
@@ -76,7 +77,8 @@ public class JavaModuleTest {
     }
 
     @Test
-    public void can_build_java_with_tests() throws Exception {
+    @Disabled("Requires JUnit 4 on the class path")
+    public void can_build_java_with_junit4() throws Exception {
         Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
         try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("SampleTest.java"))) {
             writer.append("package other;");

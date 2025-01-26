@@ -8,6 +8,7 @@ import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.JUnit4;
 import build.buildbuddy.step.Javac;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import sample.TestSample;
@@ -23,6 +24,7 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Disabled("Requires JUnit 4 on the class path")
 public class JUnit4Test {
 
     @TempDir

@@ -42,9 +42,10 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.DEPENDENCIES))) {
             dependencies.store(writer, null);
         }
-        Files.writeString(target, "qux");
+        Path file = target.resolve("file");
+        Files.writeString(file, "qux");
         Properties coordinates = new Properties();
-        coordinates.setProperty("baz", target.toString());
+        coordinates.setProperty("baz", file.toString());
         try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.COORDINATES))) {
             coordinates.store(writer, null);
         }
