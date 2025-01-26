@@ -21,7 +21,7 @@ public class BuildExecutorCallbackTest {
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(true, null);
         }
-        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[EXECUTED] foo in [0-9]+.[0-9]{2}\n");
+        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[EXECUTED] foo in [0-9]+.[0-9]{2}s\n");
     }
 
     @Test

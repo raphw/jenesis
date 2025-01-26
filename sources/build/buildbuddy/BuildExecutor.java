@@ -354,13 +354,14 @@ public class BuildExecutor {
     }
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
+        BiConsumer<Boolean, Throwable> completion = callback.step(null, registrations.sequencedKeySet());
         return doExecute(executor).thenApplyAsync(summaries -> {
             SequencedMap<String, Path> translated = new LinkedHashMap<>();
             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                 translated.put(entry.getKey(), entry.getValue().folder());
             }
             return translated;
-        }, executor);
+        }, executor).whenComplete((_, throwable) -> completion.accept(null, throwable));
     }
 
     private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor) {
