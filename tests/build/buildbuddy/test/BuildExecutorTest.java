@@ -11,7 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -170,6 +173,44 @@ public class BuildExecutorTest {
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step");
+        assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("foobar");
+    }
+
+    @Test
+    public void can_execute_build_with_changed_source_custom_condition() throws IOException {
+        Path source = temporaryFolder.newFolder("source").toPath(),
+                step = Files.createDirectory(root.resolve("step")),
+                checksum = Files.createDirectory(step.resolve("checksum")),
+                output = Files.createDirectory(step.resolve("output"));
+        Files.writeString(source.resolve("file"), "foo");
+        HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
+        Files.writeString(output.resolve("file"), "foo");
+        HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", new BuildStep() {
+            @Override
+            public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+                assertThat(arguments).containsOnlyKeys("source");
+                assertThat(arguments.get("source").folder()).isEqualTo(source);
+                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.RETAINED));
+                return true;
+            }
+
+            @Override
+            public CompletionStage<BuildStepResult> apply(Executor executor, BuildStepContext context, SequencedMap<String, BuildStepArgument> arguments) throws IOException {
+                assertThat(context.previous()).exists().isEqualTo(output);
+                assertThat(context.next()).isNotEqualTo(output).isDirectory();
+                assertThat(arguments).containsOnlyKeys("source");
+                assertThat(arguments.get("source").folder()).isEqualTo(source);
+                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.RETAINED));
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }
         }, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
