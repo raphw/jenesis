@@ -6,16 +6,21 @@ import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.JavaModule;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import sample.Sample;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.SequencedMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -77,15 +82,14 @@ public class JavaModuleTest {
     }
 
     @Test
-    @Disabled("Requires JUnit 4 on the class path")
-    public void can_build_java_with_junit4() throws Exception {
+    public void can_build_java_with_junit() throws Exception {
         Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
         try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("SampleTest.java"))) {
             writer.append("package other;");
             writer.newLine();
             writer.append("public class SampleTest {");
             writer.newLine();
-            writer.append("  @org.junit.Test");
+            writer.append("  @org.junit.jupiter.api.Test");
             writer.newLine();
             writer.append("  public void test() {");
             writer.newLine();
@@ -97,20 +101,20 @@ public class JavaModuleTest {
             writer.newLine();
         }
         Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
-        Files.copy(
-                Path.of(Class.forName("org.junit.runner.JUnitCore")
-                        .getProtectionDomain()
-                        .getCodeSource()
-                        .getLocation()
-                        .toURI()),
-                artifacts.resolve("junit.jar"));
-        Files.copy(
-                Path.of(Class.forName("org.hamcrest.CoreMatchers")
-                        .getProtectionDomain()
-                        .getCodeSource()
-                        .getLocation()
-                        .toURI()),
-                artifacts.resolve("hamcrest-core.jar"));
+        List<String> elements = new ArrayList<>();
+        elements.addAll(Arrays.asList(System.getProperty("java.class.path").split(File.pathSeparator)));
+        elements.addAll(Arrays.asList(System.getProperty("jdk.module.path").split(File.pathSeparator)));
+        for (String element : elements) {
+            if (element.endsWith("_rt.jar") || element.endsWith("-rt.jar")) {
+                continue;
+            }
+            Path path = Path.of(element);
+            if (Files.isRegularFile(path)) {
+                Files.copy(path, artifacts.resolve(URLEncoder.encode(
+                        element,
+                        StandardCharsets.UTF_8)));
+            }
+        }
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new JavaModule().tested(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();

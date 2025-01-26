@@ -73,15 +73,17 @@ public class JUnit extends Java {
         if (target == Target.NONE) {
             throw new IllegalStateException("No JUnit artifact discovered");
         }
+        Target runner = target;
         List<String> commands = new ArrayList<>();
-        if (modular && target.module != null) {
+        if (modular && runner.module != null) {
             commands.add("--add-modules");
             commands.add("ALL-MODULE-PATH");
             commands.add("-m");
-            commands.add(target.module + "/" + target.mainClass);
+            commands.add(runner.module + "/" + runner.mainClass);
         } else {
-            commands.add(target.mainClass);
+            commands.add(runner.mainClass);
         }
+        commands.addAll(runner.arguments);
         for (BuildStepArgument argument : arguments.values()) {
             Path classes = argument.folder().resolve(Javac.CLASSES);
             if (Files.exists(classes)) {
@@ -92,7 +94,7 @@ public class JUnit extends Java {
                             String raw = classes.relativize(file).toString();
                             String className = raw.substring(0, raw.length() - 6).replace('/', '.');
                             if (isTest.test(className)) {
-                                commands.add(className);
+                                commands.add(runner.prefix + className);
                             }
                         }
                         return FileVisitResult.CONTINUE;
@@ -105,15 +107,23 @@ public class JUnit extends Java {
 
     private enum Target {
 
-        NONE(null, null),
-        JUNIT4("junit", "org.junit.runner.JUnitCore"),
-        JUNIT5("org.junit.platform.console", "org.junit.platform.console.ConsoleLauncher");
+        NONE(null, null, null),
+        JUNIT4("junit", "org.junit.runner.JUnitCore", ""),
+        JUNIT5("org.junit.platform.console",
+                "org.junit.platform.console.ConsoleLauncher",
+                "-select-class=",
+                "execute",
+                "--disable-banner",
+                "--disable-ansi-colors");
 
-        private final String module, mainClass;
+        private final String module, mainClass, prefix;
+        private final List<String> arguments;
 
-        Target(String module, String mainClass) {
+        Target(String module, String mainClass, String prefix, String... arguments) {
             this.module = module;
             this.mainClass = mainClass;
+            this.prefix = prefix;
+            this.arguments = List.of(arguments);
         }
     }
 }
