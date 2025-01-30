@@ -14,9 +14,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.SequencedMap;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -359,9 +361,13 @@ public class MavenProjectTest {
                 "SHA256",
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 new MavenPomResolver(),
-                _ -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
-                        new JavaModule(),
-                        inherited.sequencedKeySet())));
+                (name, dependencies) -> (buildExecutor, inherited) -> {
+                    buildExecutor.addModule("java",
+                            new JavaModule(),
+                            inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")
+                                    || identity.equals("../dependencies/artifacts")).collect(
+                                            Collectors.toCollection(LinkedHashSet::new)));
+                }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         // TODO: fix results
     }

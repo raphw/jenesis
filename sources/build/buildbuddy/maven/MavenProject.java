@@ -1,12 +1,6 @@
 package build.buildbuddy.maven;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
@@ -19,16 +13,13 @@ import java.io.Reader;
 import java.io.Writer;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -54,8 +45,8 @@ public class MavenProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path location,
                                            String algorithm,
-                                           Function<String, BuildExecutorModule> build) {
-        return make(location, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), build);
+                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+        return make(location, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), builder);
     }
 
     public static BuildExecutorModule make(Path location,
@@ -63,11 +54,11 @@ public class MavenProject implements BuildExecutorModule {
                                            String algorithm,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
-                                           Function<String, BuildExecutorModule> supplier) {
+                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(
                 new MavenProject(prefix, location, mavenRepository, mavenResolver),
                 Optional::of,
-                _ -> ((RepositoryMultiProject) (name, _, _, repositories) -> (buildExecutor, inherited) -> {
+                _ -> ((RepositoryMultiProject) (name, dependencies, _, repositories) -> (buildExecutor, inherited) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
@@ -78,9 +69,13 @@ public class MavenProject implements BuildExecutorModule {
                                     repositories,
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
-                    buildExecutor.addModule("build", supplier.apply(name), Stream.concat(
-                            inherited.sequencedKeySet().stream(),
-                            Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                    buildExecutor.addModule("build",
+                            builder.apply(
+                                    name,
+                                    dependencies.sequencedKeySet()),
+                            Stream.concat(
+                                    inherited.sequencedKeySet().stream(),
+                                    Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
                     buildExecutor.addStep("pom", new MavenPom(), "build", "dependencies");
                 }).repositories(Map.of(prefix, mavenRepository)));
     }
