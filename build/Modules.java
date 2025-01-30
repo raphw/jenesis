@@ -6,7 +6,6 @@ import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
-import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.project.DependenciesModule;
@@ -22,7 +21,7 @@ public class Modules {
     public static void main(String[] args) throws IOException {
         MavenRepository mavenRepository = new MavenDefaultRepository();
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
-        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver(MavenDefaultVersionNegotiator.maven()));
+        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"),
                 new HashDigestFunction("MD5"),
@@ -39,6 +38,6 @@ public class Modules {
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaModule().tested(), "test-artifacts", "test-sources", "main");
 
-        System.out.println("Built: " + root.execute());
+        root.execute();
     }
 }

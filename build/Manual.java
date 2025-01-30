@@ -6,7 +6,6 @@ import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
-import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.step.Bind;
@@ -25,7 +24,7 @@ public class Manual {
     public static void main(String[] args) throws IOException {
         MavenRepository mavenRepository = new MavenDefaultRepository();
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
-        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver(MavenDefaultVersionNegotiator.maven()));
+        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"),
                 new HashDigestFunction("MD5"),
@@ -55,6 +54,6 @@ public class Manual {
             module.addStep("tests", new JUnit(), "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
-        System.out.println("Built: " + root.execute());
+        root.execute();
     }
 }

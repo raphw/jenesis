@@ -45,6 +45,10 @@ public class MavenPomResolver implements Resolver {
     private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
     private final DocumentBuilderFactory factory = MavenDefaultVersionNegotiator.toDocumentBuilderFactory();
 
+    public MavenPomResolver() {
+        negotiatorSupplier = MavenDefaultVersionNegotiator.maven();
+    }
+
     public MavenPomResolver(Supplier<MavenVersionNegotiator> negotiatorSupplier) {
         this.negotiatorSupplier = negotiatorSupplier;
     }

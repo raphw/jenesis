@@ -28,6 +28,8 @@ import java.util.regex.Pattern;
 
 public class BuildExecutor {
 
+    public static final String BUILD_MARKER = ".buildbuddy.build";
+
     private static final Pattern
             VALIDATE_ORIGINAL = Pattern.compile("[a-zA-Z0-9-]+"),
             VALIDATE_RESOLVED = Pattern.compile("[a-zA-Z0-9/-]+");
@@ -53,7 +55,11 @@ public class BuildExecutor {
     }
 
     public static BuildExecutor of(Path root, HashFunction hash, BuildExecutorCallback callback) throws IOException {
-        return new BuildExecutor(root, hash, callback, "", Map.of());
+        BuildExecutor executor = new BuildExecutor(root, hash, callback, "", Map.of());
+        if (!Files.exists(root.resolve(BUILD_MARKER))) {
+            Files.createFile(root.resolve(BUILD_MARKER));
+        }
+        return executor;
     }
 
     public void addSource(String identity, Path path) {

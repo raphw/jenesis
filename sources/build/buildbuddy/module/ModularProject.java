@@ -76,6 +76,14 @@ public class ModularProject implements BuildExecutorModule {
                 }
                 return FileVisitResult.CONTINUE;
             }
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                if (Files.exists(dir.resolve(BuildExecutor.BUILD_MARKER))) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                return FileVisitResult.CONTINUE;
+            }
         });
     }
 }

@@ -7,7 +7,10 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.project.DependenciesModule;
+import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
+import build.buildbuddy.project.RepositoryMultiProject;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -22,15 +25,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.SequencedMap;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static build.buildbuddy.BuildStep.COORDINATES;
 import static build.buildbuddy.BuildStep.DEPENDENCIES;
@@ -49,6 +56,40 @@ public class MavenProject implements BuildExecutorModule {
         this.root = root;
         this.repository = repository;
         this.resolver = resolver;
+    }
+
+
+    public static BuildExecutorModule make(Path location,
+                                           String algorithm,
+                                           Function<String, BuildExecutorModule> build) {
+        return make(location, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), build);
+    }
+
+    public static BuildExecutorModule make(Path location,
+                                           String prefix,
+                                           String algorithm,
+                                           MavenRepository mavenRepository,
+                                           MavenPomResolver mavenResolver,
+                                           Function<String, BuildExecutorModule> supplier) {
+        return new MultiProjectModule(
+                new MavenProject(prefix, location, mavenRepository, mavenResolver),
+                Optional::of,
+                _ -> ((RepositoryMultiProject) (name, _, arguments, repositories) -> (buildExecutor, _) -> {
+                    buildExecutor.addStep("prepare",
+                            new MultiProjectDependencies(
+                                    algorithm,
+                                    identifier -> identifier.startsWith(BuildExecutorModule.PREVIOUS + name)),
+                            arguments.sequencedKeySet());
+                    buildExecutor.addModule("dependencies",
+                            new DependenciesModule(
+                                    repositories,
+                                    Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
+                            "prepare");
+                    buildExecutor.addModule("build", supplier.apply(name), Stream.concat(
+                            arguments.sequencedKeySet().stream(),
+                            Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                    buildExecutor.addStep("pom", new MavenPom(), "build", "dependencies");
+                }).repositories(Map.of(prefix, mavenRepository)));
     }
 
     @Override
@@ -73,6 +114,14 @@ public class MavenProject implements BuildExecutorModule {
                         }
                         return FileVisitResult.CONTINUE;
                     }
+
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                        if (Files.exists(dir.resolve(BuildExecutor.BUILD_MARKER))) {
+                            return FileVisitResult.SKIP_SUBTREE;
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
                 });
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }
@@ -87,8 +136,8 @@ public class MavenProject implements BuildExecutorModule {
             for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(executor,
                     repository,
                     arguments.get("scan")
-                    .folder()
-                    .resolve(POM)).entrySet()) {
+                            .folder()
+                            .resolve(POM)).entrySet()) {
                 if (Objects.equals("pom", entry.getValue().packaging())) {
                     continue;
                 }
@@ -201,7 +250,7 @@ public class MavenProject implements BuildExecutorModule {
     }
 
     private String toDependencies(SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
-                                         Set<MavenDependencyScope> scopes) {
+                                  Set<MavenDependencyScope> scopes) {
         return values == null ? "" : values.entrySet().stream()
                 .filter(dependency -> scopes.contains(dependency.getValue().scope()))
                 .map(entry -> prefix
