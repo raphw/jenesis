@@ -34,8 +34,8 @@ public class ModularProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("module/module-/source", "module/module-/module");
-        assertThat(results.get("module/module-/source").resolve(BuildStep.SOURCES + "module-info.java")).exists();
+        assertThat(results).containsKeys("module/module-/sources", "module/module-/module");
+        assertThat(results.get("module/module-/sources").resolve(BuildStep.SOURCES + "module-info.java")).exists();
         Path module = results.get("module/module-/module");
         assertThat(module.resolve(BuildStep.COORDINATES)).exists();
         Properties coordinates = new Properties();

@@ -47,10 +47,9 @@ public class ModularProject implements BuildExecutorModule {
                         buildExecutor.addModule("module-" + URLEncoder.encode(
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
-                            module.addSource("path", parent);
-                            module.addStep("source", Bind.asSources(), "path");
+                            module.addSource("sources", Bind.asSources(), parent);
                             module.addStep(MultiProjectModule.MODULE, (_, context, arguments) -> {
-                                ModuleInfo info = parser.identify(arguments.get("source").folder()
+                                ModuleInfo info = parser.identify(arguments.get("sources").folder()
                                         .resolve(BuildStep.SOURCES)
                                         .resolve("module-info.java"));
                                 Properties coordinates = new SequencedProperties();
@@ -70,7 +69,7 @@ public class ModularProject implements BuildExecutorModule {
                                     dependencies.store(writer, null);
                                 }
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
-                            }, "source");
+                            }, "sources");
                         });
                     }
                 }
