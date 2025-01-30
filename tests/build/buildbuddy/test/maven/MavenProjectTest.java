@@ -4,11 +4,7 @@ import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.maven.MavenDefaultRepository;
-import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
-import build.buildbuddy.maven.MavenPomResolver;
-import build.buildbuddy.maven.MavenProject;
-import build.buildbuddy.maven.MavenRepository;
+import build.buildbuddy.maven.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,6 +18,7 @@ import java.util.Properties;
 import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class MavenProjectTest {
 
@@ -296,5 +293,39 @@ public class MavenProjectTest {
         assertThat(results.get("maven/module/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
         assertThat(results.get("maven/module/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
         assertThat(results.get("maven/module/test-module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
+    }
+
+    @Test
+    public void can_resolve_multi_module_project() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        // TODO: project setup
+
+        BuildExecutor root = BuildExecutor.of(project.resolve("target"),
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        root.addModule("maven", MavenProject.make(project,
+                "maven",
+                "SHA256",
+                new MavenDefaultRepository(repository.toUri(), null, Map.of()),
+                new MavenPomResolver(),
+                name -> (buildExecutor, inherited) -> {
+                    fail(); // TODO
+                }));
+        SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
     }
 }
