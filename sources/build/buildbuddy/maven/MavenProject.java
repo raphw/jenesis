@@ -68,20 +68,19 @@ public class MavenProject implements BuildExecutorModule {
         return new MultiProjectModule(
                 new MavenProject(prefix, location, mavenRepository, mavenResolver),
                 Optional::of,
-                _ -> ((RepositoryMultiProject) (name, deps, arguments, repositories) -> (buildExecutor, inh) -> {
-                    SequencedMap<String, SequencedSet<String>> x = deps;
+                _ -> ((RepositoryMultiProject) (name, _, _, repositories) -> (buildExecutor, inherited) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
                                     identifier -> identifier.startsWith(BuildExecutorModule.PREVIOUS + name)),
-                            arguments.sequencedKeySet());
+                            inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
                                     repositories,
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build", supplier.apply(name), Stream.concat(
-                            arguments.sequencedKeySet().stream(),
+                            inherited.sequencedKeySet().stream(),
                             Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
                     buildExecutor.addStep("pom", new MavenPom(), "build", "dependencies");
                 }).repositories(Map.of(prefix, mavenRepository)));
