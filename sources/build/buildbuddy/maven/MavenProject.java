@@ -205,8 +205,7 @@ public class MavenProject implements BuildExecutorModule {
                         if (!properties.getProperty("sources").isEmpty()) {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {
-                                module.addSource("path-sources", sources);
-                                module.addStep("sources", Bind.asSources(), "path-sources");
+                                module.addSource("sources", Bind.asSources(), sources);
                             }
                         }
                         int index = 0;
@@ -214,8 +213,7 @@ public class MavenProject implements BuildExecutorModule {
                             for (String resource : properties.getProperty("resources").split(",")) {
                                 Path resources = base.resolve(resource);
                                 if (Files.exists(resources)) {
-                                    module.addSource("path-resources-" + ++index, resources);
-                                    module.addStep("resources-" + index, Bind.asResources(), "path-resources-" + index);
+                                    module.addSource("resources-" + ++index, Bind.asResources(), resources);
                                 }
                             }
                         }

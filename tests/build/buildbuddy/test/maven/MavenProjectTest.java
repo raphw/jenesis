@@ -351,7 +351,6 @@ public class MavenProjectTest {
                 import foo.Foo;
                 public class Bar extends Foo { }
                 """);
-        // TODO: project setup
         BuildExecutor root = BuildExecutor.of(project.resolve("target"),
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
@@ -360,9 +359,10 @@ public class MavenProjectTest {
                 "SHA256",
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 new MavenPomResolver(),
-                name -> (buildExecutor, inherited) -> {
-                    buildExecutor.addModule("java", new JavaModule(), inherited.sequencedKeySet());
-                }));
+                _ -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
+                        new JavaModule(),
+                        inherited.sequencedKeySet())));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
+        // TODO: fix results
     }
 }
