@@ -52,7 +52,6 @@ public class MavenProject implements BuildExecutorModule {
         this.resolver = resolver;
     }
 
-
     public static BuildExecutorModule make(Path location,
                                            String algorithm,
                                            Function<String, BuildExecutorModule> build) {

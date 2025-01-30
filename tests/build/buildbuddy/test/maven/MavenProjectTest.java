@@ -5,6 +5,7 @@ import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.maven.*;
+import build.buildbuddy.project.JavaModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,7 +19,6 @@ import java.util.Properties;
 import java.util.SequencedMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 public class MavenProjectTest {
 
@@ -302,27 +302,56 @@ public class MavenProjectTest {
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <modelVersion>4.0.0</modelVersion>
                     <groupId>group</groupId>
-                    <artifactId>artifact</artifactId>
+                    <artifactId>parent</artifactId>
                     <version>1</version>
+                    <packaging>pom</packaging>
+                    <modules>
+                        <module>foo</module>
+                        <module>bar</module>
+                    </modules>
+                </project>
+                """);
+        Files.writeString(Files.createDirectory(project.resolve("foo")).resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>group</groupId>
+                        <artifactId>parent</artifactId>
+                        <version>1</version>
+                    </parent>
+                    <artifactId>foo</artifactId>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("foo/src/main/java/foo")).resolve("Foo.java"), """
+                package foo;
+                public class Foo { }
+                """);
+        Files.writeString(Files.createDirectory(project.resolve("bar")).resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>group</groupId>
+                        <artifactId>parent</artifactId>
+                        <version>1</version>
+                    </parent>
+                    <artifactId>bar</artifactId>
                     <dependencies>
                         <dependency>
-                            <groupId>other</groupId>
-                            <artifactId>artifact</artifactId>
+                            <groupId>group</groupId>
+                            <artifactId>foo</artifactId>
                             <version>1</version>
                         </dependency>
                     </dependencies>
                 </project>
                 """);
-        Files.writeString(Files.createDirectories(project.resolve("src/main/java/sample")).resolve("Sample.java"), """
-                package sample;
-                public class Foo {
-                  public static void main(String[] args) {
-                    System.out.println("Hello world!");
-                  }
-                }
+        Files.writeString(Files.createDirectories(project.resolve("bar/src/main/java/bar")).resolve("Bar.java"), """
+                package bar;
+                import foo.Foo;
+                public class Bar extends Foo { }
                 """);
         // TODO: project setup
-
         BuildExecutor root = BuildExecutor.of(project.resolve("target"),
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
@@ -332,7 +361,7 @@ public class MavenProjectTest {
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 new MavenPomResolver(),
                 name -> (buildExecutor, inherited) -> {
-                    fail(); // TODO
+                    buildExecutor.addModule("java", new JavaModule(), inherited.sequencedKeySet());
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
     }

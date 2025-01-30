@@ -7,6 +7,7 @@ import build.buildbuddy.BuildStepResult;
 
 import java.io.IOException;
 import java.util.SequencedMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
@@ -19,6 +20,6 @@ public class MavenPom implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException { // TODO: emit Maven POM.
-        return null;
+        return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 }

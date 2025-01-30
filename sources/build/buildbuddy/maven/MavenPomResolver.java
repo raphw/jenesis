@@ -447,7 +447,7 @@ public class MavenPomResolver implements Resolver {
                         toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
                         toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
                         toTextChild400(document.getDocumentElement(), "version").orElse(version),
-                        extended ? null : toTextChild400(document.getDocumentElement(), "packaging").orElse(null),
+                        extended ? toTextChild400(document.getDocumentElement(), "packaging").orElse(null) : null,
                         build == null ? null : toTextChild400(build, "sourceDirectory").orElse(null),
                         build == null ? null : toChildren400(build, "resources").findFirst()
                                 .map(node -> toChildren400(node, "resource")
