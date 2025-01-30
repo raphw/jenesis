@@ -11,7 +11,7 @@ import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.step.Bind;
 import build.buildbuddy.step.Download;
-import build.buildbuddy.step.JUnit4;
+import build.buildbuddy.step.JUnit;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.Resolve;
@@ -25,9 +25,7 @@ public class Minimal {
     public static void main(String[] args) throws IOException {
         MavenRepository mavenRepository = new MavenDefaultRepository();
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
-        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver(
-                mavenRepository,
-                MavenDefaultVersionNegotiator.maven(mavenRepository)));
+        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver(MavenDefaultVersionNegotiator.maven()));
 
         BuildExecutor executor = BuildExecutor.of(Path.of("target"),
                 new HashDigestFunction("MD5"),
@@ -38,12 +36,12 @@ public class Minimal {
         executor.addStep("main-jar", new Jar(), "main-javac");
 
         executor.addSource("test-dependencies", Bind.asDependencies("test.properties"), Path.of("dependencies"));
-        executor.addStep("test-dependencies-resolved", new Resolve(resolvers), "test-dependencies");
+        executor.addStep("test-dependencies-resolved", new Resolve(repositories, resolvers), "test-dependencies");
         executor.addStep("test-dependencies-downloaded", new Download(repositories), "test-dependencies-resolved");
 
         executor.addSource("test", Bind.asSources(), Path.of("tests"));
         executor.addStep("test-javac", new Javac(), "main-jar", "test-dependencies-downloaded", "test");
-        executor.addStep("tests", new JUnit4(), "main-jar", "test-dependencies-downloaded", "test-javac");
+        executor.addStep("tests", new JUnit(), "main-jar", "test-dependencies-downloaded", "test-javac");
 
         System.out.println("Built: " + executor.execute());
     }

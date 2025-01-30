@@ -22,9 +22,7 @@ public class Modules {
     public static void main(String[] args) throws IOException {
         MavenRepository mavenRepository = new MavenDefaultRepository();
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
-        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver(
-                mavenRepository,
-                MavenDefaultVersionNegotiator.maven(mavenRepository)));
+        Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver(MavenDefaultVersionNegotiator.maven()));
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"),
                 new HashDigestFunction("MD5"),
