@@ -25,13 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -74,7 +68,8 @@ public class MavenProject implements BuildExecutorModule {
         return new MultiProjectModule(
                 new MavenProject(prefix, location, mavenRepository, mavenResolver),
                 Optional::of,
-                _ -> ((RepositoryMultiProject) (name, _, arguments, repositories) -> (buildExecutor, _) -> {
+                _ -> ((RepositoryMultiProject) (name, deps, arguments, repositories) -> (buildExecutor, inh) -> {
+                    SequencedMap<String, SequencedSet<String>> x = deps;
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,

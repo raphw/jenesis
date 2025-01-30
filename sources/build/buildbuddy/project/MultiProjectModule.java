@@ -83,7 +83,10 @@ public class MultiProjectModule implements BuildExecutorModule {
                             }
                             build.addModule(entry.getKey(),
                                     project.module(entry.getKey(), dependencies, arguments),
-                                    dependencies.sequencedKeySet());
+                                    Stream.concat(
+                                            arguments.sequencedKeySet().stream(),
+                                            dependencies.sequencedKeySet().stream()).collect(Collectors.toCollection(
+                                                    LinkedHashSet::new)));
                             it.remove();
                         }
                     }

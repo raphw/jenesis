@@ -1,10 +1,6 @@
 package build.buildbuddy.test.project;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.*;
 import build.buildbuddy.project.MultiProjectModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,12 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,19 +61,26 @@ public class MultiProjectModuleTest {
                             "../../identify/module/1/module",
                             "../../identify/module/1/source");
                     assertThat(dependencies).isEmpty();
-                    yield (module1, inherited) -> module1.addStep("step", (_, context, _) -> {
-                        assertThat(inherited).isEmpty();
-                        Files.writeString(context.next().resolve("file"), "foo");
-                        return CompletableFuture.completedStage(new BuildStepResult(true));
-                    });
+                    yield (module1, inherited) -> {
+                        assertThat(inherited).containsOnlyKeys(
+                                "../../../identify/module/1/module",
+                                "../../../identify/module/1/source");
+                        module1.addStep("step", (_, context, _) -> {
+                            Files.writeString(context.next().resolve("file"), "foo");
+                            return CompletableFuture.completedStage(new BuildStepResult(true));
+                        });
+                    };
                 }
                 case "2" -> {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identify/module/2/module",
                             "../../identify/module/2/source");
                     assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
-                    yield  (module2, inherited) -> {
-                        assertThat(inherited).containsKeys("../1/step");
+                    yield (module2, inherited) -> {
+                        assertThat(inherited).containsKeys(
+                                "../../../identify/module/2/module",
+                                "../../../identify/module/2/source",
+                                "../1/step");
                         module2.addStep("step", (_, context, arguments) -> {
                             Files.writeString(
                                     context.next().resolve("file"),
@@ -147,19 +145,26 @@ public class MultiProjectModuleTest {
                             "../../identify/module/1/module",
                             "../../identify/module/1/source");
                     assertThat(dependencies).isEmpty();
-                    yield (module1, inherited) -> module1.addStep("step", (_, context, _) -> {
-                        assertThat(inherited).isEmpty();
-                        Files.writeString(context.next().resolve("file"), "foo");
-                        return CompletableFuture.completedStage(new BuildStepResult(true));
-                    });
+                    yield (module1, inherited) -> {
+                        assertThat(inherited).containsOnlyKeys(
+                                "../../../identify/module/1/module",
+                                "../../../identify/module/1/source");
+                        module1.addStep("step", (_, context, _) -> {
+                            Files.writeString(context.next().resolve("file"), "foo");
+                            return CompletableFuture.completedStage(new BuildStepResult(true));
+                        });
+                    };
                 }
                 case "2" -> {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identify/module/2/module",
                             "../../identify/module/2/source");
                     assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
-                    yield  (module2, inherited) -> {
-                        assertThat(inherited).containsKeys("../1/step");
+                    yield (module2, inherited) -> {
+                        assertThat(inherited).containsKeys(
+                                "../../../identify/module/2/module",
+                                "../../../identify/module/2/source",
+                                "../1/step");
                         module2.addStep("step", (_, context, arguments) -> {
                             Files.writeString(
                                     context.next().resolve("file"),
@@ -175,8 +180,12 @@ public class MultiProjectModuleTest {
                     assertThat(dependencies).containsExactly(
                             Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
                             Map.entry("1", new LinkedHashSet<>()));
-                    yield  (module2, inherited) -> {
-                        assertThat(inherited).containsKeys("../1/step", "../2/step");
+                    yield (module2, inherited) -> {
+                        assertThat(inherited).containsKeys(
+                                "../../../identify/module/3/module",
+                                "../../../identify/module/3/source",
+                                "../1/step",
+                                "../2/step");
                         module2.addStep("step", (_, context, arguments) -> {
                             Files.writeString(
                                     context.next().resolve("file"),

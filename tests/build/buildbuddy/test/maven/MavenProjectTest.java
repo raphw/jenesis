@@ -313,6 +313,14 @@ public class MavenProjectTest {
                     </dependencies>
                 </project>
                 """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java/sample")).resolve("Sample.java"), """
+                package sample;
+                public class Foo {
+                  public static void main(String[] args) {
+                    System.out.println("Hello world!");
+                  }
+                }
+                """);
         // TODO: project setup
 
         BuildExecutor root = BuildExecutor.of(project.resolve("target"),
