@@ -55,6 +55,8 @@ public class MavenProjectTest {
                     </dependencies>
                 </project>
                 """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
@@ -107,6 +109,8 @@ public class MavenProjectTest {
                     </modules>
                 </project>
                 """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         Path subproject = Files.createDirectory(project.resolve("subproject"));
         Files.writeString(subproject.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -123,6 +127,7 @@ public class MavenProjectTest {
                 </project>
                 """);
         Files.writeString(Files.createDirectories(subproject.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(subproject.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
