@@ -26,7 +26,7 @@ public interface RepositoryMultiProject extends MultiProject {
                                        SequencedMap<String, Path> arguments) throws IOException {
         Map<String, Map<String, Path>> artifacts = new HashMap<>();
         for (Path folder : arguments.values()) {
-            Path file = folder.resolve(BuildStep.COORDINATES);
+            Path file = folder.resolve(BuildStep.COORDINATES); // TODO: not yet available, needs to run after module.
             if (Files.exists(file)) {
                 Properties properties = new SequencedProperties();
                 try (Reader reader = Files.newBufferedReader(file)) {
@@ -52,7 +52,7 @@ public interface RepositoryMultiProject extends MultiProject {
         return (RepositoryMultiProject) (name, dependencies, arguments, dynamic) -> module(name,
                 dependencies,
                 arguments,
-                Stream.concat(repositories.entrySet().stream(), dynamic.entrySet().stream()).collect(Collectors.toMap(
+                Stream.concat(dynamic.entrySet().stream(), repositories.entrySet().stream()).collect(Collectors.toMap(
                         Map.Entry::getKey,
                         Map.Entry::getValue,
                         Repository::prepend)));

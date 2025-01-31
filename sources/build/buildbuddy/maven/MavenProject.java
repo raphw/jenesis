@@ -20,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -62,7 +61,10 @@ public class MavenProject implements BuildExecutorModule {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
-                                    identifier -> identifier.startsWith(BuildExecutorModule.PREVIOUS + name)),
+                                    identifier -> identifier.startsWith(BuildExecutorModule.PREVIOUS.repeat(3)
+                                            + "identify/"
+                                            + "module/"
+                                            + name + "/")),
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
