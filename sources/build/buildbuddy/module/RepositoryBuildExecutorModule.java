@@ -12,6 +12,7 @@ import java.util.Properties;
 import java.util.SequencedMap;
 import java.util.stream.Collectors;
 
+@FunctionalInterface
 public interface RepositoryBuildExecutorModule extends BuildExecutorModule {
 
     @Override
