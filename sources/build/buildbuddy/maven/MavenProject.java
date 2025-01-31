@@ -57,7 +57,7 @@ public class MavenProject implements BuildExecutorModule {
         return new MultiProjectModule(
                 new MavenProject(prefix, location, mavenRepository, mavenResolver),
                 Optional::of,
-                _ -> ((RepositoryMultiProject) (name, dependencies, _, repositories) -> (buildExecutor, inherited) -> {
+                _ -> ((RepositoryMultiProject) (buildExecutor, inherited, name, dependencies, _, repositories) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
