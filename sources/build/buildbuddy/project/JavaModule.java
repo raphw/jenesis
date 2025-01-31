@@ -9,7 +9,6 @@ import build.buildbuddy.step.Javac;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.SequencedMap;
-import java.util.SequencedSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -20,10 +19,9 @@ public class JavaModule implements BuildExecutorModule {
     public BuildExecutorModule tested() {
         return (buildExecutor, inherited) -> {
             accept(buildExecutor, inherited);
-            SequencedSet<String> dependencies = new LinkedHashSet<>(inherited.sequencedKeySet());
-            dependencies.add(ARTIFACTS);
-            dependencies.add(CLASSES);
-            buildExecutor.addStep(TESTS, new JUnit(), dependencies);
+            buildExecutor.addStep(TESTS, new JUnit(), Stream.concat(
+                    inherited.sequencedKeySet().stream(),
+                    Stream.of(CLASSES, ARTIFACTS)).collect(Collectors.toCollection(LinkedHashSet::new)));
         };
     }
 
