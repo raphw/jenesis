@@ -196,11 +196,13 @@ public class MavenProject implements BuildExecutorModule {
                         try (Reader reader = Files.newBufferedReader(file)) {
                             properties.load(reader);
                         }
+                        boolean active = false;
                         Path base = root.resolve(properties.getProperty("path"));
                         if (!properties.getProperty("sources").isEmpty()) {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {
                                 module.addSource("sources", Bind.asSources(), sources);
+                                active = true;
                             }
                         }
                         int index = 0;
@@ -209,26 +211,29 @@ public class MavenProject implements BuildExecutorModule {
                                 Path resources = base.resolve(resource);
                                 if (Files.exists(resources)) {
                                     module.addSource("resources-" + ++index, Bind.asResources(), resources);
+                                    active = true;
                                 }
                             }
                         }
-                        module.addStep("declare", (_, context, _) -> {
-                            Properties coordinates = new SequencedProperties();
-                            coordinates.setProperty(properties.getProperty("coordinate"), "");
-                            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
-                                coordinates.store(writer, null);
-                            }
-                            Properties dependencies = new SequencedProperties();
-                            if (!properties.getProperty("dependencies").isEmpty()) {
-                                for (String dependency : properties.getProperty("dependencies").split(",")) {
-                                    dependencies.setProperty(dependency, "");
+                        if (active) {
+                            module.addStep("declare", (_, context, _) -> {
+                                Properties coordinates = new SequencedProperties();
+                                coordinates.setProperty(properties.getProperty("coordinate"), "");
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
+                                    coordinates.store(writer, null);
                                 }
-                            }
-                            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
-                                dependencies.store(writer, null);
-                            }
-                            return CompletableFuture.completedStage(new BuildStepResult(true));
-                        });
+                                Properties dependencies = new SequencedProperties();
+                                if (!properties.getProperty("dependencies").isEmpty()) {
+                                    for (String dependency : properties.getProperty("dependencies").split(",")) {
+                                        dependencies.setProperty(dependency, "");
+                                    }
+                                }
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
+                                    dependencies.store(writer, null);
+                                }
+                                return CompletableFuture.completedStage(new BuildStepResult(true));
+                            });
+                        }
                     });
                 }
             }
