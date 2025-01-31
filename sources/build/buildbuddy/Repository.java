@@ -2,21 +2,19 @@ package build.buildbuddy;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @FunctionalInterface
 public interface Repository {
@@ -80,5 +78,13 @@ public interface Repository {
             Path file = Paths.get(coordinate);
             return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
         };
+    }
+
+    static Map<String, Repository> prepend(Map<String, ? extends Repository> left,
+                                           Map<String, ? extends Repository> right) {
+        return Stream.concat(left.entrySet().stream(), right.entrySet().stream()).collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue,
+                Repository::prepend));
     }
 }

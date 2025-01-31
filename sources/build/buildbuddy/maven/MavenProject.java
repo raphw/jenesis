@@ -1,10 +1,10 @@
 package build.buildbuddy.maven;
 
 import build.buildbuddy.*;
+import build.buildbuddy.module.RepositoryBuildExecutorModule;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
-import build.buildbuddy.project.RepositoryMultiProject;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -57,7 +57,9 @@ public class MavenProject implements BuildExecutorModule {
         return new MultiProjectModule(
                 new MavenProject(prefix, location, mavenRepository, mavenResolver),
                 Optional::of,
-                _ -> ((RepositoryMultiProject) (buildExecutor, inherited, name, dependencies, _, repositories) -> {
+                _ -> (name, dependencies, _) -> ((RepositoryBuildExecutorModule) (buildExecutor,
+                                                                                  inherited,
+                                                                                  repositories) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
@@ -68,7 +70,7 @@ public class MavenProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    repositories,
+                                    Repository.prepend(repositories, Map.of(prefix, mavenRepository)),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
@@ -78,8 +80,7 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                     inherited.sequencedKeySet().stream(),
                                     Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
-                    buildExecutor.addStep("pom", new MavenPom(), "build", "dependencies");
-                }).repositories(Map.of(prefix, mavenRepository)));
+                }));
     }
 
     @Override
