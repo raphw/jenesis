@@ -20,8 +20,8 @@ public class JavaModule implements BuildExecutorModule {
         return (buildExecutor, inherited) -> {
             accept(buildExecutor, inherited);
             buildExecutor.addStep(TESTS, new JUnit(), Stream.concat(
-                    inherited.sequencedKeySet().stream(),
-                    Stream.of(CLASSES, ARTIFACTS)).collect(Collectors.toCollection(LinkedHashSet::new)));
+                    Stream.of(CLASSES, ARTIFACTS),
+                    inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
         };
     }
 
