@@ -5,6 +5,7 @@ import build.buildbuddy.module.RepositoryBuildExecutorModule;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
+import build.buildbuddy.step.Assign;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -70,7 +71,7 @@ public class MavenProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    Repository.prepend(repositories, Map.of(prefix, mavenRepository)),
+                                    Repository.prepend(Map.of(prefix, mavenRepository), repositories),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
@@ -80,6 +81,11 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                     inherited.sequencedKeySet().stream(),
                                     Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                    buildExecutor.addStep("assign",
+                            new Assign(),
+                            Stream.concat(
+                                    inherited.sequencedKeySet().stream(),
+                                    Stream.of("build")).collect(Collectors.toCollection(LinkedHashSet::new)));
                 }));
     }
 
@@ -222,6 +228,11 @@ public class MavenProject implements BuildExecutorModule {
                             module.addStep("declare", (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
+                                coordinates.setProperty(prefix
+                                        + "/" + properties.getProperty("groupId")
+                                        + "/" + properties.getProperty("artifactId")
+                                        + "/pom"
+                                        + "/" + properties.getProperty("version"), properties.getProperty("path"));
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
                                     coordinates.store(writer, null);
                                 }
