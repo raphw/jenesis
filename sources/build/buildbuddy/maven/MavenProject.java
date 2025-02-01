@@ -145,6 +145,11 @@ public class MavenProject implements BuildExecutorModule {
                         + "/" + entry.getValue().version();
                 Properties module = new SequencedProperties();
                 module.setProperty("coordinate", coordinate);
+                module.setProperty("pom", prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/pom"
+                        + "/" + entry.getValue().version());
                 module.setProperty("path", entry.getKey().toString());
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
@@ -172,6 +177,11 @@ public class MavenProject implements BuildExecutorModule {
                         + "/" + entry.getValue().artifactId()
                         + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
                         + "/tests"
+                        + "/" + entry.getValue().version());
+                testModule.setProperty("pom", prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/pom"
                         + "/" + entry.getValue().version());
                 testModule.setProperty("path", entry.getKey().toString());
                 String dependencies = toDependencies(
@@ -228,11 +238,7 @@ public class MavenProject implements BuildExecutorModule {
                             module.addStep("declare", (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
-                                coordinates.setProperty(prefix
-                                        + "/" + properties.getProperty("groupId")
-                                        + "/" + properties.getProperty("artifactId")
-                                        + "/pom"
-                                        + "/" + properties.getProperty("version"), properties.getProperty("path"));
+                                coordinates.setProperty(properties.getProperty("pom"), properties.getProperty("path"));
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
                                     coordinates.store(writer, null);
                                 }

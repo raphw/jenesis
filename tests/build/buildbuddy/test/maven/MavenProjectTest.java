@@ -69,7 +69,9 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.COORDINATES))) {
             coordinates.load(reader);
         }
-        assertThat(coordinates).containsOnlyKeys("maven/group/artifact/jar/1");
+        assertThat(coordinates).containsOnlyKeys(
+                "maven/group/artifact/jar/1",
+                "maven/group/artifact/pom/1");
         assertThat(coordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
         assertThat(module.resolve(BuildStep.DEPENDENCIES)).exists();
         Properties dependencies = new Properties();
@@ -84,7 +86,9 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.COORDINATES))) {
             testCoordinates.load(reader);
         }
-        assertThat(testCoordinates).containsOnlyKeys("maven/group/artifact/jar/tests/1");
+        assertThat(testCoordinates).containsOnlyKeys(
+                "maven/group/artifact/jar/tests/1",
+                "maven/group/artifact/pom/1");
         assertThat(testCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
         assertThat(testModule.resolve(BuildStep.DEPENDENCIES)).exists();
         Properties testDependencies = new Properties();
@@ -140,7 +144,9 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(parent.resolve(BuildStep.COORDINATES))) {
             parentCoordinates.load(reader);
         }
-        assertThat(parentCoordinates).containsOnlyKeys("maven/parent/artifact/jar/1");
+        assertThat(parentCoordinates).containsOnlyKeys(
+                "maven/parent/artifact/jar/1",
+                "maven/parent/artifact/pom/1");
         assertThat(parentCoordinates.getProperty("maven/parent/artifact/jar/1")).isEmpty();
         assertThat(parent.resolve(BuildStep.DEPENDENCIES)).exists().content().isEmpty();
         Path parentTests = results.get("maven/module/test-module-/declare");
@@ -149,7 +155,9 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.COORDINATES))) {
             parentTestCoordinates.load(reader);
         }
-        assertThat(parentTestCoordinates).containsOnlyKeys("maven/parent/artifact/jar/tests/1");
+        assertThat(parentTestCoordinates).containsOnlyKeys(
+                "maven/parent/artifact/jar/tests/1",
+                "maven/parent/artifact/pom/1");
         assertThat(parentTestCoordinates.getProperty("maven/parent/artifact/jar/tests/1")).isEmpty();
         Properties parentTestDependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.DEPENDENCIES))) {
@@ -163,7 +171,9 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(child.resolve(BuildStep.COORDINATES))) {
             childCoordinates.load(reader);
         }
-        assertThat(childCoordinates).containsOnlyKeys("maven/group/artifact/jar/1");
+        assertThat(childCoordinates).containsOnlyKeys(
+                "maven/group/artifact/jar/1",
+                "maven/group/artifact/pom/1");
         assertThat(childCoordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
         assertThat(child.resolve(BuildStep.DEPENDENCIES)).exists().content().isEmpty();
         Path childTests = results.get("maven/module/test-module-subproject/declare");
@@ -172,7 +182,9 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.COORDINATES))) {
             childTestCoordinates.load(reader);
         }
-        assertThat(childTestCoordinates).containsOnlyKeys("maven/group/artifact/jar/tests/1");
+        assertThat(childTestCoordinates).containsOnlyKeys(
+                "maven/group/artifact/jar/tests/1",
+                "maven/group/artifact/pom/1");
         assertThat(childTestCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
         Properties childTestDependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.DEPENDENCIES))) {
