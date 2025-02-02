@@ -17,10 +17,10 @@ public interface BuildExecutorCallback {
         return (identity, keys) -> {
             long started = System.nanoTime();
             if (identity == null) {
-                out.printf("Running build with %d targets", keys.size());
+                out.printf("Running build with %d targets%n", keys.size());
                 return (_, throwable) -> {
                     double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
-                    out.printf("%s build in %.2f seconds", throwable == null ? "COMPLETED" : "FAILED", time);
+                    out.printf("%s build in %.2f seconds%n", throwable == null ? "COMPLETED" : "FAILED", time);
                 };
             } else {
                 return (executed, throwable) -> {
