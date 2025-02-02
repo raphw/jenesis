@@ -60,7 +60,7 @@ public class Assign implements BuildStep {
             }
         }
         assigner.apply(assignments.stringPropertyNames().stream()
-                .filter(assignment -> !assignments.getProperty(assignment).isEmpty())
+                .filter(assignment -> assignments.getProperty(assignment).isEmpty())
                 .collect(Collectors.toCollection(LinkedHashSet::new)), files).forEach((coordinate, path) -> {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
