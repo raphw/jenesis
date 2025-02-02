@@ -1,9 +1,6 @@
 package build.buildbuddy.test.maven;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.*;
 import build.buildbuddy.maven.*;
 import build.buildbuddy.project.JavaModule;
 import org.junit.jupiter.api.BeforeEach;
@@ -409,7 +406,6 @@ public class MavenProjectTest {
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + name);
                         }
-                        assertThat(inherited);
                         buildExecutor.addModule("java",
                                 new JavaModule(),
                                 Stream.concat(
@@ -419,6 +415,31 @@ public class MavenProjectTest {
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
-        // TODO: fix results
+        Properties foo = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("maven/build/module/module-foo/assign")
+                .resolve(BuildStep.COORDINATES))) {
+            foo.load(reader);
+        }
+        assertThat(foo.stringPropertyNames()).containsExactly("maven/group/foo/jar/1", "maven/group/foo/pom/1");
+        assertThat(foo.getProperty("maven/group/foo/jar/1")).isEqualTo(project
+                .resolve("target/maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .toString());
+        assertThat(foo.getProperty("maven/group/foo/pom/1")).isEqualTo(project
+                .resolve("target/maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .toString());
+        Properties bar = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("maven/build/module/module-bar/assign")
+                .resolve(BuildStep.COORDINATES))) {
+            bar.load(reader);
+        }
+        assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/jar/1", "maven/group/bar/pom/1");
+        assertThat(bar.getProperty("maven/group/bar/jar/1")).isEqualTo(project
+                .resolve("target/maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .toString());
+        assertThat(bar.getProperty("maven/group/bar/pom/1")).isEqualTo(project
+                .resolve("target/maven/build/module/module-bar/build/java/artifacts/output/artifacts/classes.jar")
+                .toString());
     }
 }
