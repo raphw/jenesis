@@ -3,6 +3,7 @@ package build;
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.maven.MavenProject;
 import build.buildbuddy.project.JavaModule;
 
 import java.io.IOException;
