@@ -238,7 +238,9 @@ public class MavenProject implements BuildExecutorModule {
                             module.addStep("declare", (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
-                                coordinates.setProperty(properties.getProperty("pom"), properties.getProperty("path"));
+                                coordinates.setProperty(properties.getProperty("pom"), root
+                                        .resolve(properties.getProperty("path"))
+                                        .toString());
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
                                     coordinates.store(writer, null);
                                 }
