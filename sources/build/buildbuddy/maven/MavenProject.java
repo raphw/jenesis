@@ -240,6 +240,7 @@ public class MavenProject implements BuildExecutorModule {
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
                                 coordinates.setProperty(properties.getProperty("pom"), root
                                         .resolve(properties.getProperty("path"))
+                                        .resolve("pom.xml")
                                         .toString());
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
                                     coordinates.store(writer, null);

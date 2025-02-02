@@ -83,8 +83,8 @@ public interface MavenRepository extends Repository {
             }
             Optional<RepositoryItem> candidate = repository.fetch(executor, groupId
                     + "/" + artifactId
-                    + "/" + version
                     + (type == null ? "/jar" : "/" + type)
+                    + "/" + version
                     + (classifier == null ? "" : "/" + classifier));
             if (type == null && candidate.isEmpty()) {
                 candidate = repository.fetch(executor, groupId
