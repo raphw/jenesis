@@ -84,7 +84,8 @@ public class MavenProject implements BuildExecutorModule {
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(
-                                    inherited.sequencedKeySet().stream(),
+                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
+                                            PREVIOUS.repeat(3) + "identify/")),
                                     Stream.of("build")).collect(Collectors.toCollection(LinkedHashSet::new)));
                 }));
     }
