@@ -426,7 +426,7 @@ public class MavenProjectTest {
                 .resolve("target/maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
                 .toString());
         assertThat(foo.getProperty("maven/group/foo/pom/1")).isEqualTo(project
-                .resolve("target/maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("target/maven/identify/scan/output/pom/foo/pom.xml")
                 .toString());
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
@@ -436,10 +436,10 @@ public class MavenProjectTest {
         }
         assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/jar/1", "maven/group/bar/pom/1");
         assertThat(bar.getProperty("maven/group/bar/jar/1")).isEqualTo(project
-                .resolve("target/maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("target/maven/build/module/module-bar/build/java/artifacts/output/artifacts/classes.jar")
                 .toString());
         assertThat(bar.getProperty("maven/group/bar/pom/1")).isEqualTo(project
-                .resolve("target/maven/build/module/module-bar/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("target/maven/identify/scan/output/pom/bar/pom.xml")
                 .toString());
     }
 }

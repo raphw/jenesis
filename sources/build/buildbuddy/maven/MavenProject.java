@@ -239,7 +239,8 @@ public class MavenProject implements BuildExecutorModule {
                             module.addStep("declare", (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
-                                coordinates.setProperty(properties.getProperty("pom"), root
+                                coordinates.setProperty(properties.getProperty("pom"), paths.get("../scan")
+                                        .resolve(POM)
                                         .resolve(properties.getProperty("path"))
                                         .resolve("pom.xml")
                                         .toString());
@@ -261,7 +262,7 @@ public class MavenProject implements BuildExecutorModule {
                     });
                 }
             }
-        }, "prepare");
+        }, "scan", "prepare");
     }
 
     private String toDependencies(SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
