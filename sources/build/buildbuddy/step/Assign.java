@@ -1,10 +1,6 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -12,12 +8,7 @@ import java.io.Writer;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -68,13 +59,13 @@ public class Assign implements BuildStep {
                 properties.stringPropertyNames().forEach(name -> assignments.put(name, properties.getProperty(name)));
             }
         }
-        assigner.apply(assignments.stringPropertyNames(), files).forEach((coordinates, path) -> {
+        assigner.apply(assignments.stringPropertyNames().stream()
+                .filter(assignment -> !assignments.getProperty(assignment).isEmpty())
+                .collect(Collectors.toCollection(LinkedHashSet::new)), files).forEach((coordinate, path) -> {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
-            } else if (assignments.containsKey(coordinates)) {
-                assignments.replace(coordinates, path.toString());
-            } else {
-                assignments.put(coordinates, path.toString());
+            } else if (!Objects.equals("", assignments.replace(coordinate, path.toString()))) {
+                throw new IllegalArgumentException("Unknown or previously defined key: " + coordinate);
             }
         });
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
