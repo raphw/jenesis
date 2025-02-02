@@ -150,7 +150,11 @@ public class MavenProject implements BuildExecutorModule {
                         + "/" + entry.getValue().artifactId()
                         + "/pom"
                         + "/" + entry.getValue().version());
-                module.setProperty("path", entry.getKey().toString());
+                module.setProperty("path", arguments.get("scan")
+                        .folder()
+                        .resolve(POM)
+                        .resolve(entry.getKey())
+                        .toString());
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
                 module.setProperty("version", entry.getValue().version());
@@ -183,7 +187,11 @@ public class MavenProject implements BuildExecutorModule {
                         + "/" + entry.getValue().artifactId()
                         + "/pom"
                         + "/" + entry.getValue().version());
-                testModule.setProperty("path", entry.getKey().toString());
+                testModule.setProperty("path", arguments.get("scan")
+                        .folder()
+                        .resolve(POM)
+                        .resolve(entry.getKey())
+                        .toString());
                 String dependencies = toDependencies(
                         entry.getValue().dependencies(),
                         Set.of(MavenDependencyScope.TEST, MavenDependencyScope.RUNTIME));
@@ -216,7 +224,7 @@ public class MavenProject implements BuildExecutorModule {
                             properties.load(reader);
                         }
                         boolean active = false;
-                        Path base = root.resolve(properties.getProperty("path"));
+                        Path base = Path.of(properties.getProperty("path"));
                         if (!properties.getProperty("sources").isEmpty()) {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {
