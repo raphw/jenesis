@@ -31,32 +31,32 @@ public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
-    private final String prefix;
     private final Path root;
+    private final String prefix;
     private final MavenRepository repository;
     private final MavenPomResolver resolver;
 
-    public MavenProject(String prefix, Path root, MavenRepository repository, MavenPomResolver resolver) {
-        this.prefix = prefix;
+    public MavenProject(Path root, String prefix, MavenRepository repository, MavenPomResolver resolver) {
         this.root = root;
+        this.prefix = prefix;
         this.repository = repository;
         this.resolver = resolver;
     }
 
-    public static BuildExecutorModule make(Path location,
+    public static BuildExecutorModule make(Path root,
                                            String algorithm,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
-        return make(location, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), builder);
+        return make(root, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), builder);
     }
 
-    public static BuildExecutorModule make(Path location,
+    public static BuildExecutorModule make(Path root,
                                            String prefix,
                                            String algorithm,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(
-                new MavenProject(prefix, location, mavenRepository, mavenResolver),
+                new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 Optional::of,
                 _ -> (name, dependencies, _) -> ((RepositoryBuildExecutorModule) (buildExecutor,
                                                                                   inherited,
@@ -150,11 +150,7 @@ public class MavenProject implements BuildExecutorModule {
                         + "/" + entry.getValue().artifactId()
                         + "/pom"
                         + "/" + entry.getValue().version());
-                module.setProperty("path", arguments.get("scan")
-                        .folder()
-                        .resolve(POM)
-                        .resolve(entry.getKey())
-                        .toString());
+                module.setProperty("path", entry.getKey().toString());
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
                 module.setProperty("version", entry.getValue().version());
@@ -187,11 +183,7 @@ public class MavenProject implements BuildExecutorModule {
                         + "/" + entry.getValue().artifactId()
                         + "/pom"
                         + "/" + entry.getValue().version());
-                testModule.setProperty("path", arguments.get("scan")
-                        .folder()
-                        .resolve(POM)
-                        .resolve(entry.getKey())
-                        .toString());
+                testModule.setProperty("path", entry.getKey().toString());
                 String dependencies = toDependencies(
                         entry.getValue().dependencies(),
                         Set.of(MavenDependencyScope.TEST, MavenDependencyScope.RUNTIME));
@@ -224,7 +216,7 @@ public class MavenProject implements BuildExecutorModule {
                             properties.load(reader);
                         }
                         boolean active = false;
-                        Path base = Path.of(properties.getProperty("path"));
+                        Path base = root.resolve(properties.getProperty("path"));
                         if (!properties.getProperty("sources").isEmpty()) {
                             Path sources = base.resolve(properties.getProperty("sources"));
                             if (Files.exists(sources)) {

@@ -60,7 +60,7 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("maven", new MavenProject("maven", project, mavenRepository, mavenPomResolver));
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module/module-/declare", "maven/module/test-module-/declare");
         Path module = results.get("maven/module/module-/declare");
@@ -135,7 +135,7 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("maven", new MavenProject("maven", project, mavenRepository, mavenPomResolver));
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module/module-/declare", "maven/module/module-subproject/declare");
         Path parent = results.get("maven/module/module-/declare");
@@ -210,7 +210,7 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("maven", new MavenProject("maven", project, mavenRepository, mavenPomResolver));
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module/module-/declare",
                 "maven/module/module-/sources",
@@ -243,7 +243,7 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("maven", new MavenProject("maven", project, mavenRepository, mavenPomResolver));
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module/module-/declare",
                 "maven/module/module-/sources",
@@ -270,7 +270,7 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("maven", new MavenProject("maven", project, mavenRepository, mavenPomResolver));
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module/test-module-/declare",
                 "maven/module/test-module-/sources",
@@ -303,7 +303,7 @@ public class MavenProjectTest {
         BuildExecutor executor = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("maven", new MavenProject("maven", project, mavenRepository, mavenPomResolver));
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module/test-module-/declare",
                 "maven/module/test-module-/sources",
@@ -378,12 +378,18 @@ public class MavenProjectTest {
                 "SHA256",
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 new MavenPomResolver(),
-                (name, dependencies) -> (buildExecutor, inherited) -> {
-                    buildExecutor.addModule("java",
-                            new JavaModule(),
-                            inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")
-                                    || identity.equals("../dependencies/artifacts")).collect(
-                                            Collectors.toCollection(LinkedHashSet::new)));
+                (name, dependencies) -> {
+                    switch (name) {
+                        case "abc":
+                        default:
+                    }
+                    return (buildExecutor, inherited) -> {
+                        buildExecutor.addModule("java",
+                                new JavaModule(),
+                                inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")
+                                        || identity.equals("../dependencies/artifacts")).collect(
+                                        Collectors.toCollection(LinkedHashSet::new)));
+                    };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         // TODO: fix results
