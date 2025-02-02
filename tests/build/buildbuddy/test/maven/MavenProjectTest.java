@@ -19,8 +19,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.SequencedMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class MavenProjectTest {
 
@@ -380,15 +382,40 @@ public class MavenProjectTest {
                 new MavenPomResolver(),
                 (name, dependencies) -> {
                     switch (name) {
-                        case "abc":
-                        default:
+                        case "module-foo" -> assertThat(dependencies).isEmpty();
+                        case "module-bar" -> assertThat(dependencies).containsExactly("module-foo");
+                        default -> fail("Unexpected module: " + name);
                     }
                     return (buildExecutor, inherited) -> {
+                        switch (name) {
+                            case "module-foo" -> assertThat(inherited).containsOnlyKeys(
+                                    "../../../../identify/module/module-foo/sources",
+                                    "../../../../identify/module/module-foo/declare",
+                                    "../dependencies/prepared",
+                                    "../dependencies/resolved",
+                                    "../dependencies/artifacts");
+                            case "module-bar" -> assertThat(inherited).containsOnlyKeys(
+                                    "../../../../identify/module/module-bar/sources",
+                                    "../../../../identify/module/module-bar/declare",
+                                    "../dependencies/prepared",
+                                    "../dependencies/resolved",
+                                    "../dependencies/artifacts",
+                                    "../../module-foo/prepare",
+                                    "../../module-foo/dependencies/prepared",
+                                    "../../module-foo/dependencies/resolved",
+                                    "../../module-foo/dependencies/artifacts",
+                                    "../../module-foo/build/java/classes",
+                                    "../../module-foo/build/java/artifacts",
+                                    "../../module-foo/assign");
+                            default -> fail("Unexpected module: " + name);
+                        }
+                        assertThat(inherited);
                         buildExecutor.addModule("java",
                                 new JavaModule(),
-                                inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")
-                                        || identity.equals("../dependencies/artifacts")).collect(
-                                        Collectors.toCollection(LinkedHashSet::new)));
+                                Stream.concat(
+                                                Stream.of("../dependencies/artifacts"),
+                                                inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")))
+                                        .collect(Collectors.toCollection(LinkedHashSet::new)));
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
