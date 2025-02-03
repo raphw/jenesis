@@ -10,17 +10,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -95,9 +85,9 @@ public class MultiProjectModule implements BuildExecutorModule {
                             build.addModule(entry.getKey(),
                                     project.module(entry.getKey(), dependencies, arguments),
                                     Stream.concat(
-                                            arguments.sequencedKeySet().stream(),
-                                            dependencies.sequencedKeySet().stream()).collect(Collectors.toCollection(
-                                                    LinkedHashSet::new)));
+                                                    arguments.sequencedKeySet().stream(),
+                                                    dependencies.sequencedKeySet().stream())
+                                            .collect(Collectors.toCollection(LinkedHashSet::new)));
                             it.remove();
                         }
                     }
