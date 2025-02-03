@@ -68,9 +68,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
-                (prolog, identity) -> Optional.of(identity.substring(
-                        prolog.length(),
-                        identity.indexOf('/', prolog.length()))),
+                identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (RepositoryBuildExecutorModule) (buildExecutor, inherited, resolved) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(

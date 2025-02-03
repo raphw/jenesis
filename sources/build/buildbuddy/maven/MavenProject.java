@@ -1,13 +1,6 @@
 package build.buildbuddy.maven;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.Repository;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 import build.buildbuddy.module.RepositoryBuildExecutorModule;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
@@ -21,20 +14,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -74,9 +56,9 @@ public class MavenProject implements BuildExecutorModule {
                                            MavenPomResolver mavenResolver,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
-                (prolog, identifier) -> identifier.startsWith(prolog + "module/") ? Optional.of(identifier.substring(
-                        prolog.length() + 7,
-                        identifier.indexOf('/', prolog.length() + 7))) : Optional.empty(),
+                identifier -> identifier.startsWith("module/")
+                        ? Optional.of(identifier.substring(7, identifier.indexOf('/', 7)))
+                        : Optional.empty(),
                 _ -> (name, dependencies, _) -> ((RepositoryBuildExecutorModule) (buildExecutor,
                                                                                   inherited,
                                                                                   repositories) -> {

@@ -60,9 +60,7 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-        }, (prolog, identifier) -> Optional.of(identifier.substring(
-                prolog.length(),
-                identifier.indexOf('-')).replace('-', '/')), modules -> {
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
                     Map.entry("1", new LinkedHashSet<>()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))));
@@ -145,9 +143,7 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
-        }, (prolog, identifier) -> Optional.of(identifier.substring(
-                prolog.length(),
-                identifier.indexOf('-')).replace('-', '/')), modules -> {
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
                     Map.entry("1", new LinkedHashSet<>()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))),

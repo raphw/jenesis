@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,11 +20,11 @@ public class MultiProjectModule implements BuildExecutorModule {
     public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
 
     private final BuildExecutorModule identifier;
-    private final BiFunction<String, String, Optional<String>> resolver;
+    private final Function<String, Optional<String>> resolver;
     private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory;
 
     public MultiProjectModule(BuildExecutorModule identifier,
-                              BiFunction<String, String, Optional<String>> resolver,
+                              Function<String, Optional<String>> resolver,
                               Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory) {
         this.identifier = identifier;
         this.resolver = resolver;
@@ -39,14 +38,16 @@ public class MultiProjectModule implements BuildExecutorModule {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.sequencedKeySet()) {
-                resolver.apply(PREVIOUS + IDENTIFY + "/", identifier).ifPresent(module -> {
-                    String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
-                    if (name.isEmpty()) {
-                        throw new IllegalArgumentException("Module name must not be empty");
-                    }
-                    modules.put(identifier, name);
-                    identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
-                });
+                if (identifier.startsWith(PREVIOUS + IDENTIFY + "/")) {
+                    resolver.apply(identifier.substring(12)).ifPresent(module -> {
+                        String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
+                        if (name.isEmpty()) {
+                            throw new IllegalArgumentException("Module name must not be empty");
+                        }
+                        modules.put(identifier, name);
+                        identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
+                    });
+                }
             }
             process.addStep(GROUP,
                     new Group(identifier -> Optional.of(modules.get(identifier))),
@@ -82,12 +83,15 @@ public class MultiProjectModule implements BuildExecutorModule {
                                     queue.addAll(values);
                                 }
                             }
-                            build.addModule(entry.getKey(),
-                                    project.module(entry.getKey(), dependencies, arguments),
-                                    Stream.concat(
-                                                    arguments.sequencedKeySet().stream(),
-                                                    dependencies.sequencedKeySet().stream())
-                                            .collect(Collectors.toCollection(LinkedHashSet::new)));
+                            build.addModule(entry.getKey(), project.module(entry.getKey(),
+                                    dependencies,
+                                    arguments), Stream.of(
+                                            arguments.sequencedKeySet().stream(),
+                                            dependencies.sequencedKeySet().stream(),
+                                            inherited.sequencedKeySet().stream()
+                                                    .map(identifier -> PREVIOUS.repeat(2) + identifier))
+                                    .flatMap(Function.identity())
+                                    .collect(Collectors.toCollection(LinkedHashSet::new)));
                             it.remove();
                         }
                     }
@@ -95,6 +99,8 @@ public class MultiProjectModule implements BuildExecutorModule {
             }, Stream.concat(
                     Stream.of(GROUP),
                     identified.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
-        }, IDENTIFY);
+        }, Stream.concat(
+                Stream.of(IDENTIFY),
+                inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 }
