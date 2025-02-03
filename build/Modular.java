@@ -3,8 +3,8 @@ package build;
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorCallback;
 import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.maven.MavenProject;
 import build.buildbuddy.module.DownloadModuleUris;
+import build.buildbuddy.module.ModularProject;
 import build.buildbuddy.project.JavaModule;
 
 import java.io.IOException;
@@ -20,7 +20,7 @@ public class Modular {
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.printing(System.out));
         root.addStep("download", new DownloadModuleUris());
-        root.addModule("modules", MavenProject.make(Path.of("."),
+        root.addModule("modules", ModularProject.make(Path.of("."),
                 "SHA256",
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
