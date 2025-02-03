@@ -2,18 +2,18 @@ package build.buildbuddy;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,6 +85,46 @@ public interface Repository {
             Path file = Paths.get(coordinate);
             return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
         };
+    }
+
+    static Map<String, Repository> ofCoordinates(Iterable<Path> folders) throws IOException {
+        Map<String, Map<String, URI>> artifacts = new HashMap<>();
+        for (Path folder : folders) {
+            loadFile(folder.resolve(BuildStep.COORDINATES), artifacts, location -> Path.of(location).toUri());
+        }
+        return artifacts.entrySet().stream()
+                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    static Map<String, Repository> ofUris(Iterable<Path> folders) throws IOException {
+        Map<String, Map<String, URI>> artifacts = new HashMap<>();
+        for (Path folder : folders) {
+            loadFile(folder.resolve(BuildStep.URIS), artifacts, URI::create);
+        }
+        return artifacts.entrySet().stream()
+                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private static void loadFile(Path file,
+                                 Map<String, Map<String, URI>> artifacts,
+                                 Function<String, URI> resolver) throws IOException {
+        if (Files.exists(file)) {
+            Properties properties = new SequencedProperties();
+            try (Reader reader = Files.newBufferedReader(file)) {
+                properties.load(reader);
+            }
+            for (String coordinate : properties.stringPropertyNames()) {
+                String location = properties.getProperty(coordinate);
+                if (!location.isEmpty()) {
+                    int index = coordinate.indexOf('/');
+                    artifacts.computeIfAbsent(
+                            coordinate.substring(0, index),
+                            _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(location));
+                }
+            }
+        }
     }
 
     static Map<String, Repository> prepend(Map<String, ? extends Repository> left,

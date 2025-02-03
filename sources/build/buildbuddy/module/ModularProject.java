@@ -69,7 +69,7 @@ public class ModularProject implements BuildExecutorModule {
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
-                _ -> (name, dependencies, _) -> (RepositoryBuildExecutorModule) (buildExecutor, inherited, resolved) -> {
+                _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
@@ -79,7 +79,7 @@ public class ModularProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    Repository.prepend(repositories, resolved),
+                                    Repository.prepend(repositories, Repository.ofCoordinates(inherited.values())),
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",

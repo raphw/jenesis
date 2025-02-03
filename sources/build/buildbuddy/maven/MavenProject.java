@@ -1,7 +1,6 @@
 package build.buildbuddy.maven;
 
 import build.buildbuddy.*;
-import build.buildbuddy.module.RepositoryBuildExecutorModule;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
@@ -59,9 +58,7 @@ public class MavenProject implements BuildExecutorModule {
                 identifier -> identifier.startsWith("module/")
                         ? Optional.of(identifier.substring(7, identifier.indexOf('/', 7)))
                         : Optional.empty(),
-                _ -> (name, dependencies, _) -> ((RepositoryBuildExecutorModule) (buildExecutor,
-                                                                                  inherited,
-                                                                                  repositories) -> {
+                _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
@@ -72,7 +69,9 @@ public class MavenProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    Repository.prepend(Map.of(prefix, mavenRepository), repositories),
+                                    Repository.prepend(
+                                            Map.of(prefix, mavenRepository),
+                                            Repository.ofCoordinates(inherited.values())),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
@@ -88,7 +87,7 @@ public class MavenProject implements BuildExecutorModule {
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
                                             PREVIOUS.repeat(3) + "identify/")),
                                     Stream.of("build")).collect(Collectors.toCollection(LinkedHashSet::new)));
-                }));
+                });
     }
 
     @Override

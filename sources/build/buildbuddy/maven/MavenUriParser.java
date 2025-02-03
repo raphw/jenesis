@@ -12,6 +12,10 @@ public class MavenUriParser implements UnaryOperator<String> {
 
     private final Function<String, String> hosts;
 
+    public MavenUriParser() {
+        hosts = _ -> "maven";
+    }
+
     public MavenUriParser(Function<String, String> hosts) {
         this.hosts = hosts;
     }
