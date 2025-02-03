@@ -1,11 +1,6 @@
 package build.buildbuddy.test.module;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.maven.MavenDefaultRepository;
-import build.buildbuddy.maven.MavenPomResolver;
+import build.buildbuddy.*;
 import build.buildbuddy.module.ModularJarResolver;
 import build.buildbuddy.module.ModularProject;
 import build.buildbuddy.project.JavaModule;
@@ -24,6 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class ModularProjectTest {
 
@@ -63,38 +59,63 @@ public class ModularProjectTest {
 
     @Test
     public void can_resolve_multi_module() throws IOException {
-        Path foo = Files.createDirectory(project.resolve("foo"));
-        Files.writeString(foo.resolve("module-info.java"), """
+        Files.writeString(Files.createDirectory(project.resolve("foo")).resolve("module-info.java"), """
                 module foo {
                   exports foo;
                 }
                 """);
-        Files.writeString(Files.createDirectories(foo.resolve("foo")).resolve("Foo.java"), """
+        Files.writeString(Files.createDirectories(project.resolve("foo/foo")).resolve("Foo.java"), """
                 package foo;
                 public class Foo { }
                 """);
-        Path bar = Files.createDirectory(project.resolve("bar"));
-        Files.writeString(bar.resolve("module-info.java"), """
+        Files.writeString(Files.createDirectory(project.resolve("bar")).resolve("module-info.java"), """
                 module bar {
                   requires foo;
                 }
                 """);
-        Files.writeString(Files.createDirectories(bar.resolve("bar")).resolve("Bar.java"), """
+        Files.writeString(Files.createDirectories(project.resolve("bar/bar")).resolve("Bar.java"), """
                 package bar;
                 import foo.Foo;
                 public class Bar extends Foo { }
                 """);
-        BuildExecutor executor = BuildExecutor.of(build,
+        BuildExecutor root = BuildExecutor.of(build,
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
-        executor.addModule("modules", ModularProject.make(project,
+        root.addModule("modules", ModularProject.make(project,
                 "module",
                 _ -> true,
                 "SHA256",
                 Map.of(),
                 Map.of("module", new ModularJarResolver(false)),
                 (name, dependencies) -> {
+                    switch (name) {
+                        case "module-foo" -> assertThat(dependencies).isEmpty();
+                        case "module-bar" -> assertThat(dependencies).containsExactly("module-foo");
+                        default -> fail("Unexpected module: " + name);
+                    }
                     return (buildExecutor, inherited) -> {
+                        switch (name) {
+                            case "module-foo" -> assertThat(inherited).containsOnlyKeys(
+                                    "../../../../identify/module-foo/module",
+                                    "../../../../identify/module-foo/sources",
+                                    "../dependencies/prepared",
+                                    "../dependencies/resolved",
+                                    "../dependencies/artifacts");
+                            case "module-bar" -> assertThat(inherited).containsOnlyKeys(
+                                    "../../../../identify/module-bar/module",
+                                    "../../../../identify/module-bar/sources",
+                                    "../dependencies/prepared",
+                                    "../dependencies/resolved",
+                                    "../dependencies/artifacts",
+                                    "../../module-foo/prepare",
+                                    "../../module-foo/dependencies/prepared",
+                                    "../../module-foo/dependencies/resolved",
+                                    "../../module-foo/dependencies/artifacts",
+                                    "../../module-foo/build/java/classes",
+                                    "../../module-foo/build/java/artifacts",
+                                    "../../module-foo/assign");
+                            default -> fail("Unexpected module: " + name);
+                        }
                         buildExecutor.addModule("java",
                                 new JavaModule(),
                                 Stream.concat(
@@ -103,6 +124,26 @@ public class ModularProjectTest {
                                         .collect(Collectors.toCollection(LinkedHashSet::new)));
                     };
                 }));
-        executor.execute();
+        SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
+        Properties foo = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("modules/build/module/module-foo/assign")
+                .resolve(BuildStep.COORDINATES))) {
+            foo.load(reader);
+        }
+        assertThat(foo.stringPropertyNames()).containsExactly("module/foo");
+        assertThat(foo.getProperty("module/foo")).isEqualTo(build
+                .resolve("modules/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .toString());
+        Properties bar = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("modules/build/module/module-bar/assign")
+                .resolve(BuildStep.COORDINATES))) {
+            bar.load(reader);
+        }
+        assertThat(bar.stringPropertyNames()).containsExactly("module/bar");
+        assertThat(bar.getProperty("module/bar")).isEqualTo(build
+                .resolve("modules/build/module/module-bar/build/java/artifacts/output/artifacts/classes.jar")
+                .toString());
     }
 }
