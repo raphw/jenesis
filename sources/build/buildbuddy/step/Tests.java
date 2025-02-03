@@ -19,16 +19,16 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-public class Test extends Java {
+public class Tests extends Java {
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
 
-    public Test() {
+    public Tests() {
         this(null);
     }
 
-    public Test(TestEngine engine) {
+    public Tests(TestEngine engine) {
         this.engine = engine;
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
                 .map(Pattern::compile)
@@ -36,12 +36,12 @@ public class Test extends Java {
         this.isTest = name -> patterns.stream().anyMatch(pattern -> pattern.matcher(name).matches());
     }
 
-    public Test(TestEngine engine, Predicate<String> isTest) {
+    public Tests(TestEngine engine, Predicate<String> isTest) {
         this.engine = engine;
         this.isTest = isTest;
     }
 
-    public Test(String java, TestEngine engine, Predicate<String> isTest) {
+    public Tests(String java, TestEngine engine, Predicate<String> isTest) {
         super(java);
         this.engine = engine;
         this.isTest = isTest;

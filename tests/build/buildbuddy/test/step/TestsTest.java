@@ -5,9 +5,10 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.step.Test;
 import build.buildbuddy.step.Javac;
+import build.buildbuddy.step.Tests;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import sample.TestSample;
 
@@ -24,14 +25,16 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestTest {
+public class TestsTest {
 
     @TempDir
     private Path root;
+    private List<String> appended;
     private Path previous, next, supplement, dependencies, classes;
 
     @BeforeEach
@@ -45,15 +48,16 @@ public class TestTest {
         List<String> elements = new ArrayList<>();
         elements.addAll(Arrays.asList(System.getProperty("java.class.path").split(File.pathSeparator)));
         elements.addAll(Arrays.asList(System.getProperty("jdk.module.path").split(File.pathSeparator)));
+        appended = new ArrayList<>();
         for (String element : elements) {
             if (element.endsWith("_rt.jar") || element.endsWith("-rt.jar")) {
                 continue;
             }
             Path path = Path.of(element);
             if (Files.isRegularFile(path)) {
-                Files.copy(path, artifacts.resolve(URLEncoder.encode(
-                        element,
-                        StandardCharsets.UTF_8)));
+                String name = URLEncoder.encode(element, StandardCharsets.UTF_8);
+                appended.add(name);
+                Files.copy(path, artifacts.resolve(name));
             }
         }
         try (InputStream input = TestSample.class.getResourceAsStream(TestSample.class.getSimpleName() + ".class");
@@ -64,17 +68,17 @@ public class TestTest {
         }
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     public void can_execute_junit() throws IOException {
-        BuildStepResult result = new Test(candidate -> candidate.endsWith("TestSample")).apply(
+        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
                         "dependencies", new BuildStepArgument(
                                 dependencies,
-                                Map.of(
-                                        Path.of(BuildStep.ARTIFACTS + "junit.jar"), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.ARTIFACTS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
+                                appended.stream().collect(Collectors.toMap(
+                                        name -> Path.of(BuildStep.ARTIFACTS + name),
+                                        _ -> ChecksumStatus.ADDED))),
                         "classes", new BuildStepArgument(
                                 classes,
                                 Map.of(Path.of(Javac.CLASSES + "sample/TestSample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
@@ -83,17 +87,17 @@ public class TestTest {
         assertThat(supplement.resolve("error")).isEmptyFile();
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     public void can_execute_junit_non_modular() throws IOException {
-        BuildStepResult result = new Test(candidate -> candidate.endsWith("TestSample")).modular(false).apply(
+        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).modular(false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
                         "dependencies", new BuildStepArgument(
                                 dependencies,
-                                Map.of(
-                                        Path.of(BuildStep.ARTIFACTS + "junit.jar"), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.ARTIFACTS + "hamcrest-core.jar"), ChecksumStatus.ADDED)),
+                                appended.stream().collect(Collectors.toMap(
+                                        name -> Path.of(BuildStep.ARTIFACTS + name),
+                                        _ -> ChecksumStatus.ADDED))),
                         "classes", new BuildStepArgument(
                                 classes,
                                 Map.of(Path.of(Javac.CLASSES + "sample/TestSample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();

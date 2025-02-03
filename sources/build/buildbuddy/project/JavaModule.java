@@ -2,7 +2,7 @@ package build.buildbuddy.project;
 
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.step.Test;
+import build.buildbuddy.step.Tests;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.TestEngine;
@@ -29,7 +29,7 @@ public class JavaModule implements BuildExecutorModule {
             }
             accept(buildExecutor, inherited);
             if (candidate != null) {
-                buildExecutor.addStep(TESTS, new Test(candidate), Stream.concat(
+                buildExecutor.addStep(TESTS, new Tests(candidate), Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
                         inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
             }
