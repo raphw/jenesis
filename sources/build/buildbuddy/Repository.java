@@ -87,34 +87,31 @@ public interface Repository {
         };
     }
 
-    static Map<String, Repository> of(String file, Iterable<Path> folders) throws IOException {
+    static Map<String, Repository> ofProperties(String suffix,
+                                                Iterable<Path> folders,
+                                                Function<String, URI> resolver) throws IOException {
         Map<String, Map<String, URI>> artifacts = new HashMap<>();
         for (Path folder : folders) {
-            loadFile(folder.resolve(file), artifacts, URI::create);
+            Path file = folder.resolve(suffix);
+            if (Files.exists(folder.resolve(file))) {
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(file)) {
+                    properties.load(reader);
+                }
+                for (String coordinate : properties.stringPropertyNames()) {
+                    String location = properties.getProperty(coordinate);
+                    if (!location.isEmpty()) {
+                        int index = coordinate.indexOf('/');
+                        artifacts.computeIfAbsent(
+                                coordinate.substring(0, index),
+                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(location));
+                    }
+                }
+            }
         }
         return artifacts.entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue())))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    }
-
-    private static void loadFile(Path file,
-                                 Map<String, Map<String, URI>> artifacts,
-                                 Function<String, URI> resolver) throws IOException {
-        if (Files.exists(file)) {
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(file)) {
-                properties.load(reader);
-            }
-            for (String coordinate : properties.stringPropertyNames()) {
-                String location = properties.getProperty(coordinate);
-                if (!location.isEmpty()) {
-                    int index = coordinate.indexOf('/');
-                    artifacts.computeIfAbsent(
-                            coordinate.substring(0, index),
-                            _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(location));
-                }
-            }
-        }
     }
 
     static Map<String, Repository> prepend(Map<String, ? extends Repository> left,

@@ -30,7 +30,7 @@ public class Modular {
         root.addModule("build", (build, downloaded) -> build.addModule("modules", ModularProject.make(
                 Path.of("."),
                 "SHA256",
-                Repository.ofProperties(DownloadModuleUris.URIS, downloaded.values(), URI::create),
+                Repository.of(DownloadModuleUris.URIS, downloaded.values()),
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()

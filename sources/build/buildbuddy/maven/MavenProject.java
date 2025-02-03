@@ -69,9 +69,10 @@ public class MavenProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    Repository.prepend(
-                                            Map.of(prefix, mavenRepository),
-                                            Repository.of(BuildStep.COORDINATES, inherited.values())),
+                                    Repository.prepend(Map.of(prefix, mavenRepository),
+                                            Repository.ofProperties(BuildStep.COORDINATES,
+                                                    inherited.values(),
+                                                    file -> Path.of(file).toUri())),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",

@@ -92,9 +92,10 @@ public class ModularProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    Repository.prepend(
-                                            repositories,
-                                            Repository.of(BuildStep.COORDINATES, inherited.values())),
+                                    Repository.prepend(repositories,
+                                            Repository.ofProperties(BuildStep.COORDINATES,
+                                                    inherited.values(),
+                                                    file -> Path.of(file).toUri())),
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
