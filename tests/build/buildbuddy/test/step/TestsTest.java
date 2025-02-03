@@ -46,8 +46,8 @@ public class TestsTest {
         classes = Files.createDirectories(root.resolve("classes"));
         Path artifacts = Files.createDirectory(dependencies.resolve(BuildStep.ARTIFACTS));
         List<String> elements = new ArrayList<>();
-        elements.addAll(Arrays.asList(System.getProperty("java.class.path").split(File.pathSeparator)));
-        elements.addAll(Arrays.asList(System.getProperty("jdk.module.path").split(File.pathSeparator)));
+        elements.addAll(Arrays.asList(System.getProperty("java.class.path", "").split(File.pathSeparator)));
+        elements.addAll(Arrays.asList(System.getProperty("jdk.module.path", "").split(File.pathSeparator)));
         appended = new ArrayList<>();
         for (String element : elements) {
             if (element.endsWith("_rt.jar") || element.endsWith("-rt.jar")) {
