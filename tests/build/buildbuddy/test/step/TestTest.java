@@ -5,10 +5,9 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.step.JUnit;
+import build.buildbuddy.step.Test;
 import build.buildbuddy.step.Javac;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import sample.TestSample;
 
@@ -29,7 +28,7 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class JUnitTest {
+public class TestTest {
 
     @TempDir
     private Path root;
@@ -65,9 +64,9 @@ public class JUnitTest {
         }
     }
 
-    @Test
+    @org.junit.jupiter.api.Test
     public void can_execute_junit() throws IOException {
-        BuildStepResult result = new JUnit(candidate -> candidate.endsWith("TestSample")).apply(
+        BuildStepResult result = new Test(candidate -> candidate.endsWith("TestSample")).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -84,9 +83,9 @@ public class JUnitTest {
         assertThat(supplement.resolve("error")).isEmptyFile();
     }
 
-    @Test
+    @org.junit.jupiter.api.Test
     public void can_execute_junit_non_modular() throws IOException {
-        BuildStepResult result = new JUnit(candidate -> candidate.endsWith("TestSample")).modular(false).apply(
+        BuildStepResult result = new Test(candidate -> candidate.endsWith("TestSample")).modular(false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(

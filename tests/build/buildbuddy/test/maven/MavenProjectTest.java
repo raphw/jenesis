@@ -1,7 +1,15 @@
 package build.buildbuddy.test.maven;
 
-import build.buildbuddy.*;
-import build.buildbuddy.maven.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.maven.MavenDefaultRepository;
+import build.buildbuddy.maven.MavenDefaultVersionNegotiator;
+import build.buildbuddy.maven.MavenPomResolver;
+import build.buildbuddy.maven.MavenProject;
+import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.project.JavaModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -23,7 +23,7 @@ public class Modular {
         root.addModule("modules", MavenProject.make(Path.of("."),
                 "SHA256",
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
-                        new JavaModule(),
+                        new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                 .filter(identity -> identity.startsWith("../../../"))).collect(
                                 Collectors.toCollection(LinkedHashSet::new)))), "download");

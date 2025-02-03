@@ -2,9 +2,10 @@ package build.buildbuddy.project;
 
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.step.JUnit;
+import build.buildbuddy.step.Test;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
+import build.buildbuddy.step.TestEngine;
 
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
@@ -16,12 +17,22 @@ public class JavaModule implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
-    public BuildExecutorModule tested() {
+    public BuildExecutorModule testIfAvailable() {
+        return test(null);
+    }
+
+    public BuildExecutorModule test(TestEngine engine) {
         return (buildExecutor, inherited) -> {
+            TestEngine candidate = engine;
+            if (candidate == null) {
+                candidate = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
+            }
             accept(buildExecutor, inherited);
-            buildExecutor.addStep(TESTS, new JUnit(), Stream.concat(
-                    Stream.of(CLASSES, ARTIFACTS),
-                    inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
+            if (candidate != null) {
+                buildExecutor.addStep(TESTS, new Test(candidate), Stream.concat(
+                        Stream.of(CLASSES, ARTIFACTS),
+                        inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
+            }
         };
     }
 

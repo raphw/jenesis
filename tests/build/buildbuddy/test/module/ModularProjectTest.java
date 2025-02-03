@@ -1,6 +1,10 @@
 package build.buildbuddy.test.module;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.module.ModularJarResolver;
 import build.buildbuddy.module.ModularProject;
 import build.buildbuddy.project.JavaModule;
