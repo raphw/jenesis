@@ -6,6 +6,7 @@ import build.buildbuddy.BuildStep;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenPomResolver;
+import build.buildbuddy.module.ModularJarResolver;
 import build.buildbuddy.module.ModularProject;
 import build.buildbuddy.project.JavaModule;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,9 @@ public class ModularProjectTest {
     public void can_resolve_multi_module() throws IOException {
         Path foo = Files.createDirectory(project.resolve("foo"));
         Files.writeString(foo.resolve("module-info.java"), """
-                module foo { }
+                module foo {
+                  exports foo;
+                }
                 """);
         Files.writeString(Files.createDirectories(foo.resolve("foo")).resolve("Foo.java"), """
                 package foo;
@@ -89,7 +92,7 @@ public class ModularProjectTest {
                 _ -> true,
                 "SHA256",
                 Map.of(),
-                Map.of(),
+                Map.of("module", new ModularJarResolver(false)),
                 (name, dependencies) -> {
                     return (buildExecutor, inherited) -> {
                         buildExecutor.addModule("java",

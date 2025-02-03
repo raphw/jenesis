@@ -3,7 +3,10 @@ package build.buildbuddy.module;
 import build.buildbuddy.*;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenPomResolver;
+import build.buildbuddy.project.DependenciesModule;
+import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
+import build.buildbuddy.step.Assign;
 import build.buildbuddy.step.Bind;
 
 import java.io.BufferedWriter;
@@ -19,6 +22,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ModularProject implements BuildExecutorModule {
 
@@ -41,8 +46,8 @@ public class ModularProject implements BuildExecutorModule {
                 "module",
                 _ -> true,
                 algorithm,
-                Map.of("maven", new MavenDefaultRepository()),
-                Map.of("maven", new MavenPomResolver()),
+                Map.of(),
+                Map.of("module", new ModularJarResolver(true)),
                 builder);
     }
 
@@ -57,14 +62,32 @@ public class ModularProject implements BuildExecutorModule {
                 (prolog, identity) -> Optional.of(identity.substring(
                         prolog.length(),
                         identity.indexOf('/', prolog.length()))),
-                modules -> {
-                    System.out.println(modules);
-                    return (name, dependencies, arguments) -> {
-                        System.out.println(name);
-                        return (buildExecutor, inherited) -> {
-                            System.out.println("----");
-                        };
-                    };
+                _ -> (name, dependencies, _) -> (RepositoryBuildExecutorModule) (buildExecutor, inherited, resolved) -> {
+                    buildExecutor.addStep("prepare",
+                            new MultiProjectDependencies(
+                                    algorithm,
+                                    identifier -> identifier.startsWith(BuildExecutorModule.PREVIOUS.repeat(3)
+                                            + "identify/"
+                                            + name + "/")),
+                            inherited.sequencedKeySet());
+                    buildExecutor.addModule("dependencies",
+                            new DependenciesModule(
+                                    Repository.prepend(repositories, resolved),
+                                    resolvers).computeChecksums(algorithm),
+                            "prepare");
+                    buildExecutor.addModule("build",
+                            builder.apply(
+                                    name,
+                                    dependencies.sequencedKeySet()),
+                            Stream.concat(
+                                    inherited.sequencedKeySet().stream(),
+                                    Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                    buildExecutor.addStep("assign",
+                            new Assign(),
+                            Stream.concat(
+                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
+                                            PREVIOUS.repeat(3) + "identify/")),
+                                    Stream.of("build")).collect(Collectors.toCollection(LinkedHashSet::new)));
                 });
     }
 
