@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -62,7 +63,13 @@ public interface Repository {
     static Repository ofUris(Map<String, URI> uris) {
         return (_, coordinate) -> {
             URI uri = uris.get(coordinate);
-            return uri == null ? Optional.empty() : Optional.of(() -> uri.toURL().openStream());
+            if (uri == null) {
+                return Optional.empty();
+            } else if (Objects.equals("file", uri.getScheme())) {
+                return Optional.of(RepositoryItem.ofFile(Path.of(uri)));
+            } else {
+                return Optional.of(() -> uri.toURL().openStream());
+            }
         };
     }
 

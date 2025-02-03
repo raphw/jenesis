@@ -9,7 +9,7 @@ import java.util.concurrent.Executor;
 public interface BuildStep {
 
     String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
-    String COORDINATES = "coordinates.properties", DEPENDENCIES = "dependencies.properties";
+    String COORDINATES = "coordinates.properties", DEPENDENCIES = "dependencies.properties", URIS = "uris.properties";
 
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);
