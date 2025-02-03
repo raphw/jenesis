@@ -21,6 +21,8 @@ import java.util.concurrent.Executor;
 
 public class DownloadModuleUris implements BuildStep {
 
+    public static final String URIS = "uris.properties";
+
     private final String prefix;
     private final List<URI> locations;
 

@@ -50,13 +50,26 @@ public class ModularProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
+                                           Map<String, Repository> repositories,
+                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+        return make(root,
+                algorithm,
+                repositories,
+                Map.of("module", new ModularJarResolver(true)),
+                builder);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           String algorithm,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return make(root,
                 "module",
                 _ -> true,
                 algorithm,
-                Map.of(),
-                Map.of("module", new ModularJarResolver(true)),
+                repositories,
+                resolvers,
                 builder);
     }
 
@@ -79,7 +92,9 @@ public class ModularProject implements BuildExecutorModule {
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
                             new DependenciesModule(
-                                    Repository.prepend(repositories, Repository.ofCoordinates(inherited.values())),
+                                    Repository.prepend(
+                                            repositories,
+                                            Repository.of(BuildStep.COORDINATES, inherited.values())),
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",

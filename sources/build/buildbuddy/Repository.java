@@ -87,20 +87,10 @@ public interface Repository {
         };
     }
 
-    static Map<String, Repository> ofCoordinates(Iterable<Path> folders) throws IOException {
+    static Map<String, Repository> of(String file, Iterable<Path> folders) throws IOException {
         Map<String, Map<String, URI>> artifacts = new HashMap<>();
         for (Path folder : folders) {
-            loadFile(folder.resolve(BuildStep.COORDINATES), artifacts, location -> Path.of(location).toUri());
-        }
-        return artifacts.entrySet().stream()
-                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue())))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    }
-
-    static Map<String, Repository> ofUris(Iterable<Path> folders) throws IOException {
-        Map<String, Map<String, URI>> artifacts = new HashMap<>();
-        for (Path folder : folders) {
-            loadFile(folder.resolve(BuildStep.URIS), artifacts, URI::create);
+            loadFile(folder.resolve(file), artifacts, URI::create);
         }
         return artifacts.entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue())))

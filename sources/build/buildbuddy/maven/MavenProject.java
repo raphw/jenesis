@@ -71,7 +71,7 @@ public class MavenProject implements BuildExecutorModule {
                             new DependenciesModule(
                                     Repository.prepend(
                                             Map.of(prefix, mavenRepository),
-                                            Repository.ofCoordinates(inherited.values())),
+                                            Repository.of(BuildStep.COORDINATES, inherited.values())),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
