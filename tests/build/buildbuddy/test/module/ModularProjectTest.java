@@ -121,7 +121,7 @@ public class ModularProjectTest {
                             default -> fail("Unexpected module: " + name);
                         }
                         buildExecutor.addModule("java",
-                                new JavaModule(),
+                                new JavaModule(false),
                                 Stream.concat(
                                                 Stream.of("../dependencies/artifacts"),
                                                 inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")))

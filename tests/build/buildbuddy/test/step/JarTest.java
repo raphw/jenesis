@@ -8,8 +8,9 @@ import build.buildbuddy.ChecksumStatus;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import sample.Sample;
 
 import java.io.IOException;
@@ -36,15 +37,16 @@ public class JarTest {
         classes = Files.createDirectory(root.resolve("classes"));
     }
 
-    @Test
-    public void can_execute_jar() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void can_execute_jarl(boolean process) throws IOException {
         Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
         try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
             Files.copy(requireNonNull(inputStream), Files
                     .createDirectory(folder.resolve("sample"))
                     .resolve("Sample.class"));
         }
-        BuildStepResult result = new Jar().apply(
+        BuildStepResult result = (process ? Jar.process() : Jar.tool()).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(

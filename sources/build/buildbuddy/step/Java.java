@@ -16,19 +16,19 @@ import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-public abstract class Java implements ProcessBuildStep {
+public abstract class Java extends ProcessBuildStep {
 
-    private final String java;
     protected boolean modular = true;
 
     protected Java() {
-        java = ProcessBuildStep.ofJavaHome("bin/java" + (WINDOWS ? ".exe" : ""));
+        super(ProcessHandler.OfProcess.ofJavaHome("bin/java"));
     }
 
-    protected Java(String java) {
-        this.java = java;
+    protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
+        super(factory);
     }
 
     public static Java of(String... commands) {
@@ -37,6 +37,21 @@ public abstract class Java implements ProcessBuildStep {
 
     public static Java of(List<String> commands) {
         return new Java() {
+            @Override
+            protected CompletionStage<List<String>> commands(Executor executor,
+                                                             BuildStepContext context,
+                                                             SequencedMap<String, BuildStepArgument> arguments) {
+                return CompletableFuture.completedStage(commands);
+            }
+        };
+    }
+
+    public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, String... commands) {
+        return of(factory, List.of(commands));
+    }
+
+    public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, List<String> commands) {
+        return new Java(factory) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -56,7 +71,7 @@ public abstract class Java implements ProcessBuildStep {
                                                               SequencedMap<String, BuildStepArgument> arguments) throws IOException;
 
     @Override
-    public CompletionStage<ProcessBuilder> process(Executor executor,
+    public CompletionStage<List<String>> process(Executor executor,
                                                    BuildStepContext context,
                                                    SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
@@ -84,7 +99,6 @@ public abstract class Java implements ProcessBuildStep {
             }
         }
         List<String> prefixes = new ArrayList<>();
-        prefixes.add(java); // TODO: better automatic module path resolution?
         if (!classPath.isEmpty()) {
             prefixes.add("-classpath");
             prefixes.add(String.join(File.pathSeparator, classPath));
@@ -93,18 +107,8 @@ public abstract class Java implements ProcessBuildStep {
             prefixes.add("--module-path");
             prefixes.add(String.join(File.pathSeparator, modulePath));
         }
-        return commands(executor, context, arguments).thenApplyAsync(commands -> new ProcessBuilder(Stream.concat(
+        return commands(executor, context, arguments).thenApplyAsync(commands -> Stream.concat(
                 prefixes.stream(),
-                commands.stream()).toList()), executor);
-    }
-
-    @Override
-    public ProcessBuilder prepare(ProcessBuilder builder,
-                                  Executor executor,
-                                  BuildStepContext context,
-                                  SequencedMap<String, BuildStepArgument> arguments) {
-        return builder.redirectInput(ProcessBuilder.Redirect.INHERIT)
-                .redirectOutput(context.supplement().resolve("output").toFile())
-                .redirectError(context.supplement().resolve("error").toFile());
+                commands.stream()).toList(), executor);
     }
 }

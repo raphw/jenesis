@@ -15,6 +15,7 @@ import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -41,8 +42,10 @@ public class Tests extends Java {
         this.isTest = isTest;
     }
 
-    public Tests(String java, TestEngine engine, Predicate<String> isTest) {
-        super(java);
+    public Tests(Function<List<String>, ProcessHandler.OfProcess> factory,
+                 TestEngine engine,
+                 Predicate<String> isTest) {
+        super(factory);
         this.engine = engine;
         this.isTest = isTest;
     }

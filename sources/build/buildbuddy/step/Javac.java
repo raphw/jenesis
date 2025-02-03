@@ -16,28 +16,29 @@ import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 
-public class Javac implements ProcessBuildStep {
+public class Javac extends ProcessBuildStep {
 
-    public static final String CLASSES = "classes/";
-
-    private final String javac;
-
-    public Javac() {
-        javac = ProcessBuildStep.ofJavaHome("bin/javac" + (WINDOWS ? ".exe" : ""));
+    protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
+        super(factory);
     }
 
-    public Javac(String javac) {
-        this.javac = javac;
+    public static Javac tool() {
+        return new Javac(ProcessHandler.OfTool.of("javac"));
+    }
+
+    public static Javac process() {
+        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"));
     }
 
     @Override
-    public CompletionStage<ProcessBuilder> process(Executor executor,
-                                                   BuildStepContext context,
-                                                   SequencedMap<String, BuildStepArgument> arguments)
+    public CompletionStage<List<String>> process(Executor executor,
+                                                 BuildStepContext context,
+                                                 SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
-        List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(javac,
+        List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
                 "-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
@@ -84,6 +85,6 @@ public class Javac implements ProcessBuildStep {
             commands.add(String.join(File.pathSeparator, path)); // TODO: escape path
         }
         commands.addAll(files);
-        return CompletableFuture.completedStage(new ProcessBuilder(commands));
+        return CompletableFuture.completedStage(commands);
     }
 }

@@ -13,7 +13,7 @@ import java.util.SequencedMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class JavaModule implements BuildExecutorModule {
+public record JavaModule(boolean process) implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
@@ -38,8 +38,8 @@ public class JavaModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(CLASSES, new Javac(), inherited.sequencedKeySet());
-        buildExecutor.addStep(ARTIFACTS, new Jar(), Stream.concat(
+        buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), inherited.sequencedKeySet());
+        buildExecutor.addStep(ARTIFACTS, process ? Jar.process() : Jar.tool(), Stream.concat(
                 Stream.of(CLASSES),
                 inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
     }

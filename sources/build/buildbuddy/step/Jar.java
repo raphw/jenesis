@@ -12,27 +12,31 @@ import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 
-public class Jar implements ProcessBuildStep {
+public class Jar extends ProcessBuildStep {
 
-    private final String jar;
-
-    public Jar() {
-        jar = ProcessBuildStep.ofJavaHome("bin/jar" + (WINDOWS ? ".exe" : ""));
+    public Jar(Function<List<String>, ? extends ProcessHandler> factory) {
+        super(factory);
     }
 
-    public Jar(String jar) {
-        this.jar = jar;
+    public static Jar tool() {
+        return new Jar(ProcessHandler.OfTool.of("jar"));
+    }
+
+    public static Jar process() {
+        return new Jar(ProcessHandler.OfProcess.ofJavaHome("bin/jar"));
     }
 
     @Override
-    public CompletionStage<ProcessBuilder> process(Executor executor,
+    public CompletionStage<List<String>> process(Executor executor,
                                                    BuildStepContext context,
                                                    SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        List<String> commands = new ArrayList<>(List.of(jar,
-                "cf",
-                Files.createDirectory(context.next().resolve(ARTIFACTS)).resolve("classes.jar").toString()));
+        List<String> commands = new ArrayList<>(List.of("cf", Files
+                .createDirectory(context.next().resolve(ARTIFACTS))
+                .resolve("classes.jar")
+                .toString()));
         for (BuildStepArgument argument : arguments.values()) {
             for (String name : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path folder = argument.folder().resolve(name);
@@ -43,6 +47,6 @@ public class Jar implements ProcessBuildStep {
                 }
             }
         }
-        return CompletableFuture.completedStage(new ProcessBuilder(commands));
+        return CompletableFuture.completedStage(commands);
     }
 }

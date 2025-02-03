@@ -9,6 +9,8 @@ import build.buildbuddy.step.Javac;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -33,8 +35,9 @@ public class JavacTest {
         sources = Files.createDirectory(root.resolve("sources"));
     }
 
-    @Test
-    public void can_execute_javac() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void can_execute_javac(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
@@ -42,7 +45,7 @@ public class JavacTest {
             writer.append("public class Sample { }");
             writer.newLine();
         }
-        BuildStepResult result = new Javac().apply(Runnable::run,
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -51,8 +54,9 @@ public class JavacTest {
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
 
-    @Test
-    public void can_execute_javac_with_resources() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void can_execute_javac_with_resources(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
             writer.append("package sample;");
@@ -62,7 +66,7 @@ public class JavacTest {
         }
         Files.writeString(folder.resolve("foo"), "bar");
         Files.createDirectory(sources.resolve(BuildStep.SOURCES + "folder"));
-        BuildStepResult result = new Javac().apply(Runnable::run,
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
