@@ -64,9 +64,8 @@ public class Assign implements BuildStep {
                 .collect(Collectors.toCollection(LinkedHashSet::new)), files).forEach((coordinate, path) -> {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
-            } else if (!Objects.equals("", assignments.replace(coordinate, path.toString()))) {
-                throw new IllegalArgumentException("Unknown or previously defined key: " + coordinate);
             }
+            assignments.setProperty(coordinate, path.toString());
         });
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
             assignments.store(writer, null);

@@ -61,7 +61,7 @@ public class AssignTest {
         }
         assertThat(coordinates).containsExactly(
                 Map.entry("foo", argument.resolve(BuildStep.ARTIFACTS).resolve("artifact").toString()),
-                Map.entry("bar", argument.resolve(BuildStep.ARTIFACTS).resolve("artifact").toString()));
+                Map.entry("bar", "qux"));
     }
 
     @Test
@@ -74,7 +74,7 @@ public class AssignTest {
         }
         Files.writeString(Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("artifact"), "baz");
         BuildStepResult result = new Assign((coordinates, files) -> {
-            assertThat(coordinates).containsExactly("foo", "bar");
+            assertThat(coordinates).containsExactly("foo");
             assertThat(files).containsExactly(argument.resolve(BuildStep.ARTIFACTS).resolve("artifact"));
             return Map.of(
                     "foo", argument.resolve(BuildStep.ARTIFACTS).resolve("artifact"),

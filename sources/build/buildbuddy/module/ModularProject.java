@@ -54,7 +54,9 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
-                (prolog, identity) -> Optional.of(identity),
+                (prolog, identity) -> Optional.of(identity.substring(
+                        prolog.length(),
+                        identity.indexOf('/', prolog.length()))),
                 modules -> {
                     System.out.println(modules);
                     return (name, dependencies, arguments) -> {

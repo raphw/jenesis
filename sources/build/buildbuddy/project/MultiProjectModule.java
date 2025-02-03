@@ -40,8 +40,11 @@ public class MultiProjectModule implements BuildExecutorModule {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.sequencedKeySet()) {
-                resolver.apply(PREVIOUS + IDENTIFY, identifier).ifPresent(module -> {
+                resolver.apply(PREVIOUS + IDENTIFY + "/", identifier).ifPresent(module -> {
                     String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
+                    if (name.isEmpty()) {
+                        throw new IllegalArgumentException("Module name must not be empty");
+                    }
                     modules.put(identifier, name);
                     identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
                 });
