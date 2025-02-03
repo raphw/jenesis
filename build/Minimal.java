@@ -10,10 +10,10 @@ import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.step.Bind;
 import build.buildbuddy.step.Download;
-import build.buildbuddy.step.JUnit;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.Resolve;
+import build.buildbuddy.step.Tests;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -31,16 +31,16 @@ public class Minimal {
                 BuildExecutorCallback.printing(System.out));
 
         root.addSource("sources", Bind.asSources(), Path.of("sources"));
-        root.addStep("main-javac", new Javac(), "sources");
-        root.addStep("main-jar", new Jar(), "main-javac");
+        root.addStep("main-javac", Javac.tool(), "sources");
+        root.addStep("main-jar", Jar.tool(), "main-javac");
 
         root.addSource("test-dependencies", Bind.asDependencies("test.properties"), Path.of("dependencies"));
         root.addStep("test-dependencies-resolved", new Resolve(repositories, resolvers), "test-dependencies");
         root.addStep("test-dependencies-downloaded", new Download(repositories), "test-dependencies-resolved");
 
         root.addSource("test", Bind.asSources(), Path.of("tests"));
-        root.addStep("test-javac", new Javac(), "main-jar", "test-dependencies-downloaded", "test");
-        root.addStep("tests", new JUnit(), "main-jar", "test-dependencies-downloaded", "test-javac");
+        root.addStep("test-javac", Javac.tool(), "main-jar", "test-dependencies-downloaded", "test");
+        root.addStep("tests", new Tests(), "main-jar", "test-dependencies-downloaded", "test-javac");
 
         root.execute();
     }

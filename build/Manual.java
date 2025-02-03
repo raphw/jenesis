@@ -10,10 +10,10 @@ import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.step.Bind;
 import build.buildbuddy.step.Download;
-import build.buildbuddy.step.JUnit;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.Resolve;
+import build.buildbuddy.step.Tests;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -38,8 +38,8 @@ public class Manual {
         }, "deps");
         root.addModule("main", (module, _) -> {
             module.addSource("sources", Bind.asSources(), Path.of("sources"));
-            module.addStep("classes", new Javac(), "sources", "../main-deps/artifacts");
-            module.addStep("artifacts", new Jar(), "classes");
+            module.addStep("classes", Javac.tool(), "sources", "../main-deps/artifacts");
+            module.addStep("artifacts", Jar.tool(), "classes");
         }, "main-deps");
 
         root.addModule("test-deps", (module, _) -> {
@@ -49,9 +49,9 @@ public class Manual {
         }, "deps");
         root.addModule("test", (module, _) -> {
             module.addSource("sources", Bind.asSources(), Path.of("tests"));
-            module.addStep("classes", new Javac(), "sources", "../main/artifacts", "../test-deps/artifacts");
-            module.addStep("artifacts", new Jar(), "classes", "../test-deps/artifacts");
-            module.addStep("tests", new JUnit(), "artifacts", "../main/artifacts", "../test-deps/artifacts");
+            module.addStep("classes", Javac.tool(), "sources", "../main/artifacts", "../test-deps/artifacts");
+            module.addStep("artifacts", Jar.tool(), "classes", "../test-deps/artifacts");
+            module.addStep("tests", new Tests(), "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
         root.execute();

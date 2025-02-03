@@ -64,7 +64,7 @@ public class JavaModuleTest {
             inputStream.transferTo(outputStream);
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule(false), "input");
+        buildExecutor.addModule("output", new JavaModule(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/Sample.class")).exists();
@@ -116,7 +116,7 @@ public class JavaModuleTest {
             }
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule(false).testIfAvailable(), "input");
+        buildExecutor.addModule("output", new JavaModule().testIfAvailable(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/tests");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/SampleTest.class")).exists();

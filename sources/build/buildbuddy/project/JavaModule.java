@@ -15,6 +15,10 @@ import java.util.stream.Stream;
 
 public record JavaModule(boolean process) implements BuildExecutorModule {
 
+    public JavaModule() {
+        this(false);
+    }
+
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
     public BuildExecutorModule testIfAvailable() {
