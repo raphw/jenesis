@@ -55,8 +55,7 @@ public class MavenProject implements BuildExecutorModule {
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
-        return new MultiProjectModule(
-                new MavenProject(root, prefix, mavenRepository, mavenResolver),
+        return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 Optional::of,
                 _ -> (name, dependencies, _) -> ((RepositoryBuildExecutorModule) (buildExecutor,
                                                                                   inherited,
