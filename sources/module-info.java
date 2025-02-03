@@ -1,8 +1,7 @@
 module buildbuddy {
 
     requires jdk.compiler;
-    requires java.desktop;
-    requires org.graalvm.nativeimage;
+    requires java.xml;
 
     exports build.buildbuddy;
     exports build.buildbuddy.maven;
