@@ -35,8 +35,8 @@ public class MultiProjectModuleTest {
             try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.COORDINATES))) {
                 coordinates1.store(writer, null);
             }
-            buildExecutor.addSource("module-1-module", module1);
-            buildExecutor.addSource("module-1-source", Files.writeString(Files.createDirectory(source1
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
             Properties coordinates2 = new Properties();
             coordinates2.put("foo/qux", "");
@@ -48,23 +48,25 @@ public class MultiProjectModuleTest {
             try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.DEPENDENCIES))) {
                 dependencies2.store(writer, null);
             }
-            buildExecutor.addSource("module-2-module", module2);
-            buildExecutor.addSource("module-2-source", Files.writeString(Files.createDirectory(source2
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-        }, identifier -> Optional.of(identifier.replace('-', '/')), modules -> {
+        }, (prolog, identifier) -> Optional.of(identifier.substring(
+                prolog.length() + 1,
+                identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
                     Map.entry("1", new LinkedHashSet<>()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))));
             return (name, dependencies, identifiers) -> switch (name) {
                 case "1" -> {
                     assertThat(identifiers).containsOnlyKeys(
-                            "../../identify/module/1/module",
-                            "../../identify/module/1/source");
+                            "../../identify/1-module",
+                            "../../identify/1-source");
                     assertThat(dependencies).isEmpty();
                     yield (module1, inherited) -> {
                         assertThat(inherited).containsOnlyKeys(
-                                "../../../identify/module/1/module",
-                                "../../../identify/module/1/source");
+                                "../../../identify/1-module",
+                                "../../../identify/1-source");
                         module1.addStep("step", (_, context, _) -> {
                             Files.writeString(context.next().resolve("file"), "foo");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -73,13 +75,13 @@ public class MultiProjectModuleTest {
                 }
                 case "2" -> {
                     assertThat(identifiers).containsOnlyKeys(
-                            "../../identify/module/2/module",
-                            "../../identify/module/2/source");
+                            "../../identify/2-module",
+                            "../../identify/2-source");
                     assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
-                                "../../../identify/module/2/module",
-                                "../../../identify/module/2/source",
+                                "../../../identify/2-module",
+                                "../../../identify/2-source",
                                 "../1/step");
                         module2.addStep("step", (_, context, arguments) -> {
                             Files.writeString(
@@ -105,8 +107,8 @@ public class MultiProjectModuleTest {
             try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.COORDINATES))) {
                 coordinates1.store(writer, null);
             }
-            buildExecutor.addSource("module-1-module", module1);
-            buildExecutor.addSource("module-1-source", Files.writeString(Files.createDirectory(source1
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
             Properties coordinates2 = new Properties();
             coordinates2.put("foo/qux", "");
@@ -118,8 +120,8 @@ public class MultiProjectModuleTest {
             try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.DEPENDENCIES))) {
                 dependencies2.store(writer, null);
             }
-            buildExecutor.addSource("module-2-module", module2);
-            buildExecutor.addSource("module-2-source", Files.writeString(Files.createDirectory(source2
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
             Properties coordinates3 = new Properties();
             coordinates3.put("foo/baz", "");
@@ -131,10 +133,12 @@ public class MultiProjectModuleTest {
             try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.DEPENDENCIES))) {
                 dependencies3.store(writer, null);
             }
-            buildExecutor.addSource("module-3-module", module3);
-            buildExecutor.addSource("module-3-source", Files.writeString(Files.createDirectory(source3
+            buildExecutor.addSource("3-module", module3);
+            buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
-        }, identifier -> Optional.of(identifier.replace('-', '/')), modules -> {
+        }, (prolog, identifier) -> Optional.of(identifier.substring(
+                prolog.length() + 1,
+                identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
                     Map.entry("1", new LinkedHashSet<>()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
@@ -142,13 +146,13 @@ public class MultiProjectModuleTest {
             return (name, dependencies, identifiers) -> switch (name) {
                 case "1" -> {
                     assertThat(identifiers).containsOnlyKeys(
-                            "../../identify/module/1/module",
-                            "../../identify/module/1/source");
+                            "../../identify/1-module",
+                            "../../identify/1-source");
                     assertThat(dependencies).isEmpty();
                     yield (module1, inherited) -> {
                         assertThat(inherited).containsOnlyKeys(
-                                "../../../identify/module/1/module",
-                                "../../../identify/module/1/source");
+                                "../../../identify/1-module",
+                                "../../../identify/1-source");
                         module1.addStep("step", (_, context, _) -> {
                             Files.writeString(context.next().resolve("file"), "foo");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -157,13 +161,13 @@ public class MultiProjectModuleTest {
                 }
                 case "2" -> {
                     assertThat(identifiers).containsOnlyKeys(
-                            "../../identify/module/2/module",
-                            "../../identify/module/2/source");
+                            "../../identify/2-module",
+                            "../../identify/2-source");
                     assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
-                                "../../../identify/module/2/module",
-                                "../../../identify/module/2/source",
+                                "../../../identify/2-module",
+                                "../../../identify/2-source",
                                 "../1/step");
                         module2.addStep("step", (_, context, arguments) -> {
                             Files.writeString(
@@ -175,15 +179,15 @@ public class MultiProjectModuleTest {
                 }
                 case "3" -> {
                     assertThat(identifiers).containsOnlyKeys(
-                            "../../identify/module/3/module",
-                            "../../identify/module/3/source");
+                            "../../identify/3-module",
+                            "../../identify/3-source");
                     assertThat(dependencies).containsExactly(
                             Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
                             Map.entry("1", new LinkedHashSet<>()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
-                                "../../../identify/module/3/module",
-                                "../../../identify/module/3/source",
+                                "../../../identify/3-module",
+                                "../../../identify/3-source",
                                 "../1/step",
                                 "../2/step");
                         module2.addStep("step", (_, context, arguments) -> {

@@ -56,7 +56,9 @@ public class MavenProject implements BuildExecutorModule {
                                            MavenPomResolver mavenResolver,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
-                Optional::of,
+                (prolog, identifier) -> identifier.startsWith(prolog + "module/") ? Optional.of(identifier.substring(
+                        prolog.length(),
+                        identifier.indexOf('/', prolog.length() + 7))) : Optional.empty(),
                 _ -> (name, dependencies, _) -> ((RepositoryBuildExecutorModule) (buildExecutor,
                                                                                   inherited,
                                                                                   repositories) -> {

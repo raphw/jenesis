@@ -6,12 +6,14 @@ import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.step.Group;
 
 import java.io.Reader;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,14 +21,12 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
 
-    private final Pattern QUALIFIER = Pattern.compile("../identify/module/([a-zA-Z0-9-]+)(?:/[a-zA-Z0-9-]+)?");
-
     private final BuildExecutorModule identifier;
-    private final Function<String, Optional<String>> resolver;
+    private final BiFunction<String, String, Optional<String>> resolver;
     private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory;
 
     public MultiProjectModule(BuildExecutorModule identifier,
-                              Function<String, Optional<String>> resolver,
+                              BiFunction<String, String, Optional<String>> resolver,
                               Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory) {
         this.identifier = identifier;
         this.resolver = resolver;
@@ -35,17 +35,16 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addModule(IDENTIFY, identifier, resolver);
+        buildExecutor.addModule(IDENTIFY, identifier);
         buildExecutor.addModule(BUILD, (process, identified) -> {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
-            for (String identifier : identified.keySet()) {
-                Matcher matcher = QUALIFIER.matcher(identifier);
-                if (matcher.matches()) {
-                    String name = matcher.group(1);
+            for (String identifier : identified.sequencedKeySet()) {
+                resolver.apply(PREVIOUS + IDENTIFY, identifier).ifPresent(module -> {
+                    String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
                     modules.put(identifier, name);
                     identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
-                }
+                });
             }
             process.addStep(GROUP,
                     new Group(identifier -> Optional.of(modules.get(identifier))),
