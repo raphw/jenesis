@@ -93,7 +93,7 @@ public interface Repository {
         Map<String, Map<String, URI>> artifacts = new HashMap<>();
         for (Path folder : folders) {
             Path file = folder.resolve(suffix);
-            if (Files.exists(folder.resolve(file))) {
+            if (Files.exists(file)) {
                 Properties properties = new SequencedProperties();
                 try (Reader reader = Files.newBufferedReader(file)) {
                     properties.load(reader);

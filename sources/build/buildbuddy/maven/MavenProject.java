@@ -71,7 +71,12 @@ public class MavenProject implements BuildExecutorModule {
                             new DependenciesModule(
                                     Repository.prepend(Map.of(prefix, mavenRepository),
                                             Repository.ofProperties(BuildStep.COORDINATES,
-                                                    inherited.values(),
+                                                    inherited.entrySet().stream()
+                                                            .filter(entry ->
+                                                                    entry.getKey().startsWith(PREVIOUS + "module-")
+                                                                        && entry.getKey().endsWith("/assign"))
+                                                            .map(Map.Entry::getValue)
+                                                            .toList(),
                                                     file -> Path.of(file).toUri())),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");

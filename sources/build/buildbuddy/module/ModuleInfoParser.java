@@ -42,11 +42,9 @@ public class ModuleInfoParser {
             SequencedSet<String> dependencies = new LinkedHashSet<>();
             for (DirectiveTree directive : requireNonNull(module).getDirectives()) {
                 if (directive instanceof RequiresTree requires) {
-                    if (!requires.isStatic()) {
-                        String name = requires.getModuleName().toString();
-                        if (!name.startsWith("java.") && !name.startsWith("jdk.")) {
-                            dependencies.add(name);
-                        }
+                    String name = requires.getModuleName().toString();
+                    if (!name.startsWith("java.") && !name.startsWith("jdk.")) {
+                        dependencies.add(name);
                     }
                 }
             }

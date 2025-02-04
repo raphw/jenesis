@@ -94,7 +94,12 @@ public class ModularProject implements BuildExecutorModule {
                             new DependenciesModule(
                                     Repository.prepend(repositories,
                                             Repository.ofProperties(BuildStep.COORDINATES,
-                                                    inherited.values(),
+                                                    inherited.entrySet().stream()
+                                                            .filter(entry ->
+                                                                    entry.getKey().startsWith(PREVIOUS + "module-")
+                                                                            && entry.getKey().endsWith("/assign"))
+                                                            .map(Map.Entry::getValue)
+                                                            .toList(),
                                                     file -> Path.of(file).toUri())),
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
