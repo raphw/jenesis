@@ -100,7 +100,8 @@ public class ModularProject implements BuildExecutorModule {
                                                                             && entry.getKey().endsWith("/assign"))
                                                             .map(Map.Entry::getValue)
                                                             .toList(),
-                                                    file -> Path.of(file).toUri())),
+                                                    file -> Path.of(file).toUri(),
+                                                    null)),
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",

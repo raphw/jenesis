@@ -77,7 +77,8 @@ public class MavenProject implements BuildExecutorModule {
                                                                         && entry.getKey().endsWith("/assign"))
                                                             .map(Map.Entry::getValue)
                                                             .toList(),
-                                                    file -> Path.of(file).toUri())),
+                                                    file -> Path.of(file).toUri(),
+                                                    null)),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",

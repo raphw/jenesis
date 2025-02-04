@@ -30,6 +30,9 @@ public interface Repository {
     }
 
     default Repository cached(Path folder) {
+        if (folder == null) {
+            return this;
+        }
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
         return (executor, coordinate) -> {
             Path previous = cache.get(coordinate);
@@ -89,7 +92,8 @@ public interface Repository {
 
     static Map<String, Repository> ofProperties(String suffix,
                                                 Iterable<Path> folders,
-                                                Function<String, URI> resolver) throws IOException {
+                                                Function<String, URI> resolver,
+                                                Path cache) throws IOException {
         Map<String, Map<String, URI>> artifacts = new HashMap<>();
         for (Path folder : folders) {
             Path file = folder.resolve(suffix);
@@ -110,7 +114,7 @@ public interface Repository {
             }
         }
         return artifacts.entrySet().stream()
-                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue())))
+                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue()).cached(cache)))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
