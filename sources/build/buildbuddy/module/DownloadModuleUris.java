@@ -52,7 +52,7 @@ public class DownloadModuleUris implements BuildStep {
                         StandardCharsets.UTF_8))) {
                     Iterator<String> it = reader.lines().iterator();
                     while (it.hasNext()) {
-                        writer.write(prefix + "/" + it.next());
+                        writer.write((prefix == null ? "" : (prefix + "/")) + it.next());
                         writer.newLine();
                     }
                 }

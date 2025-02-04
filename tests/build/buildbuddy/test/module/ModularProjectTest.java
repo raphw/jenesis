@@ -89,8 +89,8 @@ public class ModularProjectTest {
                 "module",
                 _ -> true,
                 "SHA256",
-                Map.of(),
                 Map.of("module", new ModularJarResolver(false)),
+                Map.of(),
                 (name, dependencies) -> {
                     switch (name) {
                         case "module-foo" -> assertThat(dependencies).isEmpty();

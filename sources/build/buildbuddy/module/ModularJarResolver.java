@@ -10,11 +10,7 @@ import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
 import java.lang.reflect.AccessFlag;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.LinkedHashMap;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -29,14 +25,15 @@ public class ModularJarResolver implements Resolver {
 
     @Override
     public SequencedMap<String, String> dependencies(Executor executor,
-                                                     Repository repository,
+                                                     String prefix,
+                                                     Map<String, Repository> repositories,
                                                      SequencedSet<String> coordinates) throws IOException {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> dependencies.put(coordinate, ""));
         Queue<String> queue = new ArrayDeque<>(coordinates);
         while (!queue.isEmpty()) { // TODO: consider multi-release-jars better?
             String current = queue.remove();
-            RepositoryItem item = repository.fetch(
+            RepositoryItem item = repositories.getOrDefault(prefix, Repository.empty()).fetch(
                     executor,
                     current).orElseThrow(() -> new IllegalArgumentException("Cannot resolve module: " + current));
             Path file = item.getFile().orElse(null);

@@ -38,10 +38,11 @@ public class Resolve implements DependencyTransformingBuildStep {
                     resolvers.get(group.getKey()),
                     "Unknown resolver: " + group.getKey()).dependencies(
                     executor,
-                    repositories.getOrDefault(group.getKey(), Repository.empty()),
+                    group.getKey(),
+                    repositories,
                     group.getValue().sequencedKeySet()).entrySet()) {
                 properties.setProperty(
-                        group.getKey() + "/" + entry.getKey(),
+                        entry.getKey(),
                         group.getValue().getOrDefault(entry.getKey(), entry.getValue()));
             }
         }

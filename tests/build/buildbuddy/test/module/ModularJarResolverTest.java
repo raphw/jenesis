@@ -28,7 +28,8 @@ public class ModularJarResolverTest {
     public void can_parse_module_info() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
-                (_, coordinate) -> {
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
                         case "root" -> () -> toJar("sample", "transitive");
                         case "transitive" -> () -> toJar("transitive", "last");
@@ -36,7 +37,7 @@ public class ModularJarResolverTest {
                         default -> null;
                     };
                     return Optional.ofNullable(item);
-                },
+                }),
                 new LinkedHashSet<>(Set.of("root")));
         assertThat(dependencies).containsExactly(
                 Map.entry("root", ""),

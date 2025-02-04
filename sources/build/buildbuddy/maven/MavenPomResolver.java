@@ -14,21 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -55,7 +41,8 @@ public class MavenPomResolver implements Resolver {
 
     @Override
     public SequencedMap<String, String> dependencies(Executor executor,
-                                                     Repository repository,
+                                                     String prefix,
+                                                     Map<String, Repository> repositories,
                                                      SequencedSet<String> coordinates) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> {
@@ -74,12 +61,16 @@ public class MavenPomResolver implements Resolver {
             }
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
-        // TODO.
-        dependencies(executor, (MavenRepository) repository, Map.of(), dependencies).entrySet().stream().map(dependency -> dependency.getKey().groupId()
-                + "/" + dependency.getKey().artifactId()
-                + (Objects.equals(dependency.getKey().type(), "jar") ? "" : "/" + dependency.getKey().type())
-                + (dependency.getKey().classifier() == null ? "" : "/" + dependency.getKey().classifier())
-                + "/" + dependency.getValue().version()).forEach(coordinate -> resolved.put(coordinate, ""));
+        dependencies(executor,
+                MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
+                Map.of(),
+                dependencies).entrySet().stream()
+                .map(dependency -> prefix
+                        + "/" + dependency.getKey().groupId()
+                        + "/" + dependency.getKey().artifactId()
+                        + (Objects.equals(dependency.getKey().type(), "jar") ? "" : "/" + dependency.getKey().type())
+                        + (dependency.getKey().classifier() == null ? "" : "/" + dependency.getKey().classifier())
+                        + "/" + dependency.getValue().version()).forEach(coordinate -> resolved.put(coordinate, ""));
         return resolved;
     }
 
@@ -91,9 +82,9 @@ public class MavenPomResolver implements Resolver {
         return dependencies(executor,
                 repository,
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies),
-                true,
-                null,
-                Set.of()), new HashMap<>(), new HashMap<>());
+                        true,
+                        null,
+                        Set.of()), new HashMap<>(), new HashMap<>());
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,

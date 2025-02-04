@@ -27,7 +27,7 @@ public class ModularByMaven {
         BuildExecutor root = BuildExecutor.of(Path.of("target"),
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.printing(System.out));
-        root.addStep("download", new DownloadModuleUris("module", List.of(
+        root.addStep("download", new DownloadModuleUris(null, List.of(
                 DownloadModuleUris.DEFAULT,
                 Path.of("dependencies/modules.properties").toUri())));
         root.addModule("build", (build, downloaded) -> {
@@ -37,8 +37,7 @@ public class ModularByMaven {
                     "SHA256",
                     Resolver.translate("module",
                             MavenUriParser.ofUris(new MavenUriParser(), DownloadModuleUris.URIS, downloaded.values()),
-                            Map.of("module", new ModularJarResolver(false), "maven", new MavenPomResolver()),
-                            repositories),
+                            Map.of("module", new ModularJarResolver(false), "maven", new MavenPomResolver())),
                     repositories,
                     (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                             new JavaModule().testIfAvailable(),
