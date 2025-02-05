@@ -1,8 +1,6 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.maven.MavenProject;
 import build.buildbuddy.project.JavaModule;
 
@@ -15,9 +13,7 @@ import java.util.stream.Stream;
 public class Maven {
 
     public static void main(String[] args) throws IOException {
-        BuildExecutor root = BuildExecutor.of(Path.of("target"),
-                new HashDigestFunction("MD5"),
-                BuildExecutorCallback.printing(System.out));
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addModule("maven", MavenProject.make(Path.of("."),
                 "SHA256",
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",

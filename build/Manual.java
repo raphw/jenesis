@@ -1,8 +1,6 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
@@ -26,9 +24,7 @@ public class Manual {
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
-        BuildExecutor root = BuildExecutor.of(Path.of("target"),
-                new HashDigestFunction("MD5"),
-                BuildExecutorCallback.printing(System.out));
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addSource("deps", Path.of("dependencies"));
 
         root.addModule("main-deps", (module, _) -> {
@@ -51,7 +47,7 @@ public class Manual {
             module.addSource("sources", Bind.asSources(), Path.of("tests"));
             module.addStep("classes", Javac.tool(), "sources", "../main/artifacts", "../test-deps/artifacts");
             module.addStep("artifacts", Jar.tool(), "classes", "../test-deps/artifacts");
-            module.addStep("tests", new Tests(), "artifacts", "../main/artifacts", "../test-deps/artifacts");
+            module.addStep("tests", new Tests(), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts"); // TODO: unfortunate combination of classes and artifacts
         }, "test-deps", "main");
 
         root.execute();

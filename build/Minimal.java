@@ -1,8 +1,6 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
@@ -26,9 +24,7 @@ public class Minimal {
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
-        BuildExecutor root = BuildExecutor.of(Path.of("target"),
-                new HashDigestFunction("MD5"),
-                BuildExecutorCallback.printing(System.out));
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
         root.addSource("sources", Bind.asSources(), Path.of("sources"));
         root.addStep("main-javac", Javac.tool(), "sources");

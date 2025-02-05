@@ -14,10 +14,10 @@ public interface BuildExecutorCallback {
     }
 
     static BuildExecutorCallback printing(PrintStream out) {
-        return (identity, keys) -> {
+        return (identity, _) -> {
             long started = System.nanoTime();
             if (identity == null) {
-                out.printf("Running build with %d targets%n", keys.size());
+                out.printf("Starting build...%n");
                 return (_, throwable) -> {
                     double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
                     out.printf("%s build in %.2f seconds%n", throwable == null ? "COMPLETED" : "FAILED", time);

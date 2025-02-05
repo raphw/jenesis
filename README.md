@@ -39,8 +39,8 @@ Specific implementations of dependency resolution or repositories should not be 
 There should, for example, not be any hard dependency on Maven concepts, to allow for their substitution. 
 
 The POC is currently missing:
-- Convenience builder for common build pipelines, similar to Maven's conventional life cycle.
-- Automatic and dynamic resolution of dependencies between steps of otherwise independent build-pipelines (multi-module builds).
+- Convention object for `MultiProject` to avoid manual construction of identifiers.
+- Task for creating POM files from module-info.java.
 - Task for javadoc.
 - Task for source-jars.
 - Task to add GPG signatures of artifacts.

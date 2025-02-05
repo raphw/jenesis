@@ -54,6 +54,10 @@ public class BuildExecutor {
         this.inherited = inherited;
     }
 
+    public static BuildExecutor of(Path root) throws IOException {
+        return of(root, new HashDigestFunction("MD5"), BuildExecutorCallback.printing(System.out));
+    }
+
     public static BuildExecutor of(Path root, HashFunction hash, BuildExecutorCallback callback) throws IOException {
         BuildExecutor executor = new BuildExecutor(root, hash, callback, "", Map.of());
         if (!Files.exists(root.resolve(BUILD_MARKER))) {

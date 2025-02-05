@@ -54,22 +54,22 @@ public class ModularProject implements BuildExecutorModule {
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return make(root,
                 algorithm,
-                Map.of("module", new ModularJarResolver(true)),
                 repositories,
+                Map.of("module", new ModularJarResolver(true)),
                 builder);
     }
 
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
-                                           Map<String, Resolver> resolvers,
                                            Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return make(root,
                 "module",
                 _ -> true,
                 algorithm,
-                resolvers,
                 repositories,
+                resolvers,
                 builder);
     }
 
@@ -77,8 +77,8 @@ public class ModularProject implements BuildExecutorModule {
                                            String prefix,
                                            Predicate<Path> filter,
                                            String algorithm,
-                                           Map<String, Resolver> resolvers,
                                            Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),

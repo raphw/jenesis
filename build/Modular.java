@@ -1,8 +1,6 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.module.DownloadModuleUris;
 import build.buildbuddy.module.ModularProject;
@@ -20,9 +18,7 @@ import java.util.stream.Stream;
 public class Modular {
 
     public static void main(String[] args) throws IOException {
-        BuildExecutor root = BuildExecutor.of(Path.of("target"),
-                new HashDigestFunction("MD5"),
-                BuildExecutorCallback.printing(System.out));
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addStep("download", new DownloadModuleUris("module", List.of(
                 DownloadModuleUris.DEFAULT,
                 Path.of("dependencies/modules.properties").toUri())));

@@ -1,8 +1,6 @@
 package build;
 
 import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
@@ -11,6 +9,7 @@ import build.buildbuddy.maven.MavenRepository;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.JavaModule;
 import build.buildbuddy.step.Bind;
+import build.buildbuddy.step.TestEngine;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -23,9 +22,7 @@ public class Modules {
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
-        BuildExecutor root = BuildExecutor.of(Path.of("target"),
-                new HashDigestFunction("MD5"),
-                BuildExecutorCallback.printing(System.out));
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addSource("deps", Path.of("dependencies"));
 
         root.addStep("main-deps", Bind.asDependencies("main.properties"), "deps");
@@ -36,7 +33,7 @@ public class Modules {
         root.addStep("test-deps", Bind.asDependencies("test.properties"), "deps");
         root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
-        root.addModule("test", new JavaModule().tested(), "test-artifacts", "test-sources", "main");
+        root.addModule("test", new JavaModule().test(TestEngine.JUNIT5), "test-artifacts", "test-sources", "main"); // TODO: main contains too much
 
         root.execute();
     }
