@@ -33,7 +33,7 @@ public class Modules {
         root.addStep("test-deps", Bind.asDependencies("test.properties"), "deps");
         root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
-        root.addModule("test", new JavaModule().test(TestEngine.JUNIT5), "test-artifacts", "test-sources", "main/artifacts"); // TODO: main contains too much
+        root.addModule("test", new JavaModule().test(TestEngine.JUNIT5), "test-artifacts", "test-sources", "main/artifacts"); // TODO: main by itself contains too much
         // TODO: add resolver for paths
         root.execute();
     }
