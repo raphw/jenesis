@@ -8,20 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -304,16 +292,21 @@ public class BuildExecutor {
     }
 
     private void add(String identity, Bound bound, Set<String> dependencies) {
-        SequencedSet<String> preliminaries = new LinkedHashSet<>();
+        SequencedMap<String, SequencedSet<String>> preliminaries = new LinkedHashMap<>();
         dependencies.forEach(dependency -> {
             if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                 if (!inherited.containsKey(dependency)) {
                     throw new IllegalArgumentException("Did not inherit: " + dependency);
                 }
-            } else if (registrations.containsKey(dependency)) {
-                preliminaries.add(dependency);
             } else {
-                throw new IllegalArgumentException("Did not find dependency: " + dependency);
+                String[] segments = dependency.split("/", 2);
+                if (registrations.containsKey(segments[0])) {
+                    preliminaries
+                            .computeIfAbsent(segments[0], _ -> new LinkedHashSet<>())
+                            .add(segments.length == 1 ? "" : segments[1]);
+                } else {
+                    throw new IllegalArgumentException("Did not find dependency: " + segments[0]);
+                }
             }
         });
         if (registrations.putIfAbsent(
@@ -343,7 +336,9 @@ public class BuildExecutor {
                 registration.dependencies())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended), Set.of(prepended)));
+        registrations.replace(identity, new Registration(registration.bound(),
+                Map.of(prepended, Set.of("")),
+                Set.of(prepended)));
     }
 
     private void append(String identity, String appended, Bound bound) {
@@ -354,7 +349,9 @@ public class BuildExecutor {
         if (registrations.putIfAbsent(validated(appended, VALIDATE_ORIGINAL), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(identity, new Registration(bound, Set.of(appended), Set.of(appended)));
+        registrations.replace(identity, new Registration(bound,
+                Map.of(appended, Set.of("")),
+                Set.of(appended)));
     }
 
     public SequencedMap<String, Path> execute() {
@@ -382,11 +379,13 @@ public class BuildExecutor {
             Iterator<Map.Entry<String, Registration>> it = pending.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<String, Registration> entry = it.next();
-                if (dispatched.keySet().containsAll(entry.getValue().preliminaries())) {
+                if (dispatched.keySet().containsAll(entry.getValue().preliminaries().keySet())) {
                     CompletionStage<Map<String, Map<String, StepSummary>>> completionStage = initial;
-                    for (String dependency : entry.getValue().preliminaries()) {
+                    for (Map.Entry<String, ? extends Set<String>> dependency : entry.getValue()
+                            .preliminaries()
+                            .entrySet()) {
                         completionStage = completionStage.thenCombineAsync(
-                                dispatched.get(dependency),
+                                dispatched.get(dependency.getKey()),
                                 (left, right) -> {
                                     SequencedMap<String, Map<String, StepSummary>> merged = new LinkedHashMap<>(left);
                                     merged.putAll(right);
@@ -465,7 +464,9 @@ public class BuildExecutor {
         }
     }
 
-    private record Registration(Bound bound, Set<String> preliminaries, Set<String> dependencies) {
+    private record Registration(Bound bound,
+                                Map<String, ? extends Set<String>> preliminaries,
+                                Set<String> dependencies) {
     }
 
     private record StepSummary(Path folder, Map<Path, byte[]> checksums) {
