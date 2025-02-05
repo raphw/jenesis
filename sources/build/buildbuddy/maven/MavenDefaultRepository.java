@@ -250,7 +250,7 @@ public class MavenDefaultRepository implements MavenRepository {
             InputStream inputStream;
             try {
                 inputStream = uri.toURL().openStream();
-            } catch (FileNotFoundException ignored) {
+            } catch (FileNotFoundException _) {
                 return Optional.empty();
             }
             if (digests.isEmpty()) {

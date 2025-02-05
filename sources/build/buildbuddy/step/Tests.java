@@ -4,10 +4,7 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +14,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -69,7 +67,7 @@ public class Tests extends Java {
         }
         commands.addAll(engine.arguments);
         for (BuildStepArgument argument : arguments.values()) {
-            Path classes = argument.folder().resolve(Javac.CLASSES);
+            Path classes = argument.folder().resolve(CLASSES);
             if (Files.exists(classes)) {
                 Files.walkFileTree(classes, new SimpleFileVisitor<>() {
                     @Override
@@ -85,6 +83,27 @@ public class Tests extends Java {
                     }
                 });
             }
+            Path artifacts = argument.folder().resolve(ARTIFACTS);
+            if (Files.exists(artifacts)) {
+                try (DirectoryStream<Path> directory = Files.newDirectoryStream(artifacts)) {
+                    for (Path candidate : directory) {
+                        try (JarFile jar = new JarFile(candidate.toFile())) {
+                            jar.entries().asIterator().forEachRemaining(entry -> {
+                                if (entry.getName().endsWith(".class")) {
+                                    String className = entry.getName().substring(
+                                            0,
+                                            entry.getName().length() - 6).replace('/', '.');
+                                    if (isTest.test(className)) {
+                                        commands.add(engine.prefix + className);
+                                    }
+                                }
+                            });
+                        } catch (IllegalArgumentException _) {
+                        }
+                    }
+                }
+            }
+
         }
         return CompletableFuture.completedFuture(commands);
     }

@@ -222,12 +222,12 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             int leftInteger = 0, rightInteger = 0;
             try {
                 leftInteger = Integer.parseInt(left, leftIndex, leftNext, 10);
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException _) {
                 leftText = true;
             }
             try {
                 rightInteger = Integer.parseInt(right, rightIndex, rightNext, 10);
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException _) {
                 rightText = true;
             }
             int comparison;

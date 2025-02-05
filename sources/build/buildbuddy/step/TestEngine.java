@@ -57,7 +57,7 @@ public enum TestEngine {
                             }
                         } catch (IOException e) {
                             throw e;
-                        } catch (Exception ignored) {
+                        } catch (Exception _) {
                         }
                     }
                 }

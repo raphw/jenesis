@@ -1,8 +1,5 @@
-package build;
+package build.buildbuddy;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.Repository;
-import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;

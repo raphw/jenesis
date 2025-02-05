@@ -17,7 +17,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+import java.util.jar.JarFile;
 import java.util.stream.Stream;
+import java.util.zip.ZipFile;
 
 public abstract class Java extends ProcessBuildStep {
 
@@ -72,16 +74,16 @@ public abstract class Java extends ProcessBuildStep {
 
     @Override
     public CompletionStage<List<String>> process(Executor executor,
-                                                   BuildStepContext context,
-                                                   SequencedMap<String, BuildStepArgument> arguments)
+                                                 BuildStepContext context,
+                                                 SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
             for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                 Path candidate = argument.folder().resolve(folder);
                 if (Files.isDirectory(candidate)) {
-                    if (modular && Files.exists(candidate.resolve("module-info.class"))) {
-                        modulePath.add(candidate.toString());
+                    if (modular && Files.exists(candidate.resolve("module-info.class")) ) { // TODO: multi-release?
+                        modulePath.add(candidate.toString()); // TODO: does manifest apply without jar file?
                     } else {
                         classPath.add(candidate.toString());
                     }
@@ -91,8 +93,22 @@ public abstract class Java extends ProcessBuildStep {
             if (Files.exists(candidate)) {
                 Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
                     @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        (modular ? modulePath : classPath).add(file.toString());
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        if (modular) {
+                            try (JarFile jar = new JarFile(file.toFile(),
+                                    true,
+                                    ZipFile.OPEN_READ,
+                                    Runtime.version())) { // TODO: multi-release?
+                                if (jar.getEntry("module-info.class") != null
+                                        || jar.getManifest() != null
+                                        && jar.getManifest().getMainAttributes().containsKey("Automatic-Module-Name")) {
+                                    modulePath.add(file.toString());
+                                    return FileVisitResult.CONTINUE;
+                                }
+                            } catch (IllegalArgumentException _) {
+                            }
+                        }
+                        classPath.add(file.toString());
                         return FileVisitResult.CONTINUE;
                     }
                 });

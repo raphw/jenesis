@@ -20,11 +20,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -55,7 +51,7 @@ public class TestsTest {
             }
             Path path = Path.of(element);
             if (Files.isRegularFile(path)) {
-                String name = URLEncoder.encode(element, StandardCharsets.UTF_8);
+                String name = path.getFileName().toFile() + "-" + UUID.randomUUID();
                 appended.add(name);
                 Files.copy(path, artifacts.resolve(name));
             }
