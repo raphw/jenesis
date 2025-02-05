@@ -45,7 +45,7 @@ public interface Repository {
             } else {
                 Path file = item.getFile().orElse(null), target = folder.resolve(URLEncoder.encode(
                         coordinate,
-                        StandardCharsets.UTF_8));
+                        StandardCharsets.UTF_8) + ".jar");
                 if (file != null) {
                     Files.createLink(target, file);
                 } else {

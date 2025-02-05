@@ -28,7 +28,7 @@ public class Modular {
                 Repository.ofProperties(DownloadModuleUris.URIS,
                         downloaded.values(),
                         URI::create,
-                        null), // TODO: Files.createDirectories(Path.of("cache"))),
+                        Files.createDirectories(Path.of("cache/modules"))),
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
