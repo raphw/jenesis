@@ -51,7 +51,7 @@ public class TestsTest {
             }
             Path path = Path.of(element);
             if (Files.isRegularFile(path)) {
-                String name = path.getFileName().toFile() + "-" + UUID.randomUUID();
+                String name = path.getFileName().toFile() + "-" + UUID.randomUUID() + ".jar";
                 appended.add(name);
                 Files.copy(path, artifacts.resolve(name));
             }

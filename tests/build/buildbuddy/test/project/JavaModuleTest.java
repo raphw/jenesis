@@ -18,10 +18,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.SequencedMap;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
@@ -111,8 +108,8 @@ public class JavaModuleTest {
             Path path = Path.of(element);
             if (Files.isRegularFile(path)) {
                 Files.copy(path, artifacts.resolve(URLEncoder.encode(
-                        element,
-                        StandardCharsets.UTF_8)));
+                        UUID.randomUUID().toString(),
+                        StandardCharsets.UTF_8) + ".jar"));
             }
         }
         buildExecutor.addSource("input", input);
