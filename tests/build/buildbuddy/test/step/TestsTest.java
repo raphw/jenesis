@@ -69,7 +69,7 @@ public class TestsTest {
 
     @Test
     public void can_execute_junit() throws IOException {
-        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).apply(
+        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -88,7 +88,7 @@ public class TestsTest {
 
     @Test
     public void can_execute_junit_non_modular() throws IOException {
-        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).modular(false).apply(
+        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modular(false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
