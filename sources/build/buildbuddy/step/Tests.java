@@ -1,5 +1,6 @@
 package build.buildbuddy.step;
 
+import build.buildbuddy.BuildStep;
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 
@@ -14,7 +15,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -22,6 +22,10 @@ public class Tests extends Java {
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
+
+    {
+        jarsOnly = true;
+    }
 
     public Tests() {
         this(null);
@@ -83,27 +87,6 @@ public class Tests extends Java {
                     }
                 });
             }
-            Path artifacts = argument.folder().resolve(ARTIFACTS);
-            if (Files.exists(artifacts)) {
-                try (DirectoryStream<Path> directory = Files.newDirectoryStream(artifacts)) {
-                    for (Path candidate : directory) {
-                        try (JarFile jar = new JarFile(candidate.toFile())) {
-                            jar.entries().asIterator().forEachRemaining(entry -> {
-                                if (entry.getName().endsWith(".class")) {
-                                    String className = entry.getName().substring(
-                                            0,
-                                            entry.getName().length() - 6).replace('/', '.');
-                                    if (isTest.test(className)) {
-                                        commands.add(engine.prefix + className);
-                                    }
-                                }
-                            });
-                        } catch (IllegalArgumentException _) {
-                        }
-                    }
-                }
-            }
-
         }
         return CompletableFuture.completedFuture(commands);
     }

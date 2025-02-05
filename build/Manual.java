@@ -6,12 +6,7 @@ import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
-import build.buildbuddy.step.Bind;
-import build.buildbuddy.step.Download;
-import build.buildbuddy.step.Jar;
-import build.buildbuddy.step.Javac;
-import build.buildbuddy.step.Resolve;
-import build.buildbuddy.step.Tests;
+import build.buildbuddy.step.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -47,7 +42,7 @@ public class Manual {
             module.addSource("sources", Bind.asSources(), Path.of("tests"));
             module.addStep("classes", Javac.tool(), "sources", "../main/artifacts", "../test-deps/artifacts");
             module.addStep("artifacts", Jar.tool(), "classes", "../test-deps/artifacts");
-            module.addStep("tests", new Tests(), "artifacts", "../main/artifacts", "../test-deps/artifacts");
+            module.addStep("tests", new Tests(TestEngine.JUNIT5), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
         root.execute();

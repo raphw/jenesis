@@ -6,12 +6,7 @@ import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
-import build.buildbuddy.step.Bind;
-import build.buildbuddy.step.Download;
-import build.buildbuddy.step.Jar;
-import build.buildbuddy.step.Javac;
-import build.buildbuddy.step.Resolve;
-import build.buildbuddy.step.Tests;
+import build.buildbuddy.step.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -36,7 +31,7 @@ public class Minimal {
 
         root.addSource("test", Bind.asSources(), Path.of("tests"));
         root.addStep("test-javac", Javac.tool(), "main-jar", "test-dependencies-downloaded", "test");
-        root.addStep("tests", new Tests(), "main-jar", "test-dependencies-downloaded", "test-javac");
+        root.addStep("tests", new Tests(TestEngine.JUNIT5).jarsOnly(false), "main-jar", "test-dependencies-downloaded", "test-javac");
 
         root.execute();
     }

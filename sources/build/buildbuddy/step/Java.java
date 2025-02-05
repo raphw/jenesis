@@ -23,7 +23,7 @@ import java.util.zip.ZipFile;
 
 public abstract class Java extends ProcessBuildStep {
 
-    protected boolean modular = true;
+    protected boolean modular = true, jarsOnly = false;
 
     protected Java() {
         super(ProcessHandler.OfProcess.ofJavaHome("bin/java"));
@@ -68,6 +68,11 @@ public abstract class Java extends ProcessBuildStep {
         return this;
     }
 
+    public Java jarsOnly(boolean jarsOnly) {
+        this.jarsOnly = jarsOnly;
+        return this;
+    }
+
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
                                                               SequencedMap<String, BuildStepArgument> arguments) throws IOException;
@@ -79,13 +84,15 @@ public abstract class Java extends ProcessBuildStep {
             throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
-                Path candidate = argument.folder().resolve(folder);
-                if (Files.isDirectory(candidate)) {
-                    if (modular && Files.exists(candidate.resolve("module-info.class")) ) { // TODO: multi-release?
-                        modulePath.add(candidate.toString()); // TODO: does manifest apply without jar file?
-                    } else {
-                        classPath.add(candidate.toString());
+            if (!jarsOnly) {
+                for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
+                    Path candidate = argument.folder().resolve(folder);
+                    if (Files.isDirectory(candidate)) {
+                        if (modular && Files.exists(candidate.resolve("module-info.class")) ) { // TODO: multi-release?
+                            modulePath.add(candidate.toString()); // TODO: does manifest apply without jar file?
+                        } else {
+                            classPath.add(candidate.toString());
+                        }
                     }
                 }
             }
@@ -101,7 +108,7 @@ public abstract class Java extends ProcessBuildStep {
                                     Runtime.version())) { // TODO: multi-release?
                                 if (jar.getEntry("module-info.class") != null
                                         || jar.getManifest() != null
-                                        && jar.getManifest().getMainAttributes().containsKey("Automatic-Module-Name")) {
+                                        && jar.getManifest().getMainAttributes().getValue("Automatic-Module-Name") != null) {
                                     modulePath.add(file.toString());
                                     return FileVisitResult.CONTINUE;
                                 }
