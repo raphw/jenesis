@@ -29,7 +29,7 @@ public class ModularJarResolver implements Resolver {
                                                      Map<String, Repository> repositories,
                                                      SequencedSet<String> coordinates) throws IOException {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
-        coordinates.forEach(coordinate -> dependencies.put(coordinate, ""));
+        coordinates.forEach(coordinate -> dependencies.put(prefix + "/" + coordinate, ""));
         Queue<String> queue = new ArrayDeque<>(coordinates);
         while (!queue.isEmpty()) { // TODO: consider multi-release-jars better?
             String current = queue.remove();
@@ -59,7 +59,7 @@ public class ModularJarResolver implements Resolver {
                     .map(ModuleDescriptor.Requires::name)
                     .filter(module -> !module.startsWith("java.") && !module.startsWith("jdk."))
                     .forEach(module -> {
-                        if (dependencies.putIfAbsent(module, "") == null) {
+                        if (dependencies.putIfAbsent(prefix + "/" + module, "") == null) {
                             queue.add(module);
                         }
                     });

@@ -8,6 +8,7 @@ import build.buildbuddy.SequencedProperties;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
@@ -41,9 +42,15 @@ public class Resolve implements DependencyTransformingBuildStep {
                     group.getKey(),
                     repositories,
                     group.getValue().sequencedKeySet()).entrySet()) {
-                properties.setProperty(
-                        entry.getKey(),
-                        group.getValue().getOrDefault(entry.getKey(), entry.getValue()));
+                String value;
+                if (Objects.equals(group.getKey(), entry.getKey().substring(0, entry.getKey().indexOf('/')))) {
+                    value = group.getValue().getOrDefault(
+                            entry.getKey().substring(entry.getKey().indexOf('/') + 1),
+                            entry.getValue());
+                } else {
+                    value = entry.getValue();
+                }
+                properties.setProperty(entry.getKey(), value);
             }
         }
         return CompletableFuture.completedStage(properties);

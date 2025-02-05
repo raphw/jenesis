@@ -40,9 +40,9 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashSet<>(Set.of("root")));
         assertThat(dependencies).containsExactly(
-                Map.entry("root", ""),
-                Map.entry("transitive", ""),
-                Map.entry("last", ""));
+                Map.entry("foo/root", ""),
+                Map.entry("foo/transitive", ""),
+                Map.entry("foo/last", ""));
     }
 
     private static InputStream toJar(String module, String... requires) throws IOException {
