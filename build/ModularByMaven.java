@@ -42,7 +42,7 @@ public class ModularByMaven {
                     "SHA256",
                     Map.of("module", new ModularJarResolver(false, new MavenPomResolver().translated(
                             "maven",
-                            (_, coordinate) -> parser.apply(coordinate))))
+                            (_, coordinate) -> parser.apply(coordinate)))),
                     repositories,
                     (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                             new JavaModule().testIfAvailable(),

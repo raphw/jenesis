@@ -64,13 +64,12 @@ public class MavenPomResolver implements Resolver {
         dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
                 Map.of(),
-                dependencies).entrySet().stream()
-                .map(dependency -> prefix
-                        + "/" + dependency.getKey().groupId()
-                        + "/" + dependency.getKey().artifactId()
-                        + (Objects.equals(dependency.getKey().type(), "jar") ? "" : "/" + dependency.getKey().type())
-                        + (dependency.getKey().classifier() == null ? "" : "/" + dependency.getKey().classifier())
-                        + "/" + dependency.getValue().version()).forEach(coordinate -> resolved.put(coordinate, ""));
+                dependencies).entrySet().stream().map(dependency -> prefix
+                + "/" + dependency.getKey().groupId()
+                + "/" + dependency.getKey().artifactId()
+                + (Objects.equals(dependency.getKey().type(), "jar") ? "" : "/" + dependency.getKey().type())
+                + (dependency.getKey().classifier() == null ? "" : "/" + dependency.getKey().classifier())
+                + "/" + dependency.getValue().version()).forEach(coordinate -> resolved.put(coordinate, ""));
         return resolved;
     }
 
