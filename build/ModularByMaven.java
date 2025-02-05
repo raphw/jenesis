@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,12 +34,15 @@ public class ModularByMaven {
                 Path.of("dependencies/modules.properties").toUri())));
         root.addModule("build", (build, downloaded) -> {
             Map<String, Repository> repositories = Map.of("maven", new MavenDefaultRepository());
+            Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
+                    DownloadModuleUris.URIS,
+                    downloaded.values());
             build.addModule("modules", ModularProject.make(
                     Path.of("."),
                     "SHA256",
-                    Resolver.translate("module",
-                            MavenUriParser.ofUris(new MavenUriParser(), DownloadModuleUris.URIS, downloaded.values()),
-                            Map.of("module", new ModularJarResolver(false), "maven", new MavenPomResolver())),
+                    Map.of("module", new ModularJarResolver(false, new MavenPomResolver().translated(
+                            "maven",
+                            (_, coordinate) -> parser.apply(coordinate))))
                     repositories,
                     (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                             new JavaModule().testIfAvailable(),

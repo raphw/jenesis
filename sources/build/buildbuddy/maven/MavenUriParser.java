@@ -27,7 +27,7 @@ public class MavenUriParser implements Function<String, String> {
         this.hosts = hosts;
     }
 
-    public static Function<String, Optional<String>> ofUris(MavenUriParser parser,
+    public static Function<String, String> ofUris(MavenUriParser parser,
                                                             String location,
                                                             Iterable<Path> folders) throws IOException {
         Properties properties = new SequencedProperties();
@@ -39,7 +39,13 @@ public class MavenUriParser implements Function<String, String> {
                 }
             }
         }
-        return property -> Optional.ofNullable(properties.getProperty(property)).map(parser);
+        return property -> {
+            String value = properties.getProperty(property);
+            if (value == null) {
+                throw new IllegalArgumentException("Could not translate " + property);
+            }
+            return parser.apply(value);
+        };
     }
 
     @Override
