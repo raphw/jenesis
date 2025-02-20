@@ -358,7 +358,7 @@ public class BuildExecutor {
     }
 
     public SequencedMap<String, Path> execute() {
-        try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executorService = Executors.newCachedThreadPool()) {
             return execute(executorService).toCompletableFuture().join();
         }
     }
