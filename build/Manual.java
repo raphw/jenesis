@@ -15,6 +15,11 @@ import java.util.Map;
 public class Manual {
 
     public static void main(String[] args) throws IOException {
+        var javaHomeEnv = System.getenv("JAVA_HOME");
+        if (javaHomeEnv == null) {
+            throw new IllegalStateException("JAVA_HOME environment variable is not set; please set it to compile Java");
+        }
+        System.setProperty("java.home", javaHomeEnv);
         MavenRepository mavenRepository = new MavenDefaultRepository();
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());

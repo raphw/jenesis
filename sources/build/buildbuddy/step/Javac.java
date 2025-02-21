@@ -1,8 +1,5 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -17,6 +14,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
 
 public class Javac extends ProcessBuildStep {
 
@@ -39,6 +39,7 @@ public class Javac extends ProcessBuildStep {
             throws IOException {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
+                "--enable-preview",
                 "--release", Integer.toString(Runtime.version().version().getFirst()),
                 "-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
