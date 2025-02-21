@@ -1,5 +1,8 @@
 package build.buildbuddy.step;
 
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -17,9 +20,6 @@ import java.util.function.Function;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
-
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
 
 public abstract class Java extends ProcessBuildStep {
 
@@ -122,7 +122,6 @@ public abstract class Java extends ProcessBuildStep {
             }
         }
         List<String> prefixes = new ArrayList<>();
-        prefixes.add("--enable-preview");
         if (!classPath.isEmpty()) {
             prefixes.add("-classpath");
             prefixes.add(String.join(File.pathSeparator, classPath));

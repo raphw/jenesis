@@ -1,5 +1,8 @@
 package build.buildbuddy.step;
 
+import build.buildbuddy.BuildStepArgument;
+import build.buildbuddy.BuildStepContext;
+
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -16,9 +19,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
 
 public class Tests extends Java {
 
@@ -63,7 +63,6 @@ public class Tests extends Java {
                 .of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
                 .orElseThrow(() -> new IllegalArgumentException("No test engine found")) : this.engine;
         List<String> commands = new ArrayList<>();
-        commands.add("--enable-preview");
         if (modular && engine.module != null) {
             commands.add("--add-modules");
             commands.add("ALL-MODULE-PATH");
