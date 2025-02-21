@@ -17,6 +17,16 @@ import java.util.function.Function;
 
 public abstract class ProcessBuildStep implements BuildStep {
 
+    static {
+        if (System.getProperty("java.home") == null) {
+            String home = System.getenv("JAVA_HOME");
+            if (home == null) {
+                throw new IllegalStateException("Neither java.home or JAVA_HOME available");
+            }
+            System.setProperty("java.home", home);
+        }
+    }
+
     private final Function<List<String>, ? extends ProcessHandler> factory;
 
     protected ProcessBuildStep(Function<List<String>, ? extends ProcessHandler> factory) {

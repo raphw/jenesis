@@ -20,16 +20,6 @@ import java.util.function.Function;
 
 public class Javac extends ProcessBuildStep {
 
-    static {
-        if (System.getProperty("java.home") == null) {
-            String home = System.getenv("JAVA_HOME");
-            if (home == null) {
-                throw new IllegalStateException("Neither java.home or JAVA_HOME available");
-            }
-            System.setProperty("java.home", home);
-        }
-    }
-
     protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
         super(factory);
     }
