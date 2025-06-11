@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 
 public class ModularByMaven {
 
-    public static void main(String[] args) throws IOException {
+    static void main(String[] args) throws IOException {
         Map<String, Repository> repositories = Map.of("maven", new MavenDefaultRepository());
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"));

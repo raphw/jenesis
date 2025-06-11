@@ -20,7 +20,7 @@ import java.util.Map;
 
 public class Manual {
 
-    public static void main(String[] args) throws IOException {
+    static void main(String[] args) throws IOException {
         MavenRepository mavenRepository = new MavenDefaultRepository();
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());

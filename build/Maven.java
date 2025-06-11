@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 public class Maven {
 
-    public static void main(String[] args) throws IOException {
+    static void main(String[] args) throws IOException {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addModule("maven", MavenProject.make(Path.of("."),
                 "SHA256",

@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 
 public class Modular {
 
-    public static void main(String[] args) throws IOException {
+    static void main(String[] args) throws IOException {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addStep("download", new DownloadModuleUris("module", List.of(
                 DownloadModuleUris.DEFAULT,

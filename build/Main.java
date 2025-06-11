@@ -6,7 +6,7 @@ import java.nio.file.Path;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException {
+    static void main(String[] args) throws IOException {
         if (Files.exists(Path.of("pom.xml"))) {
             Maven.main(args);
         } else {
