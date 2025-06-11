@@ -357,9 +357,8 @@ public class BuildExecutor {
             } else if (registrations.containsKey(dependency)) {
                 preliminaries.add(dependency);
             } else {
-                String root = dependency.contains("/") ? dependency.split("/", 2)[0] : dependency;
-                if (registrations.containsKey(root)) {
-                    preliminaries.add(root);
+                if (registrations.containsKey(dependency.substring(0, limit))) {
+                    preliminaries.add(dependency.substring(0, limit));
                 } else {
                     throw new IllegalArgumentException("Did not find dependency: " + dependency);
                 }
@@ -455,16 +454,13 @@ public class BuildExecutor {
                                         StepSummary summary = summaries.getOrDefault(
                                                 dependency.substring(0, index),
                                                 Map.of()).get(dependency);
-                                        if (summary != null) {
-                                            propagated.put(synonym, summary);
-                                        } else {
+                                        if (summary == null) {
                                             throw new IllegalArgumentException("Did not find dependency: " + dependency);
                                         }
+                                        propagated.put(synonym, summary);
                                     } else {
-                                        Map<String, StepSummary> dependencyResults = summaries.get(dependency);
-                                        if (dependencyResults != null) { // TODO: check synonyms of subpaths
-                                            dependencyResults.forEach((key, value1) -> propagated.put(key.equals(dependency) ? synonym : key, value1));
-                                        }
+                                        summaries.getOrDefault(dependency, Map.of()).forEach((key, value) ->
+                                                propagated.put(key.equals(dependency) ? synonym : key, value));
                                     }
                                 }
                             });
