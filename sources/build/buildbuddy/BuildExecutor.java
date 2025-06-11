@@ -67,15 +67,15 @@ public class BuildExecutor {
     }
 
     public void addSource(String identity, Path path) {
-        add(identity, bindSource(path), Set.of());
+        add(identity, bindSource(path), Map.of());
     }
 
     public void addSource(String identity, BuildStep step, Path... paths) {
-        add(identity, bindStep(step).summaries(hash, sequencedSetOf(paths)), Set.of());
+        add(identity, bindStep(step).summaries(hash, sequencedSetOf(paths)), Map.of());
     }
 
     public void addSource(String identity, BuildStep step, SequencedSet<Path> paths) {
-        add(identity, bindStep(step).summaries(hash, paths), Set.of());
+        add(identity, bindStep(step).summaries(hash, paths), Map.of());
     }
 
     public void replaceSource(String identity, Path path) {
@@ -107,10 +107,14 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, String... dependencies) {
-        add(identity, bindStep(step), sequencedSetOf(dependencies));
+        add(identity, bindStep(step), sequencedMapOf(dependencies));
     }
 
     public void addStep(String identity, BuildStep step, SequencedSet<String> dependencies) {
+        add(identity, bindStep(step), sequencedMapOf(dependencies));
+    }
+
+    public void addStep(String identity, BuildStep step, SequencedMap<String, String> dependencies) {
         add(identity, bindStep(step), dependencies);
     }
 
@@ -212,24 +216,35 @@ public class BuildExecutor {
     }
 
     public void addModule(String identity, BuildExecutorModule module, String... dependencies) {
-        add(identity, bindModule(module, Optional::of), sequencedSetOf(dependencies));
+        add(identity, bindModule(module, Optional::of), sequencedMapOf(dependencies));
     }
 
     public void addModule(String identity,
                           BuildExecutorModule module,
                           Function<String, Optional<String>> resolver,
                           String... dependencies) {
-        add(identity, bindModule(module, resolver), sequencedSetOf(dependencies));
+        add(identity, bindModule(module, resolver), sequencedMapOf(dependencies));
     }
 
     public void addModule(String identity, BuildExecutorModule module, SequencedSet<String> dependencies) {
-        add(identity, bindModule(module, Optional::of), dependencies);
+        add(identity, bindModule(module, Optional::of), sequencedMapOf(dependencies));
     }
 
     public void addModule(String identity,
                           BuildExecutorModule module,
                           Function<String, Optional<String>> resolver,
                           SequencedSet<String> dependencies) {
+        add(identity, bindModule(module, resolver), sequencedMapOf(dependencies));
+    }
+
+    public void addModule(String identity, BuildExecutorModule module, SequencedMap<String, String> dependencies) {
+        add(identity, bindModule(module, Optional::of), dependencies);
+    }
+
+    public void addModule(String identity,
+                          BuildExecutorModule module,
+                          Function<String, Optional<String>> resolver,
+                          SequencedMap<String, String> dependencies) {
         add(identity, bindModule(module, resolver), dependencies);
     }
 
@@ -303,9 +318,9 @@ public class BuildExecutor {
         };
     }
 
-    private void add(String identity, Bound bound, Set<String> dependencies) {
+    private void add(String identity, Bound bound, Map<String, String> dependencies) {
         SequencedSet<String> preliminaries = new LinkedHashSet<>();
-        dependencies.forEach(dependency -> {
+        dependencies.keySet().forEach(dependency -> {
             if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                 if (!inherited.containsKey(dependency)) {
                     throw new IllegalArgumentException("Did not inherit: " + dependency);
@@ -348,7 +363,7 @@ public class BuildExecutor {
                 registration.dependencies())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended), Set.of(prepended)));
+        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended), Map.of(prepended, prepended)));
     }
 
     private void append(String identity, String appended, Bound bound) {
@@ -359,7 +374,7 @@ public class BuildExecutor {
         if (registrations.putIfAbsent(validated(appended, VALIDATE_ORIGINAL), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(identity, new Registration(bound, Set.of(appended), Set.of(appended)));
+        registrations.replace(identity, new Registration(bound, Set.of(appended), Map.of(appended, appended)));
     }
 
     public SequencedMap<String, Path> execute() {
@@ -402,19 +417,34 @@ public class BuildExecutor {
                     dispatched.put(entry.getKey(), completionStage.thenComposeAsync(summaries -> {
                         try {
                             SequencedMap<String, StepSummary> propagated = new LinkedHashMap<>();
-                            entry.getValue().dependencies().forEach(dependency -> {
+                            entry.getValue().dependencies().forEach((dependency, synonym) -> {
                                 if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
-                                    propagated.put(dependency, inherited.get(dependency));
+                                    propagated.put(synonym, inherited.get(dependency));
                                 } else if (dependency.contains("/")) {
-                                    String[] segments = dependency.split("/", 2);
-                                    StepSummary summary = summaries.getOrDefault(segments[0], Map.of()).get(dependency);
-                                    if (summary != null) {
-                                        propagated.put(dependency, summary);
+                                    // Handle lazy dependency resolution for module subpaths
+                                    String[] parts = dependency.split("/", 2);
+                                    String moduleName = parts[0];
+                                    String subPath = parts[1];
+                                    
+                                    Map<String, StepSummary> moduleResults = summaries.get(moduleName);
+                                    if (moduleResults != null) {
+                                        // Look for the specific subpath in the module results
+                                        StepSummary subResult = moduleResults.get(moduleName + "/" + subPath);
+                                        if (subResult != null) {
+                                            propagated.put(synonym, subResult);
+                                        } else {
+                                            throw new IllegalArgumentException("Could not resolve lazy dependency: " + dependency + 
+                                                " (available: " + moduleResults.keySet() + ")");
+                                        }
                                     } else {
-                                        throw new IllegalArgumentException("Did not find dependency: " + dependency);
+                                        throw new IllegalArgumentException("Module not found for lazy dependency: " + dependency);
                                     }
                                 } else {
-                                    propagated.putAll(summaries.get(dependency));
+                                    Map<String, StepSummary> dependencyResults = summaries.get(dependency);
+                                    if (dependencyResults != null) {
+                                        dependencyResults.forEach((key, value) -> propagated.put(
+                                            key.equals(dependency) ? synonym : key, value));
+                                    }
                                 }
                             });
                             return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
@@ -457,6 +487,23 @@ public class BuildExecutor {
         return set;
     }
 
+    @SafeVarargs
+    private static <T> SequencedMap<T, T> sequencedMapOf(T... values) {
+        SequencedMap<T, T> map = new LinkedHashMap<>();
+        for (T value : values) {
+            map.put(value, value);
+        }
+        return map;
+    }
+
+    private static <T> SequencedMap<T, T> sequencedMapOf(Set<T> values) {
+        SequencedMap<T, T> map = new LinkedHashMap<>();
+        for (T value : values) {
+            map.put(value, value);
+        }
+        return map;
+    }
+
     @FunctionalInterface
     private interface Bound {
 
@@ -478,7 +525,7 @@ public class BuildExecutor {
         }
     }
 
-    private record Registration(Bound bound, Set<String> preliminaries, Set<String> dependencies) {
+    private record Registration(Bound bound, Set<String> preliminaries, Map<String, String> dependencies) {
     }
 
     private record StepSummary(Path folder, Map<Path, byte[]> checksums) {

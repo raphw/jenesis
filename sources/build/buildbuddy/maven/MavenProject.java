@@ -1,13 +1,6 @@
 package build.buildbuddy.maven;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.Repository;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
@@ -20,20 +13,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -92,7 +74,7 @@ public class MavenProject implements BuildExecutorModule {
                                                     inherited.entrySet().stream()
                                                             .filter(entry ->
                                                                     entry.getKey().startsWith(PREVIOUS + "module-")
-                                                                        && entry.getKey().endsWith("/assign"))
+                                                                            && entry.getKey().endsWith("/assign"))
                                                             .map(Map.Entry::getValue)
                                                             .toList(),
                                                     file -> Path.of(file).toUri(),
@@ -100,18 +82,17 @@ public class MavenProject implements BuildExecutorModule {
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
-                            builder.apply(
-                                    name,
-                                    dependencies.sequencedKeySet()),
+                            builder.apply(name, dependencies.sequencedKeySet()),
                             Stream.concat(
                                     inherited.sequencedKeySet().stream(),
-                                    Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                                    Stream.of("dependencies")).collect(Collectors.toCollection(
+                                            () -> new LinkedHashSet<>())));
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
                                             PREVIOUS.repeat(3) + "identify/")),
-                                    Stream.of("build")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                                    Stream.of("build")).collect(Collectors.toCollection(() -> new LinkedHashSet<>())));
                 });
     }
 
