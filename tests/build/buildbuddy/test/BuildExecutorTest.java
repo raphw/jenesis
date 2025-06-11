@@ -1023,7 +1023,7 @@ public class BuildExecutorTest {
             assertThat(context.previous()).isNull();
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("other1/step2");
-            assertThat(arguments.get("other1/step2").folder()).isEqualTo(source);
+            assertThat(arguments.get("other1/step2").folder()).isEqualTo(root.resolve("step1/step2").resolve("output"));
             assertThat(arguments.get("other1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
