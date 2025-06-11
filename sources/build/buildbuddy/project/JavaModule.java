@@ -2,16 +2,13 @@ package build.buildbuddy.project;
 
 import build.buildbuddy.BuildExecutor;
 import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.step.Tests;
 import build.buildbuddy.step.Jar;
 import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.TestEngine;
+import build.buildbuddy.step.Tests;
 
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
 import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public record JavaModule(boolean process) implements BuildExecutorModule {

@@ -1,6 +1,12 @@
 package build.buildbuddy.module;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorModule;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.BuildStepResult;
+import build.buildbuddy.Repository;
+import build.buildbuddy.Resolver;
+import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
@@ -20,7 +26,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ModularProject implements BuildExecutorModule {
