@@ -965,86 +965,73 @@ public class BuildExecutorTest {
         buildExecutor.addStep("step1", (_, context, arguments) -> {
             assertThat(context.previous()).isNull();
             assertThat(context.next()).isDirectory();
-            assertThat(arguments).containsOnlyKeys("source");
+            assertThat(arguments).containsOnlyKeys("other");
+            assertThat(arguments.get("other").folder()).isEqualTo(source);
+            assertThat(arguments.get("other").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
-                    Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                    Files.readString(arguments.get("other").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, "source");
-        buildExecutor.addStep("step2", (_, context, arguments) -> {
-            assertThat(context.previous()).isNull();
-            assertThat(context.next()).isDirectory();
-            assertThat(arguments).containsOnlyKeys("input");  // Using synonym instead of "step1"
-            Files.writeString(
-                    context.next().resolve("file"),
-                    Files.readString(arguments.get("input").folder().resolve("file")) + "qux");
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, new LinkedHashMap<>(Map.of("step1", "input")));
+        }, new LinkedHashMap<>(Map.of("source", "other")));
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("source", "step1", "step2");
-        assertThat(root.resolve("step2").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
+        assertThat(build).containsOnlyKeys("source", "step1");
+        assertThat(root.resolve("step1").resolve("output").resolve("file")).content().isEqualTo("foobar");
     }
 
     @Test
-    public void can_use_multiple_dependency_synonyms() throws IOException {
-        Files.writeString(source.resolve("file"), "foo");
-        Files.writeString(source2.resolve("file"), "baz");
-        buildExecutor.addSource("source1", source);
-        buildExecutor.addSource("source2", source2);
-        buildExecutor.addStep("combineStep", (_, context, arguments) -> {
-            assertThat(arguments).containsOnlyKeys("input", "config");  // Using synonyms
-            String content1 = Files.readString(arguments.get("input").folder().resolve("file"));
-            String content2 = Files.readString(arguments.get("config").folder().resolve("file"));
-            Files.writeString(context.next().resolve("file"), content1 + "-" + content2);
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, new LinkedHashMap<>(Map.of("source1", "input", "source2", "config")));
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("source1", "source2", "combineStep");
-        assertThat(root.resolve("combineStep").resolve("output").resolve("file")).content().isEqualTo("foo-baz");
-    }
-
-    @Test
-    public void can_use_synonyms_with_module_dependencies() throws IOException {
-        Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.addModule("module1", (module, inherited) -> {
-            assertThat(inherited).isEmpty();
-            module.addSource("source", source);
-            module.addStep("step1", (_, context, arguments) -> {
-                assertThat(arguments).containsOnlyKeys("source");
-                Files.writeString(
-                        context.next().resolve("file"),
-                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
-                return CompletableFuture.completedStage(new BuildStepResult(true));
-            }, "source");
-        });
-        buildExecutor.addStep("finalStep", (_, context, arguments) -> {
-            assertThat(arguments).containsOnlyKeys("processedData");  // Using synonym
-            Files.writeString(
-                    context.next().resolve("file"),
-                    Files.readString(arguments.get("processedData").folder().resolve("file")) + "qux");
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, new LinkedHashMap<>(Map.of("module1/step1", "processedData")));
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("module1/source", "module1/step1", "finalStep");
-        assertThat(root.resolve("finalStep").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
-    }
-
-    @Test
-    public void can_use_synonyms_with_modules() throws IOException {
+    public void can_use_dependency_synonyms_nested() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
-        buildExecutor.addModule("processing", (module, inherited) -> {
-            assertThat(inherited).containsOnlyKeys("../input");  // Synonym used in parent reference
-            module.addStep("transform", (_, context, arguments) -> {
-                assertThat(arguments).containsOnlyKeys("../input");
+        buildExecutor.addModule("step1",  (module, inherited) -> {
+            assertThat(inherited).containsOnlyKeys("../intermediate");
+            module.addStep("step2", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("../other");
+                assertThat(arguments.get("../other").folder()).isEqualTo(source);
+                assertThat(arguments.get("../other").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
-                        Files.readString(arguments.get("../input").folder().resolve("file")) + "bar");
+                        Files.readString(arguments.get("../other").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
-            }, "../input");
-        }, new LinkedHashMap<>(Map.of("source", "input")));
+            }, new LinkedHashMap<>(Map.of("../intermediate", "../other")));
+        }, new LinkedHashMap<>(Map.of("source", "intermediate")));
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("source", "processing/transform");
-        assertThat(root.resolve("processing").resolve("transform").resolve("output").resolve("file")).content().isEqualTo("foobar");
+        assertThat(build).containsOnlyKeys("source", "step1/step2");
+        assertThat(root.resolve("step1/step2").resolve("output").resolve("file")).content().isEqualTo("foobar");
+    }
+
+    @Test
+    public void can_use_dependency_synonyms_root() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addModule("step1",  (module, inherited) -> {
+            assertThat(inherited).containsOnlyKeys("../source");
+            module.addStep("step2", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("../source");
+                assertThat(arguments.get("../source").folder()).isEqualTo(source);
+                assertThat(arguments.get("../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("../source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "../source");
+        }, "source");
+        buildExecutor.addStep("step3", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("../other1/step2");
+            assertThat(arguments.get("../other1/step2").folder()).isEqualTo(source);
+            assertThat(arguments.get("../other1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("../other1/step2").folder().resolve("file")) + "qux");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, new LinkedHashMap<>(Map.of("step1", "other1")));
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step1/step2", "step3");
+        assertThat(root.resolve("step3").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
     }
 }

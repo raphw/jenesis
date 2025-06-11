@@ -342,7 +342,8 @@ public class BuildExecutor {
 
     private void add(String identity, Bound bound, Map<String, String> dependencies) {
         SequencedSet<String> preliminaries = new LinkedHashSet<>();
-        dependencies.keySet().forEach(dependency -> {
+        dependencies.forEach((dependency, synonym) -> {
+            // TODO: validation rules for synonyms? should they retain structure?
             int index, limit = dependency.length();
             while ((index = dependency.lastIndexOf('/', limit - 1)) != -1) {
                 if (dependencies.containsKey(dependency.substring(0, index))) {
