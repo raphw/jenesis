@@ -1022,12 +1022,12 @@ public class BuildExecutorTest {
         buildExecutor.addStep("step3", (_, context, arguments) -> {
             assertThat(context.previous()).isNull();
             assertThat(context.next()).isDirectory();
-            assertThat(arguments).containsOnlyKeys("../other1/step2");
-            assertThat(arguments.get("../other1/step2").folder()).isEqualTo(source);
-            assertThat(arguments.get("../other1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(arguments).containsOnlyKeys("other1/step2");
+            assertThat(arguments.get("other1/step2").folder()).isEqualTo(source);
+            assertThat(arguments.get("other1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
-                    Files.readString(arguments.get("../other1/step2").folder().resolve("file")) + "qux");
+                    Files.readString(arguments.get("other1/step2").folder().resolve("file")) + "qux");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }, new LinkedHashMap<>(Map.of("step1", "other1")));
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
