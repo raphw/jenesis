@@ -3,9 +3,7 @@ package build.buildbuddy.maven;
 import build.buildbuddy.Repository;
 import build.buildbuddy.RepositoryItem;
 
-import java.io.IOException;
-import java.util.Optional;
-import java.util.concurrent.Executor;
+import module java.base;
 
 @FunctionalInterface
 public interface MavenRepository extends Repository {

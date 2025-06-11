@@ -1,21 +1,7 @@
 package build.buildbuddy.maven;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.xml.sax.SAXException;
-
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.SequencedSet;
-import java.util.concurrent.Executor;
-import java.util.function.Supplier;
+import module java.base;
+import module java.xml;
 
 import static build.buildbuddy.maven.MavenPomResolver.missing;
 import static build.buildbuddy.maven.MavenPomResolver.toChildren;

@@ -7,9 +7,7 @@ import build.buildbuddy.step.Javac;
 import build.buildbuddy.step.TestEngine;
 import build.buildbuddy.step.Tests;
 
-import java.nio.file.Path;
-import java.util.SequencedMap;
-import java.util.stream.Stream;
+import module java.base;
 
 public record JavaModule(boolean process) implements BuildExecutorModule {
 

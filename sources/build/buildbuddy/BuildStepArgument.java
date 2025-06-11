@@ -1,9 +1,6 @@
 package build.buildbuddy;
 
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
+import module java.base;
 
 public record BuildStepArgument(Path folder, Map<Path, ChecksumStatus> files) {
 

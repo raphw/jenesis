@@ -2,23 +2,9 @@ package build.buildbuddy.test.module;
 
 import build.buildbuddy.RepositoryItem;
 import build.buildbuddy.module.ModularJarResolver;
-import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.attribute.ModuleAttribute;
-import java.lang.classfile.attribute.ModuleRequireInfo;
-import java.lang.constant.ModuleDesc;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.SequencedMap;
-import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

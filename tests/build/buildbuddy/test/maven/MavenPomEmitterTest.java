@@ -5,14 +5,9 @@ import build.buildbuddy.maven.MavenDependencyName;
 import build.buildbuddy.maven.MavenDependencyScope;
 import build.buildbuddy.maven.MavenDependencyValue;
 import build.buildbuddy.maven.MavenPomEmitter;
-import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

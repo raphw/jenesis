@@ -6,14 +6,7 @@ import build.buildbuddy.Repository;
 import build.buildbuddy.Resolver;
 import build.buildbuddy.SequencedProperties;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
+import module java.base;
 
 import static java.util.Objects.requireNonNull;
 

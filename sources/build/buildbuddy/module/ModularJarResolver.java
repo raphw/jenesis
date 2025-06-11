@@ -4,22 +4,7 @@ import build.buildbuddy.Repository;
 import build.buildbuddy.RepositoryItem;
 import build.buildbuddy.Resolver;
 
-import java.io.IOException;
-import java.lang.module.ModuleDescriptor;
-import java.lang.module.ModuleFinder;
-import java.lang.module.ModuleReference;
-import java.lang.reflect.AccessFlag;
-import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Queue;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.concurrent.Executor;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import module java.base;
 
 public class ModularJarResolver implements Resolver {
 

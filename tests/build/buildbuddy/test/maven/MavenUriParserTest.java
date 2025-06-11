@@ -1,7 +1,8 @@
 package build.buildbuddy.test.maven;
 
 import build.buildbuddy.maven.MavenUriParser;
-import org.junit.jupiter.api.Test;
+
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

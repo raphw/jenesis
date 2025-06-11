@@ -1,6 +1,6 @@
 package build.buildbuddy.module;
 
-import java.util.SequencedSet;
+import module java.base;
 
 public record ModuleInfo(String coordinate, SequencedSet<String> requires) {
 }

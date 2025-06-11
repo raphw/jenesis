@@ -1,14 +1,9 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.SequencedProperties;
-import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.Properties;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

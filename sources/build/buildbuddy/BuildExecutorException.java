@@ -1,6 +1,6 @@
 package build.buildbuddy;
 
-import java.util.concurrent.CompletionException;
+import module java.base;
 
 public class BuildExecutorException extends CompletionException {
 

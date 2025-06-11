@@ -1,10 +1,6 @@
 package build.buildbuddy;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Optional;
+import module java.base;
 
 @FunctionalInterface
 public interface RepositoryItem {

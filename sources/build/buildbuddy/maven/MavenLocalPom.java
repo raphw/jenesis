@@ -1,7 +1,6 @@
 package build.buildbuddy.maven;
 
-import java.util.List;
-import java.util.SequencedMap;
+import module java.base;
 
 public record MavenLocalPom(String groupId,
                             String artifactId,

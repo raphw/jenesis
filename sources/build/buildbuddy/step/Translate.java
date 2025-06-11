@@ -4,14 +4,7 @@ import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 import build.buildbuddy.SequencedProperties;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.function.Function;
+import module java.base;
 
 public class Translate implements DependencyTransformingBuildStep {
 

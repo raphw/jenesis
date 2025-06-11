@@ -1,20 +1,16 @@
 package build.buildbuddy.test.module;
 
-import build.buildbuddy.*;
+import build.buildbuddy.BuildExecutor;
+import build.buildbuddy.BuildExecutorCallback;
+import build.buildbuddy.BuildStep;
+import build.buildbuddy.HashDigestFunction;
+import build.buildbuddy.SequencedProperties;
 import build.buildbuddy.module.ModularJarResolver;
 import build.buildbuddy.module.ModularProject;
 import build.buildbuddy.project.JavaModule;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.stream.Stream;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;

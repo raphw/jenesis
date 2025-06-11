@@ -6,20 +6,9 @@ import build.buildbuddy.BuildStep;
 import build.buildbuddy.BuildStepResult;
 import build.buildbuddy.HashDigestFunction;
 import build.buildbuddy.project.MultiProjectModule;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

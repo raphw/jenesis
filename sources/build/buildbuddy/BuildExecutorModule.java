@@ -1,9 +1,6 @@
 package build.buildbuddy;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Optional;
-import java.util.SequencedMap;
+import module java.base;
 
 @FunctionalInterface
 public interface BuildExecutorModule {

@@ -2,15 +2,7 @@ package build.buildbuddy.step;
 
 import build.buildbuddy.BuildStep;
 
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Optional;
-import java.util.jar.Attributes;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
+import module java.base;
 
 public enum TestEngine {
 
@@ -44,7 +36,7 @@ public enum TestEngine {
                             if (manifest != null) {
                                 TestEngine candidate = switch (manifest
                                         .getMainAttributes()
-                                        .getValue(Attributes.Name.IMPLEMENTATION_TITLE)) {
+                                        .getValue(java.util.jar.Attributes.Name.IMPLEMENTATION_TITLE)) {
                                     case "JUnit" -> TestEngine.JUNIT4;
                                     case "junit-platform-console" -> TestEngine.JUNIT5;
                                     case null, default -> null;

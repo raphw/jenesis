@@ -1,8 +1,6 @@
 package build.buildbuddy;
 
-import java.io.PrintStream;
-import java.util.SequencedSet;
-import java.util.function.BiConsumer;
+import module java.base;
 
 public interface BuildExecutorCallback {
 

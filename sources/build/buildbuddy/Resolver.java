@@ -1,16 +1,6 @@
 package build.buildbuddy;
 
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.SequencedCollection;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.concurrent.Executor;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import module java.base;
 
 @FunctionalInterface
 public interface Resolver {

@@ -1,7 +1,6 @@
 package build.buildbuddy.maven;
 
-import java.nio.file.Path;
-import java.util.List;
+import module java.base;
 
 public record MavenDependencyValue(String version,
                                    MavenDependencyScope scope,

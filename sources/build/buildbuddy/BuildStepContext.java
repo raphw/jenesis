@@ -1,6 +1,6 @@
 package build.buildbuddy;
 
-import java.nio.file.Path;
+import module java.base;
 
 public record BuildStepContext(Path previous, Path next, Path supplement) {
 }

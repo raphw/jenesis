@@ -1,9 +1,6 @@
 package build.buildbuddy;
 
-import java.io.IOException;
-import java.util.SequencedMap;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
+import module java.base;
 
 @FunctionalInterface
 public interface BuildStep {

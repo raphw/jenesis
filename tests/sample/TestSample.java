@@ -1,6 +1,6 @@
 package sample;
 
-import org.junit.jupiter.api.Test;
+import module org.junit.jupiter.api;
 
 public class TestSample {
 

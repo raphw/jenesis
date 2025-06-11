@@ -1,10 +1,9 @@
 package build.buildbuddy.test;
 
 import build.buildbuddy.ChecksumStatus;
-import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
-import java.util.Map;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

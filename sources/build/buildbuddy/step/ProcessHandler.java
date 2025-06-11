@@ -1,14 +1,6 @@
 package build.buildbuddy.step;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.function.Function;
-import java.util.spi.ToolProvider;
-import java.util.stream.Stream;
+import module java.base;
 
 public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHandler.OfProcess {
 

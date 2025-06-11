@@ -2,15 +2,7 @@ package build.buildbuddy.maven;
 
 import build.buildbuddy.SequencedProperties;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.function.Function;
+import module java.base;
 
 public class MavenUriParser implements Function<String, String> {
 

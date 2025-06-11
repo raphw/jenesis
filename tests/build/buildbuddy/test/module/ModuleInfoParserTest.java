@@ -2,14 +2,9 @@ package build.buildbuddy.test.module;
 
 import build.buildbuddy.module.ModuleInfo;
 import build.buildbuddy.module.ModuleInfoParser;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.List;
+import module java.base;
+import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -2,10 +2,7 @@ package build.buildbuddy.project;
 
 import build.buildbuddy.BuildExecutorModule;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import module java.base;
 
 @FunctionalInterface
 public interface MultiProject {

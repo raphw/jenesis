@@ -3,23 +3,7 @@ package build.buildbuddy.step;
 import build.buildbuddy.BuildStepArgument;
 import build.buildbuddy.BuildStepContext;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.SequencedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.function.Function;
-import java.util.jar.JarFile;
-import java.util.stream.Stream;
-import java.util.zip.ZipFile;
+import module java.base;
 
 public abstract class Java extends ProcessBuildStep {
 

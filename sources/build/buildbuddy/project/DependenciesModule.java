@@ -8,9 +8,7 @@ import build.buildbuddy.step.Checksum;
 import build.buildbuddy.step.Download;
 import build.buildbuddy.step.Resolve;
 
-import java.nio.file.Path;
-import java.util.Map;
-import java.util.SequencedMap;
+import module java.base;
 
 public class DependenciesModule implements BuildExecutorModule {
 

@@ -1,29 +1,14 @@
 package build.buildbuddy.module;
 
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.DirectiveTree;
-import com.sun.source.tree.ModuleTree;
-import com.sun.source.tree.RequiresTree;
-import com.sun.source.util.JavacTask;
-
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileObject;
-import javax.tools.SimpleJavaFileObject;
-import javax.tools.ToolProvider;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.SequencedSet;
+import module java.base;
+import module java.compiler;
+import module jdk.compiler;
 
 import static java.util.Objects.requireNonNull;
 
 public class ModuleInfoParser {
 
-    private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    private final JavaCompiler compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
 
     public ModuleInfo identify(Path moduleInfo) throws IOException {
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),

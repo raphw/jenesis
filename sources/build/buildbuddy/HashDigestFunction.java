@@ -1,10 +1,6 @@
 package build.buildbuddy;
 
-import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import module java.base;
 
 public class HashDigestFunction implements HashFunction {
 

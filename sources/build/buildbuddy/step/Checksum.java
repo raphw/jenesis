@@ -6,19 +6,7 @@ import build.buildbuddy.Repository;
 import build.buildbuddy.RepositoryItem;
 import build.buildbuddy.SequencedProperties;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.channels.FileChannel;
-import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
+import module java.base;
 
 public class Checksum implements DependencyTransformingBuildStep {
 
