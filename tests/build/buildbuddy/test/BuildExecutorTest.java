@@ -935,12 +935,27 @@ public class BuildExecutorTest {
             assertThat(inherited).isEmpty();
             module.addStep("step2", (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true)));
         });
-        buildExecutor.addStep("step2", (_, _, _) -> {
+        assertThatThrownBy(() -> buildExecutor.addStep("step2", (_, _, _) -> {
             throw new AssertionError();
-        }, "step1/step2", "step1");
-        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
+        }, "step1/step2", "step1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Redundant root dependency: step1");
+    }
+
+    @Test
+    public void rejects_redundant_root_dependency_nested() {
+        buildExecutor.addModule("step1", (module, inherited) -> {
+            assertThat(inherited).isEmpty();
+            module.addModule("step2", (nested, nestedInherited) -> {
+                assertThat(nestedInherited).isEmpty();
+                nested.addStep("step3", (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true)));
+            });
+        });
+        assertThatThrownBy(() -> buildExecutor.addStep("step4", (_, _, _) -> {
+            throw new AssertionError();
+        }, "step1/step2/step3", "step1/step2"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Redundant root dependency: step1/step2");
     }
 
     @Test

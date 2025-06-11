@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -342,6 +343,13 @@ public class BuildExecutor {
     private void add(String identity, Bound bound, Map<String, String> dependencies) {
         SequencedSet<String> preliminaries = new LinkedHashSet<>();
         dependencies.keySet().forEach(dependency -> {
+            int index, limit = dependency.length();
+            while ((index = dependency.lastIndexOf('/', limit - 1)) != -1) {
+                if (dependencies.containsKey(dependency.substring(0, index))) {
+                    throw new  IllegalArgumentException("Redundant root dependency: " + dependency.substring(0, index));
+                }
+                limit = index;
+            }
             if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                 if (!inherited.containsKey(dependency)) {
                     throw new IllegalArgumentException("Did not inherit: " + dependency);
