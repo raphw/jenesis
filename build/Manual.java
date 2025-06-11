@@ -6,7 +6,13 @@ import build.buildbuddy.Resolver;
 import build.buildbuddy.maven.MavenDefaultRepository;
 import build.buildbuddy.maven.MavenPomResolver;
 import build.buildbuddy.maven.MavenRepository;
-import build.buildbuddy.step.*;
+import build.buildbuddy.step.Bind;
+import build.buildbuddy.step.Download;
+import build.buildbuddy.step.Jar;
+import build.buildbuddy.step.Javac;
+import build.buildbuddy.step.Resolve;
+import build.buildbuddy.step.TestEngine;
+import build.buildbuddy.step.Tests;
 
 import java.io.IOException;
 import java.nio.file.Path;

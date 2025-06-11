@@ -45,8 +45,7 @@ public class ModularByMaven {
                     (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                             new JavaModule().testIfAvailable(),
                             Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                    .filter(identity -> identity.startsWith("../../../"))).collect(
-                                    BuildExecutor.toSequencedSet()))));
+                                    .filter(identity -> identity.startsWith("../../../"))))));
         }, "download");
         root.execute();
     }
