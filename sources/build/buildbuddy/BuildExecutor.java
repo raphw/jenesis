@@ -25,6 +25,9 @@ import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class BuildExecutor {
 
@@ -86,6 +89,10 @@ public class BuildExecutor {
         replace(identity, bindStep(step).summaries(hash, sequencedSetOf(paths)));
     }
 
+    public void replaceSource(String identity, BuildStep step, Stream<Path> paths) {
+        replace(identity, bindStep(step).summaries(hash, paths.collect(Collectors.toCollection(LinkedHashSet::new))));
+    }
+
     public void replaceSource(String identity, BuildStep step, SequencedSet<Path> paths) {
         replace(identity, bindStep(step).summaries(hash, paths));
     }
@@ -107,6 +114,10 @@ public class BuildExecutor {
     }
 
     public void addStep(String identity, BuildStep step, String... dependencies) {
+        add(identity, bindStep(step), sequencedMapOf(dependencies));
+    }
+
+    public void addStep(String identity, BuildStep step, Stream<String> dependencies) {
         add(identity, bindStep(step), sequencedMapOf(dependencies));
     }
 
@@ -223,6 +234,17 @@ public class BuildExecutor {
                           BuildExecutorModule module,
                           Function<String, Optional<String>> resolver,
                           String... dependencies) {
+        add(identity, bindModule(module, resolver), sequencedMapOf(dependencies));
+    }
+
+    public void addModule(String identity, BuildExecutorModule module, Stream<String> dependencies) {
+        add(identity, bindModule(module, Optional::of), sequencedMapOf(dependencies));
+    }
+
+    public void addModule(String identity,
+                          BuildExecutorModule module,
+                          Function<String, Optional<String>> resolver,
+                          Stream<String> dependencies) {
         add(identity, bindModule(module, resolver), sequencedMapOf(dependencies));
     }
 
@@ -496,6 +518,12 @@ public class BuildExecutor {
         return map;
     }
 
+    private static <T> SequencedMap<T, T> sequencedMapOf(Stream<T> values) {
+        SequencedMap<T, T> map = new LinkedHashMap<>();
+        values.forEach(value -> map.put(value, value));
+        return map;
+    }
+
     private static <T> SequencedMap<T, T> sequencedMapOf(Set<T> values) {
         SequencedMap<T, T> map = new LinkedHashMap<>();
         for (T value : values) {
@@ -553,5 +581,4 @@ public class BuildExecutor {
             return FileVisitResult.CONTINUE;
         }
     }
-
 }

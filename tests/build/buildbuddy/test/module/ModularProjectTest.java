@@ -1,10 +1,6 @@
 package build.buildbuddy.test.module;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 import build.buildbuddy.module.ModularJarResolver;
 import build.buildbuddy.module.ModularProject;
 import build.buildbuddy.project.JavaModule;
@@ -15,11 +11,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.SequencedMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,9 +117,9 @@ public class ModularProjectTest {
                         buildExecutor.addModule("java",
                                 new JavaModule(),
                                 Stream.concat(
-                                                Stream.of("../dependencies/artifacts"),
-                                                inherited.sequencedKeySet().stream().filter(identity -> identity.startsWith("../../../")))
-                                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+                                        Stream.of("../dependencies/artifacts"),
+                                        inherited.sequencedKeySet().stream()
+                                                .filter(identity -> identity.startsWith("../../../"))));
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

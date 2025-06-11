@@ -19,8 +19,7 @@ public class Maven {
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                .filter(identity -> identity.startsWith("../../../"))).collect(
-                                Collectors.toCollection(LinkedHashSet::new)))));
+                                .filter(identity -> identity.startsWith("../../../"))))));
         root.execute();
     }
 }

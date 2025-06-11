@@ -46,7 +46,7 @@ public class ModularByMaven {
                             new JavaModule().testIfAvailable(),
                             Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                     .filter(identity -> identity.startsWith("../../../"))).collect(
-                                    Collectors.toCollection(LinkedHashSet::new)))));
+                                    BuildExecutor.toSequencedSet()))));
         }, "download");
         root.execute();
     }

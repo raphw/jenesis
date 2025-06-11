@@ -83,16 +83,13 @@ public class MavenProject implements BuildExecutorModule {
                             "prepare");
                     buildExecutor.addModule("build",
                             builder.apply(name, dependencies.sequencedKeySet()),
-                            Stream.concat(
-                                    inherited.sequencedKeySet().stream(),
-                                    Stream.of("dependencies")).collect(Collectors.toCollection(
-                                            () -> new LinkedHashSet<>())));
+                            Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("dependencies")));
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
                                             PREVIOUS.repeat(3) + "identify/")),
-                                    Stream.of("build")).collect(Collectors.toCollection(() -> new LinkedHashSet<>())));
+                                    Stream.of("build")));
                 });
     }
 

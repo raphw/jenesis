@@ -1,12 +1,6 @@
 package build.buildbuddy.module;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorModule;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.Repository;
-import build.buildbuddy.Resolver;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 import build.buildbuddy.project.DependenciesModule;
 import build.buildbuddy.project.MultiProjectDependencies;
 import build.buildbuddy.project.MultiProjectModule;
@@ -22,12 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -105,18 +94,14 @@ public class ModularProject implements BuildExecutorModule {
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
-                            builder.apply(
-                                    name,
-                                    dependencies.sequencedKeySet()),
-                            Stream.concat(
-                                    inherited.sequencedKeySet().stream(),
-                                    Stream.of("dependencies")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                            builder.apply(name, dependencies.sequencedKeySet()),
+                            Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("dependencies")));
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(
-                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
-                                            PREVIOUS.repeat(3) + "identify/")),
-                                    Stream.of("build")).collect(Collectors.toCollection(LinkedHashSet::new)));
+                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier
+                                            .startsWith(PREVIOUS.repeat(3) + "identify/")),
+                                    Stream.of("build")));
                 });
     }
 

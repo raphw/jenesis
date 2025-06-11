@@ -10,6 +10,7 @@ import build.buildbuddy.step.TestEngine;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.SequencedMap;
+import java.util.SequencedSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,7 +36,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
             if (candidate != null) {
                 buildExecutor.addStep(TESTS, new Tests(candidate), Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
-                        inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
+                        inherited.sequencedKeySet().stream()));
             }
         };
     }
@@ -45,6 +46,6 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
         buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), inherited.sequencedKeySet());
         buildExecutor.addStep(ARTIFACTS, process ? Jar.process() : Jar.tool(), Stream.concat(
                 Stream.of(CLASSES),
-                inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
+                inherited.sequencedKeySet().stream()));
     }
 }

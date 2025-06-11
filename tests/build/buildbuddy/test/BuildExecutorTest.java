@@ -948,7 +948,7 @@ public class BuildExecutorTest {
                     context.next().resolve("file"),
                     Files.readString(arguments.get("input").folder().resolve("file")) + "qux");
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, Map.of("step1", "input"));
+        }, new LinkedHashMap<>(Map.of("step1", "input")));
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step1", "step2");
         assertThat(root.resolve("step2").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
@@ -1011,7 +1011,7 @@ public class BuildExecutorTest {
                         Files.readString(arguments.get("../input").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "../input");
-        }, Map.of("source", "input"));
+        }, new LinkedHashMap<>(Map.of("source", "input")));
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "processing/transform");
         assertThat(root.resolve("processing").resolve("transform").resolve("output").resolve("file")).content().isEqualTo("foobar");

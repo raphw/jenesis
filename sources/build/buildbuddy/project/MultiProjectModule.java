@@ -100,17 +100,12 @@ public class MultiProjectModule implements BuildExecutorModule {
                                             dependencies.sequencedKeySet().stream(),
                                             inherited.sequencedKeySet().stream()
                                                     .map(identifier -> PREVIOUS.repeat(2) + identifier))
-                                    .flatMap(Function.identity())
-                                    .collect(Collectors.toCollection(LinkedHashSet::new)));
+                                    .flatMap(Function.identity()));
                             it.remove();
                         }
                     }
                 }
-            }, Stream.concat(
-                    Stream.of(GROUP),
-                    identified.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
-        }, Stream.concat(
-                Stream.of(IDENTIFY),
-                inherited.sequencedKeySet().stream()).collect(Collectors.toCollection(LinkedHashSet::new)));
+            }, Stream.concat(Stream.of(GROUP), identified.sequencedKeySet().stream()));
+        }, Stream.concat(Stream.of(IDENTIFY), inherited.sequencedKeySet().stream()));
     }
 }

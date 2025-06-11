@@ -1,10 +1,6 @@
 package build.buildbuddy.step;
 
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.SequencedProperties;
+import build.buildbuddy.*;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -12,12 +8,7 @@ import java.io.Writer;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SequencedMap;
-import java.util.SequencedSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -69,8 +60,9 @@ public class Assign implements BuildStep {
             }
         }
         assigner.apply(assignments.stringPropertyNames().stream()
-                .filter(assignment -> assignments.getProperty(assignment).isEmpty())
-                .collect(Collectors.toCollection(LinkedHashSet::new)), files).forEach((coordinate, path) -> {
+                        .filter(assignment -> assignments.getProperty(assignment).isEmpty())
+                        .collect(Collectors.toCollection(LinkedHashSet::new)),
+                files).forEach((coordinate, path) -> {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
             }

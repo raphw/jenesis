@@ -32,8 +32,7 @@ public class Modular {
                 (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                .filter(identity -> identity.startsWith("../../../"))).collect(
-                                Collectors.toCollection(LinkedHashSet::new))))), "download");
+                                .filter(identity -> identity.startsWith("../../../")))))), "download");
         root.execute();
     }
 }
