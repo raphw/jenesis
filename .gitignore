@@ -24,3 +24,6 @@ cache/
 
 ### Mac OS ###
 .DS_Store
+
+### Agent specification ###
+AGENT.md
