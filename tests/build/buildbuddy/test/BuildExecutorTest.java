@@ -1,15 +1,6 @@
 package build.buildbuddy.test;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.BuildExecutorCallback;
-import build.buildbuddy.BuildExecutorException;
-import build.buildbuddy.BuildStep;
-import build.buildbuddy.BuildStepArgument;
-import build.buildbuddy.BuildStepContext;
-import build.buildbuddy.BuildStepResult;
-import build.buildbuddy.ChecksumStatus;
-import build.buildbuddy.HashDigestFunction;
-import build.buildbuddy.HashFunction;
+import build.buildbuddy.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -17,7 +8,10 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -26,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BuildExecutorTest {
-
 
     @TempDir
     private Path root, source, source2;
@@ -796,10 +789,10 @@ public class BuildExecutorTest {
     @Test
     public void can_reference_module_step_lazily() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.addModule("module1", (module, inherited) -> {
+        buildExecutor.addModule("step1", (module, inherited) -> {
             assertThat(inherited).isEmpty();
             module.addSource("source", source);
-            module.addStep("step1", (_, context, arguments) -> {
+            module.addStep("step2", (_, context, arguments) -> {
                 assertThat(context.previous()).isNull();
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
@@ -810,121 +803,144 @@ public class BuildExecutorTest {
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "source");
-            module.addStep("step2", (_, context, arguments) -> {
-                assertThat(context.previous()).isNull();
-                assertThat(context.next()).isDirectory();
-                assertThat(arguments).containsOnlyKeys("step1");
-                Files.writeString(
-                        context.next().resolve("file"),
-                        Files.readString(arguments.get("step1").folder().resolve("file")) + "baz");
-                return CompletableFuture.completedStage(new BuildStepResult(true));
-            }, "step1");
         });
-        buildExecutor.addStep("finalStep", (_, context, arguments) -> {
+        buildExecutor.addStep("step3", (_, context, arguments) -> {
             assertThat(context.previous()).isNull();
             assertThat(context.next()).isDirectory();
-            assertThat(arguments).containsOnlyKeys("module1/step1");
+            assertThat(arguments).containsOnlyKeys("step1/step2");
+            assertThat(arguments.get("step1/step2").folder()).isEqualTo(root.resolve("step1/step2").resolve("output"));
+            assertThat(arguments.get("step1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
-                    Files.readString(arguments.get("module1/step1").folder().resolve("file")) + "qux");
+                    Files.readString(arguments.get("step1/step2").folder().resolve("file")) + "qux");
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, "module1/step1");
+        }, "step1/step2");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("module1/source", "module1/step1", "module1/step2", "finalStep");
-        assertThat(root.resolve("finalStep").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
+        assertThat(build).containsOnlyKeys("step1/source", "step1/step2", "step3");
+        assertThat(root.resolve("step3").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
     }
 
     @Test
-    public void can_reference_multiple_module_steps_lazily() throws IOException {
+    public void can_reference_module_step_lazily_multiple() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.addModule("module1", (module, inherited) -> {
+        buildExecutor.addModule("step1", (module, inherited) -> {
             assertThat(inherited).isEmpty();
             module.addSource("source", source);
-            module.addStep("step1", (_, context, arguments) -> {
+            module.addStep("step2", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
+                assertThat(arguments.get("source").folder()).isEqualTo(source);
+                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }, "source");
-            module.addStep("step2", (_, context, arguments) -> {
-                assertThat(arguments).containsOnlyKeys("step1");
+            module.addStep("step3", (_, context, arguments) -> {
+                assertThat(context.previous()).isNull();
+                assertThat(context.next()).isDirectory();
+                assertThat(arguments).containsOnlyKeys("source");
+                assertThat(arguments.get("source").folder()).isEqualTo(source);
+                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
-                        Files.readString(arguments.get("step1").folder().resolve("file")) + "baz");
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "qux");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
-            }, "step1");
-        });
-        buildExecutor.addStep("combineStep", (_, context, arguments) -> {
-            assertThat(arguments).containsOnlyKeys("module1/step1", "module1/step2");
-            String content1 = Files.readString(arguments.get("module1/step1").folder().resolve("file"));
-            String content2 = Files.readString(arguments.get("module1/step2").folder().resolve("file"));
-            Files.writeString(context.next().resolve("file"), content1 + "-" + content2);
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, "module1/step1", "module1/step2");
-        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("module1/source", "module1/step1", "module1/step2", "combineStep");
-        assertThat(root.resolve("combineStep").resolve("output").resolve("file")).content().isEqualTo("foobar-foobarbaz");
-    }
-
-    @Test
-    public void can_reference_nested_module_steps_lazily() throws IOException {
-        Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.addModule("outerModule", (outerModule, inherited) -> {
-            assertThat(inherited).isEmpty();
-            outerModule.addSource("source", source);
-            outerModule.addModule("innerModule", (innerModule, innerInherited) -> {
-                assertThat(innerInherited).containsOnlyKeys("../source");
-                innerModule.addStep("innerStep", (_, context, arguments) -> {
-                    assertThat(arguments).containsOnlyKeys("../source");
-                    Files.writeString(
-                            context.next().resolve("file"),
-                            Files.readString(arguments.get("../source").folder().resolve("file")) + "bar");
-                    return CompletableFuture.completedStage(new BuildStepResult(true));
-                }, "../source");
             }, "source");
         });
-        buildExecutor.addStep("finalStep", (_, context, arguments) -> {
-            assertThat(arguments).containsOnlyKeys("outerModule/innerModule/innerStep");
+        buildExecutor.addStep("step4", (_, context, arguments) -> {
+            assertThat(context.previous()).isNull();
+            assertThat(context.next()).isDirectory();
+            assertThat(arguments).containsOnlyKeys("step1/step2", "step1/step3");
+            assertThat(arguments.get("step1/step2").folder()).isEqualTo(root.resolve("step1/step2").resolve("output"));
+            assertThat(arguments.get("step1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(arguments.get("step1/step3").folder()).isEqualTo(root.resolve("step1/step3").resolve("output"));
+            assertThat(arguments.get("step1/step3").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
-                    Files.readString(arguments.get("outerModule/innerModule/innerStep").folder().resolve("file")) + "qux");
+                    Files.readString(arguments.get("step1/step2").folder().resolve("file"))
+                            + Files.readString(arguments.get("step1/step3").folder().resolve("file")));
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, "outerModule/innerModule/innerStep");
+        }, "step1/step2", "step1/step3");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(build).containsOnlyKeys("outerModule/source", "outerModule/innerModule/innerStep", "finalStep");
-        assertThat(root.resolve("finalStep").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
+        assertThat(build).containsOnlyKeys("step1/source", "step1/step2", "step1/step3", "step4");
+        assertThat(root.resolve("step4").resolve("output").resolve("file")).content().isEqualTo("foobarfooqux");
     }
 
     @Test
-    public void rejects_nonexistent_module_dependency() {
-        assertThatThrownBy(() -> buildExecutor.addStep("step1", 
-                (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true)), 
+    public void can_reference_module_step_lazily_nested() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addModule("step1", (outer, inherited) -> {
+            assertThat(inherited).containsOnlyKeys("../source");
+            outer.addModule("step2", (inner, innerInherited) -> {
+                assertThat(innerInherited).containsOnlyKeys("../../source");
+                inner.addStep("step3", (_, context, arguments) -> {
+                    assertThat(arguments).containsOnlyKeys("../../source");
+                    assertThat(arguments.get("../../source").folder()).isEqualTo(source);
+                    assertThat(arguments.get("../../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                    Files.writeString(
+                            context.next().resolve("file"),
+                            Files.readString(arguments.get("../../source").folder().resolve("file")) + "bar");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                }, "../../source");
+            }, "../source");
+        }, "source");
+        buildExecutor.addStep("step4", (_, context, arguments) -> {
+            assertThat(arguments).containsOnlyKeys("step1/step2/step3");
+            assertThat(arguments.get("step1/step2/step3").folder()).isEqualTo(root.resolve("step1/step2/step3").resolve("output"));
+            assertThat(arguments.get("step1/step2/step3").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("step1/step2/step3").folder().resolve("file")) + "qux");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "step1/step2/step3");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step1/step2/step3", "step4");
+        assertThat(root.resolve("step4").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
+    }
+
+    @Test
+    public void rejects_nonexistent_root_dependency() {
+        assertThatThrownBy(() -> buildExecutor.addStep("step1",
+                (_, _, _) -> {
+                    throw new AssertionError();
+                },
                 "nonexistent/step"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Did not find dependency: nonexistent/step");
     }
 
     @Test
-    public void rejects_nonexistent_subpath_at_execution_time() throws IOException {
-        Files.writeString(source.resolve("file"), "foo");
-        buildExecutor.addModule("module1", (module, inherited) -> {
+    public void rejects_nonexistent_sub_dependency() {
+        buildExecutor.addModule("step1", (module, inherited) -> {
             assertThat(inherited).isEmpty();
-            module.addSource("source", source);
-            module.addStep("step1", (_, context, arguments) -> {
-                Files.writeString(
-                        context.next().resolve("file"),
-                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
-                return CompletableFuture.completedStage(new BuildStepResult(true));
-            }, "source");
+            module.addStep("step2", (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true)));
         });
-        buildExecutor.addStep("finalStep", (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true)), "module1/nonexistent");
+        buildExecutor.addStep("step2", (_, _, _) -> {
+            throw new AssertionError();
+        }, "step1/nonexistent");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
                 .isInstanceOf(BuildExecutorException.class)
-                .hasMessage("Failed to execute finalStep")
+                .hasMessage("Failed to execute step2")
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Could not resolve lazy dependency: module1/nonexistent (available: [module1/source, module1/step1])");
+                .hasMessage("Did not find dependency: step1/nonexistent");
+    }
+
+    @Test
+    public void rejects_redundant_root_dependency() {
+        buildExecutor.addModule("step1", (module, inherited) -> {
+            assertThat(inherited).isEmpty();
+            module.addStep("step2", (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true)));
+        });
+        buildExecutor.addStep("step2", (_, _, _) -> {
+            throw new AssertionError();
+        }, "step1/step2", "step1");
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Redundant root dependency: step1");
     }
 
     @Test

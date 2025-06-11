@@ -441,30 +441,22 @@ public class BuildExecutor {
                             entry.getValue().dependencies().forEach((dependency, synonym) -> {
                                 if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                                     propagated.put(synonym, inherited.get(dependency));
-                                } else if (dependency.contains("/")) {
-                                    // Handle lazy dependency resolution for module subpaths
-                                    String[] parts = dependency.split("/", 2);
-                                    String moduleName = parts[0];
-                                    String subPath = parts[1];
-                                    
-                                    Map<String, StepSummary> moduleResults = summaries.get(moduleName);
-                                    if (moduleResults != null) {
-                                        // Look for the specific subpath in the module results
-                                        StepSummary subResult = moduleResults.get(moduleName + "/" + subPath);
-                                        if (subResult != null) {
-                                            propagated.put(synonym, subResult);
+                                } else {
+                                    int index = dependency.indexOf('/');
+                                    if (index != -1) {
+                                        StepSummary summary = summaries.getOrDefault(
+                                                dependency.substring(0, index),
+                                                Map.of()).get(dependency);
+                                        if (summary != null) {
+                                            propagated.put(synonym, summary);
                                         } else {
-                                            throw new IllegalArgumentException("Could not resolve lazy dependency: " + dependency + 
-                                                " (available: " + moduleResults.keySet() + ")");
+                                            throw new IllegalArgumentException("Did not find dependency: " + dependency);
                                         }
                                     } else {
-                                        throw new IllegalArgumentException("Module not found for lazy dependency: " + dependency);
-                                    }
-                                } else {
-                                    Map<String, StepSummary> dependencyResults = summaries.get(dependency);
-                                    if (dependencyResults != null) {
-                                        dependencyResults.forEach((key, value) -> propagated.put(
-                                            key.equals(dependency) ? synonym : key, value));
+                                        Map<String, StepSummary> dependencyResults = summaries.get(dependency);
+                                        if (dependencyResults != null) { // TODO: check synonyms of subpaths
+                                            dependencyResults.forEach((key, value1) -> propagated.put(key.equals(dependency) ? synonym : key, value1));
+                                        }
                                     }
                                 }
                             });
