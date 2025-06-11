@@ -460,15 +460,9 @@ public class BuildExecutor {
                                         }
                                         propagated.put(synonym, summary);
                                     } else {
-                                        summaries.getOrDefault(dependency, Map.of()).forEach((key, value) -> {
-                                            if (key.equals(dependency)) {
-                                                propagated.put(synonym, value);
-                                            } else if (key.startsWith(dependency + "/")) {
-                                                propagated.put(synonym + key.substring(dependency.length()), value);
-                                            } else {
-                                                propagated.put(key, value);
-                                            }
-                                        });
+                                        summaries.getOrDefault(dependency, Map.of()).forEach((key, value) -> propagated.put(
+                                                synonym + key.substring(dependency.length()),
+                                                value));
                                     }
                                 }
                             });
