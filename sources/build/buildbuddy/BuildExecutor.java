@@ -313,7 +313,12 @@ public class BuildExecutor {
             } else if (registrations.containsKey(dependency)) {
                 preliminaries.add(dependency);
             } else {
-                throw new IllegalArgumentException("Did not find dependency: " + dependency);
+                String root = dependency.contains("/") ? dependency.split("/", 2)[0] : dependency;
+                if (registrations.containsKey(root)) {
+                    preliminaries.add(root);
+                } else {
+                    throw new IllegalArgumentException("Did not find dependency: " + dependency);
+                }
             }
         });
         if (registrations.putIfAbsent(
@@ -400,6 +405,14 @@ public class BuildExecutor {
                             entry.getValue().dependencies().forEach(dependency -> {
                                 if (dependency.startsWith(BuildExecutorModule.PREVIOUS)) {
                                     propagated.put(dependency, inherited.get(dependency));
+                                } else if (dependency.contains("/")) {
+                                    String[] segments = dependency.split("/", 2);
+                                    StepSummary summary = summaries.getOrDefault(segments[0], Map.of()).get(dependency);
+                                    if (summary != null) {
+                                        propagated.put(dependency, summary);
+                                    } else {
+                                        throw new IllegalArgumentException("Did not find dependency: " + dependency);
+                                    }
                                 } else {
                                     propagated.putAll(summaries.get(dependency));
                                 }
