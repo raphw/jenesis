@@ -331,14 +331,10 @@ public class BuildExecutor {
                 if (!inherited.containsKey(dependency)) {
                     throw new IllegalArgumentException("Did not inherit: " + dependency);
                 }
-            } else if (registrations.containsKey(dependency)) {
-                preliminaries.add(dependency);
+            } else if (registrations.containsKey(dependency.substring(0, limit))) {
+                preliminaries.add(dependency.substring(0, limit));
             } else {
-                if (registrations.containsKey(dependency.substring(0, limit))) {
-                    preliminaries.add(dependency.substring(0, limit));
-                } else {
-                    throw new IllegalArgumentException("Did not find dependency: " + dependency);
-                }
+                throw new IllegalArgumentException("Did not find dependency: " + dependency);
             }
         });
         if (registrations.putIfAbsent(
