@@ -323,7 +323,7 @@ public class BuildExecutor {
             int index, limit = dependency.length();
             while ((index = dependency.lastIndexOf('/', limit - 1)) != -1) {
                 if (dependencies.containsKey(dependency.substring(0, index))) {
-                    throw new  IllegalArgumentException("Redundant root dependency: " + dependency.substring(0, index));
+                    throw new IllegalArgumentException("Redundant root dependency: " + dependency.substring(0, index));
                 }
                 limit = index;
             }
