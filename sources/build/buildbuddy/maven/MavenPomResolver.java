@@ -76,7 +76,8 @@ public class MavenPomResolver implements Resolver {
                                                                                String groupId,
                                                                                String artifactId,
                                                                                String version,
-                                                                               MavenDependencyScope scope) throws IOException {
+                                                                               MavenDependencyScope scope)
+            throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         return dependencies(executor, repository, new ContextualPom(resolveOrCached(executor,
