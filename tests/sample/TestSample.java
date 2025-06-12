@@ -1,10 +1,8 @@
 package sample;
 
-import module org.junit.jupiter.api;
-
 public class TestSample {
 
-    @Test
+    @org.junit.jupiter.api.Test
     public void test() {
         System.out.println("Hello world!");
     }

@@ -1032,4 +1032,19 @@ public class BuildExecutorTest {
         assertThat(build).containsOnlyKeys("source", "step1/step2", "step3");
         assertThat(root.resolve("step3").resolve("output").resolve("file")).content().isEqualTo("foobarqux");
     }
+
+    @Test
+    public void rejects_duplicate_synonym() {
+        buildExecutor.addStep("step1", (_, _, _) -> {
+            throw new AssertionError();
+        });
+        buildExecutor.addStep("step2", (_, _, _) -> {
+            throw new AssertionError();
+        });
+        assertThatThrownBy(() -> buildExecutor.addStep("step3", (_, _, _) -> {
+            throw new AssertionError();
+        }, new LinkedHashMap<>(Map.of("step1", "duplicate", "step2", "duplicate"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Duplicated synonym: duplicate");
+    }
 }
