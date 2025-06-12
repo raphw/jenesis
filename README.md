@@ -39,7 +39,7 @@ Specific implementations of dependency resolution or repositories should not be 
 There should, for example, not be any hard dependency on Maven concepts, to allow for their substitution. 
 
 The POC is currently missing:
-- API to rename inherited identifiers within modules for the runtime of the module.
+- Add module for test discovery to include needed runner dependency.
 - Convention object for `MultiProject` to avoid manual construction of identifiers.
 - Task for creating POM files from module-info.java.
 - Task for javadoc.
