@@ -39,7 +39,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), inherited.sequencedKeySet());
-        buildExecutor.addStep(ARTIFACTS, process ? Jar.process() : Jar.tool(), Stream.concat(
+        buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
                 Stream.of(CLASSES),
                 inherited.sequencedKeySet().stream()));
     }
