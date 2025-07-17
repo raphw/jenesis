@@ -29,7 +29,7 @@ public class Minimal {
 
         root.addSource("sources", Bind.asSources(), Path.of("sources"));
         root.addStep("main-javac", Javac.tool(), "sources");
-        root.addStep("main-jar", Jar.tool(), "main-javac");
+        root.addStep("main-jar", Jar.tool(Jar.Sort.CLASSES), "main-javac");
 
         root.addSource("test-dependencies", Bind.asDependencies("test.properties"), Path.of("dependencies"));
         root.addStep("test-dependencies-resolved", new Resolve(repositories, resolvers), "test-dependencies");

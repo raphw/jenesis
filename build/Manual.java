@@ -36,7 +36,7 @@ public class Manual {
         root.addModule("main", (module, _) -> {
             module.addSource("sources", Bind.asSources(), Path.of("sources"));
             module.addStep("classes", Javac.tool(), "sources", "../main-deps/artifacts");
-            module.addStep("artifacts", Jar.tool(), "classes");
+            module.addStep("artifacts", Jar.tool(Jar.Sort.CLASSES), "classes");
         }, "main-deps");
 
         root.addModule("test-deps", (module, _) -> {
@@ -47,7 +47,7 @@ public class Manual {
         root.addModule("test", (module, _) -> {
             module.addSource("sources", Bind.asSources(), Path.of("tests"));
             module.addStep("classes", Javac.tool(), "sources", "../main/artifacts", "../test-deps/artifacts");
-            module.addStep("artifacts", Jar.tool(), "classes", "../test-deps/artifacts");
+            module.addStep("artifacts", Jar.tool(Jar.Sort.CLASSES), "classes", "../test-deps/artifacts");
             module.addStep("tests", new Tests(TestEngine.JUNIT5), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
