@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>codes.rafael.buildbuddy</groupId>
-    <artifactId>build-tool</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <groupId>build.jenesis</groupId>
+    <artifactId>jenesis</artifactId>
+    <version>0-SNAPSHOT</version>
 
     <build>
         <sourceDirectory>sources</sourceDirectory>

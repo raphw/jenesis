@@ -1,25 +1,20 @@
 package build;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.Repository;
-import build.buildbuddy.Resolver;
-import build.buildbuddy.maven.MavenDefaultRepository;
-import build.buildbuddy.maven.MavenPomResolver;
-import build.buildbuddy.maven.MavenUriParser;
-import build.buildbuddy.module.DownloadModuleUris;
-import build.buildbuddy.module.ModularJarResolver;
-import build.buildbuddy.module.ModularProject;
-import build.buildbuddy.project.JavaModule;
-import build.buildbuddy.step.Resolve;
+import build.jenesis.BuildExecutor;
+import build.jenesis.Repository;
+import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenPomResolver;
+import build.jenesis.maven.MavenUriParser;
+import build.jenesis.module.DownloadModuleUris;
+import build.jenesis.module.ModularJarResolver;
+import build.jenesis.module.ModularProject;
+import build.jenesis.project.JavaModule;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ModularByMaven {

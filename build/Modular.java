@@ -1,18 +1,16 @@
 package build;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.Repository;
-import build.buildbuddy.module.DownloadModuleUris;
-import build.buildbuddy.module.ModularProject;
-import build.buildbuddy.project.JavaModule;
+import build.jenesis.BuildExecutor;
+import build.jenesis.Repository;
+import build.jenesis.module.DownloadModuleUris;
+import build.jenesis.module.ModularProject;
+import build.jenesis.project.JavaModule;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Modular {

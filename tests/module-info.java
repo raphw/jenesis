@@ -1,6 +1,6 @@
-open module buildbuddy.test {
+open module build.jenesis.test {
 
-    requires buildbuddy;
+    requires build.jenesis;
     requires org.junit.jupiter;
     requires org.assertj.core;
 

@@ -1,5 +1,5 @@
-Build Buddy
-===========
+Jenesis
+=======
 
 POC for a simple-enough, yet powerful enough build tool that targets Java, and is written and configured in Java, and 
 that has inherent support for (a) parallel incremental builds, and therewith build reproducibility and (b) supply-chain 

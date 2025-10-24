@@ -1,13 +1,11 @@
 package build;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.maven.MavenProject;
-import build.buildbuddy.project.JavaModule;
+import build.jenesis.BuildExecutor;
+import build.jenesis.maven.MavenProject;
+import build.jenesis.project.JavaModule;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Maven {

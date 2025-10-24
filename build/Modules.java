@@ -1,15 +1,15 @@
 package build;
 
-import build.buildbuddy.BuildExecutor;
-import build.buildbuddy.Repository;
-import build.buildbuddy.Resolver;
-import build.buildbuddy.maven.MavenDefaultRepository;
-import build.buildbuddy.maven.MavenPomResolver;
-import build.buildbuddy.maven.MavenRepository;
-import build.buildbuddy.project.DependenciesModule;
-import build.buildbuddy.project.JavaModule;
-import build.buildbuddy.step.Bind;
-import build.buildbuddy.step.TestEngine;
+import build.jenesis.BuildExecutor;
+import build.jenesis.Repository;
+import build.jenesis.Resolver;
+import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenPomResolver;
+import build.jenesis.maven.MavenRepository;
+import build.jenesis.project.DependenciesModule;
+import build.jenesis.project.JavaModule;
+import build.jenesis.step.Bind;
+import build.jenesis.step.TestEngine;
 
 import java.io.IOException;
 import java.nio.file.Path;
