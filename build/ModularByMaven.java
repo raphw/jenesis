@@ -20,9 +20,11 @@ public class ModularByMaven {
         Map<String, Repository> repositories = Map.of("maven", new MavenDefaultRepository());
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
+
         root.addStep("download", new DownloadModuleUris(null, List.of(
                 DownloadModuleUris.DEFAULT,
                 Path.of("dependencies/modules.properties").toUri())));
+
         root.addModule("build", (build, downloaded) -> {
             Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
                     DownloadModuleUris.URIS,
@@ -45,7 +47,9 @@ public class ModularByMaven {
                                         .filter(identity -> identity.startsWith("../../../"))));
                     }));
         }, "download");
+
         root.addStep("final", new Stage(ModularProject.placement()), "build");
+
         root.execute();
     }
 }

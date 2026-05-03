@@ -13,9 +13,11 @@ public class Modular {
 
     static void main(String[] args) throws IOException {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
+
         root.addStep("download", new DownloadModuleUris("module", List.of(
                 DownloadModuleUris.DEFAULT,
                 Path.of("dependencies/modules.properties").toUri())));
+
         root.addModule("build", (build, downloaded) -> build.addModule("modules", ModularProject.make(
                 Path.of("."),
                 "SHA256",
@@ -27,7 +29,9 @@ public class Modular {
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                 .filter(identity -> identity.startsWith("../../../")))))), "download");
+
         root.addStep("final", new Stage(ModularProject.placement()), "build");
+
         root.execute();
     }
 }
