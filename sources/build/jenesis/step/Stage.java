@@ -15,7 +15,7 @@ public class Stage implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        for (var entry : arguments.entrySet()) {
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (!entry.getKey().endsWith("/assign")) {
                 continue;
             }
