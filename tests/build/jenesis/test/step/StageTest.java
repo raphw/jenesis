@@ -52,9 +52,9 @@ public class StageTest {
                 .join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("build.jenesis").resolve("classes.jar")).hasContent("modular");
-        assertThat(next.resolve("foo").resolve("main.jar")).hasContent("maven");
-        assertThat(next.resolve("foo").resolve("pom.xml")).hasContent("<project/>");
-        assertThat(next.resolve("foo-tests").resolve("test.jar")).hasContent("tests");
+        assertThat(next.resolve("com.example/foo").resolve("main.jar")).hasContent("maven");
+        assertThat(next.resolve("com.example/foo").resolve("pom.xml")).hasContent("<project/>");
+        assertThat(next.resolve("com.example/foo").resolve("test-test.jar")).hasContent("tests");
     }
 
     @Test
