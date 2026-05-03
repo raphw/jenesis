@@ -96,24 +96,26 @@ others are declared next to the step that emits them.
 
 | Path                       | Constant                         | Purpose                                                                                         |
 | -------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `sources/`                 | `BuildStep.SOURCES`              | Java source files.                                                                              |
-| `resources/`               | `BuildStep.RESOURCES`            | Non-source resource files.                                                                      |
-| `classes/`                 | `BuildStep.CLASSES`              | Compiled `.class` files.                                                                        |
-| `artifacts/`               | `BuildStep.ARTIFACTS`            | Built or downloaded jars.                                                                       |
-| `javadoc/`                 | `Javadoc.JAVADOC`                | Generated Javadoc.                                                                              |
-| `groups/`                  | `Group.GROUPS`                   | Per-group dependency property files written by `Group`.                                         |
-| `pom/`                     | `MavenProject.POM`               | `pom.xml` files mirrored from the project tree by `MavenProject` `scan`.                        |
-| `maven/`                   | `MavenProject.MAVEN`             | Per-module property files emitted by `MavenProject` `prepare`.                                  |
-| `coordinates.properties`   | `BuildStep.COORDINATES`          | Coordinate → path mapping (empty value = unresolved / self).                                    |
-| `dependencies.properties`  | `BuildStep.DEPENDENCIES`         | Required coordinates, optionally with expected checksum.                                        |
-| `uris.properties`          | `DownloadModuleUris.URIS`        | Module name → URI map fetched by `DownloadModuleUris`.                                          |
-| `pom.xml`                  | `Pom.POM`                        | Maven POM emitted by `Pom`.                                                                     |
-| `target/`                  | (passed to `BuildExecutor.of`)   | Build root; per-step output and incremental state.                                              |
-| `cache/`                   | by convention                    | Cross-build caches (e.g. `cache/modules`).                                                      |
-| `.jenesis.build`           | `BuildExecutor.BUILD_MARKER`     | Marker file at the build root; source scanners skip subtrees containing it.                     |
+| `sources/`                 | `BuildStep.SOURCES`              | A directory tree of `.java` source files (mirroring their package structure) consumed by compilation and documentation tooling, and packaged as-is into source jars.                                                                                  |
+| `resources/`               | `BuildStep.RESOURCES`            | A directory tree of non-source files (configuration, message bundles, static assets) that should appear on the classpath alongside compiled classes and be embedded into produced jars.                                                              |
+| `classes/`                 | `BuildStep.CLASSES`              | A directory tree of compiled `.class` files in their package layout, plus any non-source companion files copied verbatim from `sources/`. Forms a class- or module-path entry for downstream compilation, packaging and execution.                  |
+| `artifacts/`               | `BuildStep.ARTIFACTS`            | A flat directory of jar files, either freshly produced as a packaging output or downloaded from an external repository. Each file forms a class- or module-path entry for downstream compilation and execution.                                     |
+| `javadoc/`                 | `Javadoc.JAVADOC`                | A generated Javadoc tree (HTML, CSS and supporting resources), ready to be archived into a documentation jar or served as static content.                                                                                                            |
+| `groups/`                  | `Group.GROUPS`                   | One `<encoded-group-name>.properties` file per identified group, listing the other groups whose coordinates the group transitively depends on so cross-project wiring can be derived purely from on-disk state.                                      |
+| `pom/`                     | `MavenProject.POM`               | A mirror of the directory layout of a Maven multi-module project, with each `pom.xml` hard-linked from its original location to give downstream tooling a stable, sandboxed snapshot of the project's POM tree.                                      |
+| `maven/`                   | `MavenProject.MAVEN`             | One properties file per discovered Maven module (`module-<encoded-path>.properties` for the main artifact, `test-module-<encoded-path>.properties` for the test artifact), holding the parsed coordinate, source/resource directories, packaging and dependency list extracted from a single `pom.xml`. |
+| `coordinates.properties`   | `BuildStep.COORDINATES`          | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<jpms-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
+| `dependencies.properties`  | `BuildStep.DEPENDENCIES`         | Same `<prefix>/<coordinate>` keys as `coordinates.properties`, mapped to either an empty value (still to be resolved or hashed) or an `<algorithm>/<hex>` content checksum that downstream consumers verify against the downloaded artifact.                                                          |
+| `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<jpms-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a JPMS module name into a download URL.                                                        |
+| `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
+| `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
+| `cache/`                   | by convention                    | A folder used for caches that outlive a single build, such as previously fetched JPMS module URI registries; cached entries are content-addressable and refreshed on demand by whatever produced them.                                                |
+| `.jenesis.build`           | `BuildExecutor.BUILD_MARKER`     | An empty marker file placed at the root of an active build directory. Project-tree walkers honour it as a stop signal so nested builds aren't re-discovered as part of the parent build's project graph.                                              |
 
 Build steps
 -----------
+
+The steps listed here are pre-implemented for convenience; the build tool itself does not depend on any of them, and a build is free to ignore them and supply its own `BuildStep` implementations.
 
 | Step                       | What it does                                                                                                                                                                                   | Inputs (per predecessor folder)                                                                                                       | Outputs (under `context.next()`)                                                |
 | -------------------------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -140,6 +142,8 @@ them, and write `dependencies.properties` back.
 
 Build executor modules
 ----------------------
+
+The modules listed here are pre-implemented for convenience; the build tool itself does not depend on any of them, and a build is free to ignore them and supply its own `BuildExecutorModule` implementations.
 
 In every diagram below, blue rounded nodes are inputs (folders or files), yellow rectangles are steps, and
 purple rectangles are nested sub-modules. Optional steps are connected with dashed edges; the edge label names
