@@ -1,14 +1,14 @@
-package build;
-
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenUriParser;
+import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
+import build.jenesis.step.Stage;
 
 import module java.base;
 
@@ -32,10 +32,16 @@ void main(String[] args) throws IOException {
                 Map.of("module", new ModularJarResolver(
                         false,
                         new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate)))),
-                (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
-                        new JavaModule().testIfAvailable(),
-                        Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                .filter(identity -> identity.startsWith("../../../"))))));
+                (_, _) -> (buildExecutor, inherited) -> {
+                    buildExecutor.addModule("java",
+                            new JavaModule().testIfAvailable(),
+                            Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
+                                    .filter(identity -> identity.startsWith("../../../"))));
+                    buildExecutor.addStep("pom",
+                            new Pom(),
+                            Stream.concat(Stream.of("../dependencies/resolved"), inherited.sequencedKeySet().stream()
+                                    .filter(identity -> identity.startsWith("../../../"))));
+                }));
     }, "download");
 
     root.addStep("final", new Stage(ModularProject.placement()), "build");

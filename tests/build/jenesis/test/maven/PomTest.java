@@ -84,6 +84,47 @@ public class PomTest {
     }
 
     @Test
+    public void default_resolver_translates_module_self_coordinate_to_maven() throws IOException {
+        Properties coordinates = new SequencedProperties();
+        coordinates.setProperty("module/build.jenesis.test", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COORDINATES))) {
+            coordinates.store(writer, null);
+        }
+        Properties dependencies = new SequencedProperties();
+        dependencies.setProperty("maven/build.jenesis/jenesis/0-SNAPSHOT", "");
+        dependencies.setProperty("module/some.other.module", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.DEPENDENCIES))) {
+            dependencies.store(writer, null);
+        }
+        BuildStepResult result = new Pom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(Files.readString(next.resolve(Pom.POM))).isEqualTo("""
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>build.jenesis</groupId>
+                    <artifactId>jenesis.test</artifactId>
+                    <version>0-SNAPSHOT</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>build.jenesis</groupId>
+                            <artifactId>jenesis</artifactId>
+                            <version>0-SNAPSHOT</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+    }
+
+    @Test
     public void fails_when_no_self_coordinate_is_present() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "/already/resolved.jar");

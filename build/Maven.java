@@ -1,5 +1,3 @@
-package build;
-
 import build.jenesis.BuildExecutor;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;

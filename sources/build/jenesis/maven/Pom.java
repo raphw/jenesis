@@ -12,7 +12,29 @@ public class Pom implements BuildStep {
 
     public static final String POM = "pom.xml";
 
+    private final Function<String, String> resolver;
     private final MavenPomEmitter emitter = new MavenPomEmitter();
+
+    public Pom() {
+        this(coordinate -> {
+            int separator = coordinate.indexOf('/');
+            if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
+                return coordinate;
+            }
+            String name = coordinate.substring(separator + 1);
+            String[] elements = name.split("\\.");
+            if (elements.length < 2) {
+                return coordinate;
+            }
+            String groupId = elements[0] + "." + elements[1];
+            String artifactId = String.join(".", Arrays.asList(elements).subList(1, elements.length));
+            return "maven/" + groupId + "/" + artifactId + "/0-SNAPSHOT";
+        });
+    }
+
+    public Pom(Function<String, String> resolver) {
+        this.resolver = resolver;
+    }
 
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -41,15 +63,16 @@ public class Pom implements BuildStep {
             if (!coordinates.getProperty(coordinate).isEmpty()) {
                 continue;
             }
-            int separator = coordinate.indexOf('/');
+            String resolved = resolver.apply(coordinate);
+            int separator = resolved.indexOf('/');
             if (separator == -1) {
                 continue;
             }
-            Parsed parsed = parse(coordinate.substring(separator + 1));
+            Parsed parsed = parse(resolved.substring(separator + 1));
             if (parsed == null || "pom".equals(parsed.key().type())) {
                 continue;
             }
-            prefix = coordinate.substring(0, separator);
+            prefix = resolved.substring(0, separator);
             self = parsed;
             break;
         }

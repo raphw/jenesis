@@ -1,5 +1,3 @@
-package build;
-
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
 import build.jenesis.module.DownloadModuleUris;
