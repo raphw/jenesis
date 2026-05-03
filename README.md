@@ -208,27 +208,29 @@ flowchart LR
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   inh(["inherited inputs"]):::input
-  subgraph identify
+  subgraph "identify"
     direction TB
     idA["module-A<br/>(identifier)"]:::module
     idB["module-B<br/>(identifier)"]:::module
   end
-  subgraph build
+  subgraph "build"
     direction LR
-    group["group<br/>(Group)"]:::step
+    group["group<br/>(Group step)"]:::step
     subgraph "module"
       direction LR
-      projB["B<br/>(factory)"]:::module
-      projA["A<br/>(factory; requires B)"]:::module
+      projB["B<br/>(factory output)"]:::module
+      projA["A<br/>(factory output; requires B)"]:::module
       projB --> projA
     end
     group --> projA
     group --> projB
   end
-  inh --> identify
-  identify --> group
-  identify --> projA
-  identify --> projB
+  inh --> idA
+  inh --> idB
+  idA --> group
+  idB --> group
+  idA --> projA
+  idB --> projB
 ```
 
 ### `MavenProject`
@@ -247,27 +249,38 @@ flowchart LR
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   tree(["project tree<br/>with pom.xml files"]):::input
-  subgraph "MavenProject (identifier)"
+  subgraph "MavenProject (identify)"
     direction LR
     scan["scan<br/>(mirrors pom.xml<br/>into pom/)"]:::step
     prepare["prepare<br/>(writes maven/*.properties)"]:::step
     subgraph "module"
       direction LR
-      idA["module-A<br/>sources, resources-N,<br/>declare"]:::module
-      idB["module-B<br/>sources, resources-N,<br/>declare"]:::module
+      idA["module-A<br/>(sources, resources-N,<br/>declare step)"]:::module
+      idB["module-B<br/>(sources, resources-N,<br/>declare step)"]:::module
     end
     scan --> prepare --> idA
     prepare --> idB
   end
-  subgraph "factory closure (per project)"
+  subgraph "B (per project)"
     direction LR
-    pB["B<br/>prepare → dependencies →<br/>build → assign"]:::module
-    pA["A<br/>prepare → dependencies →<br/>build → assign<br/>(requires B)"]:::module
-    pB --> pA
+    pBprep["prepare<br/>(MultiProjectDependencies)"]:::step
+    pBdeps["dependencies<br/>(DependenciesModule)"]:::module
+    pBbuild["build<br/>(caller-supplied)"]:::module
+    pBassn["assign<br/>(Assign)"]:::step
+    pBprep --> pBdeps --> pBbuild --> pBassn
+  end
+  subgraph "A (per project, requires B)"
+    direction LR
+    pAprep["prepare<br/>(MultiProjectDependencies)"]:::step
+    pAdeps["dependencies<br/>(DependenciesModule)"]:::module
+    pAbuild["build<br/>(caller-supplied)"]:::module
+    pAassn["assign<br/>(Assign)"]:::step
+    pAprep --> pAdeps --> pAbuild --> pAassn
   end
   tree --> scan
-  idA --> pA
-  idB --> pB
+  idA --> pAprep
+  idB --> pBprep
+  pBassn --> pAprep
 ```
 
 ### `ModularProject`
@@ -287,34 +300,38 @@ flowchart LR
   classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   tree(["project tree<br/>with module-info.java files"]):::input
-  subgraph "ModularProject (identifier)"
+  subgraph "ModularProject (identify)"
     direction LR
-    idA["module-A<br/>sources + module step<br/>(coords + deps)"]:::module
-    idB["module-B<br/>sources + module step<br/>(coords + deps)"]:::module
+    idA["module-A<br/>(sources + module step<br/>writing coords + deps)"]:::module
+    idB["module-B<br/>(sources + module step<br/>writing coords + deps)"]:::module
   end
-  subgraph "factory closure (per project)"
+  subgraph "B (per project)"
     direction LR
-    pf_prepare["prepare<br/>(MultiProjectDependencies)"]:::step
-    pf_deps["dependencies<br/>(DependenciesModule)"]:::module
-    pf_build["build<br/>(caller-supplied)"]:::module
-    pf_pom["pom<br/>(Pom)"]:::optional
-    pf_assign["assign<br/>(Assign)"]:::step
-    pf_prepare --> pf_deps --> pf_build --> pf_assign
-    pf_deps -.->|".withPom(...)"| pf_pom
-    pf_pom -.-> pf_assign
+    pBprep["prepare<br/>(MultiProjectDependencies)"]:::step
+    pBdeps["dependencies<br/>(DependenciesModule)"]:::module
+    pBbuild["build<br/>(caller-supplied)"]:::module
+    pBpom["pom<br/>(Pom)"]:::optional
+    pBassn["assign<br/>(Assign)"]:::step
+    pBprep --> pBdeps --> pBbuild --> pBassn
+    pBdeps -.->|".withPom(...)"| pBpom
+    pBpom -.-> pBassn
   end
-  subgraph "module group (per project)"
+  subgraph "A (per project, requires B)"
     direction LR
-    pB["B"]:::module
-    pA["A (requires B)"]:::module
-    pB --> pA
+    pAprep["prepare<br/>(MultiProjectDependencies)"]:::step
+    pAdeps["dependencies<br/>(DependenciesModule)"]:::module
+    pAbuild["build<br/>(caller-supplied)"]:::module
+    pApom["pom<br/>(Pom)"]:::optional
+    pAassn["assign<br/>(Assign)"]:::step
+    pAprep --> pAdeps --> pAbuild --> pAassn
+    pAdeps -.->|".withPom(...)"| pApom
+    pApom -.-> pAassn
   end
   tree --> idA
   tree --> idB
-  idA --> pA
-  idB --> pB
-  pA --- pf_prepare
-  pB --- pf_prepare
+  idA --> pAprep
+  idB --> pBprep
+  pBassn --> pAprep
 ```
 
 Status
