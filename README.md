@@ -9,7 +9,7 @@ plain `.java` file that the user authors in their project's `build/` folder and 
 
     java build/Main.java
 
-The tool needs no installation, wrapper script, or precompiled binary — it relies on the JVM's ability to launch a
+The tool needs no installation, wrapper script, or precompiled binary; it relies on the JVM's ability to launch a
 multi-file Java program directly from sources, and only on the Java standard library at runtime. The tool's own
 sources are linked into the project alongside its `build/` script (or pulled in via Git submodules), so a build is
 fully reproducible from a clone of the repository plus a JDK.
@@ -23,7 +23,7 @@ Dependency declarations live outside the build script, in plain Java `.propertie
 together with their checksums, are themselves expressible as properties and can be checked into source control.
 This makes resolution deterministic and turns the dependency descriptor into a supply-chain artifact: a build won't
 silently pick up a new transitive version, and a downloaded jar that doesn't match its checksum is rejected. There
-is no hard dependency on Maven concepts — Maven is supported via `MavenRepository`/`MavenPomResolver`, but other
+is no hard dependency on Maven concepts. Maven is supported via `MavenRepository`/`MavenPomResolver`, but other
 repositories and resolvers can be plugged in.
 
 For IDE support, a `pom.xml` is kept alongside so the project opens, builds and debugs in any Maven-aware IDE.
@@ -31,7 +31,7 @@ For IDE support, a `pom.xml` is kept alongside so the project opens, builds and 
 Architecture
 ------------
 
-The lowest primitive is a `BuildStep` — a single unit of work that reads from a set of input folders and writes
+The lowest primitive is a `BuildStep`, a single unit of work that reads from a set of input folders and writes
 into a fresh output folder. It is a functional interface:
 
 ```java
@@ -43,11 +43,11 @@ CompletionStage<BuildStepResult> apply(Executor executor,
 Each invocation is handed a `BuildStepContext` and a map of predecessor outputs. The context holds three folder
 slots:
 
-- `next` — the folder this invocation writes into. It is created fresh for every run; the step never modifies any
+- `next`: the folder this invocation writes into. It is created fresh for every run; the step never modifies any
   other folder.
-- `previous` — the same step's output folder from the prior run, or `null` on a first run. A step can read it to
+- `previous`: the same step's output folder from the prior run, or `null` on a first run. A step can read it to
   decide what to copy or hard-link instead of regenerating, but it must not write into it.
-- `supplement` — scratch space tied to the step's lifetime, available for intermediate files the step doesn't want
+- `supplement`: scratch space tied to the step's lifetime, available for intermediate files the step doesn't want
   to publish in `next`.
 
 The `arguments` map carries one `BuildStepArgument` per registered predecessor. Each argument exposes the folder to
@@ -65,7 +65,7 @@ Steps are organised into a graph by `BuildExecutor`:
 - `execute()` runs the graph on a virtual-thread executor, scheduling each node as soon as its predecessors have
   completed.
 
-A `BuildExecutorModule` is a sub-graph factory — also a functional interface, with
+A `BuildExecutorModule` is a sub-graph factory, also a functional interface, with
 `accept(BuildExecutor, inherited)` populating a nested `BuildExecutor` with its own steps and (transitively) its
 own sub-modules. The `inherited` map exposes the predecessor folders the parent passed in, addressed under their
 `../`-prefixed identifiers. Modules can rename their published outputs by overriding `resolve(...)`. Composing
@@ -79,8 +79,8 @@ Two properties of the model give incremental builds and reproducibility for free
   function of its inputs.
 - **Inputs and outputs are content-hashed.** Every output folder is checksummed when the step finishes; on the next
   run, those checksums become the predecessors' input checksums. If they all match and `shouldRun(...)` returns
-  `false`, the step's previous output is reused unchanged. Anywhere along the chain that the hashes diverge — a
-  source edit, an upstream re-run, a different dependency — the affected step (and only the affected step) is
+  `false`, the step's previous output is reused unchanged. Anywhere along the chain that the hashes diverge (a
+  source edit, an upstream re-run, a different dependency), the affected step (and only the affected step) is
   re-executed into a fresh `next` folder, which transparently replaces its predecessor.
 
 The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
@@ -129,13 +129,13 @@ Build steps
 | `Translate`                | Rewrites the keys of `dependencies.properties` through user-supplied per-prefix translator functions (e.g. JPMS module name → Maven coordinate).                                               | `dependencies.properties`                                                                                                             | `dependencies.properties` (keys remapped per-prefix)                             |
 | `Group`                    | Reads each predecessor's `coordinates.properties` and `dependencies.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `coordinates.properties`, `dependencies.properties`                                                                                   | `groups/<encoded-name>.properties`                                               |
 | `Assign`                   | Fills the empty values of `coordinates.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                         | `coordinates.properties`, `artifacts/`                                                                                                | `coordinates.properties` (empty values filled with artifact paths)               |
-| `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none — fetches the configured URLs                                                                                                    | `uris.properties`                                                                |
+| `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
 | `MultiProjectDependencies` | Merges per-project `dependencies.properties` (and looks up sibling-project paths in their `coordinates.properties`) into one unified `dependencies.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `coordinates.properties` or `dependencies.properties`, partitioned by predicate                                        | unified `dependencies.properties`, with checksums for resolved local artifacts   |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `coordinates.properties` and its dependencies from `dependencies.properties` entries that share the same prefix. | `coordinates.properties` (self coordinate = empty value), `dependencies.properties`                                                   | `pom.xml`                                                                       |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and `Tests`); `Java.of(...)`
 gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
-`Download`, and `Translate` — they all parse `dependencies.properties` into `(prefix, coordinate)` groups, transform
+`Download`, and `Translate`; they all parse `dependencies.properties` into `(prefix, coordinate)` groups, transform
 them, and write `dependencies.properties` back.
 
 Build executor modules
