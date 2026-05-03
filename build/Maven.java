@@ -5,21 +5,19 @@ import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.step.Stage;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.stream.Stream;
+import module java.base;
 
-public class Maven {
+void main(String[] args) throws IOException {
+    BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
-    static void main(String[] args) throws IOException {
-        BuildExecutor root = BuildExecutor.of(Path.of("target"));
-        root.addModule("maven", MavenProject.make(Path.of("."),
-                "SHA256",
-                (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
-                        new JavaModule().testIfAvailable(),
-                        Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                .filter(identity -> identity.startsWith("../../../"))))));
-        root.addStep("final", new Stage(MavenProject.placement()), "maven");
-        root.execute();
-    }
+    root.addModule("maven", MavenProject.make(Path.of("."),
+            "SHA256",
+            (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
+                    new JavaModule().testIfAvailable(),
+                    Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
+                            .filter(identity -> identity.startsWith("../../../"))))));
+
+    root.addStep("final", new Stage(MavenProject.placement()), "maven");
+
+    root.execute();
 }
