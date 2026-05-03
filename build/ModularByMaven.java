@@ -1,3 +1,5 @@
+package build;
+
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -12,39 +14,38 @@ import build.jenesis.step.Stage;
 
 import module java.base;
 
-void main(String[] args) throws IOException {
-    Map<String, Repository> repositories = Map.of("maven", new MavenDefaultRepository());
+public class ModularByMaven {
 
-    BuildExecutor root = BuildExecutor.of(Path.of("target"));
+    static void main(String[] args) throws IOException {
+        Map<String, Repository> repositories = Map.of("maven", new MavenDefaultRepository());
 
-    root.addStep("download", new DownloadModuleUris(null, List.of(
-            DownloadModuleUris.DEFAULT,
-            Path.of("dependencies/modules.properties").toUri())));
-
-    root.addModule("build", (build, downloaded) -> {
-        Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
-                DownloadModuleUris.URIS,
-                downloaded.values());
-        build.addModule("modules", ModularProject.make(
-                Path.of("."),
-                "SHA256",
-                repositories,
-                Map.of("module", new ModularJarResolver(
-                        false,
-                        new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate)))),
-                (_, _) -> (buildExecutor, inherited) -> {
-                    buildExecutor.addModule("java",
-                            new JavaModule().testIfAvailable(),
-                            Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                    .filter(identity -> identity.startsWith("../../../"))));
-                    buildExecutor.addStep("pom",
-                            new Pom(),
-                            Stream.concat(Stream.of("../dependencies/resolved"), inherited.sequencedKeySet().stream()
-                                    .filter(identity -> identity.startsWith("../../../"))));
-                }));
-    }, "download");
-
-    root.addStep("final", new Stage(ModularProject.placement()), "build");
-
-    root.execute();
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
+        root.addStep("download", new DownloadModuleUris(null, List.of(
+                DownloadModuleUris.DEFAULT,
+                Path.of("dependencies/modules.properties").toUri())));
+        root.addModule("build", (build, downloaded) -> {
+            Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
+                    DownloadModuleUris.URIS,
+                    downloaded.values());
+            build.addModule("modules", ModularProject.make(
+                    Path.of("."),
+                    "SHA256",
+                    repositories,
+                    Map.of("module", new ModularJarResolver(
+                            false,
+                            new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate)))),
+                    (_, _) -> (buildExecutor, inherited) -> {
+                        buildExecutor.addModule("java",
+                                new JavaModule().testIfAvailable(),
+                                Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
+                                        .filter(identity -> identity.startsWith("../../../"))));
+                        buildExecutor.addStep("pom",
+                                new Pom(),
+                                Stream.concat(Stream.of("../dependencies/resolved"), inherited.sequencedKeySet().stream()
+                                        .filter(identity -> identity.startsWith("../../../"))));
+                    }));
+        }, "download");
+        root.addStep("final", new Stage(ModularProject.placement()), "build");
+        root.execute();
+    }
 }
