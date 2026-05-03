@@ -19,7 +19,7 @@ public class Maven {
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                 .filter(identity -> identity.startsWith("../../../"))))));
-        root.addStep("final", new Stage(), "maven");
+        root.addStep("final", new Stage(MavenProject.placement()), "maven");
         root.execute();
     }
 }

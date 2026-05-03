@@ -97,6 +97,14 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
+    public static BiFunction<String, String, Path> placement() {
+        return (coordinate, filename) -> {
+            int separator = coordinate.indexOf('/');
+            String name = separator == -1 ? coordinate : coordinate.substring(separator + 1);
+            return Path.of(name, filename);
+        };
+    }
+
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {

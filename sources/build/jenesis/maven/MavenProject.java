@@ -86,6 +86,23 @@ public class MavenProject implements BuildExecutorModule {
                 });
     }
 
+    public static BiFunction<String, String, Path> placement() {
+        return (coordinate, filename) -> {
+            int separator = coordinate.indexOf('/');
+            String rest = separator == -1 ? coordinate : coordinate.substring(separator + 1);
+            String[] elements = rest.split("/");
+            return switch (elements.length) {
+                case 3, 4 -> Path.of(elements[0], elements[1], filename);
+                case 5 -> {
+                    String classifier = elements[3];
+                    String prefix = (classifier.equals("tests") ? "test" : classifier) + "-";
+                    yield Path.of(elements[0], elements[1], prefix + filename);
+                }
+                default -> Path.of(rest, filename);
+            };
+        };
+    }
+
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         if (!Files.exists(root.resolve("pom.xml"))) {

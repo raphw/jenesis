@@ -10,6 +10,12 @@ import module java.base;
 
 public class Stage implements BuildStep {
 
+    private final BiFunction<String, String, Path> placement;
+
+    public Stage(BiFunction<String, String, Path> placement) {
+        this.placement = placement;
+    }
+
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
@@ -36,28 +42,12 @@ public class Stage implements BuildStep {
                 if (!Files.exists(source)) {
                     continue;
                 }
-                int separator = coordinate.indexOf('/');
-                String rest = separator == -1 ? coordinate : coordinate.substring(separator + 1);
-                String[] elements = rest.split("/");
-                String name;
-                String filenamePrefix;
-                switch (elements.length) {
-                    case 3, 4 -> {
-                        name = elements[0] + "/" + elements[1];
-                        filenamePrefix = "";
-                    }
-                    case 5 -> {
-                        name = elements[0] + "/" + elements[1];
-                        String classifier = elements[3];
-                        filenamePrefix = (classifier.equals("tests") ? "test" : classifier) + "-";
-                    }
-                    default -> {
-                        name = rest;
-                        filenamePrefix = "";
-                    }
+                Path relative = placement.apply(coordinate, source.getFileName().toString());
+                Path target = context.next().resolve(relative);
+                Path parent = target.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
                 }
-                Path folder = Files.createDirectories(context.next().resolve(name));
-                Path target = folder.resolve(filenamePrefix + source.getFileName().toString());
                 if (!Files.exists(target)) {
                     Files.createLink(target, source);
                 }

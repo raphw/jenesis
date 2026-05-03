@@ -15,6 +15,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class StageTest {
 
+    private static final BiFunction<String, String, Path> FLAT_PLACEMENT = (coordinate, filename) -> {
+        int separator = coordinate.indexOf('/');
+        String name = separator == -1 ? coordinate : coordinate.substring(separator + 1);
+        return Path.of(name, filename);
+    };
+
     @TempDir
     private Path root;
     private Path previous, next, supplement;
@@ -27,23 +33,19 @@ public class StageTest {
     }
 
     @Test
-    public void can_stage_artifacts_grouped_by_coordinate() throws IOException {
+    public void applies_placement_function_to_each_assigned_artifact() throws IOException {
         Path assignFolder = Files.createDirectory(root.resolve("assign"));
         Path artifacts = Files.createDirectory(root.resolve("artifacts"));
-        Path modularJar = Files.writeString(artifacts.resolve("classes.jar"), "modular");
-        Path mavenJar = Files.writeString(artifacts.resolve("main.jar"), "maven");
-        Path testJar = Files.writeString(artifacts.resolve("test.jar"), "tests");
-        Path pom = Files.writeString(artifacts.resolve("pom.xml"), "<project/>");
+        Path mainJar = Files.writeString(artifacts.resolve("classes.jar"), "main");
+        Path otherJar = Files.writeString(artifacts.resolve("other.jar"), "other");
         Properties properties = new SequencedProperties();
-        properties.setProperty("module/build.jenesis", modularJar.toString());
-        properties.setProperty("maven/com.example/foo/jar/1.0.0", mavenJar.toString());
-        properties.setProperty("maven/com.example/foo/pom/1.0.0", pom.toString());
-        properties.setProperty("maven/com.example/foo/jar/tests/1.0.0", testJar.toString());
+        properties.setProperty("module/build.jenesis", mainJar.toString());
+        properties.setProperty("module/build.jenesis.test", otherJar.toString());
         try (Writer writer = Files.newBufferedWriter(assignFolder.resolve(BuildStep.COORDINATES))) {
             properties.store(writer, null);
         }
 
-        BuildStepResult result = new Stage().apply(Runnable::run,
+        BuildStepResult result = new Stage(FLAT_PLACEMENT).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("build/module/foo/assign", new BuildStepArgument(
                                 assignFolder,
@@ -51,10 +53,8 @@ public class StageTest {
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve("build.jenesis").resolve("classes.jar")).hasContent("modular");
-        assertThat(next.resolve("com.example/foo").resolve("main.jar")).hasContent("maven");
-        assertThat(next.resolve("com.example/foo").resolve("pom.xml")).hasContent("<project/>");
-        assertThat(next.resolve("com.example/foo").resolve("test-test.jar")).hasContent("tests");
+        assertThat(next.resolve("build.jenesis").resolve("classes.jar")).hasContent("main");
+        assertThat(next.resolve("build.jenesis.test").resolve("other.jar")).hasContent("other");
     }
 
     @Test
@@ -76,7 +76,7 @@ public class StageTest {
             secondProps.store(writer, null);
         }
 
-        BuildStepResult result = new Stage().apply(Runnable::run,
+        BuildStepResult result = new Stage(FLAT_PLACEMENT).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "build/module/first/assign", new BuildStepArgument(
@@ -103,7 +103,7 @@ public class StageTest {
             properties.store(writer, null);
         }
 
-        BuildStepResult result = new Stage().apply(Runnable::run,
+        BuildStepResult result = new Stage(FLAT_PLACEMENT).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("build/module/foo/build", new BuildStepArgument(
                                 other,
@@ -126,7 +126,7 @@ public class StageTest {
             properties.store(writer, null);
         }
 
-        BuildStepResult result = new Stage().apply(Runnable::run,
+        BuildStepResult result = new Stage(FLAT_PLACEMENT).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("build/module/foo/assign", new BuildStepArgument(
                                 assignFolder,
