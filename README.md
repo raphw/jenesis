@@ -141,13 +141,177 @@ them, and write `dependencies.properties` back.
 Build executor modules
 ----------------------
 
-| Module                                | Sub-graph it adds                                                                                                                                                          | Expected predecessors                                                                                            |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `JavaModule`                          | `classes` (`Javac`), `artifacts` (`Jar` `CLASSES`); with `.test(engine)` / `.testIfAvailable()` also `tests` (`Tests`)                                                     | sources and resolved dependency `artifacts/`                                                                     |
-| `DependenciesModule`                  | `resolved` (`Resolve`) and `artifacts` (`Download`); with `.computeChecksums(algorithm)` also a `prepared` (`Resolve`) before a `Checksum` step                            | `dependencies.properties`                                                                                        |
-| `MultiProjectModule`                  | `identify` (the configured identifier module), `build` containing `group` (`Group`) and `module` (one nested factory-built module per discovered project)                  | whatever the identifier module needs                                                                             |
-| `MavenProject`                        | as identifier: `scan` step (mirrors every `pom.xml` into `pom/`), `prepare` step (writes `maven/<module>.properties`), and a `module` group with per-POM sub-modules (`sources`, `resources-N`, `declare`). `MavenProject.make(...)` returns it wrapped in a `MultiProjectModule` whose factory builds `prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule.computeChecksums`), `build` (caller-supplied), and `assign` (`Assign`) | a project root containing `pom.xml`                                                                              |
-| `ModularProject`                      | as identifier: walks the project tree for `module-info.java` and adds one sub-module per descriptor, with a `sources` source and a `module` step that writes `coordinates.properties`/`dependencies.properties` from the parsed module info. `ModularProject.make(...)` / `ModularProject.withPom(...)` wrap it in a `MultiProjectModule` whose factory mirrors `MavenProject.make`'s, optionally adding a `pom` step (`Pom`) before `assign` when `withPom(...)` is used | a project root containing `module-info.java` files                                                               |
+In every diagram below, blue rounded nodes are inputs (folders or files), yellow rectangles are steps, and
+purple rectangles are nested sub-modules. Optional steps are connected with dashed edges; the edge label names
+the method that enables them.
+
+### `JavaModule`
+
+Used for compiling and packaging a single Java module from its sources and its resolved dependencies. Calling
+`.test(engine)` or `.testIfAvailable()` adds an extra step that runs the compiled tests.
+
+```mermaid
+flowchart LR
+  classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
+  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
+  src(["sources/"]):::input
+  arts(["dependency artifacts/"]):::input
+  classes["classes<br/>(Javac)"]:::step
+  artifacts["artifacts<br/>(Jar, Sort.CLASSES)"]:::step
+  tests["tests<br/>(Tests)"]:::optional
+  src --> classes
+  arts --> classes
+  classes --> artifacts
+  arts --> artifacts
+  classes -.->|".test(engine) /<br/>.testIfAvailable()"| tests
+  artifacts -.-> tests
+  arts -.-> tests
+```
+
+### `DependenciesModule`
+
+Used for resolving and downloading external dependencies declared in `dependencies.properties`. Calling
+`.computeChecksums(algorithm)` inserts an extra `prepared` step so that resolution and content-hashing are
+recorded before the artifacts are fetched, making the dependency set verifiable on subsequent builds.
+
+```mermaid
+flowchart LR
+  classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
+  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
+  deps(["dependencies.properties"]):::input
+  prepared["prepared<br/>(Resolve)"]:::optional
+  resolved["resolved<br/>(Resolve, or Checksum<br/>with .computeChecksums)"]:::step
+  artifacts["artifacts<br/>(Download)"]:::step
+  deps --> resolved
+  deps -.->|".computeChecksums(algorithm)"| prepared
+  prepared -.-> resolved
+  resolved --> artifacts
+```
+
+### `MultiProjectModule`
+
+Used as the generic shape behind multi-project layouts. An *identifier* sub-module discovers the projects in a
+source tree and writes their coordinates and dependencies; a `Group` step partitions the cross-project
+dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
+between them. The example below shows two projects `A` and `B` where `A` requires `B`, so `B` is built first
+and its output flows into `A`.
+
+```mermaid
+flowchart LR
+  classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
+  classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  inh(["inherited inputs"]):::input
+  subgraph identify
+    direction TB
+    idA["module-A<br/>(identifier)"]:::module
+    idB["module-B<br/>(identifier)"]:::module
+  end
+  subgraph build
+    direction LR
+    group["group<br/>(Group)"]:::step
+    subgraph "module"
+      direction LR
+      projB["B<br/>(factory)"]:::module
+      projA["A<br/>(factory; requires B)"]:::module
+      projB --> projA
+    end
+    group --> projA
+    group --> projB
+  end
+  inh --> identify
+  identify --> group
+  identify --> projA
+  identify --> projB
+```
+
+### `MavenProject`
+
+Used to drive a build from a Maven project layout. As the identifier inside a `MultiProjectModule`, it mirrors
+every `pom.xml` into `pom/`, parses each into a per-module `maven/<path>.properties`, and emits one
+`module-X` sub-module per discovered POM containing source folders, optional resource folders, and a `declare`
+step that writes the project's own coordinate and its resolved Maven dependencies. `MavenProject.make(...)`
+returns the full wrapped `MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`),
+`dependencies` (`DependenciesModule.computeChecksums`), `build` (caller-supplied, typically `JavaModule`), and
+`assign` (`Assign`) for each project.
+
+```mermaid
+flowchart LR
+  classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
+  classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  tree(["project tree<br/>with pom.xml files"]):::input
+  subgraph "MavenProject (identifier)"
+    direction LR
+    scan["scan<br/>(mirrors pom.xml<br/>into pom/)"]:::step
+    prepare["prepare<br/>(writes maven/*.properties)"]:::step
+    subgraph "module"
+      direction LR
+      idA["module-A<br/>sources, resources-N,<br/>declare"]:::module
+      idB["module-B<br/>sources, resources-N,<br/>declare"]:::module
+    end
+    scan --> prepare --> idA
+    prepare --> idB
+  end
+  subgraph "factory closure (per project)"
+    direction LR
+    pB["B<br/>prepare → dependencies →<br/>build → assign"]:::module
+    pA["A<br/>prepare → dependencies →<br/>build → assign<br/>(requires B)"]:::module
+    pB --> pA
+  end
+  tree --> scan
+  idA --> pA
+  idB --> pB
+```
+
+### `ModularProject`
+
+Used to drive a build from a JPMS-modular project layout. As the identifier inside a `MultiProjectModule`, it
+walks the source tree for `module-info.java` files and emits one sub-module per descriptor, each containing a
+`sources` source and a `module` step that parses the descriptor and writes `coordinates.properties` plus
+`dependencies.properties` from the JPMS `requires` directives. `ModularProject.make(...)` and
+`ModularProject.withPom(...)` return the full wrapped `MultiProjectModule`; `withPom(...)` additionally adds an
+optional `pom` step (using `Pom`) before `assign`, which materialises a Maven `pom.xml` so the artifact can be
+published.
+
+```mermaid
+flowchart LR
+  classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
+  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
+  classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  tree(["project tree<br/>with module-info.java files"]):::input
+  subgraph "ModularProject (identifier)"
+    direction LR
+    idA["module-A<br/>sources + module step<br/>(coords + deps)"]:::module
+    idB["module-B<br/>sources + module step<br/>(coords + deps)"]:::module
+  end
+  subgraph "factory closure (per project)"
+    direction LR
+    pf_prepare["prepare<br/>(MultiProjectDependencies)"]:::step
+    pf_deps["dependencies<br/>(DependenciesModule)"]:::module
+    pf_build["build<br/>(caller-supplied)"]:::module
+    pf_pom["pom<br/>(Pom)"]:::optional
+    pf_assign["assign<br/>(Assign)"]:::step
+    pf_prepare --> pf_deps --> pf_build --> pf_assign
+    pf_deps -.->|".withPom(...)"| pf_pom
+    pf_pom -.-> pf_assign
+  end
+  subgraph "module group (per project)"
+    direction LR
+    pB["B"]:::module
+    pA["A (requires B)"]:::module
+    pB --> pA
+  end
+  tree --> idA
+  tree --> idB
+  idA --> pA
+  idB --> pB
+  pA --- pf_prepare
+  pB --- pf_prepare
+```
 
 Status
 ------
