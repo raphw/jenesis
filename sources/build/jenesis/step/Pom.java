@@ -40,8 +40,7 @@ public class Pom implements BuildStep {
             }
         }
         String prefix = null;
-        MavenDependencyKey selfKey = null;
-        String selfVersion = null;
+        Parsed self = null;
         for (String coordinate : coordinates.stringPropertyNames()) {
             if (!coordinates.getProperty(coordinate).isEmpty()) {
                 continue;
@@ -51,15 +50,14 @@ public class Pom implements BuildStep {
                 continue;
             }
             Parsed parsed = parse(coordinate.substring(separator + 1));
-            if (parsed == null || "pom".equals(parsed.key.type())) {
+            if (parsed == null || "pom".equals(parsed.key().type())) {
                 continue;
             }
             prefix = coordinate.substring(0, separator);
-            selfKey = parsed.key();
-            selfVersion = parsed.version();
+            self = parsed;
             break;
         }
-        if (selfKey == null) {
+        if (self == null) {
             throw new IllegalStateException(
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
@@ -82,10 +80,10 @@ public class Pom implements BuildStep {
         }
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(POM))) {
             emitter.emit(
-                    selfKey.groupId(),
-                    selfKey.artifactId(),
-                    selfVersion,
-                    "jar".equals(selfKey.type()) ? null : selfKey.type(),
+                    self.key().groupId(),
+                    self.key().artifactId(),
+                    self.version(),
+                    "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps).accept(writer);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
