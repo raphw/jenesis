@@ -67,6 +67,199 @@ Dependencies for each layout live in `dependencies/` as plain `.properties` file
 `modules.properties`). They are intentionally textual so that resolved coordinates and their checksums can be checked
 into source control to stabilise builds and underpin supply-chain validation.
 
+Build graph and module composition
+----------------------------------
+
+Every build is a directed graph. A `BuildExecutor` exposes three primitives:
+
+- `addSource(name, ...)` introduces an external folder as an input.
+- `addStep(name, BuildStep, predecessors)` adds a unit of work whose output lands under `target/.../<name>` and which
+  can read each predecessor's folder as `argument.folder()`.
+- `addModule(name, BuildExecutorModule, predecessors)` nests another graph under `name`, with predecessors visible to
+  the module's children through the `inherited` map (referenced from inside as `../predecessor`).
+
+A `BuildExecutorModule` is therefore just a sub-graph factory. The classes in `build.jenesis.project` and
+`build.jenesis.maven`/`build.jenesis.module` are pre-fabricated sub-graphs for common patterns. The diagrams below
+show their internal shape and how the entry points in `build/` chain them together. In the diagrams, rounded nodes are
+external sources, rectangles are steps, and labelled boxes are modules; arrows point from a predecessor to its
+consumer.
+
+### `JavaModule`
+
+Compiles, jars and (optionally) tests a single Java module from its inherited sources and dependencies.
+
+```mermaid
+flowchart LR
+  inh(["inherited<br/>(sources + dependency artifacts)"])
+  subgraph JavaModule
+    direction LR
+    classes["classes<br/>Javac"]
+    artifacts["artifacts<br/>Jar (CLASSES)"]
+    tests["tests<br/>Tests<br/>(only with .test / .testIfAvailable)"]
+    classes --> artifacts
+    classes --> tests
+    artifacts --> tests
+  end
+  inh --> classes
+  inh --> artifacts
+  inh --> tests
+```
+
+### `DependenciesModule`
+
+Turns a `dependencies.properties` declaration into a folder of resolved jars. With `computeChecksums(...)` an extra
+`Checksum` step pins the resolution before download.
+
+```mermaid
+flowchart LR
+  inh(["inherited<br/>(dependencies.properties)"])
+  subgraph DependenciesModule
+    direction LR
+    prepared["prepared<br/>Resolve<br/>(only with computeChecksums)"]
+    resolved["resolved<br/>Resolve or Checksum"]
+    artifacts["artifacts<br/>Download"]
+    prepared -.-> resolved
+    resolved --> artifacts
+  end
+  inh --> prepared
+  inh --> resolved
+```
+
+### `MultiProjectModule`
+
+The generic shape behind `MavenProject` and `ModularProject`. An *identifier* sub-module discovers projects and writes
+their `coordinates.properties` / `dependencies.properties`; `Group` partitions those into per-project property files;
+the *factory* then assembles one sub-module per discovered project, with cross-project dependencies wired in.
+
+```mermaid
+flowchart LR
+  inh([inherited])
+  subgraph MultiProjectModule
+    direction LR
+    subgraph identify
+      id["(identifier module)<br/>e.g. MavenProject / ModularProject"]
+    end
+    subgraph build
+      direction LR
+      group["group<br/>Group"]
+      subgraph module
+        direction LR
+        m1["module-X<br/>(per-project sub-module from factory)"]
+        m2["module-Y"]
+        m1 --> m2
+      end
+      group --> m1
+      group --> m2
+    end
+    id --> group
+    id --> m1
+    id --> m2
+  end
+  inh --> id
+  inh --> group
+```
+
+`MavenProject.make(...)` and `ModularProject.make(...)` are convenience constructors that return exactly such a
+`MultiProjectModule`. Their identifier sub-module differs in how it discovers projects:
+
+- `MavenProject` — `scan` step (mirrors every `pom.xml` into `pom/`), then `prepare` (writes per-module
+  `module-*.properties` into `maven/`), then a nested `module` group with one sub-module per discovered POM.
+- `ModularProject` — walks the project tree for `module-info.java` files and emits one sub-module per descriptor,
+  whose `module` step writes `coordinates.properties` and `dependencies.properties` from the parsed module info.
+
+The factory side is shared: each per-project sub-module gets a `prepare` step (`MultiProjectDependencies`), a
+`dependencies` `DependenciesModule` (with checksums), a `build` module supplied by the caller (typically a
+`JavaModule`) and an `assign` step that pins the produced artifact back to its coordinate.
+
+### Example assemblies
+
+`Manual.java` writes the graph out by hand using only the low-level steps:
+
+```mermaid
+flowchart LR
+  deps(["source: deps<br/>(dependencies/)"])
+  subgraph "main-deps"
+    direction LR
+    mp["properties<br/>Bind.asDependencies"]
+    mr["resolved<br/>Resolve"]
+    ma["artifacts<br/>Download"]
+    mp --> mr --> ma
+  end
+  deps --> mp
+  subgraph main
+    direction LR
+    msrc(["sources<br/>(sources/)"])
+    mc["classes<br/>Javac"]
+    mart["artifacts<br/>Jar"]
+    msrc --> mc --> mart
+  end
+  ma --> mc
+  subgraph "test-deps"
+    direction LR
+    tp["properties"]
+    tr["resolved"]
+    ta["artifacts"]
+    tp --> tr --> ta
+  end
+  deps --> tp
+  subgraph test
+    direction LR
+    tsrc(["sources<br/>(tests/)"])
+    tc["classes"]
+    tart["artifacts"]
+    tt["tests<br/>Tests (JUnit 5)"]
+    tsrc --> tc --> tart
+    tc --> tt
+    tart --> tt
+  end
+  ta --> tc
+  ta --> tart
+  ta --> tt
+  mart --> tc
+  mart --> tt
+```
+
+`Modules.java` builds the same graph, but composed from convention modules (each box marked `*` expands to one of the
+diagrams above):
+
+```mermaid
+flowchart LR
+  deps(["source: deps"])
+  mdeps["main-deps<br/>Bind.asDependencies"]
+  mart["main-artifacts*<br/>DependenciesModule"]
+  msrc(["main-sources<br/>(sources/)"])
+  main["main*<br/>JavaModule"]
+  tdeps["test-deps<br/>Bind.asDependencies"]
+  tart["test-artifacts*<br/>DependenciesModule"]
+  tsrc(["test-sources<br/>(tests/)"])
+  test["test*<br/>JavaModule.test(JUnit 5)"]
+  deps --> mdeps --> mart --> main
+  msrc --> main
+  deps --> tdeps --> tart --> test
+  tsrc --> test
+  main --> test
+```
+
+`Maven.java` and `Modular.java` shrink further: the entire multi-project shape is hidden inside a single module, with
+`JavaModule` supplied as the factory for each discovered project.
+
+```mermaid
+flowchart LR
+  subgraph Maven.java
+    direction LR
+    m["maven*<br/>MultiProjectModule(MavenProject, _, JavaModule.testIfAvailable)"]
+  end
+  subgraph Modular.java
+    direction LR
+    d["download<br/>DownloadModuleUris"]
+    b["build*<br/>MultiProjectModule(ModularProject, _, JavaModule.testIfAvailable)"]
+    d --> b
+  end
+```
+
+`ModularByMaven.java` is the modular layout above with a `MavenUriParser` translating module URIs through Maven
+coordinates before the `ModularProject` identifier runs.
+
 Project layout
 --------------
 

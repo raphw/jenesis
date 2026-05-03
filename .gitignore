@@ -26,4 +26,4 @@ cache/
 .DS_Store
 
 ### Agent specification ###
-AGENT.md
+.claude/
