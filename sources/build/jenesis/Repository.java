@@ -20,26 +20,33 @@ public interface Repository {
         }
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
         return (executor, coordinate) -> {
-            Path previous = cache.get(coordinate);
-            if (previous != null) {
-                return Optional.of(RepositoryItem.ofFile(previous));
-            }
-            RepositoryItem item = fetch(executor, coordinate).orElse(null);
-            if (item == null) {
-                return Optional.empty();
-            } else {
-                Path file = item.getFile().orElse(null), target = folder.resolve(URLEncoder.encode(
-                        coordinate,
-                        StandardCharsets.UTF_8) + ".jar");
-                if (file != null) {
-                    Files.createLink(target, file);
-                } else {
-                    try (InputStream inputStream = item.toInputStream()) {
-                        Files.copy(inputStream, target);
+            try {
+                Path target = cache.computeIfAbsent(coordinate, key -> {
+                    Path candidate = folder.resolve(URLEncoder.encode(key, StandardCharsets.UTF_8) + ".jar");
+                    if (Files.exists(candidate)) {
+                        return candidate;
                     }
-                }
-                Path concurrent = cache.putIfAbsent(coordinate, target);
-                return Optional.of(RepositoryItem.ofFile(concurrent == null ? target : concurrent));
+                    try {
+                        RepositoryItem item = fetch(executor, key).orElse(null);
+                        if (item == null) {
+                            return null;
+                        }
+                        Path file = item.getFile().orElse(null);
+                        if (file != null) {
+                            Files.createLink(candidate, file);
+                        } else {
+                            try (InputStream inputStream = item.toInputStream()) {
+                                Files.copy(inputStream, candidate);
+                            }
+                        }
+                        return candidate;
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+                return target == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(target));
+            } catch (UncheckedIOException e) {
+                throw e.getCause();
             }
         };
     }
