@@ -288,16 +288,15 @@ flowchart LR
 Used to drive a build from a JPMS-modular project layout. As the identifier inside a `MultiProjectModule`, it
 walks the source tree for `module-info.java` files and emits one sub-module per descriptor, each containing a
 `sources` source and a `module` step that parses the descriptor and writes `coordinates.properties` plus
-`dependencies.properties` from the JPMS `requires` directives. `ModularProject.make(...)` and
-`ModularProject.withPom(...)` return the full wrapped `MultiProjectModule`; `withPom(...)` additionally adds an
-optional `pom` step (using `Pom`) before `assign`, which materialises a Maven `pom.xml` so the artifact can be
-published.
+`dependencies.properties` from the JPMS `requires` directives. `ModularProject.make(...)` returns the full
+wrapped `MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies`
+(`DependenciesModule.computeChecksums`), `build` (caller-supplied, typically `JavaModule`), and `assign`
+(`Assign`) for each project.
 
 ```mermaid
 flowchart LR
   classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
-  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   tree(["project tree<br/>with module-info.java files"]):::input
   subgraph "ModularProject (identify)"
@@ -310,22 +309,16 @@ flowchart LR
     pBprep["prepare<br/>(MultiProjectDependencies)"]:::step
     pBdeps["dependencies<br/>(DependenciesModule)"]:::module
     pBbuild["build<br/>(caller-supplied)"]:::module
-    pBpom["pom<br/>(Pom)"]:::optional
     pBassn["assign<br/>(Assign)"]:::step
     pBprep --> pBdeps --> pBbuild --> pBassn
-    pBdeps -.->|".withPom(...)"| pBpom
-    pBpom -.-> pBassn
   end
   subgraph "A (per project, requires B)"
     direction LR
     pAprep["prepare<br/>(MultiProjectDependencies)"]:::step
     pAdeps["dependencies<br/>(DependenciesModule)"]:::module
     pAbuild["build<br/>(caller-supplied)"]:::module
-    pApom["pom<br/>(Pom)"]:::optional
     pAassn["assign<br/>(Assign)"]:::step
     pAprep --> pAdeps --> pAbuild --> pAassn
-    pAdeps -.->|".withPom(...)"| pApom
-    pApom -.-> pAassn
   end
   tree --> idA
   tree --> idB

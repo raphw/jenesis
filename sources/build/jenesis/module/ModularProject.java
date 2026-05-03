@@ -12,7 +12,6 @@ import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
-import build.jenesis.maven.Pom;
 
 import module java.base;
 
@@ -52,7 +51,6 @@ public class ModularProject implements BuildExecutorModule {
                 algorithm,
                 repositories,
                 resolvers,
-                false,
                 builder);
     }
 
@@ -63,43 +61,6 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
-        return make(root, prefix, filter, algorithm, repositories, resolvers, false, builder);
-    }
-
-    public static BuildExecutorModule withPom(Path root,
-                                              String algorithm,
-                                              Map<String, Repository> repositories,
-                                              BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
-        return withPom(root,
-                algorithm,
-                repositories,
-                Map.of("module", new ModularJarResolver(true)),
-                builder);
-    }
-
-    public static BuildExecutorModule withPom(Path root,
-                                              String algorithm,
-                                              Map<String, Repository> repositories,
-                                              Map<String, Resolver> resolvers,
-                                              BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
-        return make(root,
-                "module",
-                _ -> true,
-                algorithm,
-                repositories,
-                resolvers,
-                true,
-                builder);
-    }
-
-    private static BuildExecutorModule make(Path root,
-                                            String prefix,
-                                            Predicate<Path> filter,
-                                            String algorithm,
-                                            Map<String, Repository> repositories,
-                                            Map<String, Resolver> resolvers,
-                                            boolean pom,
-                                            BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
@@ -127,14 +88,6 @@ public class ModularProject implements BuildExecutorModule {
                     buildExecutor.addModule("build",
                             builder.apply(name, dependencies.sequencedKeySet()),
                             Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("dependencies")));
-                    if (pom) {
-                        buildExecutor.addStep("pom",
-                                new Pom(),
-                                Stream.concat(
-                                        inherited.sequencedKeySet().stream().filter(identifier -> identifier
-                                                .startsWith(PREVIOUS.repeat(3) + "identify/")),
-                                        Stream.of("dependencies/resolved")));
-                    }
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(
