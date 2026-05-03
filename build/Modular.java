@@ -5,6 +5,7 @@ import build.jenesis.Repository;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
+import build.jenesis.step.Stage;
 
 import java.io.IOException;
 import java.net.URI;
@@ -31,6 +32,7 @@ public class Modular {
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                 .filter(identity -> identity.startsWith("../../../")))))), "download");
+        root.addStep("final", new Stage(), "build");
         root.execute();
     }
 }

@@ -3,6 +3,7 @@ package build;
 import build.jenesis.BuildExecutor;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
+import build.jenesis.step.Stage;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -18,6 +19,7 @@ public class Maven {
                         new JavaModule().testIfAvailable(),
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                 .filter(identity -> identity.startsWith("../../../"))))));
+        root.addStep("final", new Stage(), "maven");
         root.execute();
     }
 }
