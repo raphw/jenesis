@@ -1,14 +1,10 @@
-package build.jenesis.step;
+package build.jenesis.maven;
 
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
-import build.jenesis.maven.MavenDependencyKey;
-import build.jenesis.maven.MavenDependencyScope;
-import build.jenesis.maven.MavenDependencyValue;
-import build.jenesis.maven.MavenPomEmitter;
 
 import module java.base;
 

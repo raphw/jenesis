@@ -1,4 +1,4 @@
-package build.jenesis.test.step;
+package build.jenesis.test.maven;
 
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
@@ -6,7 +6,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
-import build.jenesis.step.Pom;
+import build.jenesis.maven.Pom;
 
 import module java.base;
 import module org.junit.jupiter.api;

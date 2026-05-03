@@ -12,7 +12,7 @@ import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Pom;
+import build.jenesis.maven.Pom;
 
 import module java.base;
 
