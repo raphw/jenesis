@@ -1,331 +1,153 @@
 Jenesis
 =======
 
-POC for a simple-enough, yet powerful enough build tool that targets Java, and is written and configured in Java, and
-that has inherent support for (a) parallel incremental builds, and therewith build reproducibility and (b) supply-chain
-security when it comes to downloading external resources.
+Overview
+--------
 
-As a side goal, the build tool should be storable as source code alongside another project, without a need of explicit
-installation. At the same time, it should be possible to compile the build to avoid repeated compilation. Doing so, a
-build should be executable by using the JVM only once a copy of a project's source is obtained, by embracing the JVM's
-ability to run programs from source files. This avoids storing precompiled binaries in repositories, and allows for the
-execution of builds in environments that only have the JVM installed without the deployment of build tool wrappers that
-often entail a (cachable) download of the tool. It should be possible to manage updates of these sources easily, and to
-add extensions (plugins) to the base implementation alongside.
-
-The build tool should only rely on the Java standard library and should be launchable using a command such as:
+Jenesis is a proof-of-concept build tool for Java projects, written and configured in Java itself. A build is a
+plain `.java` file that the user authors in their project's `build/` folder and launches with:
 
     java build/Main.java
 
-where `Main` is a user defined class located in the project's build folder, which assembles the build using the
-classes of this build tool. This is also demonstrated within this project, where the build tool is the source but
-also linked into the build folder as it would be suggested to users of this tool. This would also be possible by
-using for example Git Submodules. For IDE-support, a POM is stored alongside, and it should always be possible to
-build this project using Maven to debug errors in the project source which is used for building itself.
+The tool needs no installation, wrapper script, or precompiled binary — it relies on the JVM's ability to launch a
+multi-file Java program directly from sources, and only on the Java standard library at runtime. The tool's own
+sources are linked into the project alongside its `build/` script (or pulled in via Git submodules), so a build is
+fully reproducible from a clone of the repository plus a JDK.
 
-By automatically caching results of single build steps, expensive but commonly stable tasks should be cached implicitly.
-This avoids the need of, for example, repeated resolution of dependency trees. As the result of such resolution can
-be stored in a textual format, dependency resolution could also be checked into a source repository. This allows both
-to store checksums of previously resolved files for validation, and stabilizes resolution process which can otherwise
-render builds non-deterministic, for example when version ranges are declared in (transitive) dependencies.
+A build is described as a graph of *steps* and *modules*. Steps are individual units of work (compile, jar, resolve
+dependencies, run tests, …) whose outputs are folders on disk; modules are reusable sub-graphs that wire several
+steps together. The graph is executed in parallel, and every step's output folder is hashed: re-running the build
+re-executes only the steps whose inputs have changed, so incremental builds fall out by construction.
 
-To allow for an effective implementation of such caching, dependency descriptors should not be defined as a part of the
-build description, but separately. In the simplest format, it should always be possible to express information in the
-Java properties format. Based on this, it is trivial to translate common descriptions into this format. As a
-demonstration of this concept, Java module info classes should be offered as a canonical way of defining (build) module
-names and dependencies.
+Dependency declarations live outside the build script, in plain Java `.properties` files. Resolved dependency lists,
+together with their checksums, are themselves expressible as properties and can be checked into source control.
+This makes resolution deterministic and turns the dependency descriptor into a supply-chain artifact: a build won't
+silently pick up a new transitive version, and a downloaded jar that doesn't match its checksum is rejected. There
+is no hard dependency on Maven concepts — Maven is supported via `MavenRepository`/`MavenPomResolver`, but other
+repositories and resolvers can be plugged in.
 
-Specific implementations of dependency resolution or repositories should not be hard-coded into the build tool.
-There should, for example, not be any hard dependency on Maven concepts, to allow for their substitution.
+For IDE support, a `pom.xml` is kept alongside so the project opens, builds and debugs in any Maven-aware IDE.
 
-Getting started
----------------
+Architecture
+------------
 
-Jenesis requires a JDK 25 or later, since it relies on the JVM's ability to launch a multi-file program directly from
-sources. Once the project sources (including the linked-in `build/jenesis` folder) are available, a build is run with:
+The lowest primitive is a `BuildStep` — a single unit of work that reads from a set of input folders and writes
+into a fresh output folder. It is a functional interface:
 
-    java build/Main.java
-
-`build/Main.java` is the project-owned entry point. In this repository it dispatches to `Maven.java` when a `pom.xml`
-is present, and falls back to `Modular.java` otherwise — so the same command works whether you check out a fresh clone
-or a derivative project that opts out of Maven metadata. The intermediate target directory and the dependency cache
-are placed under `target/` and `cache/` respectively, both of which are git-ignored.
-
-The `build/` folder of this repository doubles as a gallery of equivalent build descriptions, each illustrating a
-different layer of the API:
-
-| Entry point         | What it shows |
-| ------------------- | ------------- |
-| `Minimal.java`      | The lowest-level API: declaring sources, javac and jar steps, plus a JUnit 5 test step, by hand. |
-| `Manual.java`       | A two-module layout (main + test) with explicit dependency resolution and download steps. |
-| `Modules.java`      | The same shape as `Manual.java`, but using the `JavaModule` and `DependenciesModule` conventions. |
-| `Maven.java`        | A `pom.xml`-driven build that derives modules and dependencies from Maven metadata. |
-| `Modular.java`      | A `module-info.java`-driven build that derives modules from JPMS descriptors and a `modules.properties` URI map. |
-| `ModularByMaven.java` | The modular layout above, but with module URIs translated through Maven coordinates. |
-
-Dependencies for each layout live in `dependencies/` as plain `.properties` files (`main.properties`, `test.properties`,
-`modules.properties`). They are intentionally textual so that resolved coordinates and their checksums can be checked
-into source control to stabilise builds and underpin supply-chain validation.
-
-Build graph and module composition
-----------------------------------
-
-Every build is a directed graph. A `BuildExecutor` exposes three primitives:
-
-- `addSource(name, ...)` introduces an external folder as an input.
-- `addStep(name, BuildStep, predecessors)` adds a unit of work whose output lands under `target/.../<name>` and which
-  can read each predecessor's folder as `argument.folder()`.
-- `addModule(name, BuildExecutorModule, predecessors)` nests another graph under `name`, with predecessors visible to
-  the module's children through the `inherited` map (referenced from inside as `../predecessor`).
-
-A `BuildExecutorModule` is therefore just a sub-graph factory. The classes in `build.jenesis.project` and
-`build.jenesis.maven`/`build.jenesis.module` are pre-fabricated sub-graphs for common patterns. The diagrams below
-show their internal shape and how the entry points in `build/` chain them together. In the diagrams, rounded nodes are
-external sources, rectangles are steps, and labelled boxes are modules; arrows point from a predecessor to its
-consumer.
-
-### `JavaModule`
-
-Compiles, jars and (optionally) tests a single Java module from its inherited sources and dependencies.
-
-```mermaid
-flowchart LR
-  inh(["inherited<br/>(sources + dependency artifacts)"])
-  subgraph JavaModule
-    direction LR
-    classes["classes<br/>Javac"]
-    artifacts["artifacts<br/>Jar (CLASSES)"]
-    tests["tests<br/>Tests<br/>(only with .test / .testIfAvailable)"]
-    classes --> artifacts
-    classes --> tests
-    artifacts --> tests
-  end
-  inh --> classes
-  inh --> artifacts
-  inh --> tests
+```java
+CompletionStage<BuildStepResult> apply(Executor executor,
+                                       BuildStepContext context,
+                                       SequencedMap<String, BuildStepArgument> arguments);
 ```
 
-### `DependenciesModule`
+Each invocation is handed a `BuildStepContext` and a map of predecessor outputs. The context holds three folder
+slots:
 
-Turns a `dependencies.properties` declaration into a folder of resolved jars. With `computeChecksums(...)` an extra
-`Checksum` step pins the resolution before download.
+- `next` — the folder this invocation writes into. It is created fresh for every run; the step never modifies any
+  other folder.
+- `previous` — the same step's output folder from the prior run, or `null` on a first run. A step can read it to
+  decide what to copy or hard-link instead of regenerating, but it must not write into it.
+- `supplement` — scratch space tied to the step's lifetime, available for intermediate files the step doesn't want
+  to publish in `next`.
 
-```mermaid
-flowchart LR
-  inh(["inherited<br/>(dependencies.properties)"])
-  subgraph DependenciesModule
-    direction LR
-    prepared["prepared<br/>Resolve<br/>(only with computeChecksums)"]
-    resolved["resolved<br/>Resolve or Checksum"]
-    artifacts["artifacts<br/>Download"]
-    prepared -.-> resolved
-    resolved --> artifacts
-  end
-  inh --> prepared
-  inh --> resolved
-```
+The `arguments` map carries one `BuildStepArgument` per registered predecessor. Each argument exposes the folder to
+read from (`argument.folder()`) and a per-file checksum status (`ADDED`, `CHANGED`, `REMOVED`, `RETAINED`) computed
+against the previous run. The default `shouldRun(...)` re-runs the step when any input has changed; a step can
+override it to express finer-grained dependencies (e.g. `Bind` only re-runs when files matching its bound paths
+changed).
 
-### `MultiProjectModule`
+Steps are organised into a graph by `BuildExecutor`:
 
-The generic shape behind `MavenProject` and `ModularProject`. An *identifier* sub-module discovers projects and writes
-their `coordinates.properties` / `dependencies.properties`; `Group` partitions those into per-project property files;
-the *factory* then assembles one sub-module per discovered project, with cross-project dependencies wired in.
+- `addSource(name, path)` registers an external folder as an input.
+- `addStep(name, BuildStep, predecessors…)` adds a step whose `arguments` will be populated from the named
+  predecessors. Predecessors are addressed by their registered names; cross-module references use the `../` prefix
+  (`BuildExecutorModule.PREVIOUS`) to climb out of the current sub-graph.
+- `execute()` runs the graph on a virtual-thread executor, scheduling each node as soon as its predecessors have
+  completed.
 
-```mermaid
-flowchart LR
-  inh([inherited])
-  subgraph MultiProjectModule
-    direction LR
-    subgraph identify
-      id["(identifier module)<br/>e.g. MavenProject / ModularProject"]
-    end
-    subgraph build
-      direction LR
-      group["group<br/>Group"]
-      subgraph module
-        direction LR
-        m1["module-X<br/>(per-project sub-module from factory)"]
-        m2["module-Y"]
-        m1 --> m2
-      end
-      group --> m1
-      group --> m2
-    end
-    id --> group
-    id --> m1
-    id --> m2
-  end
-  inh --> id
-  inh --> group
-```
+A `BuildExecutorModule` is a sub-graph factory — also a functional interface, with
+`accept(BuildExecutor, inherited)` populating a nested `BuildExecutor` with its own steps and (transitively) its
+own sub-modules. The `inherited` map exposes the predecessor folders the parent passed in, addressed under their
+`../`-prefixed identifiers. Modules can rename their published outputs by overriding `resolve(...)`. Composing
+steps into modules turns commonly-recurring patterns (compile + jar + test, resolve + checksum + download, scan a
+multi-project tree, …) into reusable units that take only their inputs as configuration.
 
-`MavenProject.make(...)` and `ModularProject.make(...)` are convenience constructors that return exactly such a
-`MultiProjectModule`. Their identifier sub-module differs in how it discovers projects:
+Two properties of the model give incremental builds and reproducibility for free:
 
-- `MavenProject` — `scan` step (mirrors every `pom.xml` into `pom/`), then `prepare` (writes per-module
-  `module-*.properties` into `maven/`), then a nested `module` group with one sub-module per discovered POM.
-- `ModularProject` — walks the project tree for `module-info.java` files and emits one sub-module per descriptor,
-  whose `module` step writes `coordinates.properties` and `dependencies.properties` from the parsed module info.
+- **Each step's output folder is immutable once produced.** A step only ever writes into its own `next`; downstream
+  steps see predecessor outputs as read-only inputs. There is no shared mutable state, so a step's result is a pure
+  function of its inputs.
+- **Inputs and outputs are content-hashed.** Every output folder is checksummed when the step finishes; on the next
+  run, those checksums become the predecessors' input checksums. If they all match and `shouldRun(...)` returns
+  `false`, the step's previous output is reused unchanged. Anywhere along the chain that the hashes diverge — a
+  source edit, an upstream re-run, a different dependency — the affected step (and only the affected step) is
+  re-executed into a fresh `next` folder, which transparently replaces its predecessor.
 
-The factory side is shared: each per-project sub-module gets a `prepare` step (`MultiProjectDependencies`), a
-`dependencies` `DependenciesModule` (with checksums), a `build` module supplied by the caller (typically a
-`JavaModule`) and an `assign` step that pins the produced artifact back to its coordinate.
+The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
+`ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `cache/` by
+convention for cross-build caches such as downloaded module URIs.
 
-### Example assemblies
+Conventional folders and files
+------------------------------
 
-`Manual.java` writes the graph out by hand using only the low-level steps:
+Every step writes its output into `context.next()`. The conventions below define the names a step uses for the
+artifacts it produces and the names downstream steps look for. The canonical names are constants on `BuildStep`;
+others are declared next to the step that emits them.
 
-```mermaid
-flowchart LR
-  deps(["source: deps<br/>(dependencies/)"])
-  subgraph "main-deps"
-    direction LR
-    mp["properties<br/>Bind.asDependencies"]
-    mr["resolved<br/>Resolve"]
-    ma["artifacts<br/>Download"]
-    mp --> mr --> ma
-  end
-  deps --> mp
-  subgraph main
-    direction LR
-    msrc(["sources<br/>(sources/)"])
-    mc["classes<br/>Javac"]
-    mart["artifacts<br/>Jar"]
-    msrc --> mc --> mart
-  end
-  ma --> mc
-  subgraph "test-deps"
-    direction LR
-    tp["properties"]
-    tr["resolved"]
-    ta["artifacts"]
-    tp --> tr --> ta
-  end
-  deps --> tp
-  subgraph test
-    direction LR
-    tsrc(["sources<br/>(tests/)"])
-    tc["classes"]
-    tart["artifacts"]
-    tt["tests<br/>Tests (JUnit 5)"]
-    tsrc --> tc --> tart
-    tc --> tt
-    tart --> tt
-  end
-  ta --> tc
-  ta --> tart
-  ta --> tt
-  mart --> tc
-  mart --> tt
-```
+| Path                       | Constant                         | Purpose                                                                                         |
+| -------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `sources/`                 | `BuildStep.SOURCES`              | Java source files.                                                                              |
+| `resources/`               | `BuildStep.RESOURCES`            | Non-source resource files.                                                                      |
+| `classes/`                 | `BuildStep.CLASSES`              | Compiled `.class` files.                                                                        |
+| `artifacts/`               | `BuildStep.ARTIFACTS`            | Built or downloaded jars.                                                                       |
+| `javadoc/`                 | `Javadoc.JAVADOC`                | Generated Javadoc.                                                                              |
+| `groups/`                  | `Group.GROUPS`                   | Per-group dependency property files written by `Group`.                                         |
+| `pom/`                     | `MavenProject.POM`               | `pom.xml` files mirrored from the project tree by `MavenProject` `scan`.                        |
+| `maven/`                   | `MavenProject.MAVEN`             | Per-module property files emitted by `MavenProject` `prepare`.                                  |
+| `coordinates.properties`   | `BuildStep.COORDINATES`          | Coordinate → path mapping (empty value = unresolved / self).                                    |
+| `dependencies.properties`  | `BuildStep.DEPENDENCIES`         | Required coordinates, optionally with expected checksum.                                        |
+| `uris.properties`          | `DownloadModuleUris.URIS`        | Module name → URI map fetched by `DownloadModuleUris`.                                          |
+| `pom.xml`                  | `Pom.POM`                        | Maven POM emitted by `Pom`.                                                                     |
+| `target/`                  | (passed to `BuildExecutor.of`)   | Build root; per-step output and incremental state.                                              |
+| `cache/`                   | by convention                    | Cross-build caches (e.g. `cache/modules`).                                                      |
+| `.jenesis.build`           | `BuildExecutor.BUILD_MARKER`     | Marker file at the build root; source scanners skip subtrees containing it.                     |
 
-`Modules.java` builds the same graph, but composed from convention modules (each box marked `*` expands to one of the
-diagrams above):
+Build steps
+-----------
 
-```mermaid
-flowchart LR
-  deps(["source: deps"])
-  mdeps["main-deps<br/>Bind.asDependencies"]
-  mart["main-artifacts*<br/>DependenciesModule"]
-  msrc(["main-sources<br/>(sources/)"])
-  main["main*<br/>JavaModule"]
-  tdeps["test-deps<br/>Bind.asDependencies"]
-  tart["test-artifacts*<br/>DependenciesModule"]
-  tsrc(["test-sources<br/>(tests/)"])
-  test["test*<br/>JavaModule.test(JUnit 5)"]
-  deps --> mdeps --> mart --> main
-  msrc --> main
-  deps --> tdeps --> tart --> test
-  tsrc --> test
-  main --> test
-```
+| Step                       | What it does                                                                                                                                                                                   | Inputs (per predecessor folder)                                                                                                       | Outputs (under `context.next()`)                                                |
+| -------------------------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `Bind`                     | Hard-links an external folder into `sources/` or `resources/`, or a named properties file into `coordinates.properties` or `dependencies.properties`, so downstream steps find it under the canonical name. | a source folder or a named properties file                                                                                            | `sources/`, `resources/`, `coordinates.properties`, or `dependencies.properties` (chosen by factory) |
+| `Javac`                    | Compiles each predecessor's `sources/` with the `javac` tool, using their `classes/` and `artifacts/` as class- or module-path entries; writes the resulting `.class` files to `classes/`.    | `sources/`, `classes/`, `artifacts/`                                                                                                  | `classes/`                                                                       |
+| `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar under `artifacts/`.                                                                                               | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`         | `artifacts/classes.jar`, `artifacts/sources.jar`, or `artifacts/javadoc.jar` (depending on `Jar.Sort`) |
+| `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
+| `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
+| `Tests`                    | Specialisation of `Java` that scans each predecessor's `classes/` for test-named classes and hands them to a configured `TestEngine` (e.g. JUnit 5), with `artifacts/` on the runtime path.    | inherits `Java`; selects test classes from `classes/`                                                                                 | runs the configured `TestEngine`                                                 |
+| `Resolve`                  | Reads `dependencies.properties`, asks each prefixed group's `Resolver` for the transitive closure, and writes the resolved coordinates to a fresh `dependencies.properties`.                   | `dependencies.properties`                                                                                                             | `dependencies.properties` (transitively resolved, per-prefix `Resolver`)         |
+| `Checksum`                 | Reads `dependencies.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `dependencies.properties` where each empty value is replaced by `algorithm/<hex>`.  | `dependencies.properties`                                                                                                             | `dependencies.properties` (with computed checksums)                              |
+| `Download`                 | Reads `dependencies.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid. | `dependencies.properties`                                                                                                             | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `dependencies.properties`   |
+| `Translate`                | Rewrites the keys of `dependencies.properties` through user-supplied per-prefix translator functions (e.g. JPMS module name → Maven coordinate).                                               | `dependencies.properties`                                                                                                             | `dependencies.properties` (keys remapped per-prefix)                             |
+| `Group`                    | Reads each predecessor's `coordinates.properties` and `dependencies.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `coordinates.properties`, `dependencies.properties`                                                                                   | `groups/<encoded-name>.properties`                                               |
+| `Assign`                   | Fills the empty values of `coordinates.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                         | `coordinates.properties`, `artifacts/`                                                                                                | `coordinates.properties` (empty values filled with artifact paths)               |
+| `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none — fetches the configured URLs                                                                                                    | `uris.properties`                                                                |
+| `MultiProjectDependencies` | Merges per-project `dependencies.properties` (and looks up sibling-project paths in their `coordinates.properties`) into one unified `dependencies.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `coordinates.properties` or `dependencies.properties`, partitioned by predicate                                        | unified `dependencies.properties`, with checksums for resolved local artifacts   |
+| `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `coordinates.properties` and its dependencies from `dependencies.properties` entries that share the same prefix. | `coordinates.properties` (self coordinate = empty value), `dependencies.properties`                                                   | `pom.xml`                                                                       |
 
-`Maven.java` and `Modular.java` shrink further: the entire multi-project shape is hidden inside a single module, with
-`JavaModule` supplied as the factory for each discovered project.
+`ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and `Tests`); `Java.of(...)`
+gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
+`Download`, and `Translate` — they all parse `dependencies.properties` into `(prefix, coordinate)` groups, transform
+them, and write `dependencies.properties` back.
 
-```mermaid
-flowchart LR
-  subgraph Maven.java
-    direction LR
-    m["maven*<br/>MultiProjectModule(MavenProject, _, JavaModule.testIfAvailable)"]
-  end
-  subgraph Modular.java
-    direction LR
-    d["download<br/>DownloadModuleUris"]
-    b["build*<br/>MultiProjectModule(ModularProject, _, JavaModule.testIfAvailable)"]
-    d --> b
-  end
-```
+Build executor modules
+----------------------
 
-`ModularByMaven.java` is the modular layout above with a `MavenUriParser` translating module URIs through Maven
-coordinates before the `ModularProject` identifier runs.
-
-Project layout
---------------
-
-- `sources/` — the build tool itself, exposed as the `build.jenesis` Java module.
-- `build/` — the project's own build descriptions, with `build/jenesis` symlinked to `sources/build/jenesis` so that
-  `java build/Main.java` finds the tool without a separate compilation step.
-- `dependencies/` — properties files describing external dependencies for the various entry points.
-- `tests/` — unit tests for the build tool (run via `mvn test` or via any of the build entry points above).
-- `pom.xml` — kept alongside so the project can be opened, built and debugged in any IDE that understands Maven.
-
-Folder and file conventions
----------------------------
-
-Every build step writes its output into the directory exposed by `context.next()` and reads its inputs from
-`argument.folder()` for each predecessor. The names a step uses for the artifacts it produces — and the names
-downstream steps look for — follow the conventions below. The canonical names live as constants on `BuildStep`;
-step-specific ones are declared next to the code that emits them.
-
-### Folders inside `context.next()`
-
-Folder names are written with their trailing slash to match the constants and to read as directory names.
-
-| Folder        | Constant                | Producers                                                                  | Consumers                                                                                          |
-| ------------- | ----------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `sources/`    | `BuildStep.SOURCES`     | `Bind.asSources()`                                                         | `Javac`, `Javadoc`                                                                                  |
-| `resources/`  | `BuildStep.RESOURCES`   | `Bind.asResources()`                                                       | `Jar` (`CLASSES`/`SOURCES` sort), `Java`/`Tests` (when not `jarsOnly`)                              |
-| `classes/`    | `BuildStep.CLASSES`     | `Javac`                                                                    | `Jar` (`CLASSES` sort), `Java`/`Tests`, downstream `Javac` (added to `--class-path`/`--module-path`) |
-| `artifacts/`  | `BuildStep.ARTIFACTS`   | `Jar`, `Download`                                                          | `Javac` (path entries), `Java`/`Tests`, `Assign`                                                    |
-| `javadoc/`    | `Javadoc.JAVADOC`       | `Javadoc`                                                                  | `Jar` (`JAVADOC` sort)                                                                              |
-| `groups/`     | `Group.GROUPS`          | `Group` (one `<name>.properties` per identified group)                     | `MultiProjectModule` (reads `groups/<id>.properties`)                                               |
-| `pom/`        | `MavenProject.POM`      | `MavenProject` `scan` step (mirrors `pom.xml` files from the project tree) | `MavenProject` `prepare` step                                                                       |
-| `maven/`      | `MavenProject.MAVEN`    | `MavenProject` `prepare` step (per-module `module-*.properties` and `test-module-*.properties`) | `MavenProject` module factory                                                                       |
-
-### Files inside `context.next()`
-
-| File                       | Constant                  | Producers                                                                                                                                                | Consumers                                              |
-| -------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `coordinates.properties`   | `BuildStep.COORDINATES`   | `Bind.asCoordinates(name)`, `Assign`, `MavenProject` `declare`                                                                                           | `Assign`, `Group`                                      |
-| `dependencies.properties`  | `BuildStep.DEPENDENCIES`  | `Bind.asDependencies(name)`, every `DependencyTransformingBuildStep` (`Resolve`, `Checksum`, `Download`, `Translate`), `MavenProject` `declare`           | every `DependencyTransformingBuildStep`, `Group`       |
-| `uris.properties`          | `DownloadModuleUris.URIS` | `DownloadModuleUris`                                                                                                                                     | `ModularProject` (module URI lookup)                   |
-
-`coordinates.properties` maps a coordinate (`group/path`) either to an empty value (the coordinate is yet to be
-resolved) or to a path/checksum string. `dependencies.properties` uses the same key shape to describe required
-coordinates and their expected checksum (or empty for "use whatever resolves").
-
-### Outside step folders
-
-These live at well-known locations relative to the project root or the build root, not inside a step's output
-directory.
-
-| Path             | Constant                          | Purpose                                                                                                                                          |
-| ---------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `target/`        | passed to `BuildExecutor.of(...)` | Build root: each step gets a sub-folder underneath, with `previous`/`next` slots for incremental runs.                                           |
-| `cache/`         | by convention (e.g. `cache/modules`) | Cross-build caches such as downloaded module URIs.                                                                                            |
-| `.jenesis.build` | `BuildExecutor.BUILD_MARKER`      | Marker file placed at the root of an active build directory; `MavenProject`/`ModularProject` skip subtrees that contain it so nested builds aren't traversed. |
-| `../` prefix     | `BuildExecutorModule.PREVIOUS`    | Used in `addStep`/`addModule` keys to refer up one level (e.g. `../deps`, `../../../identify/...`).                                              |
-
-### Conventional step and module identifiers
-
-These are not file paths but the string names that the higher-level convention modules use when they wire up steps.
-They appear as keys in `inherited` maps and in cross-module references.
-
-- `JavaModule` — `classes`, `artifacts`, `tests` (`JavaModule.CLASSES`/`ARTIFACTS`/`TESTS`).
-- `DependenciesModule` — `prepared`, `resolved`, `artifacts` (`DependenciesModule.PREPARED`/`RESOLVED`/`ARTIFACTS`).
-- `MultiProjectModule` — `identify`, `group`, `build`, `module` (`MultiProjectModule.IDENTIFY`/`GROUP`/`BUILD`/`MODULE`).
-- `MavenProject` — `scan`, `prepare`, `assign`, plus a nested `MultiProjectModule.MODULE` group.
+| Module                                | Sub-graph it adds                                                                                                                                                          | Expected predecessors                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `JavaModule`                          | `classes` (`Javac`), `artifacts` (`Jar` `CLASSES`); with `.test(engine)` / `.testIfAvailable()` also `tests` (`Tests`)                                                     | sources and resolved dependency `artifacts/`                                                                     |
+| `DependenciesModule`                  | `resolved` (`Resolve`) and `artifacts` (`Download`); with `.computeChecksums(algorithm)` also a `prepared` (`Resolve`) before a `Checksum` step                            | `dependencies.properties`                                                                                        |
+| `MultiProjectModule`                  | `identify` (the configured identifier module), `build` containing `group` (`Group`) and `module` (one nested factory-built module per discovered project)                  | whatever the identifier module needs                                                                             |
+| `MavenProject`                        | as identifier: `scan` step (mirrors every `pom.xml` into `pom/`), `prepare` step (writes `maven/<module>.properties`), and a `module` group with per-POM sub-modules (`sources`, `resources-N`, `declare`). `MavenProject.make(...)` returns it wrapped in a `MultiProjectModule` whose factory builds `prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule.computeChecksums`), `build` (caller-supplied), and `assign` (`Assign`) | a project root containing `pom.xml`                                                                              |
+| `ModularProject`                      | as identifier: walks the project tree for `module-info.java` and adds one sub-module per descriptor, with a `sources` source and a `module` step that writes `coordinates.properties`/`dependencies.properties` from the parsed module info. `ModularProject.make(...)` / `ModularProject.withPom(...)` wrap it in a `MultiProjectModule` whose factory mirrors `MavenProject.make`'s, optionally adding a `pom` step (`Pom`) before `assign` when `withPom(...)` is used | a project root containing `module-info.java` files                                                               |
 
 Status
 ------
