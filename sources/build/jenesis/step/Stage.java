@@ -37,7 +37,13 @@ public class Stage implements BuildStep {
                     continue;
                 }
                 int separator = coordinate.indexOf('/');
-                String name = separator == -1 ? coordinate : coordinate.substring(separator + 1);
+                String rest = separator == -1 ? coordinate : coordinate.substring(separator + 1);
+                String[] elements = rest.split("/");
+                String name = switch (elements.length) {
+                    case 3, 4 -> elements[1];
+                    case 5 -> elements[1] + "-" + elements[3];
+                    default -> rest;
+                };
                 Path folder = Files.createDirectories(context.next().resolve(name));
                 Path target = folder.resolve(source.getFileName().toString());
                 if (!Files.exists(target)) {

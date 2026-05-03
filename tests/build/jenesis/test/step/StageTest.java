@@ -30,11 +30,15 @@ public class StageTest {
     public void can_stage_artifacts_grouped_by_coordinate() throws IOException {
         Path assignFolder = Files.createDirectory(root.resolve("assign"));
         Path artifacts = Files.createDirectory(root.resolve("artifacts"));
-        Path mainJar = Files.writeString(artifacts.resolve("classes.jar"), "main");
-        Path mavenJar = Files.writeString(artifacts.resolve("foo.jar"), "foo");
+        Path modularJar = Files.writeString(artifacts.resolve("classes.jar"), "modular");
+        Path mavenJar = Files.writeString(artifacts.resolve("main.jar"), "maven");
+        Path testJar = Files.writeString(artifacts.resolve("test.jar"), "tests");
+        Path pom = Files.writeString(artifacts.resolve("pom.xml"), "<project/>");
         Properties properties = new SequencedProperties();
-        properties.setProperty("module/build.jenesis", mainJar.toString());
+        properties.setProperty("module/build.jenesis", modularJar.toString());
         properties.setProperty("maven/com.example/foo/jar/1.0.0", mavenJar.toString());
+        properties.setProperty("maven/com.example/foo/pom/1.0.0", pom.toString());
+        properties.setProperty("maven/com.example/foo/jar/tests/1.0.0", testJar.toString());
         try (Writer writer = Files.newBufferedWriter(assignFolder.resolve(BuildStep.COORDINATES))) {
             properties.store(writer, null);
         }
@@ -47,8 +51,10 @@ public class StageTest {
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve("build.jenesis").resolve("classes.jar")).hasContent("main");
-        assertThat(next.resolve("com.example/foo/jar/1.0.0/foo.jar")).hasContent("foo");
+        assertThat(next.resolve("build.jenesis").resolve("classes.jar")).hasContent("modular");
+        assertThat(next.resolve("foo").resolve("main.jar")).hasContent("maven");
+        assertThat(next.resolve("foo").resolve("pom.xml")).hasContent("<project/>");
+        assertThat(next.resolve("foo-tests").resolve("test.jar")).hasContent("tests");
     }
 
     @Test
