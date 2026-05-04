@@ -10,7 +10,7 @@ import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.step.Stage;
+import build.jenesis.step.Bind;
 
 import module java.base;
 
@@ -48,7 +48,24 @@ public class ModularByMaven {
                     }));
         }, "download");
 
-        root.addStep("final", new Stage(ModularProject.placement()), "build");
+        Function<Path, Optional<Path>> placement = file -> {
+            String name = file.getFileName().toString();
+            if (!"classes.jar".equals(name) && !Pom.POM.equals(name)) {
+                return Optional.empty();
+            }
+            Path probe = file.getParent();
+            while (probe != null) {
+                Path parent = probe.getParent();
+                if (parent != null
+                        && parent.getFileName() != null
+                        && "module".equals(parent.getFileName().toString())) {
+                    return Optional.of(Path.of(probe.getFileName().toString(), name));
+                }
+                probe = parent;
+            }
+            return Optional.empty();
+        };
+        root.addStep("final", new Bind(placement), "build");
 
         root.execute();
     }
