@@ -334,6 +334,6 @@ Status
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
 - Module for test discovery that pulls in the matching runner dependency automatically.
-- Task to add GPG signatures of artifacts.
-- Task to publish to Maven Central and local Maven repository.
+- Evaluate module to publish to Maven Central and local Maven repository. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 - Extending all build step implementations to expose their full set of standard options.
+- Cache invalidation across configuration changes: a step's cache key is currently derived only from its predecessor file checksums, not from its own configuration, so changing a step's parameters between runs (e.g. switching `Modular`/`ModularByMaven` over the same `target/` reuses a stale `download` output) silently returns stale outputs.
