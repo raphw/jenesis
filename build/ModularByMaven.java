@@ -10,7 +10,7 @@ import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.step.Bind;
+import build.jenesis.step.Relocate;
 
 import module java.base;
 
@@ -65,7 +65,7 @@ public class ModularByMaven {
             }
             return Optional.empty();
         };
-        root.addStep("final", new Bind(placement), "build");
+        root.addStep("final", new Relocate(placement), "build");
 
         root.execute();
     }

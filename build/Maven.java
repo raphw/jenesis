@@ -3,7 +3,7 @@ package build;
 import build.jenesis.BuildExecutor;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.step.Bind;
+import build.jenesis.step.Relocate;
 
 import module java.base;
 
@@ -36,7 +36,7 @@ public class Maven {
             }
             return Optional.empty();
         };
-        root.addStep("final", new Bind(placement), "maven");
+        root.addStep("final", new Relocate(placement), "maven");
 
         root.execute();
     }
