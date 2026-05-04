@@ -86,21 +86,8 @@ public class MavenProject implements BuildExecutorModule {
                 });
     }
 
-    public static BiFunction<String, String, Path> placement() {
-        return (coordinate, filename) -> {
-            int separator = coordinate.indexOf('/');
-            String rest = separator == -1 ? coordinate : coordinate.substring(separator + 1);
-            String[] elements = rest.split("/");
-            return switch (elements.length) {
-                case 3, 4 -> Path.of(elements[0], elements[1], filename);
-                case 5 -> {
-                    String classifier = elements[3];
-                    String prefix = (classifier.equals("tests") ? "test" : classifier) + "-";
-                    yield Path.of(elements[0], elements[1], prefix + filename);
-                }
-                default -> Path.of(rest, filename);
-            };
-        };
+    public static Function<Path, Optional<Path>> artifactsByModule() {
+        return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
     }
 
     @Override

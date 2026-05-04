@@ -141,12 +141,4 @@ public class ModularProjectTest {
                 .toString());
     }
 
-    @Test
-    public void placement_uses_jpms_module_name_as_folder() {
-        BiFunction<String, String, Path> placement = ModularProject.placement();
-        assertThat(placement.apply("module/build.jenesis", "classes.jar"))
-                .isEqualTo(Path.of("build.jenesis", "classes.jar"));
-        assertThat(placement.apply("module/build.jenesis.test", "classes.jar"))
-                .isEqualTo(Path.of("build.jenesis.test", "classes.jar"));
-    }
 }

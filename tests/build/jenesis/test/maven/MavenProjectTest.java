@@ -440,23 +440,4 @@ public class MavenProjectTest {
                 .toString());
     }
 
-    @Test
-    public void placement_groups_by_groupId_and_artifactId() {
-        BiFunction<String, String, Path> placement = MavenProject.placement();
-        assertThat(placement.apply("maven/com.example/foo/1.0.0", "classes.jar"))
-                .isEqualTo(Path.of("com.example", "foo", "classes.jar"));
-        assertThat(placement.apply("maven/com.example/foo/jar/1.0.0", "classes.jar"))
-                .isEqualTo(Path.of("com.example", "foo", "classes.jar"));
-        assertThat(placement.apply("maven/com.example/foo/pom/1.0.0", "pom.xml"))
-                .isEqualTo(Path.of("com.example", "foo", "pom.xml"));
-    }
-
-    @Test
-    public void placement_prefixes_classifier_on_filename() {
-        BiFunction<String, String, Path> placement = MavenProject.placement();
-        assertThat(placement.apply("maven/com.example/foo/jar/tests/1.0.0", "classes.jar"))
-                .isEqualTo(Path.of("com.example", "foo", "test-classes.jar"));
-        assertThat(placement.apply("maven/com.example/foo/jar/sources/1.0.0", "classes.jar"))
-                .isEqualTo(Path.of("com.example", "foo", "sources-classes.jar"));
-    }
 }

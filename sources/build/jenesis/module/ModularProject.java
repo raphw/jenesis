@@ -97,12 +97,8 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
-    public static BiFunction<String, String, Path> placement() {
-        return (coordinate, filename) -> {
-            int separator = coordinate.indexOf('/');
-            String name = separator == -1 ? coordinate : coordinate.substring(separator + 1);
-            return Path.of(name, filename);
-        };
+    public static Function<Path, Optional<Path>> artifactsByModule() {
+        return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
     }
 
     @Override

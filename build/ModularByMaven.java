@@ -48,24 +48,7 @@ public class ModularByMaven {
                     }));
         }, "download");
 
-        Function<Path, Optional<Path>> placement = file -> {
-            String name = file.getFileName().toString();
-            if (!"classes.jar".equals(name) && !Pom.POM.equals(name)) {
-                return Optional.empty();
-            }
-            Path probe = file.getParent();
-            while (probe != null) {
-                Path parent = probe.getParent();
-                if (parent != null
-                        && parent.getFileName() != null
-                        && "module".equals(parent.getFileName().toString())) {
-                    return Optional.of(Path.of(probe.getFileName().toString(), name));
-                }
-                probe = parent;
-            }
-            return Optional.empty();
-        };
-        root.addStep("final", new Relocate(placement), "build");
+        root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
 
         root.execute();
     }

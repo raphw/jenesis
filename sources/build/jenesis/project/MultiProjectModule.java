@@ -23,6 +23,25 @@ public class MultiProjectModule implements BuildExecutorModule {
         this.factory = factory;
     }
 
+    public static Function<Path, Optional<Path>> linkBySubModule(String... names) {
+        Set<String> allowed = Set.of(names);
+        return file -> {
+            Path filename = file.getFileName();
+            if (filename == null || !allowed.contains(filename.toString())) {
+                return Optional.empty();
+            }
+            for (Path probe = file.getParent(); probe != null; probe = probe.getParent()) {
+                Path parent = probe.getParent();
+                if (parent != null
+                        && parent.getFileName() != null
+                        && MODULE.equals(parent.getFileName().toString())) {
+                    return Optional.of(Path.of(probe.getFileName().toString(), filename.toString()));
+                }
+            }
+            return Optional.empty();
+        };
+    }
+
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addModule(IDENTIFY, identifier);

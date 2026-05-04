@@ -19,24 +19,7 @@ public class Maven {
                         Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
                                 .filter(identity -> identity.startsWith("../../../"))))));
 
-        Function<Path, Optional<Path>> placement = file -> {
-            String name = file.getFileName().toString();
-            if (!"classes.jar".equals(name)) {
-                return Optional.empty();
-            }
-            Path probe = file.getParent();
-            while (probe != null) {
-                Path parent = probe.getParent();
-                if (parent != null
-                        && parent.getFileName() != null
-                        && "module".equals(parent.getFileName().toString())) {
-                    return Optional.of(Path.of(probe.getFileName().toString(), name));
-                }
-                probe = parent;
-            }
-            return Optional.empty();
-        };
-        root.addStep("final", new Relocate(placement), "maven");
+        root.addStep("final", new Relocate(MavenProject.artifactsByModule()), "maven");
 
         root.execute();
     }
