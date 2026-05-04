@@ -31,7 +31,9 @@ public class BuildExecutor {
     }
 
     public static BuildExecutor of(Path target) throws IOException {
-        return of(target, new HashDigestFunction("MD5"), BuildExecutorCallback.printing(System.out));
+        return of(target,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.debug") ? target : null));
     }
 
     public static BuildExecutor of(Path target, HashFunction hash, BuildExecutorCallback callback) throws IOException {
