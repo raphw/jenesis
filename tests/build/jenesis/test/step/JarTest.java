@@ -94,4 +94,29 @@ public class JarTest {
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.ARTIFACTS + "javadoc.jar")).isNotEmptyFile();
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void produces_deterministic_output(boolean process) throws IOException {
+        Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
+        try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
+            Files.copy(requireNonNull(inputStream), Files
+                    .createDirectory(folder.resolve("sample"))
+                    .resolve("Sample.class"));
+        }
+        Path firstNext = Files.createDirectory(root.resolve("first"));
+        Path secondNext = Files.createDirectory(root.resolve("second"));
+        BuildStepArgument argument = new BuildStepArgument(
+                classes,
+                Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED));
+        Jar jar = process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES);
+        jar.apply(Runnable::run,
+                new BuildStepContext(previous, firstNext, supplement),
+                new LinkedHashMap<>(Map.of("sources", argument))).toCompletableFuture().join();
+        jar.apply(Runnable::run,
+                new BuildStepContext(previous, secondNext, supplement),
+                new LinkedHashMap<>(Map.of("sources", argument))).toCompletableFuture().join();
+        assertThat(Files.readAllBytes(firstNext.resolve(BuildStep.ARTIFACTS + "classes.jar")))
+                .isEqualTo(Files.readAllBytes(secondNext.resolve(BuildStep.ARTIFACTS + "classes.jar")));
+    }
 }

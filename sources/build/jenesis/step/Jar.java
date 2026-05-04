@@ -28,10 +28,13 @@ public class Jar extends ProcessBuildStep {
                                                  BuildStepContext context,
                                                  SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        List<String> commands = new ArrayList<>(List.of("cf", Files
-                .createDirectory(context.next().resolve(ARTIFACTS))
-                .resolve(sort.file)
-                .toString()));
+        List<String> commands = new ArrayList<>(List.of(
+                "--create",
+                "--file",
+                Files.createDirectory(context.next().resolve(ARTIFACTS))
+                        .resolve(sort.file)
+                        .toString(),
+                "--date=1980-01-01T00:00:02Z"));
         for (BuildStepArgument argument : arguments.values()) {
             for (String name : sort.folders) {
                 Path folder = argument.folder().resolve(name);
