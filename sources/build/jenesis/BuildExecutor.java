@@ -10,7 +10,7 @@ public class BuildExecutor {
             VALIDATE_ORIGINAL = Pattern.compile("[a-zA-Z0-9-]+"),
             VALIDATE_RESOLVED = Pattern.compile("[a-zA-Z0-9/-]+");
 
-    private final Path root;
+    private final Path target;
     private final HashFunction hash;
     private final BuildExecutorCallback callback;
     private final String location;
@@ -18,26 +18,26 @@ public class BuildExecutor {
     private final Map<String, StepSummary> inherited;
     private final SequencedMap<String, Registration> registrations = new LinkedHashMap<>();
 
-    private BuildExecutor(Path root,
+    private BuildExecutor(Path target,
                           HashFunction hash,
                           BuildExecutorCallback callback,
                           String location,
                           Map<String, StepSummary> inherited) throws IOException {
-        this.root = Files.isDirectory(root) ? root : Files.createDirectory(root);
+        this.target = Files.isDirectory(target) ? target : Files.createDirectory(target);
         this.hash = hash;
         this.callback = callback;
         this.location = location;
         this.inherited = inherited;
     }
 
-    public static BuildExecutor of(Path root) throws IOException {
-        return of(root, new HashDigestFunction("MD5"), BuildExecutorCallback.printing(System.out));
+    public static BuildExecutor of(Path target) throws IOException {
+        return of(target, new HashDigestFunction("MD5"), BuildExecutorCallback.printing(System.out));
     }
 
-    public static BuildExecutor of(Path root, HashFunction hash, BuildExecutorCallback callback) throws IOException {
-        BuildExecutor executor = new BuildExecutor(root, hash, callback, "", Map.of());
-        if (!Files.exists(root.resolve(BUILD_MARKER))) {
-            Files.createFile(root.resolve(BUILD_MARKER));
+    public static BuildExecutor of(Path target, HashFunction hash, BuildExecutorCallback callback) throws IOException {
+        BuildExecutor executor = new BuildExecutor(target, hash, callback, "", Map.of());
+        if (!Files.exists(target.resolve(BUILD_MARKER))) {
+            Files.createFile(target.resolve(BUILD_MARKER));
         }
         return executor;
     }
@@ -117,7 +117,7 @@ public class BuildExecutor {
     private Bound bindStep(BuildStep step) {
         return (identity, executor, summaries) -> {
             try {
-                Path previous = root.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
+                Path previous = target.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
                         checksum = previous.resolve("checksum"),
                         output = previous.resolve("output");
                 boolean exists = Files.exists(previous);
@@ -285,7 +285,7 @@ public class BuildExecutor {
                     folders.put(identity, entry.getValue().folder());
                     inherited.put(identity, entry.getValue());
                 }
-                BuildExecutor buildExecutor = new BuildExecutor(root.resolve(prefix),
+                BuildExecutor buildExecutor = new BuildExecutor(target.resolve(prefix),
                         hash,
                         callback,
                         location + prefix + "/",
