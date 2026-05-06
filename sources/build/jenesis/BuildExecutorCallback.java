@@ -11,8 +11,7 @@ public interface BuildExecutorCallback {
         };
     }
 
-    static BuildExecutorCallback printing(PrintStream out, Path target) {
-        boolean debug = target != null;
+    static BuildExecutorCallback printing(PrintStream out, boolean debug, Path target) {
         return (identity, _) -> {
             long started = System.nanoTime();
             if (identity == null) {

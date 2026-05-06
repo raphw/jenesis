@@ -37,7 +37,7 @@ public class BuildExecutor {
         return of(target,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofDigest("MD5"),
-                BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.debug") ? target : null));
+                BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.debug"), target));
     }
 
     public static BuildExecutor of(Path target, HashFunction hash, BuildExecutorCallback callback) throws IOException {
@@ -137,10 +137,9 @@ public class BuildExecutor {
                 Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
                 byte[] currentStepHash = stepHash.hash(step);
                 Path stepFile = checksum.resolve("step");
-                boolean stepUnchanged = !Files.exists(stepFile)
-                        || Arrays.equals(currentStepHash, HexFormat.of().parseHex(Files.readString(stepFile).trim()));
                 boolean consistent = exists
-                        && stepUnchanged
+                        && Files.exists(stepFile)
+                        && Arrays.equals(currentStepHash, HexFormat.of().parseHex(Files.readString(stepFile).trim()))
                         && HashFunction.areConsistent(output, current, hash);
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {

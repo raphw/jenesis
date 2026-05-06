@@ -6,6 +6,7 @@ import build.jenesis.BuildExecutorException;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
+import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
@@ -133,10 +134,13 @@ public class BuildExecutorTest {
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
         Files.writeString(output.resolve("file"), "foo");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
-        buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (_, _, _) -> {
+        BuildStep buildStep = (_, _, _) -> {
             throw new AssertionError("Did not expect that step is executed");
-        }, "source");
+        };
+        Files.writeString(checksum.resolve("step"),
+                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("foo");
@@ -151,8 +155,7 @@ public class BuildExecutorTest {
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, _ -> new byte[0]));
         Files.writeString(output.resolve("file"), "bar");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
-        buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (_, context, arguments) -> {
+        BuildStep buildStep = (_, context, arguments) -> {
             assertThat(context.previous()).exists().isEqualTo(output);
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
@@ -162,7 +165,11 @@ public class BuildExecutorTest {
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, "source");
+        };
+        Files.writeString(checksum.resolve("step"),
+                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("foobar");
@@ -177,8 +184,7 @@ public class BuildExecutorTest {
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
         Files.writeString(output.resolve("file"), "foo");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
-        buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", new BuildStep() {
+        BuildStep buildStep = new BuildStep() {
             @Override
             public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
                 assertThat(arguments).containsOnlyKeys("source");
@@ -199,7 +205,11 @@ public class BuildExecutorTest {
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }
-        }, "source");
+        };
+        Files.writeString(checksum.resolve("step"),
+                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("foobar");
@@ -214,8 +224,7 @@ public class BuildExecutorTest {
         HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, _ -> new byte[0]));
         Files.writeString(output.resolve("file"), "qux");
         HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
-        buildExecutor.addSource("source", source);
-        buildExecutor.addStep("step", (_, context, arguments) -> {
+        BuildStep buildStep = (_, context, arguments) -> {
             assertThat(context.previous()).exists().isEqualTo(output);
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
@@ -225,7 +234,11 @@ public class BuildExecutorTest {
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(false));
-        }, "source");
+        };
+        Files.writeString(checksum.resolve("step"),
+                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(build).containsOnlyKeys("source", "step");
         assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("qux");
