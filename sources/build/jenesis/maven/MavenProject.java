@@ -84,9 +84,17 @@ public class MavenProject implements BuildExecutorModule {
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
-                                                case String x when x.equals(PREVIOUS.repeat(3) + MultiProjectModule.IDENTIFY + "/" + MultiProjectModule.MODULE + "/" + name + "/" + MultiProjectModule.SOURCES) -> MultiProjectModule.SOURCES;
-                                                case String x when x.equals(PREVIOUS.repeat(3) + MultiProjectModule.IDENTIFY + "/" + MultiProjectModule.MODULE + "/" + name + "/" + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
-                                                case String x when x.startsWith("dependencies/") -> x.substring("dependencies/".length());
+                                                case String value when value.equals(PREVIOUS.repeat(3)
+                                                        + MultiProjectModule.IDENTIFY + "/"
+                                                        + MultiProjectModule.MODULE + "/"
+                                                        + name + "/"
+                                                        + MultiProjectModule.SOURCES) -> MultiProjectModule.SOURCES;
+                                                case String value when value.equals(PREVIOUS.repeat(3)
+                                                        + MultiProjectModule.IDENTIFY + "/"
+                                                        + MultiProjectModule.MODULE + "/"
+                                                        + name + "/"
+                                                        + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
+                                                case String value when value.startsWith("dependencies/") -> value.substring("dependencies/".length());
                                                 default -> key;
                                             },
                                             (a, _) -> a,
