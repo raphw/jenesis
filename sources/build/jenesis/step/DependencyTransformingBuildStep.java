@@ -19,7 +19,7 @@ public interface DependencyTransformingBuildStep extends BuildStep {
         // TODO: improve incremental resolve
         SequencedMap<String, SequencedMap<String, String>> groups = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path dependencies = argument.folder().resolve(DEPENDENCIES);
+            Path dependencies = argument.folder().resolve(REQUIRES);
             if (!Files.exists(dependencies)) {
                 continue;
             }
@@ -37,7 +37,7 @@ public interface DependencyTransformingBuildStep extends BuildStep {
         }
         return transform(executor, context, arguments, groups).thenComposeAsync(properties -> {
             CompletableFuture<BuildStepResult> result = new CompletableFuture<>();
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
+            try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
                 properties.store(writer, null);
                 result.complete(new BuildStepResult(true));
             } catch (Throwable t) {

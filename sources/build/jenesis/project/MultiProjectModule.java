@@ -14,12 +14,12 @@ public class MultiProjectModule implements BuildExecutorModule {
             CHECKED = "checked",
             ARTIFACTS = "artifacts";
 
-    private static final String IDENTIFY = "identify",
+    private static final String IDENTIFIER = "identifier",
             GROUP = "group",
             BUILD = "build",
             MODULE = "module";
 
-    public static final String IDENTIFY_PATH = PREVIOUS.repeat(3) + IDENTIFY + "/";
+    public static final String IDENTIFIER_PATH = PREVIOUS.repeat(3) + IDENTIFIER + "/";
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;
@@ -54,13 +54,13 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addModule(IDENTIFY, identifier);
+        buildExecutor.addModule(IDENTIFIER, identifier);
         buildExecutor.addModule(BUILD, (process, identified) -> {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.sequencedKeySet()) {
-                if (identifier.startsWith(PREVIOUS + IDENTIFY + "/")) {
-                    resolver.apply(identifier.substring(12)).ifPresent(module -> {
+                if (identifier.startsWith(PREVIOUS + IDENTIFIER + "/")) {
+                    resolver.apply(identifier.substring(PREVIOUS.length() + IDENTIFIER.length() + 1)).ifPresent(module -> {
                         String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
                         if (name.isEmpty()) {
                             throw new IllegalArgumentException("Module name must not be empty");
@@ -117,6 +117,6 @@ public class MultiProjectModule implements BuildExecutorModule {
                     }
                 }
             }, Stream.concat(Stream.of(GROUP), identified.sequencedKeySet().stream()));
-        }, Stream.concat(Stream.of(IDENTIFY), inherited.sequencedKeySet().stream()));
+        }, Stream.concat(Stream.of(IDENTIFIER), inherited.sequencedKeySet().stream()));
     }
 }

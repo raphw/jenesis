@@ -6,7 +6,7 @@ import module java.base;
 public interface BuildStep {
 
     String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
-    String COORDINATES = "coordinates.properties", DEPENDENCIES = "dependencies.properties";
+    String IDENTITY = "identity.properties", REQUIRES = "requires.properties";
 
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);

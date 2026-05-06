@@ -35,16 +35,16 @@ public class ModularProjectTest {
         assertThat(results).containsKeys("module/module-/sources", "module/module-/manifests");
         assertThat(results.get("module/module-/sources").resolve(BuildStep.SOURCES + "module-info.java")).exists();
         Path module = results.get("module/module-/manifests");
-        assertThat(module.resolve(BuildStep.COORDINATES)).exists();
+        assertThat(module.resolve(BuildStep.IDENTITY)).exists();
         Properties coordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.COORDINATES))) {
+        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.IDENTITY))) {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsOnlyKeys("module/foo");
         assertThat(coordinates.getProperty("module/foo")).isEmpty();
-        assertThat(module.resolve(BuildStep.DEPENDENCIES)).exists();
+        assertThat(module.resolve(BuildStep.REQUIRES)).exists();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.REQUIRES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies).containsOnlyKeys("module/bar");
@@ -116,7 +116,7 @@ public class ModularProjectTest {
         Properties foo = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
                 .get("modules/build/module/module-foo/assign")
-                .resolve(BuildStep.COORDINATES))) {
+                .resolve(BuildStep.IDENTITY))) {
             foo.load(reader);
         }
         assertThat(foo.stringPropertyNames()).containsExactly("module/foo");
@@ -126,7 +126,7 @@ public class ModularProjectTest {
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
                 .get("modules/build/module/module-bar/assign")
-                .resolve(BuildStep.COORDINATES))) {
+                .resolve(BuildStep.IDENTITY))) {
             bar.load(reader);
         }
         assertThat(bar.stringPropertyNames()).containsExactly("module/bar");

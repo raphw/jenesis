@@ -30,12 +30,12 @@ public class Group implements BuildStep {
             if (name == null) {
                 continue;
             }
-            toProperties(entry.getValue().folder().resolve(COORDINATES)).forEach(dependency -> from.computeIfAbsent(
+            toProperties(entry.getValue().folder().resolve(IDENTITY)).forEach(dependency -> from.computeIfAbsent(
                     dependency,
                     _ -> new LinkedHashSet<>()).add(name));
             to.computeIfAbsent(name, _ -> new LinkedHashSet<>()).addAll(toProperties(entry.getValue()
                     .folder()
-                    .resolve(DEPENDENCIES)));
+                    .resolve(REQUIRES)));
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));
         for (Map.Entry<String, Set<String>> entry : to.entrySet()) {

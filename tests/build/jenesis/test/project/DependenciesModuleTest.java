@@ -29,7 +29,7 @@ public class DependenciesModuleTest {
     public void can_resolve_dependencies() throws IOException {
         Properties dependencies = new Properties();
         dependencies.setProperty("foo/bar", "");
-        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         buildExecutor.addSource("input", input);
@@ -40,7 +40,7 @@ public class DependenciesModuleTest {
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/resolved", "output/artifacts");
         Properties resolved = new Properties();
-        try (Reader reader = Files.newBufferedReader(steps.get("output/resolved").resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(steps.get("output/resolved").resolve(BuildStep.REQUIRES))) {
             resolved.load(reader);
         }
         assertThat(resolved.stringPropertyNames()).containsExactly("foo/bar");
@@ -54,7 +54,7 @@ public class DependenciesModuleTest {
     public void can_resolve_dependencies_with_checksums() throws IOException, NoSuchAlgorithmException {
         Properties dependencies = new Properties();
         dependencies.setProperty("foo/bar", "");
-        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         buildExecutor.addSource("input", input);
@@ -65,7 +65,7 @@ public class DependenciesModuleTest {
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/resolved", "output/checked", "output/artifacts");
         Properties checked = new Properties();
-        try (Reader reader = Files.newBufferedReader(steps.get("output/checked").resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(steps.get("output/checked").resolve(BuildStep.REQUIRES))) {
             checked.load(reader);
         }
         assertThat(checked.stringPropertyNames()).containsExactly("foo/bar");

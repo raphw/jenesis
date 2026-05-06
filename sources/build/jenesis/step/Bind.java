@@ -23,12 +23,12 @@ public class Bind implements BuildStep {
         return new Bind(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
-    public static Bind asCoordinates(String name) {
-        return new Bind(Map.of(Path.of(name == null ? COORDINATES : name), Path.of(COORDINATES)));
+    public static Bind asIdentity(String name) {
+        return new Bind(Map.of(Path.of(name == null ? IDENTITY : name), Path.of(IDENTITY)));
     }
 
-    public static Bind asDependencies(String name) {
-        return new Bind(Map.of(Path.of(name), Path.of(DEPENDENCIES)));
+    public static Bind asRequires(String name) {
+        return new Bind(Map.of(Path.of(name), Path.of(REQUIRES)));
     }
 
     @Override

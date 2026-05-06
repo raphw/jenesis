@@ -33,7 +33,7 @@ public class PomTest {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.setProperty("maven/build.jenesis/jenesis/pom/1.0.0", "/somewhere/pom.xml");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
         Properties dependencies = new SequencedProperties();
@@ -41,7 +41,7 @@ public class PomTest {
         dependencies.setProperty("maven/org.example/other/jar/4.5.6", "");
         dependencies.setProperty("maven/org.example/zip/zip/7.8.9", "");
         dependencies.setProperty("module/com.example.foo", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -49,8 +49,8 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -87,13 +87,13 @@ public class PomTest {
     public void default_resolver_translates_module_self_coordinate_to_maven() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("module/build.jenesis.test", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
         Properties dependencies = new SequencedProperties();
         dependencies.setProperty("maven/build.jenesis/jenesis/0-SNAPSHOT", "");
         dependencies.setProperty("module/some.other.module", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -101,8 +101,8 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -128,14 +128,14 @@ public class PomTest {
     public void fails_when_no_self_coordinate_is_present() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "/already/resolved.jar");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
         assertThatThrownBy(() -> new Pom().apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                         argument,
-                        Map.of(Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED))))))
+                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED))))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No own Maven coordinate");
     }

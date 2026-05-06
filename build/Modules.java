@@ -23,12 +23,12 @@ public class Modules {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addSource("deps", Path.of("dependencies"));
 
-        root.addStep("main-deps", Bind.asDependencies("main.properties"), "deps");
+        root.addStep("main-deps", Bind.asRequires("main.properties"), "deps");
         root.addModule("main-artifacts", new DependenciesModule(repositories, resolvers), "main-deps");
         root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
         root.addModule("main", new JavaModule(), identifier -> identifier.equals("artifacts") ? Optional.of(identifier) : Optional.empty(), "main-artifacts", "main-sources");
 
-        root.addStep("test-deps", Bind.asDependencies("test.properties"), "deps");
+        root.addStep("test-deps", Bind.asRequires("test.properties"), "deps");
         root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaModule().test(TestEngine.JUNIT5), "test-artifacts", "test-sources", "main");

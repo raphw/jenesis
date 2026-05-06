@@ -31,7 +31,7 @@ public class TranslateTest {
         Properties properties = new Properties();
         properties.setProperty("foo/qux", "foobar");
         properties.setProperty("bar/baz", "quxbaz");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new Translate(Map.of(
@@ -42,11 +42,11 @@ public class TranslateTest {
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(BuildStep.DEPENDENCIES),
+                                Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("translated/qux", "bar/baz");

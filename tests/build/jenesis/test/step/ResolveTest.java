@@ -32,7 +32,7 @@ public class ResolveTest {
         Properties properties = new Properties();
         properties.setProperty("foo/qux", "");
         properties.setProperty("foo/baz", "");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors) -> {
@@ -48,11 +48,11 @@ public class ResolveTest {
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(BuildStep.DEPENDENCIES),
+                                Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
@@ -69,7 +69,7 @@ public class ResolveTest {
         Properties properties = new Properties();
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors) -> {
@@ -85,11 +85,11 @@ public class ResolveTest {
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(BuildStep.DEPENDENCIES),
+                                Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
@@ -107,7 +107,7 @@ public class ResolveTest {
         Properties properties = new Properties();
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors) -> {
@@ -123,11 +123,11 @@ public class ResolveTest {
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(
-                                Path.of(BuildStep.DEPENDENCIES),
+                                Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
             dependencies.load(reader);
         }
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",

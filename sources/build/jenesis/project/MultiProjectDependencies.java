@@ -26,7 +26,7 @@ public class MultiProjectDependencies implements BuildStep {
         SequencedMap<String, String> coordinates = new LinkedHashMap<>(), dependencies = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
-                Path file = entry.getValue().folder().resolve(DEPENDENCIES);
+                Path file = entry.getValue().folder().resolve(REQUIRES);
                 if (Files.exists(file)) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(file)) {
@@ -38,7 +38,7 @@ public class MultiProjectDependencies implements BuildStep {
                     });
                 }
             } else {
-                Path file = entry.getValue().folder().resolve(COORDINATES);
+                Path file = entry.getValue().folder().resolve(IDENTITY);
                 if (Files.exists(file)) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(file)) {
@@ -74,7 +74,7 @@ public class MultiProjectDependencies implements BuildStep {
             }
             properties.setProperty(entry.getKey(), value);
         }
-        try (Writer writer = Files.newBufferedWriter(context.next().resolve(DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
             properties.store(writer, null);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));

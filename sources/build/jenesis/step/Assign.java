@@ -42,7 +42,7 @@ public class Assign implements BuildStep {
                     }
                 }
             }
-            Path coordinates = argument.folder().resolve(COORDINATES);
+            Path coordinates = argument.folder().resolve(IDENTITY);
             if (Files.exists(coordinates)) {
                 Properties properties = new SequencedProperties();
                 try (Reader reader = Files.newBufferedReader(coordinates)) {
@@ -60,7 +60,7 @@ public class Assign implements BuildStep {
             }
             assignments.setProperty(coordinate, path.toString());
         });
-        try (Writer writer = Files.newBufferedWriter(context.next().resolve(COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
             assignments.store(writer, null);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));

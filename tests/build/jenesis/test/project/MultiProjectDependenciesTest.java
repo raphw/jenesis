@@ -31,14 +31,14 @@ public class MultiProjectDependenciesTest {
     public void can_assign_coordinate_target_dependencies() throws IOException, NoSuchAlgorithmException {
         Properties dependencies = new Properties();
         dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         Path file = target.resolve("file");
         Files.writeString(file, "qux");
         Properties coordinates = new Properties();
         coordinates.setProperty("baz", file.toString());
-        try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
         BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals).apply(
@@ -47,14 +47,14 @@ public class MultiProjectDependenciesTest {
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED)),
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
                                 "bar", new BuildStepArgument(
                                         dependency,
-                                        Map.of(Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED)))))
+                                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.DEPENDENCIES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
             properties.load(reader);
         }
         assertThat(properties.stringPropertyNames()).containsExactly("baz");

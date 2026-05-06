@@ -32,20 +32,20 @@ public class GroupTest {
         Properties leftCoordinates = new Properties(), rightCoordinates = new Properties();
         leftCoordinates.setProperty("foo", "");
         rightCoordinates.setProperty("bar", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.IDENTITY))) {
             leftCoordinates.store(writer, null);
         }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.IDENTITY))) {
             rightCoordinates.store(writer, null);
         }
         Properties leftDependencies = new Properties(), rightDependencies = new Properties();
         leftDependencies.setProperty("qux", "");
         rightDependencies.setProperty("foo", "");
         rightDependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.REQUIRES))) {
             leftDependencies.store(writer, null);
         }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.REQUIRES))) {
             rightDependencies.store(writer, null);
         }
         BuildStepResult result = new Group(Optional::of).apply(
@@ -55,13 +55,13 @@ public class GroupTest {
                         "left", new BuildStepArgument(
                                 left,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED)),
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
                         "right", new BuildStepArgument(
                                 right,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         Properties leftGroup = new Properties(), rightGroup = new Properties();
         try (Reader reader = Files.newBufferedReader(next.resolve(Group.GROUPS + "left.properties"))) {
             leftGroup.load(reader);
@@ -79,19 +79,19 @@ public class GroupTest {
         Properties leftCoordinates = new Properties(), rightCoordinates = new Properties();
         leftCoordinates.setProperty("foo", "");
         rightCoordinates.setProperty("bar", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.IDENTITY))) {
             leftCoordinates.store(writer, null);
         }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.IDENTITY))) {
             rightCoordinates.store(writer, null);
         }
         Properties leftDependencies = new Properties(), rightDependencies = new Properties();
         leftDependencies.setProperty("qux", "");
         rightDependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.REQUIRES))) {
             leftDependencies.store(writer, null);
         }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.DEPENDENCIES))) {
+        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.REQUIRES))) {
             rightDependencies.store(writer, null);
         }
         BuildStepResult result = new Group(Optional::of).apply(
@@ -101,13 +101,13 @@ public class GroupTest {
                         "left", new BuildStepArgument(
                                 left,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED)),
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
                         "right", new BuildStepArgument(
                                 right,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         Properties leftGroup = new Properties(), rightGroup = new Properties();
         try (Reader reader = Files.newBufferedReader(next.resolve(Group.GROUPS + "left.properties"))) {
             leftGroup.load(reader);

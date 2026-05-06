@@ -44,13 +44,13 @@ public class Pom implements BuildStep {
         Properties coordinates = new SequencedProperties();
         Properties dependencies = new SequencedProperties();
         for (BuildStepArgument argument : arguments.values()) {
-            Path coordinatesFile = argument.folder().resolve(COORDINATES);
+            Path coordinatesFile = argument.folder().resolve(IDENTITY);
             if (Files.exists(coordinatesFile)) {
                 try (Reader reader = Files.newBufferedReader(coordinatesFile)) {
                     coordinates.load(reader);
                 }
             }
-            Path dependenciesFile = argument.folder().resolve(DEPENDENCIES);
+            Path dependenciesFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(dependenciesFile)) {
                 try (Reader reader = Files.newBufferedReader(dependenciesFile)) {
                     dependencies.load(reader);

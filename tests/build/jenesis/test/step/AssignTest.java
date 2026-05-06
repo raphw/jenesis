@@ -32,7 +32,7 @@ public class AssignTest {
         Properties properties = new SequencedProperties();
         properties.setProperty("foo", "");
         properties.setProperty("bar", "qux");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             properties.store(writer, null);
         }
         Files.writeString(Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("artifact"), "baz");
@@ -41,13 +41,13 @@ public class AssignTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.ARTIFACTS + "foo"), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
         Properties coordinates = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.COORDINATES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.IDENTITY))) {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsExactly(
@@ -60,7 +60,7 @@ public class AssignTest {
         Properties properties = new SequencedProperties();
         properties.setProperty("foo", "");
         properties.setProperty("bar", "qux");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COORDINATES))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             properties.store(writer, null);
         }
         Files.writeString(Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("artifact"), "baz");
@@ -75,13 +75,13 @@ public class AssignTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.COORDINATES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.ARTIFACTS + "foo"), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
         Properties coordinates = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.COORDINATES))) {
+        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.IDENTITY))) {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsExactly(
