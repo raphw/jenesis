@@ -11,13 +11,15 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String SOURCES = "sources",
             MANIFESTS = "manifests",
-            RESOLVED = "resolved",
             CHECKED = "checked",
-            ARTIFACTS = "artifacts",
-            IDENTIFY = "identify",
+            ARTIFACTS = "artifacts";
+
+    private static final String IDENTIFY = "identify",
             GROUP = "group",
             BUILD = "build",
-            MODULE = "module";;
+            MODULE = "module";
+
+    public static final String IDENTIFY_PATH = PREVIOUS.repeat(3) + IDENTIFY + "/";
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;

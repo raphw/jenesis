@@ -67,8 +67,7 @@ public class ModularProject implements BuildExecutorModule {
                     buildExecutor.addStep("prepare",
                             new MultiProjectDependencies(
                                     algorithm,
-                                    identifier -> identifier.startsWith(BuildExecutorModule.PREVIOUS.repeat(3)
-                                            + "identify/"
+                                    identifier -> identifier.startsWith(MultiProjectModule.IDENTIFY_PATH
                                             + name + "/")),
                             inherited.sequencedKeySet());
                     buildExecutor.addModule("dependencies",
@@ -89,18 +88,15 @@ public class ModularProject implements BuildExecutorModule {
                             builder.apply(name, dependencies.sequencedKeySet()),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
-                                            Stream.of("dependencies/" + MultiProjectModule.RESOLVED,
-                                                    "dependencies/" + MultiProjectModule.CHECKED,
+                                            Stream.of("dependencies/" + MultiProjectModule.CHECKED,
                                                     "dependencies/" + MultiProjectModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
-                                                case String value when value.equals(PREVIOUS.repeat(3)
-                                                        + MultiProjectModule.IDENTIFY + "/"
+                                                case String value when value.equals(MultiProjectModule.IDENTIFY_PATH
                                                         + name + "/"
                                                         + MultiProjectModule.SOURCES) -> MultiProjectModule.SOURCES;
-                                                case String value when value.equals(PREVIOUS.repeat(3)
-                                                        + MultiProjectModule.IDENTIFY + "/"
+                                                case String value when value.equals(MultiProjectModule.IDENTIFY_PATH
                                                         + name + "/"
                                                         + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
                                                 case String value when value.startsWith("dependencies/") -> value.substring("dependencies/".length());
@@ -112,7 +108,7 @@ public class ModularProject implements BuildExecutorModule {
                             new Assign(),
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier
-                                            .startsWith(PREVIOUS.repeat(3) + "identify/")),
+                                            .startsWith(MultiProjectModule.IDENTIFY_PATH)),
                                     Stream.of("build")));
                 });
     }

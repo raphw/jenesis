@@ -92,13 +92,11 @@ public class ModularProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
-                                    "../resolved",
                                     "../checked",
                                     "../artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
-                                    "../resolved",
                                     "../checked",
                                     "../artifacts",
                                     "../../module-foo/prepare",

@@ -385,13 +385,11 @@ public class MavenProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
-                                    "../resolved",
                                     "../checked",
                                     "../artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
-                                    "../resolved",
                                     "../checked",
                                     "../artifacts",
                                     "../../module-foo/prepare",
