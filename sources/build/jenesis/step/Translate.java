@@ -10,8 +10,8 @@ public class Translate implements DependencyTransformingBuildStep {
 
     private final Map<String, Function<String, String>> translators;
 
-    public Translate(Map<String, Function<String, String>> translators) {
-        this.translators = translators;
+    public <T extends Function<String, String> & Serializable> Translate(Map<String, T> translators) {
+        this.translators = new LinkedHashMap<>(translators);
     }
 
     @Override

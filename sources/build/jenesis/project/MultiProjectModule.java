@@ -33,9 +33,10 @@ public class MultiProjectModule implements BuildExecutorModule {
         this.factory = factory;
     }
 
-    public static Function<Path, Optional<Path>> linkBySubModule(String... names) {
+    @SuppressWarnings("unchecked")
+    public static <T extends Function<Path, Optional<Path>> & Serializable> T linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);
-        return file -> {
+        return (T) (Function<Path, Optional<Path>> & Serializable) (file -> {
             Path filename = file.getFileName();
             if (filename == null || !allowed.contains(filename.toString())) {
                 return Optional.empty();
@@ -49,7 +50,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                 }
             }
             return Optional.empty();
-        };
+        });
     }
 
     @Override

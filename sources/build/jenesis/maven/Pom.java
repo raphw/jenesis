@@ -32,7 +32,7 @@ public class Pom implements BuildStep {
         });
     }
 
-    public Pom(Function<String, String> resolver) {
+    public <T extends Function<String, String> & Serializable> Pom(T resolver) {
         this.resolver = resolver;
     }
 

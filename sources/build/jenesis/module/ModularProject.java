@@ -115,7 +115,7 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
-    public static Function<Path, Optional<Path>> artifactsByModule() {
+    public static <T extends Function<Path, Optional<Path>> & Serializable> T artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
     }
 

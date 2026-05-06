@@ -13,7 +13,7 @@ public class MultiProjectDependencies implements BuildStep {
     private final String algorithm;
     private final Predicate<String> isModule;
 
-    public MultiProjectDependencies(String algorithm, Predicate<String> isModule) {
+    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(String algorithm, P isModule) {
         this.algorithm = algorithm;
         this.isModule = isModule;
     }

@@ -31,13 +31,13 @@ public class RelocateTest {
         Files.writeString(original.resolve("second.jar"), "second");
         Files.writeString(original.resolve("readme.txt"), "ignored");
 
-        BuildStepResult result = new Relocate((Function<Path, Optional<Path>> & Serializable) (file -> {
+        BuildStepResult result = new Relocate(file -> {
             String name = file.getFileName().toString();
             if (name.endsWith(".jar")) {
                 return Optional.of(Path.of("staged", name));
             }
             return Optional.empty();
-        })).apply(Runnable::run,
+        }).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("original", new BuildStepArgument(
                                 original,
@@ -57,8 +57,8 @@ public class RelocateTest {
         Path nested = Files.createDirectories(original.resolve("a").resolve("b"));
         Files.writeString(nested.resolve("deep.jar"), "deep");
 
-        BuildStepResult result = new Relocate((Function<Path, Optional<Path>> & Serializable)
-                (file -> Optional.of(Path.of(file.getFileName().toString())))).apply(Runnable::run,
+        BuildStepResult result = new Relocate(
+                file -> Optional.of(Path.of(file.getFileName().toString()))).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("original", new BuildStepArgument(
                                 original,
@@ -75,8 +75,8 @@ public class RelocateTest {
         Files.writeString(original.resolve("a.jar"), "a");
         Files.writeString(otherFolder.resolve("b.jar"), "b");
 
-        BuildStepResult result = new Relocate((Function<Path, Optional<Path>> & Serializable)
-                (file -> Optional.of(Path.of(file.getFileName().toString())))).apply(Runnable::run,
+        BuildStepResult result = new Relocate(
+                file -> Optional.of(Path.of(file.getFileName().toString()))).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "first", new BuildStepArgument(
@@ -96,8 +96,7 @@ public class RelocateTest {
     public void placement_skips_when_function_returns_empty() throws IOException {
         Files.writeString(original.resolve("ignored.jar"), "ignored");
 
-        BuildStepResult result = new Relocate((Function<Path, Optional<Path>> & Serializable)
-                (file -> Optional.empty())).apply(Runnable::run,
+        BuildStepResult result = new Relocate(file -> Optional.empty()).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("original", new BuildStepArgument(
                                 original,
@@ -117,8 +116,8 @@ public class RelocateTest {
         Files.writeString(included.resolve("kept.jar"), "kept");
         Files.writeString(excluded.resolve("dropped.jar"), "dropped");
 
-        BuildStepResult result = new Relocate((Function<Path, Optional<Path>> & Serializable)
-                (file -> Optional.of(Path.of(file.getFileName().toString()))),
+        BuildStepResult result = new Relocate(
+                file -> Optional.of(Path.of(file.getFileName().toString())),
                 Set.of(Path.of("included"))).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("original", new BuildStepArgument(

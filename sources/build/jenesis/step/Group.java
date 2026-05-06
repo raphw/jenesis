@@ -14,7 +14,7 @@ public class Group implements BuildStep {
 
     private final Function<String, Optional<String>> identification;
 
-    public Group(Function<String, Optional<String>> identification) {
+    public <T extends Function<String, Optional<String>> & Serializable> Group(T identification) {
         this.identification = identification;
     }
 

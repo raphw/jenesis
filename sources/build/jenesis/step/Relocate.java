@@ -12,11 +12,11 @@ public class Relocate implements BuildStep {
     private final Function<Path, Optional<Path>> placement;
     private final Set<Path> prefixes;
 
-    public Relocate(Function<Path, Optional<Path>> placement) {
+    public <T extends Function<Path, Optional<Path>> & Serializable> Relocate(T placement) {
         this(placement, null);
     }
 
-    public Relocate(Function<Path, Optional<Path>> placement, Set<Path> prefixes) {
+    public <T extends Function<Path, Optional<Path>> & Serializable> Relocate(T placement, Set<Path> prefixes) {
         this.placement = placement;
         this.prefixes = prefixes;
     }
