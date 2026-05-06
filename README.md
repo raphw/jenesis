@@ -144,11 +144,45 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
 | `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`, with checksums for resolved local artifacts       |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
+| `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); `Export.toLocalMavenRepository()` / `toMavenRepository(Path)` ship a Maven-layout placement that reads each sibling `pom.xml` and writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}`. | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and `Tests`); `Java.of(...)`
 gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
 `Download`, and `Translate`; they all parse `requires.properties` into `(prefix, coordinate)` groups, transform
 them, and write `requires.properties` back.
+
+`Export` is the one step that intentionally breaks two of the conventions that every other step holds to. Its
+job is to publish a build's outputs outside the `target/` tree (e.g. into the user's local Maven repository, a
+shared distribution folder, or a release staging directory), so it cannot honour the "immutable, content-hashed
+output folder" invariant that drives incremental builds:
+
+- **Writes outside `context.next()`.** The destination is supplied as a `Path` to the constructor and lives
+  wherever the user wants it — `~/.m2/repository`, a network share, an existing distribution layout. Files are
+  copied (not hard-linked, since the target may be on a different filesystem) and `REPLACE_EXISTING` always
+  overwrites whatever is at the destination. `context.next()` itself is left empty.
+- **Always re-runs.** `shouldRun(...)` returns `true`, so even if all inputs are unchanged the export is performed
+  again. The reason is that the destination is outside the executor's control — anything could have edited or
+  removed those files between builds — so the only safe assumption is that the export needs redoing every time.
+  The step's serialized form is still hashed (config-aware cache invalidation still applies), but `consistent`
+  results just shorten the diff status the placement function sees, not whether it runs.
+
+The placement is the same `Function<Path, Optional<Path>>` shape `Relocate` uses: each visited file is mapped to
+an `Optional<Path>` relative to the configured target, or skipped. `Export.toLocalMavenRepository()` and
+`Export.toMavenRepository(Path)` ship a placement that consumes the canonical per-module output produced by
+`Relocate(ModularProject.artifactsByModule())` (i.e. each sub-module folder contains both `classes.jar` and
+`pom.xml`): for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of
+it, and routes the file to the standard Maven layout —
+
+| File          | Maven destination                                       |
+| ------------- | ------------------------------------------------------- |
+| `classes.jar` | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.jar` |
+| `pom.xml`     | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.pom` |
+
+Files without a sibling `pom.xml` are skipped, so the same step can be pointed at a tree that mixes
+multi-module output and arbitrary other content without false hits. Unhandled today: checksum sidecars
+(`.sha1`/`.md5`), GPG signatures, classifier'd artifacts (sources, javadoc, tests jars), and `<parent>`
+version inheritance — the `Pom` step always emits an explicit `<version>`, so the last is fine in practice for
+artifacts produced by this build.
 
 Build executor modules
 ----------------------
@@ -349,3 +383,6 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - Module for test discovery that pulls in the matching runner dependency automatically.
 - Evaluate module to publish to Maven Central and local Maven repository. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 - Extending all build step implementations to expose their full set of standard options.
+- High-level builder for Project with defaults.
+- Command line argument processing to specify sub-targets for the run.
+- 
