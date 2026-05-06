@@ -9,6 +9,10 @@ import build.jenesis.step.Relocate;
 
 import module java.base;
 
+import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
+import static build.jenesis.project.MultiProjectModule.DECLARE;
+import static build.jenesis.project.MultiProjectModule.SOURCES;
+
 public class Modular {
 
     static void main(String[] args) throws IOException {
@@ -27,7 +31,7 @@ public class Modular {
                         Files.createDirectories(Path.of("cache/modules"))),
                 (_, _) -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
-                        "../sources", "../module-info", "../artifacts"))), "download");
+                        "../" + SOURCES, "../" + DECLARE, "../" + ARTIFACTS))), "download");
 
         root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
 

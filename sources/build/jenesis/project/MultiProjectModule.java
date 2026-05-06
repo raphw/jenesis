@@ -10,6 +10,11 @@ import module java.base;
 public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
+    public static final String SOURCES = "sources",
+            DECLARE = "declare",
+            PREPARED = "prepared",
+            RESOLVED = "resolved",
+            ARTIFACTS = "artifacts";
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;

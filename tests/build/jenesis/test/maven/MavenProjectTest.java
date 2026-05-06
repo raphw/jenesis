@@ -15,6 +15,11 @@ import build.jenesis.project.JavaModule;
 import module java.base;
 import module org.junit.jupiter.api;
 
+import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
+import static build.jenesis.project.MultiProjectModule.DECLARE;
+import static build.jenesis.project.MultiProjectModule.PREPARED;
+import static build.jenesis.project.MultiProjectModule.RESOLVED;
+import static build.jenesis.project.MultiProjectModule.SOURCES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -383,17 +388,17 @@ public class MavenProjectTest {
                     return (buildExecutor, inherited) -> {
                         switch (name) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
-                                    "../sources",
-                                    "../declare",
-                                    "../prepared",
-                                    "../resolved",
-                                    "../artifacts");
+                                    "../" + SOURCES,
+                                    "../" + DECLARE,
+                                    "../" + PREPARED,
+                                    "../" + RESOLVED,
+                                    "../" + ARTIFACTS);
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
-                                    "../sources",
-                                    "../declare",
-                                    "../prepared",
-                                    "../resolved",
-                                    "../artifacts",
+                                    "../" + SOURCES,
+                                    "../" + DECLARE,
+                                    "../" + PREPARED,
+                                    "../" + RESOLVED,
+                                    "../" + ARTIFACTS,
                                     "../../module-foo/prepare",
                                     "../../module-foo/dependencies/prepared",
                                     "../../module-foo/dependencies/resolved",
@@ -404,7 +409,7 @@ public class MavenProjectTest {
                             default -> fail("Unexpected module: " + name);
                         }
                         buildExecutor.addModule("java", new JavaModule(),
-                                "../sources", "../declare", "../artifacts");
+                                "../" + SOURCES, "../" + DECLARE, "../" + ARTIFACTS);
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
