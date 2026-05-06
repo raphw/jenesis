@@ -12,7 +12,7 @@ import module java.base;
 
 public class DependenciesModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", ARTIFACTS = "artifacts", PREPARED = "prepared";
+    public static final String RESOLVED = "resolved", CHECKED = "checked", ARTIFACTS = "artifacts";
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -34,12 +34,12 @@ public class DependenciesModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers), inherited.sequencedKeySet());
         if (checksum != null) {
-            buildExecutor.addStep(PREPARED, new Resolve(repositories, resolvers), inherited.sequencedKeySet());
-            buildExecutor.addStep(RESOLVED, new Checksum(checksum, repositories), PREPARED);
+            buildExecutor.addStep(CHECKED, new Checksum(checksum, repositories), RESOLVED);
+            buildExecutor.addStep(ARTIFACTS, new Download(repositories), CHECKED);
         } else {
-            buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers), inherited.sequencedKeySet());
+            buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
         }
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories), RESOLVED);
     }
 }

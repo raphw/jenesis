@@ -79,8 +79,8 @@ public class MavenProject implements BuildExecutorModule {
                     Function<String, Optional<String>> rename = key -> {
                         if (key.equals(identifyPrefix + MultiProjectModule.SOURCES)) {
                             return Optional.of(MultiProjectModule.SOURCES);
-                        } else if (key.equals(identifyPrefix + MultiProjectModule.DECLARE)) {
-                            return Optional.of(MultiProjectModule.DECLARE);
+                        } else if (key.equals(identifyPrefix + MultiProjectModule.MANIFESTS)) {
+                            return Optional.of(MultiProjectModule.MANIFESTS);
                         } else if (key.startsWith("dependencies/")) {
                             return Optional.of(key.substring("dependencies/".length()));
                         } else {
@@ -90,8 +90,8 @@ public class MavenProject implements BuildExecutorModule {
                     SequencedMap<String, String> deps = new LinkedHashMap<>();
                     Stream.concat(
                                     inherited.sequencedKeySet().stream(),
-                                    Stream.of("dependencies/" + MultiProjectModule.PREPARED,
-                                            "dependencies/" + MultiProjectModule.RESOLVED,
+                                    Stream.of("dependencies/" + MultiProjectModule.RESOLVED,
+                                            "dependencies/" + MultiProjectModule.CHECKED,
                                             "dependencies/" + MultiProjectModule.ARTIFACTS))
                             .forEach(key -> deps.put(key, rename.apply(key).orElse(key)));
                     buildExecutor.addModule("build",
@@ -256,7 +256,7 @@ public class MavenProject implements BuildExecutorModule {
                             }
                         }
                         if (active) {
-                            module.addStep(MultiProjectModule.DECLARE, (_, context, _) -> {
+                            module.addStep(MultiProjectModule.MANIFESTS, (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
                                 coordinates.setProperty(properties.getProperty("pom"), paths.get("../scan")

@@ -11,9 +11,9 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
     public static final String SOURCES = "sources",
-            DECLARE = "declare",
-            PREPARED = "prepared",
+            MANIFESTS = "manifests",
             RESOLVED = "resolved",
+            CHECKED = "checked",
             ARTIFACTS = "artifacts";
 
     private final BuildExecutorModule identifier;

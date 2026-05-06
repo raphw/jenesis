@@ -15,8 +15,8 @@ import build.jenesis.step.Relocate;
 import module java.base;
 
 import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
-import static build.jenesis.project.MultiProjectModule.DECLARE;
-import static build.jenesis.project.MultiProjectModule.RESOLVED;
+import static build.jenesis.project.MultiProjectModule.CHECKED;
+import static build.jenesis.project.MultiProjectModule.MANIFESTS;
 import static build.jenesis.project.MultiProjectModule.SOURCES;
 
 public class ModularByMaven {
@@ -43,9 +43,9 @@ public class ModularByMaven {
                             new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate)))),
                     (_, _) -> (buildExecutor, _) -> {
                         buildExecutor.addModule("java", new JavaModule().testIfAvailable(),
-                                "../" + SOURCES, "../" + DECLARE, "../" + ARTIFACTS);
+                                "../" + SOURCES, "../" + MANIFESTS, "../" + ARTIFACTS);
                         buildExecutor.addStep("pom", new Pom(),
-                                "../" + SOURCES, "../" + DECLARE, "../" + RESOLVED);
+                                "../" + SOURCES, "../" + MANIFESTS, "../" + CHECKED);
                     }));
         }, "download");
 

@@ -63,13 +63,13 @@ public class DependenciesModuleTest {
                         coordinate.getBytes(StandardCharsets.UTF_8)))),
                 Map.of("foo", Resolver.identity())).computeChecksums("SHA256"), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps).containsKeys("output/prepared", "output/resolved", "output/artifacts");
-        Properties resolved = new Properties();
-        try (Reader reader = Files.newBufferedReader(steps.get("output/resolved").resolve(BuildStep.DEPENDENCIES))) {
-            resolved.load(reader);
+        assertThat(steps).containsKeys("output/resolved", "output/checked", "output/artifacts");
+        Properties checked = new Properties();
+        try (Reader reader = Files.newBufferedReader(steps.get("output/checked").resolve(BuildStep.DEPENDENCIES))) {
+            checked.load(reader);
         }
-        assertThat(resolved.stringPropertyNames()).containsExactly("foo/bar");
-        assertThat(resolved.getProperty("foo/bar")).isEqualTo("SHA256/" + HexFormat.of().formatHex(MessageDigest
+        assertThat(checked.stringPropertyNames()).containsExactly("foo/bar");
+        assertThat(checked.getProperty("foo/bar")).isEqualTo("SHA256/" + HexFormat.of().formatHex(MessageDigest
                 .getInstance("SHA256")
                 .digest("bar".getBytes(StandardCharsets.UTF_8))));
         assertThat(steps.get("output/artifacts")

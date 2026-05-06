@@ -15,11 +15,6 @@ import build.jenesis.project.JavaModule;
 import module java.base;
 import module org.junit.jupiter.api;
 
-import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
-import static build.jenesis.project.MultiProjectModule.DECLARE;
-import static build.jenesis.project.MultiProjectModule.PREPARED;
-import static build.jenesis.project.MultiProjectModule.RESOLVED;
-import static build.jenesis.project.MultiProjectModule.SOURCES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -63,8 +58,8 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/declare", "maven/module/test-module-/declare");
-        Path module = results.get("maven/module/module-/declare");
+        assertThat(results).containsKeys("maven/module/module-/manifests", "maven/module/test-module-/manifests");
+        Path module = results.get("maven/module/module-/manifests");
         assertThat(module.resolve(BuildStep.COORDINATES)).exists();
         Properties coordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.COORDINATES))) {
@@ -81,7 +76,7 @@ public class MavenProjectTest {
         }
         assertThat(dependencies).containsOnlyKeys("maven/other/artifact/jar/1");
         assertThat(dependencies.getProperty("maven/other/artifact/jar/1")).isEmpty();
-        Path testModule = results.get("maven/module/test-module-/declare");
+        Path testModule = results.get("maven/module/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.COORDINATES)).exists();
         Properties testCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.COORDINATES))) {
@@ -138,8 +133,8 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/declare", "maven/module/module-subproject/declare");
-        Path parent = results.get("maven/module/module-/declare");
+        assertThat(results).containsKeys("maven/module/module-/manifests", "maven/module/module-subproject/manifests");
+        Path parent = results.get("maven/module/module-/manifests");
         assertThat(parent.resolve(BuildStep.COORDINATES)).exists();
         Properties parentCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(parent.resolve(BuildStep.COORDINATES))) {
@@ -150,7 +145,7 @@ public class MavenProjectTest {
                 "maven/parent/artifact/pom/1");
         assertThat(parentCoordinates.getProperty("maven/parent/artifact/jar/1")).isEmpty();
         assertThat(parent.resolve(BuildStep.DEPENDENCIES)).exists().content().isEmpty();
-        Path parentTests = results.get("maven/module/test-module-/declare");
+        Path parentTests = results.get("maven/module/test-module-/manifests");
         assertThat(parentTests.resolve(BuildStep.COORDINATES)).exists();
         Properties parentTestCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.COORDINATES))) {
@@ -166,7 +161,7 @@ public class MavenProjectTest {
         }
         assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/jar/1");
         assertThat(parentTestDependencies.getProperty("maven/parent/artifact/jar/1")).isEmpty();
-        Path child = results.get("maven/module/module-subproject/declare");
+        Path child = results.get("maven/module/module-subproject/manifests");
         assertThat(child.resolve(BuildStep.COORDINATES)).exists();
         Properties childCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(child.resolve(BuildStep.COORDINATES))) {
@@ -177,7 +172,7 @@ public class MavenProjectTest {
                 "maven/group/artifact/pom/1");
         assertThat(childCoordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
         assertThat(child.resolve(BuildStep.DEPENDENCIES)).exists().content().isEmpty();
-        Path childTests = results.get("maven/module/test-module-subproject/declare");
+        Path childTests = results.get("maven/module/test-module-subproject/manifests");
         assertThat(childTests.resolve(BuildStep.COORDINATES)).exists();
         Properties childTestCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.COORDINATES))) {
@@ -213,7 +208,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/declare",
+        assertThat(results).containsKeys("maven/module/module-/manifests",
                 "maven/module/module-/sources",
                 "maven/module/module-/resources-1");
         assertThat(results.get("maven/module/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
@@ -246,7 +241,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/declare",
+        assertThat(results).containsKeys("maven/module/module-/manifests",
                 "maven/module/module-/sources",
                 "maven/module/module-/resources-1",
                 "maven/module/module-/resources-2");
@@ -273,7 +268,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/test-module-/declare",
+        assertThat(results).containsKeys("maven/module/test-module-/manifests",
                 "maven/module/test-module-/sources",
                 "maven/module/test-module-/resources-1");
         assertThat(results.get("maven/module/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
@@ -306,7 +301,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/test-module-/declare",
+        assertThat(results).containsKeys("maven/module/test-module-/manifests",
                 "maven/module/test-module-/sources",
                 "maven/module/test-module-/resources-1",
                 "maven/module/test-module-/resources-2");
@@ -388,20 +383,20 @@ public class MavenProjectTest {
                     return (buildExecutor, inherited) -> {
                         switch (name) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
-                                    "../" + SOURCES,
-                                    "../" + DECLARE,
-                                    "../" + PREPARED,
-                                    "../" + RESOLVED,
-                                    "../" + ARTIFACTS);
+                                    "../sources",
+                                    "../manifests",
+                                    "../resolved",
+                                    "../checked",
+                                    "../artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
-                                    "../" + SOURCES,
-                                    "../" + DECLARE,
-                                    "../" + PREPARED,
-                                    "../" + RESOLVED,
-                                    "../" + ARTIFACTS,
+                                    "../sources",
+                                    "../manifests",
+                                    "../resolved",
+                                    "../checked",
+                                    "../artifacts",
                                     "../../module-foo/prepare",
-                                    "../../module-foo/dependencies/prepared",
                                     "../../module-foo/dependencies/resolved",
+                                    "../../module-foo/dependencies/checked",
                                     "../../module-foo/dependencies/artifacts",
                                     "../../module-foo/build/java/classes",
                                     "../../module-foo/build/java/artifacts",
@@ -409,7 +404,7 @@ public class MavenProjectTest {
                             default -> fail("Unexpected module: " + name);
                         }
                         buildExecutor.addModule("java", new JavaModule(),
-                                "../" + SOURCES, "../" + DECLARE, "../" + ARTIFACTS);
+                                "../sources", "../manifests", "../artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

@@ -12,11 +12,6 @@ import build.jenesis.project.JavaModule;
 import module java.base;
 import module org.junit.jupiter.api;
 
-import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
-import static build.jenesis.project.MultiProjectModule.DECLARE;
-import static build.jenesis.project.MultiProjectModule.PREPARED;
-import static build.jenesis.project.MultiProjectModule.RESOLVED;
-import static build.jenesis.project.MultiProjectModule.SOURCES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -37,9 +32,9 @@ public class ModularProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("module/module-/sources", "module/module-/declare");
+        assertThat(results).containsKeys("module/module-/sources", "module/module-/manifests");
         assertThat(results.get("module/module-/sources").resolve(BuildStep.SOURCES + "module-info.java")).exists();
-        Path module = results.get("module/module-/declare");
+        Path module = results.get("module/module-/manifests");
         assertThat(module.resolve(BuildStep.COORDINATES)).exists();
         Properties coordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.COORDINATES))) {
@@ -95,20 +90,20 @@ public class ModularProjectTest {
                     return (buildExecutor, inherited) -> {
                         switch (name) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
-                                    "../" + DECLARE,
-                                    "../" + SOURCES,
-                                    "../" + PREPARED,
-                                    "../" + RESOLVED,
-                                    "../" + ARTIFACTS);
+                                    "../manifests",
+                                    "../sources",
+                                    "../resolved",
+                                    "../checked",
+                                    "../artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
-                                    "../" + DECLARE,
-                                    "../" + SOURCES,
-                                    "../" + PREPARED,
-                                    "../" + RESOLVED,
-                                    "../" + ARTIFACTS,
+                                    "../manifests",
+                                    "../sources",
+                                    "../resolved",
+                                    "../checked",
+                                    "../artifacts",
                                     "../../module-foo/prepare",
-                                    "../../module-foo/dependencies/prepared",
                                     "../../module-foo/dependencies/resolved",
+                                    "../../module-foo/dependencies/checked",
                                     "../../module-foo/dependencies/artifacts",
                                     "../../module-foo/build/java/classes",
                                     "../../module-foo/build/java/artifacts",
@@ -116,7 +111,7 @@ public class ModularProjectTest {
                             default -> fail("Unexpected module: " + name);
                         }
                         buildExecutor.addModule("java", new JavaModule(),
-                                "../" + SOURCES, "../" + DECLARE, "../" + ARTIFACTS);
+                                "../sources", "../manifests", "../artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

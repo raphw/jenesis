@@ -89,8 +89,8 @@ public class ModularProject implements BuildExecutorModule {
                     Function<String, Optional<String>> rename = key -> {
                         if (key.equals(identifyPrefix + MultiProjectModule.SOURCES)) {
                             return Optional.of(MultiProjectModule.SOURCES);
-                        } else if (key.equals(identifyPrefix + MultiProjectModule.DECLARE)) {
-                            return Optional.of(MultiProjectModule.DECLARE);
+                        } else if (key.equals(identifyPrefix + MultiProjectModule.MANIFESTS)) {
+                            return Optional.of(MultiProjectModule.MANIFESTS);
                         } else if (key.startsWith("dependencies/")) {
                             return Optional.of(key.substring("dependencies/".length()));
                         } else {
@@ -100,8 +100,8 @@ public class ModularProject implements BuildExecutorModule {
                     SequencedMap<String, String> deps = new LinkedHashMap<>();
                     Stream.concat(
                                     inherited.sequencedKeySet().stream(),
-                                    Stream.of("dependencies/" + MultiProjectModule.PREPARED,
-                                            "dependencies/" + MultiProjectModule.RESOLVED,
+                                    Stream.of("dependencies/" + MultiProjectModule.RESOLVED,
+                                            "dependencies/" + MultiProjectModule.CHECKED,
                                             "dependencies/" + MultiProjectModule.ARTIFACTS))
                             .forEach(key -> deps.put(key, rename.apply(key).orElse(key)));
                     buildExecutor.addModule("build",
@@ -132,7 +132,7 @@ public class ModularProject implements BuildExecutorModule {
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MultiProjectModule.DECLARE, (_, context, arguments) -> {
+                            module.addStep(MultiProjectModule.MANIFESTS, (_, context, arguments) -> {
                                 ModuleInfo info = parser.identify(arguments.get("sources").folder()
                                         .resolve(BuildStep.SOURCES)
                                         .resolve("module-info.java"));
