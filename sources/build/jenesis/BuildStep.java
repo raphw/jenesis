@@ -3,7 +3,7 @@ package build.jenesis;
 import module java.base;
 
 @FunctionalInterface
-public interface BuildStep {
+public interface BuildStep extends Serializable {
 
     String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
     String IDENTITY = "identity.properties", REQUIRES = "requires.properties";

@@ -12,12 +12,12 @@ import static java.util.Objects.requireNonNull;
 
 public class Resolve implements DependencyTransformingBuildStep {
 
-    private final Map<String, Repository> repositories;
+    private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
 
     public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         this.repositories = repositories;
-        this.resolvers = resolvers;
+        this.resolvers = new LinkedHashMap<>(resolvers);
     }
 
     @Override

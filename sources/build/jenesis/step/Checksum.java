@@ -11,7 +11,7 @@ import module java.base;
 public class Checksum implements DependencyTransformingBuildStep {
 
     private final String algorithm;
-    private final Map<String, Repository> repositories;
+    private final transient Map<String, Repository> repositories;
 
     public Checksum(String algorithm, Map<String, Repository> repositories) {
         this.algorithm = algorithm;

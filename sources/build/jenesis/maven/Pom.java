@@ -13,7 +13,7 @@ public class Pom implements BuildStep {
     public static final String POM = "pom.xml";
 
     private final Function<String, String> resolver;
-    private final MavenPomEmitter emitter = new MavenPomEmitter();
+    private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
         this(coordinate -> {

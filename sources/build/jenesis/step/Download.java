@@ -10,7 +10,7 @@ import module java.base;
 
 public class Download implements DependencyTransformingBuildStep {
 
-    private final Map<String, Repository> repositories;
+    private final transient Map<String, Repository> repositories;
 
     public Download(Map<String, Repository> repositories) {
         this.repositories = repositories;

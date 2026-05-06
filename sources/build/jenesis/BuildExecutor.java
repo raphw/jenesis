@@ -12,6 +12,7 @@ public class BuildExecutor {
 
     private final Path target;
     private final HashFunction hash;
+    private final BuildStepHashFunction stepHash;
     private final BuildExecutorCallback callback;
     private final String location;
 
@@ -20,11 +21,13 @@ public class BuildExecutor {
 
     private BuildExecutor(Path target,
                           HashFunction hash,
+                          BuildStepHashFunction stepHash,
                           BuildExecutorCallback callback,
                           String location,
                           Map<String, StepSummary> inherited) throws IOException {
         this.target = Files.isDirectory(target) ? target : Files.createDirectory(target);
         this.hash = hash;
+        this.stepHash = stepHash;
         this.callback = callback;
         this.location = location;
         this.inherited = inherited;
@@ -33,11 +36,19 @@ public class BuildExecutor {
     public static BuildExecutor of(Path target) throws IOException {
         return of(target,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofDigest("MD5"),
                 BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.debug") ? target : null));
     }
 
     public static BuildExecutor of(Path target, HashFunction hash, BuildExecutorCallback callback) throws IOException {
-        BuildExecutor executor = new BuildExecutor(target, hash, callback, "", Map.of());
+        return of(target, hash, BuildStepHashFunction.ofDigest("MD5"), callback);
+    }
+
+    public static BuildExecutor of(Path target,
+                                   HashFunction hash,
+                                   BuildStepHashFunction stepHash,
+                                   BuildExecutorCallback callback) throws IOException {
+        BuildExecutor executor = new BuildExecutor(target, hash, stepHash, callback, "", Map.of());
         if (!Files.exists(target.resolve(BUILD_MARKER))) {
             Files.createFile(target.resolve(BUILD_MARKER));
         }
@@ -124,7 +135,13 @@ public class BuildExecutor {
                         output = previous.resolve("output");
                 boolean exists = Files.exists(previous);
                 Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
-                boolean consistent = exists && HashFunction.areConsistent(output, current, hash);
+                byte[] currentStepHash = stepHash.hash(step);
+                Path stepFile = checksum.resolve("step");
+                boolean stepUnchanged = !Files.exists(stepFile)
+                        || Arrays.equals(currentStepHash, HexFormat.of().parseHex(Files.readString(stepFile).trim()));
+                boolean consistent = exists
+                        && stepUnchanged
+                        && HashFunction.areConsistent(output, current, hash);
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     Path checksums = checksum.resolve("checksums." + URLEncoder.encode(
@@ -168,6 +185,7 @@ public class BuildExecutor {
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("checksums"), checksums);
+                            Files.writeString(checksum.resolve("step"), HexFormat.of().formatHex(currentStepHash));
                             completion.accept(result.next(), null);
                             return CompletableFuture.completedStage(Map.of(
                                     identity,
@@ -289,6 +307,7 @@ public class BuildExecutor {
                 }
                 BuildExecutor buildExecutor = new BuildExecutor(target.resolve(prefix),
                         hash,
+                        stepHash,
                         callback,
                         location + prefix + "/",
                         inherited);

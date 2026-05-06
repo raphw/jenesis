@@ -3,7 +3,7 @@ package build.jenesis;
 import module java.base;
 
 @FunctionalInterface
-public interface Resolver {
+public interface Resolver extends Serializable {
 
     SequencedMap<String, String> dependencies(Executor executor,
                                               String prefix,
