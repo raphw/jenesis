@@ -14,10 +14,9 @@ public class Maven {
 
         root.addModule("maven", MavenProject.make(Path.of("."),
                 "SHA256",
-                (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
+                (_, _) -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
-                        Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                .filter(identity -> identity.startsWith("../../../"))))));
+                        "../sources", "../declare", "../artifacts")));
 
         root.addStep("final", new Relocate(MavenProject.artifactsByModule()), "maven");
 

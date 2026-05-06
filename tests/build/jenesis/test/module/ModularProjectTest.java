@@ -90,17 +90,17 @@ public class ModularProjectTest {
                     return (buildExecutor, inherited) -> {
                         switch (name) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
-                                    "../../../../identify/module-foo/module",
-                                    "../../../../identify/module-foo/sources",
-                                    "../dependencies/prepared",
-                                    "../dependencies/resolved",
-                                    "../dependencies/artifacts");
+                                    "../module-info",
+                                    "../sources",
+                                    "../prepared",
+                                    "../resolved",
+                                    "../artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
-                                    "../../../../identify/module-bar/module",
-                                    "../../../../identify/module-bar/sources",
-                                    "../dependencies/prepared",
-                                    "../dependencies/resolved",
-                                    "../dependencies/artifacts",
+                                    "../module-info",
+                                    "../sources",
+                                    "../prepared",
+                                    "../resolved",
+                                    "../artifacts",
                                     "../../module-foo/prepare",
                                     "../../module-foo/dependencies/prepared",
                                     "../../module-foo/dependencies/resolved",
@@ -110,12 +110,8 @@ public class ModularProjectTest {
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + name);
                         }
-                        buildExecutor.addModule("java",
-                                new JavaModule(),
-                                Stream.concat(
-                                        Stream.of("../dependencies/artifacts"),
-                                        inherited.sequencedKeySet().stream()
-                                                .filter(identity -> identity.startsWith("../../../"))));
+                        buildExecutor.addModule("java", new JavaModule(),
+                                "../sources", "../module-info", "../artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

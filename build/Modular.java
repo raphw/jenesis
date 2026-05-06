@@ -25,10 +25,9 @@ public class Modular {
                         downloaded.values(),
                         URI::create,
                         Files.createDirectories(Path.of("cache/modules"))),
-                (_, _) -> (buildExecutor, inherited) -> buildExecutor.addModule("java",
+                (_, _) -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
-                        Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                .filter(identity -> identity.startsWith("../../../")))))), "download");
+                        "../sources", "../module-info", "../artifacts"))), "download");
 
         root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
 

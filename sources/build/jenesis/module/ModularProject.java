@@ -85,9 +85,28 @@ public class ModularProject implements BuildExecutorModule {
                                                     null)),
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
+                    String identifyPrefix = PREVIOUS.repeat(3) + MultiProjectModule.IDENTIFY + "/" + name + "/";
+                    Function<String, Optional<String>> rename = key -> {
+                        if (key.equals(identifyPrefix + "sources")) {
+                            return Optional.of("sources");
+                        } else if (key.equals(identifyPrefix + MultiProjectModule.MODULE)) {
+                            return Optional.of("module-info");
+                        } else if (key.startsWith("dependencies/")) {
+                            return Optional.of(key.substring("dependencies/".length()));
+                        } else {
+                            return Optional.empty();
+                        }
+                    };
+                    SequencedMap<String, String> deps = new LinkedHashMap<>();
+                    Stream.concat(
+                                    inherited.sequencedKeySet().stream(),
+                                    Stream.of("dependencies/" + DependenciesModule.PREPARED,
+                                            "dependencies/" + DependenciesModule.RESOLVED,
+                                            "dependencies/" + DependenciesModule.ARTIFACTS))
+                            .forEach(key -> deps.put(key, rename.apply(key).orElse(key)));
                     buildExecutor.addModule("build",
                             builder.apply(name, dependencies.sequencedKeySet()),
-                            Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("dependencies")));
+                            deps);
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(

@@ -36,15 +36,11 @@ public class ModularByMaven {
                     Map.of("module", new ModularJarResolver(
                             false,
                             new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate)))),
-                    (_, _) -> (buildExecutor, inherited) -> {
-                        buildExecutor.addModule("java",
-                                new JavaModule().testIfAvailable(),
-                                Stream.concat(Stream.of("../dependencies/artifacts"), inherited.sequencedKeySet().stream()
-                                        .filter(identity -> identity.startsWith("../../../"))));
-                        buildExecutor.addStep("pom",
-                                new Pom(),
-                                Stream.concat(Stream.of("../dependencies/resolved"), inherited.sequencedKeySet().stream()
-                                        .filter(identity -> identity.startsWith("../../../"))));
+                    (_, _) -> (buildExecutor, _) -> {
+                        buildExecutor.addModule("java", new JavaModule().testIfAvailable(),
+                                "../sources", "../module-info", "../artifacts");
+                        buildExecutor.addStep("pom", new Pom(),
+                                "../sources", "../module-info", "../resolved");
                     }));
         }, "download");
 
