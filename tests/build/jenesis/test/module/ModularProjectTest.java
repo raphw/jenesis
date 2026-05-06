@@ -81,14 +81,14 @@ public class ModularProjectTest {
                 "SHA256",
                 Map.of(),
                 Map.of("module", new ModularJarResolver(false)),
-                (name, dependencies) -> {
-                    switch (name) {
-                        case "module-foo" -> assertThat(dependencies).isEmpty();
-                        case "module-bar" -> assertThat(dependencies).containsExactly("module-foo");
-                        default -> fail("Unexpected module: " + name);
+                descriptor -> {
+                    switch (descriptor.name()) {
+                        case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();
+                        case "module-bar" -> assertThat(descriptor.dependencies()).containsExactly("module-foo");
+                        default -> fail("Unexpected module: " + descriptor.name());
                     }
                     return (buildExecutor, inherited) -> {
-                        switch (name) {
+                        switch (descriptor.name()) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
@@ -106,7 +106,7 @@ public class ModularProjectTest {
                                     "../../module-foo/build/java/classes",
                                     "../../module-foo/build/java/artifacts",
                                     "../../module-foo/assign");
-                            default -> fail("Unexpected module: " + name);
+                            default -> fail("Unexpected module: " + descriptor.name());
                         }
                         buildExecutor.addModule("java", new JavaModule(),
                                 "../sources", "../manifests", "../artifacts");

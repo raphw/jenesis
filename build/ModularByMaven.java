@@ -14,11 +14,6 @@ import build.jenesis.step.Relocate;
 
 import module java.base;
 
-import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
-import static build.jenesis.project.MultiProjectModule.CHECKED;
-import static build.jenesis.project.MultiProjectModule.MANIFESTS;
-import static build.jenesis.project.MultiProjectModule.SOURCES;
-
 public class ModularByMaven {
 
     static void main(String[] args) throws IOException {
@@ -41,11 +36,11 @@ public class ModularByMaven {
                     Map.of("module", new ModularJarResolver(
                             false,
                             new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate)))),
-                    (_, _) -> (buildExecutor, _) -> {
+                    descriptor -> (buildExecutor, _) -> {
                         buildExecutor.addModule("java", new JavaModule().testIfAvailable(),
-                                "../" + SOURCES, "../" + MANIFESTS, "../" + ARTIFACTS);
+                                descriptor.sources(), descriptor.manifests(), descriptor.artifacts());
                         buildExecutor.addStep("pom", new Pom(),
-                                "../" + SOURCES, "../" + MANIFESTS, "../" + CHECKED);
+                                descriptor.sources(), descriptor.manifests(), descriptor.checked());
                     }));
         }, "download");
 

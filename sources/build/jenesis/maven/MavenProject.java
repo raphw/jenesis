@@ -38,7 +38,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
-                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+                                           Function<MavenModuleDescriptor, BuildExecutorModule> builder) {
         return make(root, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), builder);
     }
 
@@ -47,7 +47,7 @@ public class MavenProject implements BuildExecutorModule {
                                            String algorithm,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
-                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+                                           Function<MavenModuleDescriptor, BuildExecutorModule> builder) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 identifier -> identifier.startsWith(MODULE + "/")
                         ? Optional.of(identifier.substring(MODULE.length() + 1, identifier.indexOf('/', MODULE.length() + 1)))
@@ -75,7 +75,7 @@ public class MavenProject implements BuildExecutorModule {
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
-                            builder.apply(name, dependencies.sequencedKeySet()),
+                            builder.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(DEPENDENCIES + "/" + MultiProjectModule.CHECKED,

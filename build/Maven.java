@@ -7,10 +7,6 @@ import build.jenesis.step.Relocate;
 
 import module java.base;
 
-import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
-import static build.jenesis.project.MultiProjectModule.MANIFESTS;
-import static build.jenesis.project.MultiProjectModule.SOURCES;
-
 public class Maven {
 
     static void main(String[] args) throws IOException {
@@ -18,9 +14,9 @@ public class Maven {
 
         root.addModule("maven", MavenProject.make(Path.of("."),
                 "SHA256",
-                (_, _) -> (buildExecutor, _) -> buildExecutor.addModule("java",
+                descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
-                        "../" + SOURCES, "../" + MANIFESTS, "../" + ARTIFACTS)));
+                        descriptor.sources(), descriptor.manifests(), descriptor.artifacts())));
 
         root.addStep("final", new Relocate(MavenProject.artifactsByModule()), "maven");
 

@@ -34,7 +34,7 @@ public class ModularProject implements BuildExecutorModule {
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
                                            Map<String, Repository> repositories,
-                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+                                           Function<ModularModuleDescriptor, BuildExecutorModule> builder) {
         return make(root,
                 algorithm,
                 repositories,
@@ -46,7 +46,7 @@ public class ModularProject implements BuildExecutorModule {
                                            String algorithm,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+                                           Function<ModularModuleDescriptor, BuildExecutorModule> builder) {
         return make(root,
                 "module",
                 _ -> true,
@@ -62,7 +62,7 @@ public class ModularProject implements BuildExecutorModule {
                                            String algorithm,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           BiFunction<String, SequencedSet<String>, BuildExecutorModule> builder) {
+                                           Function<ModularModuleDescriptor, BuildExecutorModule> builder) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
@@ -87,7 +87,7 @@ public class ModularProject implements BuildExecutorModule {
                                     resolvers).computeChecksums(algorithm),
                             "prepare");
                     buildExecutor.addModule("build",
-                            builder.apply(name, dependencies.sequencedKeySet()),
+                            builder.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
