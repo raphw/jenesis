@@ -9,12 +9,15 @@ import module java.base;
 
 public class MultiProjectModule implements BuildExecutorModule {
 
-    public static final String IDENTIFY = "identify", GROUP = "group", BUILD = "build", MODULE = "module";
     public static final String SOURCES = "sources",
             MANIFESTS = "manifests",
             RESOLVED = "resolved",
             CHECKED = "checked",
-            ARTIFACTS = "artifacts";
+            ARTIFACTS = "artifacts",
+            IDENTIFY = "identify",
+            GROUP = "group",
+            BUILD = "build",
+            MODULE = "module";;
 
     private final BuildExecutorModule identifier;
     private final Function<String, Optional<String>> resolver;
