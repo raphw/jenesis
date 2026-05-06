@@ -385,4 +385,5 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - Extending all build step implementations to expose their full set of standard options.
 - High-level builder for Project with defaults.
 - Command line argument processing to specify sub-targets for the run.
-- 
+- Add support for plugin steps via repository.
+- Consider automatic wrapping of build in Docker.
