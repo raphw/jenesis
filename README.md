@@ -51,10 +51,10 @@ slots:
   to publish in `next`.
 
 The `arguments` map carries one `BuildStepArgument` per registered predecessor. Each argument exposes the folder to
-read from (`argument.folder()`) and a per-file checksum status (`ADDED`, `CHANGED`, `REMOVED`, `RETAINED`) computed
+read from (`argument.folder()`) and a per-file checksum status (`ADDED`, `ALTERED`, `REMOVED`, `RETAINED`) computed
 against the previous run. The default `shouldRun(...)` re-runs the step when any input has changed; a step can
 override it to express finer-grained dependencies (e.g. `Bind` only re-runs when files matching its bound paths
-changed).
+changed, `Relocate` only when files under its declared prefixes changed).
 
 Steps are organised into a graph by `BuildExecutor`:
 
@@ -72,7 +72,7 @@ own sub-modules. The `inherited` map exposes the predecessor folders the parent 
 steps into modules turns commonly-recurring patterns (compile + jar + test, resolve + checksum + download, scan a
 multi-project tree, …) into reusable units that take only their inputs as configuration.
 
-Two properties of the model give incremental builds and reproducibility for free:
+Three properties of the model give incremental builds and reproducibility for free:
 
 - **Each step's output folder is immutable once produced.** A step only ever writes into its own `next`; downstream
   steps see predecessor outputs as read-only inputs. There is no shared mutable state, so a step's result is a pure
@@ -82,6 +82,15 @@ Two properties of the model give incremental builds and reproducibility for free
   `false`, the step's previous output is reused unchanged. Anywhere along the chain that the hashes diverge (a
   source edit, an upstream re-run, a different dependency), the affected step (and only the affected step) is
   re-executed into a fresh `next` folder, which transparently replaces its predecessor.
+- **Each step's configuration is content-hashed too.** `BuildStep extends Serializable`, and a
+  `BuildStepHashFunction` digests the step's serialized form alongside the output checksums (in
+  `<step>/checksum/step`). When a step is reconstructed with different field values — a different `Jar.Sort`,
+  a different `Resolver`, a different placement function — its hash changes and the step re-runs even if its
+  inputs are unchanged. Configuration that should *not* count as part of the build's identity (a `Repository` that
+  by contract returns the same artifact for the same coordinate, a JDK service factory, a `MavenPomEmitter`) is
+  marked `transient` so it never reaches the digest. Lambdas held by step fields use intersection bounds
+  (`<T extends Function<…> & Serializable>`) at the constructor so the compiler generates them serializable;
+  steps that hold non-serializable state simply fall back to a stable empty hash and don't false-invalidate.
 
 The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
 `ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `cache/` by
@@ -104,8 +113,8 @@ others are declared next to the step that emits them.
 | `groups/`                  | `Group.GROUPS`                   | One `<encoded-group-name>.properties` file per identified group, listing the other groups whose coordinates the group transitively depends on so cross-project wiring can be derived purely from on-disk state.                                      |
 | `pom/`                     | `MavenProject.POM`               | A mirror of the directory layout of a Maven multi-module project, with each `pom.xml` hard-linked from its original location to give downstream tooling a stable, sandboxed snapshot of the project's POM tree.                                      |
 | `maven/`                   | `MavenProject.MAVEN`             | One properties file per discovered Maven module (`module-<encoded-path>.properties` for the main artifact, `test-module-<encoded-path>.properties` for the test artifact), holding the parsed coordinate, source/resource directories, packaging and dependency list extracted from a single `pom.xml`. |
-| `coordinates.properties`   | `BuildStep.COORDINATES`          | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<jpms-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
-| `dependencies.properties`  | `BuildStep.DEPENDENCIES`         | Same `<prefix>/<coordinate>` keys as `coordinates.properties`, mapped to either an empty value (still to be resolved or hashed) or an `<algorithm>/<hex>` content checksum that downstream consumers verify against the downloaded artifact.                                                          |
+| `identity.properties`      | `BuildStep.IDENTITY`             | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<jpms-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
+| `requires.properties`      | `BuildStep.REQUIRES`             | Same `<prefix>/<coordinate>` keys as `identity.properties`, mapped to either an empty value (still to be resolved or hashed) or an `<algorithm>/<hex>` content checksum that downstream consumers verify against the downloaded artifact.                                                             |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<jpms-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a JPMS module name into a download URL.                                                        |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
@@ -119,27 +128,27 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 
 | Step                       | What it does                                                                                                                                                                                   | Inputs (per predecessor folder)                                                                                                       | Outputs (under `context.next()`)                                                |
 | -------------------------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `Bind`                     | Hard-links files from each predecessor into a target layout under `context.next()`, driven by a `Map<Path, Path>` that mirrors specific subtrees under canonical names (used by the static factories `asSources()`, `asResources()`, `asCoordinates(...)`, `asDependencies(...)`). | a source folder, a named properties file, or any other predecessor subtree named in the map                                          | `sources/`, `resources/`, `coordinates.properties`, `dependencies.properties`, or any layout produced by the configured map |
+| `Bind`                     | Hard-links files from each predecessor into a target layout under `context.next()`, driven by a `Map<Path, Path>` that mirrors specific subtrees under canonical names (used by the static factories `asSources()`, `asResources()`, `asIdentity(...)`, `asRequires(...)`). | a source folder, a named properties file, or any other predecessor subtree named in the map                                          | `sources/`, `resources/`, `identity.properties`, `requires.properties`, or any layout produced by the configured map |
 | `Relocate`                 | Walks every file under each predecessor and asks a `Function<Path, Optional<Path>>` where (if anywhere) to hard-link it under `context.next()`; can be restricted to a `Set<Path>` of subtree prefixes for path-aware `shouldRun`. | every file in the predecessors (or only those under the configured prefixes)                                                          | whatever the placement function returns                                          |
 | `Javac`                    | Compiles each predecessor's `sources/` with the `javac` tool, using their `classes/` and `artifacts/` as class- or module-path entries; writes the resulting `.class` files to `classes/`.    | `sources/`, `classes/`, `artifacts/`                                                                                                  | `classes/`                                                                       |
 | `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar under `artifacts/`.                                                                                               | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`         | `artifacts/classes.jar`, `artifacts/sources.jar`, or `artifacts/javadoc.jar` (depending on `Jar.Sort`) |
 | `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
 | `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
 | `Tests`                    | Specialisation of `Java` that scans each predecessor's `classes/` for test-named classes and hands them to a configured `TestEngine` (e.g. JUnit 5), with `artifacts/` on the runtime path.    | inherits `Java`; selects test classes from `classes/`                                                                                 | runs the configured `TestEngine`                                                 |
-| `Resolve`                  | Reads `dependencies.properties`, asks each prefixed group's `Resolver` for the transitive closure, and writes the resolved coordinates to a fresh `dependencies.properties`.                   | `dependencies.properties`                                                                                                             | `dependencies.properties` (transitively resolved, per-prefix `Resolver`)         |
-| `Checksum`                 | Reads `dependencies.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `dependencies.properties` where each empty value is replaced by `algorithm/<hex>`.  | `dependencies.properties`                                                                                                             | `dependencies.properties` (with computed checksums)                              |
-| `Download`                 | Reads `dependencies.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid. | `dependencies.properties`                                                                                                             | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `dependencies.properties`   |
-| `Translate`                | Rewrites the keys of `dependencies.properties` through user-supplied per-prefix translator functions (e.g. JPMS module name → Maven coordinate).                                               | `dependencies.properties`                                                                                                             | `dependencies.properties` (keys remapped per-prefix)                             |
-| `Group`                    | Reads each predecessor's `coordinates.properties` and `dependencies.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `coordinates.properties`, `dependencies.properties`                                                                                   | `groups/<encoded-name>.properties`                                               |
-| `Assign`                   | Fills the empty values of `coordinates.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                         | `coordinates.properties`, `artifacts/`                                                                                                | `coordinates.properties` (empty values filled with artifact paths)               |
+| `Resolve`                  | Reads `requires.properties`, asks each prefixed group's `Resolver` for the transitive closure, and writes the resolved coordinates to a fresh `requires.properties`.                          | `requires.properties`                                                                                                                 | `requires.properties` (transitively resolved, per-prefix `Resolver`)             |
+| `Checksum`                 | Reads `requires.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `requires.properties` where each empty value is replaced by `algorithm/<hex>`.        | `requires.properties`                                                                                                                 | `requires.properties` (with computed checksums)                                  |
+| `Download`                 | Reads `requires.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid.  | `requires.properties`                                                                                                                 | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `requires.properties`       |
+| `Translate`                | Rewrites the keys of `requires.properties` through user-supplied per-prefix translator functions (e.g. JPMS module name → Maven coordinate).                                                  | `requires.properties`                                                                                                                 | `requires.properties` (keys remapped per-prefix)                                 |
+| `Group`                    | Reads each predecessor's `identity.properties` and `requires.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `identity.properties`, `requires.properties`                                                                                          | `groups/<encoded-name>.properties`                                               |
+| `Assign`                   | Fills the empty values of `identity.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                           | `identity.properties`, `artifacts/`                                                                                                   | `identity.properties` (empty values filled with artifact paths)                  |
 | `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
-| `MultiProjectDependencies` | Merges per-project `dependencies.properties` (and looks up sibling-project paths in their `coordinates.properties`) into one unified `dependencies.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `coordinates.properties` or `dependencies.properties`, partitioned by predicate                                        | unified `dependencies.properties`, with checksums for resolved local artifacts   |
-| `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `coordinates.properties` and its dependencies from `dependencies.properties` entries that share the same prefix. | `coordinates.properties` (self coordinate = empty value), `dependencies.properties`                                                   | `pom.xml`                                                                       |
+| `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`, with checksums for resolved local artifacts       |
+| `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and `Tests`); `Java.of(...)`
 gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
-`Download`, and `Translate`; they all parse `dependencies.properties` into `(prefix, coordinate)` groups, transform
-them, and write `dependencies.properties` back.
+`Download`, and `Translate`; they all parse `requires.properties` into `(prefix, coordinate)` groups, transform
+them, and write `requires.properties` back.
 
 Build executor modules
 ----------------------
@@ -176,23 +185,24 @@ flowchart LR
 
 ### `DependenciesModule`
 
-Used for resolving and downloading external dependencies declared in `dependencies.properties`. Calling
-`.computeChecksums(algorithm)` inserts an extra `prepared` step so that resolution and content-hashing are
-recorded before the artifacts are fetched, making the dependency set verifiable on subsequent builds.
+Used for resolving and downloading external dependencies declared in `requires.properties`. The pipeline runs
+`Resolve` (transitive closure) → `Checksum` (content hashes; only when `.computeChecksums(algorithm)` is set)
+→ `Download` (jars). Without checksums the `checked` step is skipped and `Download` reads directly from
+`resolved`.
 
 ```mermaid
 flowchart LR
   classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
-  deps(["dependencies.properties"]):::input
-  prepared["prepared<br/>(Resolve)"]:::optional
-  resolved["resolved<br/>(Resolve, or Checksum<br/>with .computeChecksums)"]:::step
+  deps(["requires.properties"]):::input
+  resolved["resolved<br/>(Resolve)"]:::step
+  checked["checked<br/>(Checksum)"]:::optional
   artifacts["artifacts<br/>(Download)"]:::step
   deps --> resolved
-  deps -.->|".computeChecksums(algorithm)"| prepared
-  prepared -.-> resolved
+  resolved -.->|".computeChecksums(algorithm)"| checked
   resolved --> artifacts
+  checked -.-> artifacts
 ```
 
 ### `MultiProjectModule`
@@ -200,8 +210,11 @@ flowchart LR
 Used as the generic shape behind multi-project layouts. An *identifier* sub-module discovers the projects in a
 source tree and writes their coordinates and dependencies; a `Group` step partitions the cross-project
 dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
-between them. The example below shows two projects `A` and `B` where `A` requires `B`, so `B` is built first
-and its output flows into `A`.
+between them. Each per-project closure receives a `ModuleDescriptor` exposing `name()` and `dependencies()`; the
+concrete subtype (`ModularModuleDescriptor` or `MavenModuleDescriptor`) also exposes the standardised inherited
+keys as helpers (`sources()`, `manifests()`, `artifacts()`, `checked()`), so a closure doesn't need to know how
+the identifier laid out its outputs. The example below shows two projects `A` and `B` where `A` requires `B`,
+so `B` is built first and its output flows into `A`.
 
 ```mermaid
 flowchart LR
@@ -209,7 +222,7 @@ flowchart LR
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   inh(["inherited inputs"]):::input
-  subgraph "identify"
+  subgraph "identifier"
     direction TB
     idA["module-A<br/>(identifier)"]:::module
     idB["module-B<br/>(identifier)"]:::module
@@ -238,11 +251,11 @@ flowchart LR
 
 Used to drive a build from a Maven project layout. As the identifier inside a `MultiProjectModule`, it mirrors
 every `pom.xml` into `pom/`, parses each into a per-module `maven/<path>.properties`, and emits one
-`module-X` sub-module per discovered POM containing source folders, optional resource folders, and a `declare`
-step that writes the project's own coordinate and its resolved Maven dependencies. `MavenProject.make(...)`
-returns the full wrapped `MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`),
-`dependencies` (`DependenciesModule.computeChecksums`), `build` (caller-supplied, typically `JavaModule`), and
-`assign` (`Assign`) for each project.
+`module-X` sub-module per discovered POM containing source folders, optional resource folders, and a
+`manifests` step that writes the project's own coordinate (`identity.properties`) and its declared Maven
+dependencies (`requires.properties`). `MavenProject.make(...)` returns the full wrapped `MultiProjectModule`
+whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule.computeChecksums`),
+`build` (caller-supplied, typically `JavaModule`), and `assign` (`Assign`) for each project.
 
 ```mermaid
 flowchart LR
@@ -250,14 +263,14 @@ flowchart LR
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   tree(["project tree<br/>with pom.xml files"]):::input
-  subgraph "MavenProject (identify)"
+  subgraph "MavenProject (identifier)"
     direction LR
     scan["scan<br/>(mirrors pom.xml<br/>into pom/)"]:::step
     prepare["prepare<br/>(writes maven/*.properties)"]:::step
     subgraph "module"
       direction LR
-      idA["module-A<br/>(sources, resources-N,<br/>declare step)"]:::module
-      idB["module-B<br/>(sources, resources-N,<br/>declare step)"]:::module
+      idA["module-A<br/>(sources, resources-N,<br/>manifests step)"]:::module
+      idB["module-B<br/>(sources, resources-N,<br/>manifests step)"]:::module
     end
     scan --> prepare --> idA
     prepare --> idB
@@ -288,9 +301,9 @@ flowchart LR
 
 Used to drive a build from a JPMS-modular project layout. As the identifier inside a `MultiProjectModule`, it
 walks the source tree for `module-info.java` files and emits one sub-module per descriptor, each containing a
-`sources` source and a `module` step that parses the descriptor and writes `coordinates.properties` plus
-`dependencies.properties` from the JPMS `requires` directives. `ModularProject.make(...)` returns the full
-wrapped `MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies`
+`sources` source and a `manifests` step that parses the descriptor and writes `identity.properties` plus
+`requires.properties` from the JPMS `requires` directives. `ModularProject.make(...)` returns the full wrapped
+`MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies`
 (`DependenciesModule.computeChecksums`), `build` (caller-supplied, typically `JavaModule`), and `assign`
 (`Assign`) for each project.
 
@@ -300,10 +313,10 @@ flowchart LR
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef module fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
   tree(["project tree<br/>with module-info.java files"]):::input
-  subgraph "ModularProject (identify)"
+  subgraph "ModularProject (identifier)"
     direction LR
-    idA["module-A<br/>(sources + module step<br/>writing coords + deps)"]:::module
-    idB["module-B<br/>(sources + module step<br/>writing coords + deps)"]:::module
+    idA["module-A<br/>(sources + manifests step<br/>writing identity + requires)"]:::module
+    idB["module-B<br/>(sources + manifests step<br/>writing identity + requires)"]:::module
   end
   subgraph "B (per project)"
     direction LR
