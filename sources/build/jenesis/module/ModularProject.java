@@ -23,7 +23,7 @@ public class ModularProject implements BuildExecutorModule {
     private final Path root;
     private final Predicate<Path> filter;
 
-    private final ModuleInfoParser parser = new ModuleInfoParser();
+    private final transient ModuleInfoParser parser = new ModuleInfoParser();
 
     public ModularProject(String prefix, Path root, Predicate<Path> filter) {
         this.prefix = prefix;

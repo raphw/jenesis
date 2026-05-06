@@ -8,7 +8,7 @@ import static build.jenesis.maven.MavenPomResolver.toChildren;
 
 public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 
-    private final DocumentBuilderFactory documentBuilderFactory;
+    private final transient DocumentBuilderFactory documentBuilderFactory;
     private final Map<MavenDependencyName, Metadata> cache = new HashMap<>();
 
     private MavenDefaultVersionNegotiator(DocumentBuilderFactory documentBuilderFactory) {
@@ -26,9 +26,9 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         return factory;
     }
 
-    public static Supplier<MavenVersionNegotiator> maven() {
-        DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(factory) {
+    @SuppressWarnings("unchecked")
+    public static <S extends Supplier<MavenVersionNegotiator> & Serializable> S maven() {
+        return (S) (Supplier<MavenVersionNegotiator> & Serializable) () -> new MavenDefaultVersionNegotiator(toDocumentBuilderFactory()) {
             @Override
             public String resolve(Executor executor,
                                   MavenRepository repository,
@@ -71,9 +71,9 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         };
     }
 
-    public static Supplier<MavenVersionNegotiator> latest() {
-        DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(factory) {
+    @SuppressWarnings("unchecked")
+    public static <S extends Supplier<MavenVersionNegotiator> & Serializable> S latest() {
+        return (S) (Supplier<MavenVersionNegotiator> & Serializable) () -> new MavenDefaultVersionNegotiator(toDocumentBuilderFactory()) {
             @Override
             public String resolve(Executor executor,
                                   MavenRepository repository,
@@ -87,9 +87,9 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         };
     }
 
-    public static Supplier<MavenVersionNegotiator> release() {
-        DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(factory) {
+    @SuppressWarnings("unchecked")
+    public static <S extends Supplier<MavenVersionNegotiator> & Serializable> S release() {
+        return (S) (Supplier<MavenVersionNegotiator> & Serializable) () -> new MavenDefaultVersionNegotiator(toDocumentBuilderFactory()) {
             @Override
             public String resolve(Executor executor,
                                   MavenRepository repository,
@@ -103,9 +103,9 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         };
     }
 
-    public static Supplier<MavenVersionNegotiator> closest() {
-        DocumentBuilderFactory factory = toDocumentBuilderFactory();
-        return () -> new MavenDefaultVersionNegotiator(factory);
+    @SuppressWarnings("unchecked")
+    public static <S extends Supplier<MavenVersionNegotiator> & Serializable> S closest() {
+        return (S) (Supplier<MavenVersionNegotiator> & Serializable) () -> new MavenDefaultVersionNegotiator(toDocumentBuilderFactory());
     }
 
     @Override

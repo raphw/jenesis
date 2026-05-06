@@ -13,14 +13,14 @@ public class MavenPomResolver implements Resolver {
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
     private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
 
-    private final transient Supplier<MavenVersionNegotiator> negotiatorSupplier;
+    private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
     private final transient DocumentBuilderFactory factory = MavenDefaultVersionNegotiator.toDocumentBuilderFactory();
 
     public MavenPomResolver() {
         negotiatorSupplier = MavenDefaultVersionNegotiator.maven();
     }
 
-    public MavenPomResolver(Supplier<MavenVersionNegotiator> negotiatorSupplier) {
+    public <S extends Supplier<MavenVersionNegotiator> & Serializable> MavenPomResolver(S negotiatorSupplier) {
         this.negotiatorSupplier = negotiatorSupplier;
     }
 

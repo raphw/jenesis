@@ -13,15 +13,15 @@ public class Assign implements BuildStep {
     private final BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> assigner;
 
     public Assign() {
-        assigner = (coordinates, files) -> {
+        assigner = (BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable) ((coordinates, files) -> {
             if (files.size() != 1) {
                 throw new IllegalArgumentException("Expected exactly one artifact: " + files);
             }
             return coordinates.stream().collect(Collectors.toMap(Function.identity(), _ -> files.getFirst()));
-        };
+        });
     }
 
-    public Assign(BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> assigner) {
+    public <T extends BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable> Assign(T assigner) {
         this.assigner = assigner;
     }
 

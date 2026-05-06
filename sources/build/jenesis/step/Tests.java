@@ -23,17 +23,18 @@ public class Tests extends Java {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
                 .map(Pattern::compile)
                 .toList();
-        this.isTest = name -> patterns.stream().anyMatch(pattern -> pattern.matcher(name).matches());
+        this.isTest = (Predicate<String> & Serializable) (name -> patterns.stream()
+                .anyMatch(pattern -> pattern.matcher(name).matches()));
     }
 
-    public Tests(TestEngine engine, Predicate<String> isTest) {
+    public <P extends Predicate<String> & Serializable> Tests(TestEngine engine, P isTest) {
         this.engine = engine;
         this.isTest = isTest;
     }
 
-    public Tests(Function<List<String>, ProcessHandler.OfProcess> factory,
-                 TestEngine engine,
-                 Predicate<String> isTest) {
+    public <P extends Predicate<String> & Serializable> Tests(Function<List<String>, ProcessHandler.OfProcess> factory,
+                                                              TestEngine engine,
+                                                              P isTest) {
         super(factory);
         this.engine = engine;
         this.isTest = isTest;
