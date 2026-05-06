@@ -74,29 +74,23 @@ public class MavenProject implements BuildExecutorModule {
                                                     null)),
                                     Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
                             "prepare");
-                    String identifyPrefix = PREVIOUS.repeat(3) + MultiProjectModule.IDENTIFY
-                            + "/" + MultiProjectModule.MODULE + "/" + name + "/";
-                    Function<String, Optional<String>> rename = key -> {
-                        if (key.equals(identifyPrefix + MultiProjectModule.SOURCES)) {
-                            return Optional.of(MultiProjectModule.SOURCES);
-                        } else if (key.equals(identifyPrefix + MultiProjectModule.MANIFESTS)) {
-                            return Optional.of(MultiProjectModule.MANIFESTS);
-                        } else if (key.startsWith("dependencies/")) {
-                            return Optional.of(key.substring("dependencies/".length()));
-                        } else {
-                            return Optional.empty();
-                        }
-                    };
-                    SequencedMap<String, String> deps = new LinkedHashMap<>();
-                    Stream.concat(
-                                    inherited.sequencedKeySet().stream(),
-                                    Stream.of("dependencies/" + MultiProjectModule.RESOLVED,
-                                            "dependencies/" + MultiProjectModule.CHECKED,
-                                            "dependencies/" + MultiProjectModule.ARTIFACTS))
-                            .forEach(key -> deps.put(key, rename.apply(key).orElse(key)));
                     buildExecutor.addModule("build",
                             builder.apply(name, dependencies.sequencedKeySet()),
-                            deps);
+                            Stream.concat(
+                                            inherited.sequencedKeySet().stream(),
+                                            Stream.of("dependencies/" + MultiProjectModule.RESOLVED,
+                                                    "dependencies/" + MultiProjectModule.CHECKED,
+                                                    "dependencies/" + MultiProjectModule.ARTIFACTS))
+                                    .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
+                                            Function.identity(),
+                                            key -> switch (key) {
+                                                case String x when x.equals(PREVIOUS.repeat(3) + MultiProjectModule.IDENTIFY + "/" + MultiProjectModule.MODULE + "/" + name + "/" + MultiProjectModule.SOURCES) -> MultiProjectModule.SOURCES;
+                                                case String x when x.equals(PREVIOUS.repeat(3) + MultiProjectModule.IDENTIFY + "/" + MultiProjectModule.MODULE + "/" + name + "/" + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
+                                                case String x when x.startsWith("dependencies/") -> x.substring("dependencies/".length());
+                                                default -> key;
+                                            },
+                                            (a, _) -> a,
+                                            LinkedHashMap::new)));
                     buildExecutor.addStep("assign",
                             new Assign(),
                             Stream.concat(
