@@ -20,7 +20,23 @@ public class Modules {
         Map<String, Repository> repositories = Map.of("maven", mavenRepository);
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
-        BuildExecutor root = BuildExecutor.of(Path.of("target"));
+        Path target = Path.of("target");
+        if (Boolean.getBoolean("jenesis.rebuild") && Files.exists(target)) {
+            Files.walkFileTree(target, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+
+        BuildExecutor root = BuildExecutor.of(target);
         root.addSource("deps", Path.of("dependencies"));
 
         root.addStep("main-deps", Bind.asRequires("main.properties"), "deps");

@@ -245,6 +245,7 @@ public class MavenDefaultRepository implements MavenRepository {
 
         @Override
         public void close() throws IOException {
+            in.transferTo(OutputStream.nullOutputStream());
             super.close();
             String invalid = null;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();

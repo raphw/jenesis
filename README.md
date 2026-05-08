@@ -383,6 +383,22 @@ flowchart LR
   pBassn --> pAprep
 ```
 
+Configuration
+-------------
+
+The following system properties and environment variables tune the build at launch time.
+
+| Name                    | Kind                | Effect                                                                                                                                                                                                                                |
+| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `jenesis.rebuild`       | system property     | When `true`, the build script (e.g. `Modules.java`) deletes `target/` before constructing the `BuildExecutor`, forcing a full re-run of every step.                                                                                  |
+| `jenesis.debug`         | system property     | When `true`, the default `BuildExecutorCallback` prints per-step debug output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                                |
+| `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
+| `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
+
+Properties are passed on the JVM command line, e.g.
+
+    java -Djenesis.rebuild=true build/Modules.java
+
 Status
 ------
 

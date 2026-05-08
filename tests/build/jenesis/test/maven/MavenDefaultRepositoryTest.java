@@ -189,6 +189,33 @@ public class MavenDefaultRepositoryTest {
     }
 
     @Test
+    public void can_validate_dependency_when_stream_not_fully_drained() throws IOException, NoSuchAlgorithmException {
+        String content = "foo\n";
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar"), content);
+        MessageDigest digest = MessageDigest.getInstance("MD5");
+        byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+        try (Writer writer = Files.newBufferedWriter(Files
+                .createDirectories(repository.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar.md5"))) {
+            writer.write(HexFormat.of().formatHex(hash));
+        }
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
+                null,
+                Map.of("MD5", repository.toUri())).fetch(Runnable::run,
+                "group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).orElseThrow().toInputStream()) {
+            int read = inputStream.read();
+            assertThat(read).isEqualTo('f');
+        }
+    }
+
+    @Test
     public void can_fetch_metadata() throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact"))
