@@ -123,16 +123,72 @@ public class MavenDefaultRepository implements MavenRepository {
             }
         }
         URI uri = repository.resolve(path);
-        if (cached == null) {
-            return () -> ValidatingInputStream.of(uri, digests);
-        } else {
-            int dash = path.lastIndexOf('/'), dot = path.indexOf('.', dash);
-            return new LatentRepositoryItem(cached,
-                    uri,
-                    digests,
-                    path.substring(dash + 1, dot),
-                    path.substring(dot));
+        int dash = path.lastIndexOf('/'), dot = path.indexOf('.', dash);
+        return new LatentRepositoryItem(cached,
+                uri,
+                digests,
+                path.substring(dash + 1, dot),
+                path.substring(dot));
+    }
+
+    private static Optional<Path> download(URI uri,
+                                           Map<LazyRepositoryItem, MessageDigest> digests,
+                                           String prefix,
+                                           String suffix) throws IOException {
+        InputStream stream;
+        try {
+            stream = uri.toURL().openStream();
+        } catch (FileNotFoundException _) {
+            return Optional.empty();
         }
+        Path temporary = Files.createTempFile(prefix, suffix);
+        try (stream) {
+            Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
+        } catch (Throwable t) {
+            Files.deleteIfExists(temporary);
+            throw t;
+        }
+        if (digests.isEmpty()) {
+            return Optional.of(temporary);
+        }
+        try {
+            for (MessageDigest digest : digests.values()) {
+                try (FileChannel channel = FileChannel.open(temporary)) {
+                    digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+                }
+            }
+            String invalid = null;
+            Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
+            for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
+                Optional<InputStream> candidate = entry.getKey().toLazyInputStream();
+                if (candidate.isPresent()) {
+                    byte[] expected;
+                    try (InputStream inputStream = candidate.get()) {
+                        expected = inputStream.readAllBytes();
+                    }
+                    results.put(entry.getKey(), expected);
+                    if (!Arrays.equals(
+                            HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
+                            entry.getValue().digest())) {
+                        invalid = entry.getValue().getAlgorithm();
+                        break;
+                    }
+                }
+            }
+            if (invalid != null) {
+                for (LazyRepositoryItem item : digests.keySet()) {
+                    item.deleteIfPresent();
+                }
+                throw new IllegalStateException("Failed checksum validation for " + invalid);
+            }
+            for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
+                entry.getKey().storeIfNotPresent(entry.getValue());
+            }
+        } catch (Throwable t) {
+            Files.deleteIfExists(temporary);
+            throw t;
+        }
+        return Optional.of(temporary);
     }
 
     private interface LazyRepositoryItem {
@@ -186,6 +242,9 @@ public class MavenDefaultRepository implements MavenRepository {
 
         @Override
         public void storeIfNotPresent(byte[] bytes) throws IOException {
+            if (path == null) {
+                return;
+            }
             Path temporary = Files.createTempFile(prefix, suffix);
             try (OutputStream outputStream = Files.newOutputStream(temporary)) {
                 outputStream.write(bytes);
@@ -198,67 +257,40 @@ public class MavenDefaultRepository implements MavenRepository {
 
         @Override
         public Optional<InputStream> toLazyInputStream() throws IOException {
-            return ValidatingInputStream.of(uri, digests);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix);
+            if (temporary.isEmpty()) {
+                return Optional.empty();
+            }
+            Path file = temporary.get();
+            InputStream stream;
+            try {
+                stream = Files.newInputStream(file);
+            } catch (Throwable t) {
+                Files.deleteIfExists(file);
+                throw t;
+            }
+            return Optional.of(new FilterInputStream(stream) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        Files.deleteIfExists(file);
+                    }
+                }
+            });
         }
 
         @Override
         public Optional<RepositoryItem> materialize() throws IOException {
-            Optional<InputStream> candidate = ValidatingInputStream.of(uri, digests);
-            if (candidate.isEmpty()) {
+            if (path == null) {
+                return LazyRepositoryItem.super.materialize();
+            }
+            Optional<Path> temporary = download(uri, digests, prefix, suffix);
+            if (temporary.isEmpty()) {
                 return Optional.empty();
             }
-            Path temporary = Files.createTempFile(prefix, suffix);
-            try (InputStream inputStream = candidate.get()) {
-                Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
-            } catch (Throwable t) {
-                Files.delete(temporary);
-                throw t;
-            }
-            return Optional.of(new StoredRepositoryItem(Files.move(temporary, path)));
-        }
-    }
-
-    private static class ValidatingInputStream {
-
-        private static Optional<InputStream> of(URI uri, Map<LazyRepositoryItem, MessageDigest> digests) throws IOException {
-            byte[] bytes;
-            try (InputStream inputStream = uri.toURL().openStream()) {
-                bytes = inputStream.readAllBytes();
-            } catch (FileNotFoundException _) {
-                return Optional.empty();
-            }
-            if (digests.isEmpty()) {
-                return Optional.of(new ByteArrayInputStream(bytes));
-            }
-            String invalid = null;
-            Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
-            for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
-                Optional<InputStream> candidate = entry.getKey().toLazyInputStream();
-                if (candidate.isPresent()) {
-                    byte[] expected;
-                    try (InputStream inputStream = candidate.get()) {
-                        expected = inputStream.readAllBytes();
-                    }
-                    results.put(entry.getKey(), expected);
-                    entry.getValue().update(bytes);
-                    if (!Arrays.equals(
-                            HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
-                            entry.getValue().digest())) {
-                        invalid = entry.getValue().getAlgorithm();
-                        break;
-                    }
-                }
-            }
-            if (invalid != null) {
-                for (LazyRepositoryItem item : digests.keySet()) {
-                    item.deleteIfPresent();
-                }
-                throw new IllegalStateException("Failed checksum validation for " + invalid);
-            }
-            for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
-                entry.getKey().storeIfNotPresent(entry.getValue());
-            }
-            return Optional.of(new ByteArrayInputStream(bytes));
+            return Optional.of(new StoredRepositoryItem(Files.move(temporary.get(), path)));
         }
     }
 }
