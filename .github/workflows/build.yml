@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build: [Maven, Modular]
     steps:
       - uses: actions/checkout@v4
 
@@ -17,5 +20,5 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Build with Jenesis
-        run: java build/Modules.java
+      - name: Build with Jenesis (${{ matrix.build }})
+        run: java build/${{ matrix.build }}.java
