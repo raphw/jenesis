@@ -84,7 +84,7 @@ public class BuildExecutor {
     }
 
     private Bound bindSource(Path path) {
-        return (identity, executor, _) -> {
+        return (identity, executor, _, _) -> {
             CompletableFuture<Map<String, Map<String, StepSummary>>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
@@ -128,7 +128,7 @@ public class BuildExecutor {
     }
 
     private Bound bindStep(BuildStep step) {
-        return (identity, executor, summaries) -> {
+        return (identity, executor, summaries, targets) -> {
             try {
                 Path previous = target.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
                         checksum = previous.resolve("checksum"),
@@ -295,7 +295,7 @@ public class BuildExecutor {
     }
 
     private Bound bindModule(BuildExecutorModule module, Function<String, Optional<String>> resolver) {
-        return (prefix, executor, summaries) -> {
+        return (prefix, executor, summaries, targets) -> {
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
                 SequencedMap<String, StepSummary> inherited = new LinkedHashMap<>();
@@ -311,7 +311,7 @@ public class BuildExecutor {
                         location + prefix + "/",
                         inherited);
                 module.accept(buildExecutor, folders);
-                return buildExecutor.doExecute(executor).thenComposeAsync(results -> {
+                return buildExecutor.doExecute(executor, targets).thenComposeAsync(results -> {
                     try {
                         Map<String, StepSummary> prefixed = new LinkedHashMap<>();
                         results.forEach((identity, values) -> {
@@ -406,7 +406,7 @@ public class BuildExecutor {
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor, String... targets) {
         BiConsumer<Boolean, Throwable> completion = callback.step(null, registrations.sequencedKeySet());
-        return doExecute(executor, targets).thenApplyAsync(summaries -> {
+        return doExecute(executor, Set.of(targets)).thenApplyAsync(summaries -> {
             SequencedMap<String, Path> translated = new LinkedHashMap<>();
             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                 translated.put(entry.getKey(), entry.getValue().folder());
@@ -419,7 +419,7 @@ public class BuildExecutor {
     // contains foo -> bar -> qux and the executor is run with argument bar, foo and bar should be running
     // (in the order that is implied by the graph). If an argument has children /bar/step1 and /bar/step2, the entire
     // subtree should be run.
-    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, String[] targets) {
+    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, Set<String> targets) {
         CompletionStage<Map<String, Map<String, StepSummary>>> initial = CompletableFuture.completedStage(Map.of());
         SequencedMap<String, Registration> pending = new LinkedHashMap<>(registrations);
         SequencedMap<String, CompletionStage<Map<String, Map<String, StepSummary>>>> dispatched = new LinkedHashMap<>();
@@ -462,7 +462,7 @@ public class BuildExecutor {
                                     }
                                 }
                             });
-                            return entry.getValue().bound().apply(entry.getKey(), executor, propagated);
+                            return entry.getValue().bound().apply(entry.getKey(), executor, propagated, targets);
                         } catch (Throwable t) {
                             return CompletableFuture.failedStage(new BuildExecutorException(
                                     location + entry.getKey(),
@@ -530,18 +530,19 @@ public class BuildExecutor {
 
         CompletionStage<Map<String, Map<String, StepSummary>>> apply(String identity,
                                                                      Executor executor,
-                                                                     Map<String, StepSummary> summaries)
+                                                                     Map<String, StepSummary> summaries,
+                                                                     Set<String> targets)
                 throws IOException;
 
         default Bound summaries(HashFunction hash, Set<Path> paths) {
-            return (identity, executor, summaries) -> {
+            return (identity, executor, summaries, targets) -> {
                 SequencedMap<String, StepSummary> extended = new LinkedHashMap<>(summaries);
                 for (Path path : paths) {
                     extended.put(
                             ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
                             new StepSummary(path, HashFunction.read(path, hash)));
                 }
-                return apply(identity, executor, extended);
+                return apply(identity, executor, extended, targets);
             };
         }
     }
