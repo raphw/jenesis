@@ -62,8 +62,11 @@ Steps are organised into a graph by `BuildExecutor`:
 - `addStep(name, BuildStep, predecessors…)` adds a step whose `arguments` will be populated from the named
   predecessors. Predecessors are addressed by their registered names; cross-module references use the `../` prefix
   (`BuildExecutorModule.PREVIOUS`) to climb out of the current sub-graph.
-- `execute()` runs the graph on a virtual-thread executor, scheduling each node as soon as its predecessors have
-  completed.
+- `execute(selectors…)` runs the graph on a virtual-thread executor, scheduling each node as soon as its
+  predecessors have completed. With no selectors, the full graph runs. Otherwise each selector is a slash-delimited
+  path of identities (`module/step`) that restricts execution to the named steps and their preliminaries; `:`
+  matches any one path segment and `::` matches any depth (zero or more). Wildcards are lenient — branches without
+  a match are silently skipped — while a literal path that doesn't resolve throws.
 
 A `BuildExecutorModule` is a sub-graph factory, also a functional interface, with
 `accept(BuildExecutor, inherited)` populating a nested `BuildExecutor` with its own steps and (transitively) its
@@ -383,7 +386,6 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - Module for test discovery that pulls in the matching runner dependency automatically.
 - Evaluate module to publish to Maven Central and local Maven repository. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 - Extending all build step implementations to expose their full set of standard options.
-- High-level builder for Project with defaults.
-- Command line argument processing to specify sub-targets for the run.
+- High-level builder for Project with defaults. With that builder, add an entry point for running tests on the command line where tests always run and run by selection of needed.
 - Add support for plugin steps via repository.
 - Consider automatic wrapping of build in Docker.

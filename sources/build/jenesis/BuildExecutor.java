@@ -86,11 +86,7 @@ public class BuildExecutor {
     private Bound bindSource(Path path) {
         return (identity, executor, _, selectors) -> {
             if (!selectors.isEmpty()) {
-                for (String selector : selectors) {
-                    if (!selector.startsWith("?")) {
-                        throw new IllegalArgumentException("Unknown selector: " + selector);
-                    }
-                }
+                Selector.rejectStrict(selectors);
                 return CompletableFuture.completedStage(Map.of(identity, Map.of()));
             }
             CompletableFuture<Map<String, Map<String, StepSummary>>> future = new CompletableFuture<>();
@@ -139,11 +135,7 @@ public class BuildExecutor {
         return (identity, executor, summaries, selectors) -> {
             try {
                 if (!selectors.isEmpty()) {
-                    for (String selector : selectors) {
-                        if (!selector.startsWith("?")) {
-                            throw new IllegalArgumentException("Unknown selector: " + selector);
-                        }
-                    }
+                    Selector.rejectStrict(selectors);
                     return CompletableFuture.completedStage(Map.of(identity, Map.of()));
                 }
                 Path previous = target.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
@@ -422,7 +414,10 @@ public class BuildExecutor {
 
     public CompletionStage<SequencedMap<String, Path>> execute(Executor executor, String... selectors) {
         BiConsumer<Boolean, Throwable> completion = callback.step(null, registrations.sequencedKeySet());
-        return doExecute(executor, Set.of(selectors)).thenApplyAsync(summaries -> {
+        Set<Selector> initial = Arrays.stream(selectors)
+                .map(s -> new Selector(s, false))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        return doExecute(executor, initial).thenApplyAsync(summaries -> {
             SequencedMap<String, Path> translated = new LinkedHashMap<>();
             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                 translated.put(entry.getKey(), entry.getValue().folder());
@@ -431,69 +426,53 @@ public class BuildExecutor {
         }, executor).whenComplete((_, throwable) -> completion.accept(null, throwable));
     }
 
-    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, Set<String> selectors) {
+    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, Set<Selector> selectors) {
         SequencedSet<String> retained = new LinkedHashSet<>();
         Set<String> matched = new HashSet<>();
-        Map<String, Set<String>> subSelectors = new LinkedHashMap<>();
+        Map<String, Set<Selector>> subSelectors = new LinkedHashMap<>();
         Set<String> bare = new HashSet<>();
         if (selectors.isEmpty()) {
             retained.addAll(registrations.keySet());
         } else {
-            ArrayDeque<String> selectorWorklist = new ArrayDeque<>();
-            Set<String> seen = new HashSet<>();
-            for (String s : selectors) {
-                if (seen.add(s)) {
-                    selectorWorklist.add(s);
-                }
-            }
-            while (!selectorWorklist.isEmpty()) {
-                String original = selectorWorklist.poll();
-                boolean lenient = original.startsWith("?");
-                String selector = lenient ? original.substring(1) : original;
-                int slash = selector.indexOf('/');
-                String first = slash == -1 ? selector : selector.substring(0, slash);
-                String rest = slash == -1 ? null : selector.substring(slash + 1);
+            ArrayDeque<Selector> worklist = new ArrayDeque<>(selectors);
+            while (!worklist.isEmpty()) {
+                Selector selector = worklist.poll();
+                String first = selector.first();
+                Selector tail = selector.tail();
                 if (first.equals(":")) {
-                    for (String identity : registrations.keySet()) {
-                        retained.add(identity);
-                        if (rest == null) {
-                            bare.add(identity);
-                            matched.add(identity);
-                        } else {
-                            subSelectors.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
-                                    .add("?" + rest);
-                        }
+                    retained.addAll(registrations.keySet());
+                    if (tail == null) {
+                        bare.addAll(registrations.keySet());
+                        matched.addAll(registrations.keySet());
+                    } else {
+                        Selector forwarded = tail.asLenient();
+                        registrations.keySet().forEach(identity ->
+                                subSelectors.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
+                                        .add(forwarded));
                     }
                 } else if (first.equals("::")) {
-                    if (rest == null) {
-                        for (String identity : registrations.keySet()) {
-                            retained.add(identity);
-                            bare.add(identity);
-                            matched.add(identity);
-                        }
+                    retained.addAll(registrations.keySet());
+                    if (tail == null) {
+                        bare.addAll(registrations.keySet());
+                        matched.addAll(registrations.keySet());
                     } else {
-                        String reapplied = "?" + rest;
-                        if (seen.add(reapplied)) {
-                            selectorWorklist.add(reapplied);
-                        }
-                        for (String identity : registrations.keySet()) {
-                            retained.add(identity);
-                            subSelectors.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
-                                    .add("?::/" + rest);
-                        }
+                        worklist.add(tail.asLenient());
+                        Selector forwarded = selector.asLenient();
+                        registrations.keySet().forEach(identity ->
+                                subSelectors.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
+                                        .add(forwarded));
                     }
                 } else if (!registrations.containsKey(first)) {
-                    if (!lenient) {
-                        throw new IllegalArgumentException("Unknown selector: " + selector);
+                    if (!selector.lenient()) {
+                        throw new IllegalArgumentException("Unknown selector: " + selector.path());
                     }
                 } else {
                     retained.add(first);
                     matched.add(first);
-                    if (rest == null) {
+                    if (tail == null) {
                         bare.add(first);
                     } else {
-                        subSelectors.computeIfAbsent(first, _ -> new LinkedHashSet<>())
-                                .add(lenient ? "?" + rest : rest);
+                        subSelectors.computeIfAbsent(first, _ -> new LinkedHashSet<>()).add(tail);
                     }
                 }
             }
@@ -562,7 +541,7 @@ public class BuildExecutor {
                                     entry.getKey(),
                                     executor,
                                     propagated,
-                                    subSelectors.getOrDefault(entry.getKey(), Set.of()));
+                                    subSelectors.<Set<Selector>>getOrDefault(entry.getKey(), Set.of()));
                         } catch (Throwable t) {
                             return CompletableFuture.failedStage(new BuildExecutorException(
                                     location + entry.getKey(),
@@ -631,7 +610,7 @@ public class BuildExecutor {
         CompletionStage<Map<String, Map<String, StepSummary>>> apply(String identity,
                                                                      Executor executor,
                                                                      Map<String, StepSummary> summaries,
-                                                                     Set<String> selectors)
+                                                                     Set<Selector> selectors)
                 throws IOException;
 
         default Bound summaries(HashFunction hash, Set<Path> paths) {
@@ -644,6 +623,32 @@ public class BuildExecutor {
                 }
                 return apply(identity, executor, extended, selectors);
             };
+        }
+    }
+
+    private record Selector(String path, boolean lenient) {
+
+        static void rejectStrict(Set<Selector> selectors) {
+            selectors.stream()
+                    .filter(s -> !s.lenient())
+                    .findFirst()
+                    .ifPresent(s -> {
+                        throw new IllegalArgumentException("Unknown selector: " + s.path());
+                    });
+        }
+
+        String first() {
+            int slash = path.indexOf('/');
+            return slash == -1 ? path : path.substring(0, slash);
+        }
+
+        Selector tail() {
+            int slash = path.indexOf('/');
+            return slash == -1 ? null : new Selector(path.substring(slash + 1), lenient);
+        }
+
+        Selector asLenient() {
+            return lenient ? this : new Selector(path, true);
         }
     }
 
