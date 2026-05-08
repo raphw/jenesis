@@ -221,6 +221,7 @@ public class MavenDefaultRepository implements MavenRepository {
     private static class ValidatingInputStream extends FilterInputStream {
 
         private final Map<LazyRepositoryItem, MessageDigest> digests;
+        private boolean eof;
 
         private ValidatingInputStream(InputStream inputStream, Map<LazyRepositoryItem, MessageDigest> digests) {
             super(inputStream);
@@ -244,8 +245,28 @@ public class MavenDefaultRepository implements MavenRepository {
         }
 
         @Override
+        public int read() throws IOException {
+            int read = super.read();
+            if (read == -1) {
+                eof = true;
+            }
+            return read;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            int read = super.read(b, off, len);
+            if (read == -1) {
+                eof = true;
+            }
+            return read;
+        }
+
+        @Override
         public void close() throws IOException {
-            in.transferTo(OutputStream.nullOutputStream());
+            if (!eof) {
+                in.transferTo(OutputStream.nullOutputStream());
+            }
             super.close();
             String invalid = null;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
