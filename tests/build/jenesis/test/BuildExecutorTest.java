@@ -1062,7 +1062,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_single_target_with_transitive_dependency() throws IOException {
+    public void can_execute_single_selector_with_transitive_dependency() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -1081,7 +1081,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_multiple_targets() throws IOException {
+    public void can_execute_multiple_selectors() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step1", (_, context, arguments) -> {
@@ -1105,7 +1105,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_target_skipping_unrelated_branch() throws IOException {
+    public void can_execute_selector_skipping_unrelated_branch() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         Files.writeString(source2.resolve("file"), "bar");
         buildExecutor.addSource("source1", source);
@@ -1126,17 +1126,17 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void rejects_unknown_target() {
+    public void rejects_unknown_selector() {
         buildExecutor.addStep("step1", (_, _, _) -> {
             throw new AssertionError();
         });
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run, "nonexistent").toCompletableFuture().join())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unknown target: nonexistent");
+                .hasMessage("Unknown selector: nonexistent");
     }
 
     @Test
-    public void can_execute_nested_target_with_sub_step() throws IOException {
+    public void can_execute_nested_selector_with_sub_step() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("module", (module, _) -> {
             module.addSource("source", source);
@@ -1156,7 +1156,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_bare_module_target_runs_entire_subtree() throws IOException {
+    public void can_execute_bare_module_selector_runs_entire_subtree() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("module", (module, _) -> {
             module.addSource("source", source);
@@ -1182,7 +1182,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_deeply_nested_target() throws IOException {
+    public void can_execute_deeply_nested_selector() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addSource("source", source);
         buildExecutor.addModule("outer", (outer, _) -> {
@@ -1204,7 +1204,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void rejects_unknown_nested_target() {
+    public void rejects_unknown_nested_selector() {
         buildExecutor.addModule("module", (module, _) -> module.addStep("step1", (_, _, _) -> {
             throw new AssertionError();
         }));
@@ -1214,11 +1214,11 @@ public class BuildExecutorTest {
                 .hasMessage("Failed to execute module")
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unknown target: nonexistent");
+                .hasMessage("Unknown selector: nonexistent");
     }
 
     @Test
-    public void can_execute_wildcard_target_across_modules() throws IOException {
+    public void can_execute_wildcard_selector_across_modules() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("modA", (module, _) -> {
             module.addSource("source", source);
@@ -1249,7 +1249,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_any_depth_wildcard_target() throws IOException {
+    public void can_execute_any_depth_wildcard_selector() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("outer", (outer, _) -> outer.addModule("inner", (inner, _) -> {
             inner.addSource("source", source);
@@ -1306,7 +1306,7 @@ public class BuildExecutorTest {
     }
 
     @Test
-    public void can_execute_intermediate_wildcard_target() throws IOException {
+    public void can_execute_intermediate_wildcard_selector() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("module", (outer, _) -> {
             outer.addModule("childA", (child, _) -> {
@@ -1393,11 +1393,11 @@ public class BuildExecutorTest {
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run, ":::/step")
                 .toCompletableFuture().join())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unknown target: :::/step");
+                .hasMessage("Unknown selector: :::/step");
     }
 
     @Test
-    public void rejects_strict_sub_target_on_leaf_step() {
+    public void rejects_strict_sub_selector_on_leaf_step() {
         buildExecutor.addStep("step1", (_, _, _) -> {
             throw new AssertionError();
         });
@@ -1407,11 +1407,11 @@ public class BuildExecutorTest {
                 .hasMessage("Failed to execute step1")
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unknown target: extra");
+                .hasMessage("Unknown selector: extra");
     }
 
     @Test
-    public void bare_target_overrides_sub_path() throws IOException {
+    public void bare_selector_overrides_sub_path() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("module", (module, _) -> {
             module.addSource("source", source);
