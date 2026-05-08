@@ -388,7 +388,6 @@ Status
 
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
-- Module for test discovery that pulls in the matching runner dependency automatically.
 - Evaluate module to publish to Maven Central and local Maven repository. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 - Extending all build step implementations to expose their full set of standard options.
 - High-level builder for Project with defaults. With that builder, add an entry point for running tests on the command line where tests always run and run by selection of needed.
