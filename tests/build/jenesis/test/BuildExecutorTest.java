@@ -1218,6 +1218,199 @@ public class BuildExecutorTest {
     }
 
     @Test
+    public void can_execute_wildcard_target_across_modules() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("modA", (module, _) -> {
+            module.addSource("source", source);
+            module.addStep("step", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "A");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+            module.addStep("other", (_, _, _) -> {
+                throw new AssertionError("modA/other should not run");
+            });
+        });
+        buildExecutor.addModule("modB", (module, _) -> {
+            module.addSource("source", source);
+            module.addStep("step", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "B");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+        });
+        buildExecutor.addModule("modC", (module, _) -> module.addStep("different", (_, _, _) -> {
+            throw new AssertionError("modC/different should not run");
+        }));
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, ":/step").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("modA/source", "modA/step", "modB/source", "modB/step");
+    }
+
+    @Test
+    public void can_execute_any_depth_wildcard_target() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("outer", (outer, _) -> outer.addModule("inner", (inner, _) -> {
+            inner.addSource("source", source);
+            inner.addStep("leaf", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+            inner.addStep("other", (_, _, _) -> {
+                throw new AssertionError("other should not run");
+            });
+        }));
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "::/leaf").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("outer/inner/source", "outer/inner/leaf");
+    }
+
+    @Test
+    public void any_depth_wildcard_matches_at_multiple_depths() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("rootSource", source);
+        buildExecutor.addStep("leaf", (_, context, arguments) -> {
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("rootSource").folder().resolve("file")) + "0");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "rootSource");
+        buildExecutor.addModule("modA", (module, _) -> {
+            module.addSource("sourceA", source);
+            module.addStep("leaf", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("sourceA").folder().resolve("file")) + "A");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "sourceA");
+        });
+        buildExecutor.addModule("modB", (module, _) -> module.addModule("nested", (nested, _) -> {
+            nested.addSource("sourceB", source);
+            nested.addStep("leaf", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("sourceB").folder().resolve("file")) + "B");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "sourceB");
+        }));
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "::/leaf").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys(
+                "rootSource",
+                "leaf",
+                "modA/sourceA",
+                "modA/leaf",
+                "modB/nested/sourceB",
+                "modB/nested/leaf");
+    }
+
+    @Test
+    public void can_execute_intermediate_wildcard_target() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("module", (outer, _) -> {
+            outer.addModule("childA", (child, _) -> {
+                child.addSource("source", source);
+                child.addStep("leaf", (_, context, arguments) -> {
+                    Files.writeString(
+                            context.next().resolve("file"),
+                            Files.readString(arguments.get("source").folder().resolve("file")) + "A");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                }, "source");
+            });
+            outer.addModule("childB", (child, _) -> {
+                child.addSource("source", source);
+                child.addStep("leaf", (_, context, arguments) -> {
+                    Files.writeString(
+                            context.next().resolve("file"),
+                            Files.readString(arguments.get("source").folder().resolve("file")) + "B");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                }, "source");
+            });
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "module/:/leaf")
+                .toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys(
+                "module/childA/source",
+                "module/childA/leaf",
+                "module/childB/source",
+                "module/childB/leaf");
+    }
+
+    @Test
+    public void wildcard_skips_modules_without_match() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("modA", (module, _) -> {
+            module.addSource("source", source);
+            module.addStep("leaf", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "A");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+        });
+        buildExecutor.addModule("modB", (module, _) -> module.addStep("different", (_, _, _) -> {
+            throw new AssertionError("modB/different should not run");
+        }));
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, ":/leaf").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("modA/source", "modA/leaf");
+    }
+
+    @Test
+    public void wildcard_with_no_match_runs_nothing() throws IOException {
+        buildExecutor.addModule("module", (inner, _) -> inner.addStep("step", (_, _, _) -> {
+            throw new AssertionError("step should not run");
+        }));
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, ":/nonexistent")
+                .toCompletableFuture().join();
+        assertThat(build).isEmpty();
+    }
+
+    @Test
+    public void wildcard_skips_top_level_leaf_step() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addStep("leaf", (_, _, _) -> {
+            throw new AssertionError("top-level leaf should not run when wildcard descends");
+        });
+        buildExecutor.addModule("module", (inner, _) -> {
+            inner.addSource("source", source);
+            inner.addStep("step", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, ":/step").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("module/source", "module/step");
+    }
+
+    @Test
+    public void rejects_triple_colon_as_invalid_path_segment() {
+        buildExecutor.addStep("step", (_, _, _) -> {
+            throw new AssertionError();
+        });
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run, ":::/step")
+                .toCompletableFuture().join())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unknown target: :::/step");
+    }
+
+    @Test
+    public void rejects_strict_sub_target_on_leaf_step() {
+        buildExecutor.addStep("step1", (_, _, _) -> {
+            throw new AssertionError();
+        });
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run, "step1/extra")
+                .toCompletableFuture().join())
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute step1")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unknown target: extra");
+    }
+
+    @Test
     public void bare_target_overrides_sub_path() throws IOException {
         Files.writeString(source.resolve("file"), "foo");
         buildExecutor.addModule("module", (module, _) -> {

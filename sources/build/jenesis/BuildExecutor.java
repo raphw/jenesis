@@ -84,7 +84,15 @@ public class BuildExecutor {
     }
 
     private Bound bindSource(Path path) {
-        return (identity, executor, _, _) -> {
+        return (identity, executor, _, targets) -> {
+            if (!targets.isEmpty()) {
+                for (String target : targets) {
+                    if (!target.startsWith("?")) {
+                        throw new IllegalArgumentException("Unknown target: " + target);
+                    }
+                }
+                return CompletableFuture.completedStage(Map.of(identity, Map.of()));
+            }
             CompletableFuture<Map<String, Map<String, StepSummary>>> future = new CompletableFuture<>();
             executor.execute(() -> {
                 try {
@@ -130,6 +138,14 @@ public class BuildExecutor {
     private Bound bindStep(BuildStep step) {
         return (identity, executor, summaries, targets) -> {
             try {
+                if (!targets.isEmpty()) {
+                    for (String entry : targets) {
+                        if (!entry.startsWith("?")) {
+                            throw new IllegalArgumentException("Unknown target: " + entry);
+                        }
+                    }
+                    return CompletableFuture.completedStage(Map.of(identity, Map.of()));
+                }
                 Path previous = target.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
                         checksum = previous.resolve("checksum"),
                         output = previous.resolve("output");
@@ -417,36 +433,82 @@ public class BuildExecutor {
 
     private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, Set<String> targets) {
         SequencedSet<String> retained = new LinkedHashSet<>();
+        Set<String> matched = new HashSet<>();
         Map<String, Set<String>> subTargets = new LinkedHashMap<>();
         Set<String> bare = new HashSet<>();
         if (targets.isEmpty()) {
             retained.addAll(registrations.keySet());
         } else {
-            ArrayDeque<String> queue = new ArrayDeque<>();
-            for (String target : targets) {
-                int index = target.indexOf('/');
-                String local = index == -1 ? target : target.substring(0, index);
-                if (!registrations.containsKey(local)) {
-                    throw new IllegalArgumentException("Unknown target: " + target);
+            ArrayDeque<String> targetWorklist = new ArrayDeque<>();
+            Set<String> seenTargets = new HashSet<>();
+            for (String t : targets) {
+                if (seenTargets.add(t)) {
+                    targetWorklist.add(t);
                 }
-                if (retained.add(local)) {
-                    queue.add(local);
-                }
-                if (index == -1) {
-                    bare.add(local);
+            }
+            while (!targetWorklist.isEmpty()) {
+                String original = targetWorklist.poll();
+                boolean lenient = original.startsWith("?");
+                String target = lenient ? original.substring(1) : original;
+                int slash = target.indexOf('/');
+                String first = slash == -1 ? target : target.substring(0, slash);
+                String rest = slash == -1 ? null : target.substring(slash + 1);
+                if (first.equals(":")) {
+                    for (String identity : registrations.keySet()) {
+                        retained.add(identity);
+                        if (rest == null) {
+                            bare.add(identity);
+                            matched.add(identity);
+                        } else {
+                            subTargets.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
+                                    .add("?" + rest);
+                        }
+                    }
+                } else if (first.equals("::")) {
+                    if (rest == null) {
+                        for (String identity : registrations.keySet()) {
+                            retained.add(identity);
+                            bare.add(identity);
+                            matched.add(identity);
+                        }
+                    } else {
+                        String reapplied = "?" + rest;
+                        if (seenTargets.add(reapplied)) {
+                            targetWorklist.add(reapplied);
+                        }
+                        for (String identity : registrations.keySet()) {
+                            retained.add(identity);
+                            subTargets.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
+                                    .add("?::/" + rest);
+                        }
+                    }
+                } else if (!registrations.containsKey(first)) {
+                    if (!lenient) {
+                        throw new IllegalArgumentException("Unknown target: " + target);
+                    }
                 } else {
-                    subTargets.computeIfAbsent(local, _ -> new LinkedHashSet<>()).add(target.substring(index + 1));
+                    retained.add(first);
+                    matched.add(first);
+                    if (rest == null) {
+                        bare.add(first);
+                    } else {
+                        subTargets.computeIfAbsent(first, _ -> new LinkedHashSet<>())
+                                .add(lenient ? "?" + rest : rest);
+                    }
+                }
+            }
+            ArrayDeque<String> prelimQueue = new ArrayDeque<>(matched);
+            while (!prelimQueue.isEmpty()) {
+                for (String preliminary : registrations.get(prelimQueue.poll()).preliminaries()) {
+                    retained.add(preliminary);
+                    bare.add(preliminary);
+                    if (matched.add(preliminary)) {
+                        prelimQueue.add(preliminary);
+                    }
                 }
             }
             for (String identity : bare) {
                 subTargets.remove(identity);
-            }
-            while (!queue.isEmpty()) {
-                for (String preliminary : registrations.get(queue.poll()).preliminaries()) {
-                    if (retained.add(preliminary)) {
-                        queue.add(preliminary);
-                    }
-                }
             }
         }
         CompletionStage<Map<String, Map<String, StepSummary>>> initial = CompletableFuture.completedStage(Map.of());
