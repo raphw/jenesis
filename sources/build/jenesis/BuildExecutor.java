@@ -308,6 +308,7 @@ public class BuildExecutor {
 
     private Bound bindModule(BuildExecutorModule module, Function<String, Optional<String>> resolver) {
         return (prefix, executor, summaries, selectors) -> {
+            Consumer<Throwable> resolution = callback.module(location + prefix);
             try {
                 SequencedMap<String, Path> folders = new LinkedHashMap<>();
                 SequencedMap<String, StepSummary> inherited = new LinkedHashMap<>();
@@ -323,6 +324,7 @@ public class BuildExecutor {
                         location + prefix + "/",
                         inherited);
                 module.accept(buildExecutor, folders);
+                resolution.accept(null);
                 return buildExecutor.doExecute(executor, selectors).thenComposeAsync(results -> {
                     try {
                         Map<String, StepSummary> prefixed = new LinkedHashMap<>();
@@ -340,6 +342,7 @@ public class BuildExecutor {
                     }
                 }, executor);
             } catch (Throwable t) {
+                resolution.accept(t);
                 return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
             }
         };

@@ -6,30 +6,37 @@ public interface BuildExecutorCallback {
 
     BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys);
 
+    default Consumer<Throwable> module(String identity) {
+        return _ -> {
+        };
+    }
+
     static BuildExecutorCallback nop() {
         return (_, _) -> (_, _) -> {
         };
     }
 
     static BuildExecutorCallback printing(PrintStream out, boolean debug, Path target) {
-        return (identity, _) -> {
-            long started = System.nanoTime();
-            if (identity == null) {
-                out.printf("[STARTED] Building in '%s'...%n", target);
-                return (_, throwable) -> {
-                    double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
-                    out.printf("[%s] build in %.2f seconds%n", throwable == null ? "COMPLETED" : "FAILED", time);
-                };
-            } else {
+        return new BuildExecutorCallback() {
+            @Override
+            public BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys) {
+                long started = System.nanoTime();
+                if (identity == null) {
+                    out.printf("[%-9s] Building in '%s'...%n", "STARTED", target);
+                    return (_, throwable) -> {
+                        double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
+                        out.printf("[%-9s] build in %.2f seconds%n", throwable == null ? "COMPLETED" : "FAILED", time);
+                    };
+                }
                 return (executed, throwable) -> {
                     if (throwable != null) {
-                        out.printf("[FAILED] %s: %s%n", identity, throwable instanceof BuildExecutorException
+                        out.printf("[%-9s] %s: %s%n", "FAILED", identity, throwable instanceof BuildExecutorException
                                 ? throwable.getCause().getMessage()
                                 : throwable.getMessage());
                     } else if (executed) {
                         double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
                         synchronized (out) {
-                            out.printf("[EXECUTED] %s in %.2f seconds%n", identity, time);
+                            out.printf("[%-9s] %s in %.2f seconds%n", "EXECUTED", identity, time);
                             if (debug) {
                                 Path checksums = target.resolve(identity)
                                         .resolve("checksum")
@@ -47,7 +54,18 @@ public interface BuildExecutorCallback {
                             }
                         }
                     } else {
-                        out.printf("[SKIPPED] %s%n", identity);
+                        out.printf("[%-9s] %s%n", "SKIPPED", identity);
+                    }
+                };
+            }
+
+            @Override
+            public Consumer<Throwable> module(String identity) {
+                long started = System.nanoTime();
+                return throwable -> {
+                    if (throwable == null) {
+                        double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
+                        out.printf("[%-9s] %s in %.2f seconds%n", "RESOLVED", identity, time);
                     }
                 };
             }

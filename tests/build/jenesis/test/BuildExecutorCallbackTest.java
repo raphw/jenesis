@@ -18,7 +18,7 @@ public class BuildExecutorCallbackTest {
                     .accept(true, null);
         }
         assertThat(outputStream.toString(StandardCharsets.UTF_8))
-                .matches("\\[EXECUTED] foo in [0-9]+.[0-9]{2} seconds\n");
+                .matches("\\[EXECUTED ] foo in [0-9]+.[0-9]{2} seconds\n");
     }
 
     @Test
@@ -29,7 +29,7 @@ public class BuildExecutorCallbackTest {
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(false, null);
         }
-        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[SKIPPED] foo\n");
+        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[SKIPPED  ] foo\n");
     }
 
     @Test
@@ -40,6 +40,6 @@ public class BuildExecutorCallbackTest {
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(null, new RuntimeException("message"));
         }
-        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[FAILED] foo: message\n");
+        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[FAILED   ] foo: message\n");
     }
 }
