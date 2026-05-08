@@ -4,57 +4,61 @@ import build.jenesis.BuildStep;
 
 import module java.base;
 
-public enum TestEngine {
+public interface TestEngine extends Serializable {
 
-    JUNIT4("junit", "org.junit.runner.JUnitCore", ""),
-    JUNIT5("org.junit.platform.console",
-            "org.junit.platform.console.ConsoleLauncher",
-            "-select-class=",
-            "execute",
-            "--disable-banner",
-            "--disable-ansi-colors");
+    String module();
 
-    final String module, mainClass, prefix;
-    final List<String> arguments;
+    Set<String> coordinates();
 
-    TestEngine(String module, String mainClass, String prefix, String... arguments) {
-        this.module = module;
-        this.mainClass = mainClass;
-        this.prefix = prefix;
-        this.arguments = List.of(arguments);
+    String markerClass();
+
+    String mainClass();
+
+    String prefix();
+
+    List<String> arguments();
+
+    static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
+        return scan(folders, Arrays.asList(TestDefaultEngine.values()), TestEngine::markerClass);
     }
 
-    public static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
-        TestEngine engine = null;
+    static boolean hasRunner(TestEngine engine, Iterable<Path> folders) throws IOException {
+        return scan(folders, List.of(engine), TestEngine::mainClass).isPresent();
+    }
+
+    private static Optional<TestEngine> scan(Iterable<Path> folders,
+                                             List<? extends TestEngine> candidates,
+                                             Function<TestEngine, String> probe) throws IOException {
+        TestEngine result = null;
+        int rank = -1;
         for (Path folder : folders) {
             Path artifacts = folder.resolve(BuildStep.ARTIFACTS);
-            if (Files.exists(artifacts)) {
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
-                    for (Path file : stream) {
-                        try (JarFile jarFile = new JarFile(file.toFile())) {
-                            Manifest manifest = jarFile.getManifest();
-                            if (manifest != null) {
-                                TestEngine candidate = switch (manifest
-                                        .getMainAttributes()
-                                        .getValue(java.util.jar.Attributes.Name.IMPLEMENTATION_TITLE)) {
-                                    case "JUnit" -> TestEngine.JUNIT4;
-                                    case "junit-platform-console" -> TestEngine.JUNIT5;
-                                    case null, default -> null;
-                                };
-                                if (candidate != null) {
-                                    if (engine == null || candidate.ordinal() > engine.ordinal()) {
-                                        engine = candidate;
-                                    }
+            if (!Files.exists(artifacts)) {
+                continue;
+            }
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
+                for (Path file : stream) {
+                    try (JarFile jarFile = new JarFile(file.toFile())) {
+                        for (int index = 0; index < candidates.size(); index++) {
+                            TestEngine candidate = candidates.get(index);
+                            String className = probe.apply(candidate);
+                            if (className == null) {
+                                continue;
+                            }
+                            if (jarFile.getEntry(className.replace('.', '/') + ".class") != null) {
+                                if (result == null || index > rank) {
+                                    result = candidate;
+                                    rank = index;
                                 }
                             }
-                        } catch (IOException e) {
-                            throw e;
-                        } catch (Exception _) {
                         }
+                    } catch (IOException e) {
+                        throw e;
+                    } catch (Exception _) {
                     }
                 }
             }
         }
-        return Optional.ofNullable(engine);
+        return Optional.ofNullable(result);
     }
 }

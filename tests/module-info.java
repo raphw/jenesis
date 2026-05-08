@@ -5,5 +5,4 @@ open module build.jenesis.test {
     requires org.assertj.core;
 
     requires org.apiguardian.api;
-    requires static org.junit.platform.console;
 }

@@ -29,7 +29,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
             }
             accept(buildExecutor, inherited);
             if (candidate != null) {
-                buildExecutor.addStep(TESTS, new Tests(candidate), Stream.concat(
+                buildExecutor.addModule(TESTS, new Tests(candidate), Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
                         inherited.sequencedKeySet().stream()));
             }

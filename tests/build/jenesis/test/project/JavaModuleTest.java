@@ -101,7 +101,7 @@ public class JavaModuleTest {
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new JavaModule().testIfAvailable(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/tests");
+        assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/tests/execute");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/SampleTest.class")).exists();
         try (JarInputStream inputStream = new JarInputStream(Files.newInputStream(steps.get("output/artifacts")
                 .resolve(BuildStep.ARTIFACTS)

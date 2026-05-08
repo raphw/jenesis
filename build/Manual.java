@@ -11,7 +11,7 @@ import build.jenesis.step.Download;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Resolve;
-import build.jenesis.step.TestEngine;
+import build.jenesis.step.TestDefaultEngine;
 import build.jenesis.step.Tests;
 
 import module java.base;
@@ -46,7 +46,7 @@ public class Manual {
             module.addSource("sources", Bind.asSources(), Path.of("tests"));
             module.addStep("classes", Javac.tool(), "sources", "../main/artifacts", "../test-deps/artifacts");
             module.addStep("artifacts", Jar.tool(Jar.Sort.CLASSES), "classes", "../test-deps/artifacts");
-            module.addStep("tests", new Tests(TestEngine.JUNIT5), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
+            module.addModule("tests", new Tests(TestDefaultEngine.JUNIT5), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
         root.execute(args);

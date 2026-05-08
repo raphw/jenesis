@@ -1,11 +1,14 @@
 package build.jenesis.test.step;
 
+import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildExecutorException;
 import build.jenesis.BuildStep;
-import build.jenesis.BuildStepArgument;
-import build.jenesis.BuildStepContext;
-import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.HashDigestFunction;
+import build.jenesis.Repository;
+import build.jenesis.Resolver;
 import build.jenesis.step.Javac;
+import build.jenesis.step.TestDefaultEngine;
 import build.jenesis.step.Tests;
 import sample.TestSample;
 
@@ -14,22 +17,18 @@ import module org.junit.jupiter.api;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestsTest {
 
     @TempDir
-    private Path root;
+    private Path root, dependencies, classes, emptyDependencies;
     private List<String> appended;
-    private Path previous, next, supplement, dependencies, classes;
 
     @BeforeEach
     public void setUp() throws Exception {
-        previous = root.resolve("previous");
-        next = Files.createDirectory(root.resolve("next"));
-        supplement = Files.createDirectory(root.resolve("supplement"));
-        dependencies = Files.createDirectories(root.resolve("dependencies"));
-        classes = Files.createDirectories(root.resolve("classes"));
         Path artifacts = Files.createDirectory(dependencies.resolve(BuildStep.ARTIFACTS));
+        Files.createDirectory(emptyDependencies.resolve(BuildStep.ARTIFACTS));
         List<String> elements = new ArrayList<>();
         elements.addAll(Arrays.asList(System.getProperty("java.class.path", "").split(File.pathSeparator)));
         elements.addAll(Arrays.asList(System.getProperty("jdk.module.path", "").split(File.pathSeparator)));
@@ -55,39 +54,164 @@ public class TestsTest {
 
     @Test
     public void can_execute_junit() throws IOException {
-        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).apply(
-                Runnable::run,
-                new BuildStepContext(previous, next, supplement),
-                new LinkedHashMap<>(Map.of(
-                        "dependencies", new BuildStepArgument(
-                                dependencies,
-                                appended.stream().collect(Collectors.toMap(
-                                        name -> Path.of(BuildStep.ARTIFACTS + name),
-                                        _ -> ChecksumStatus.ADDED))),
-                        "classes", new BuildStepArgument(
-                                classes,
-                                Map.of(Path.of(Javac.CLASSES + "sample/TestSample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-        assertThat(result.next()).isTrue();
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();
     }
 
     @Test
     public void can_execute_junit_non_modular() throws IOException {
-        BuildStepResult result = new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modular(false).apply(
-                Runnable::run,
-                new BuildStepContext(previous, next, supplement),
-                new LinkedHashMap<>(Map.of(
-                        "dependencies", new BuildStepArgument(
-                                dependencies,
-                                appended.stream().collect(Collectors.toMap(
-                                        name -> Path.of(BuildStep.ARTIFACTS + name),
-                                        _ -> ChecksumStatus.ADDED))),
-                        "classes", new BuildStepArgument(
-                                classes,
-                                Map.of(Path.of(Javac.CLASSES + "sample/TestSample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-        assertThat(result.next()).isTrue();
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modular(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();
+    }
+
+    @Test
+    public void can_execute_with_explicit_engine() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
+        assertThat(supplement.resolve("output")).content().contains("Hello world!");
+        assertThat(supplement.resolve("error")).isEmptyFile();
+    }
+
+    @Test
+    public void can_execute_with_default_predicate() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT5).jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
+        assertThat(supplement.resolve("output")).content().contains("Hello world!");
+    }
+
+    @Test
+    public void throws_when_no_engine_found() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                "dependencies", "classes");
+
+        assertThatThrownBy(executor::execute)
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute test/" + "execute")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No test engine found");
+    }
+
+    @Test
+    public void requires_step_emits_runner_coordinate_when_missing() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties.stringPropertyNames())
+                .containsExactlyInAnyOrderElementsOf(TestDefaultEngine.JUNIT5.coordinates());
+    }
+
+    @Test
+    public void requires_step_emits_nothing_when_runner_present() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties).isEmpty();
+    }
+
+    @Test
+    public void requires_step_emits_nothing_for_engine_without_external_runner() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT4, candidate -> candidate.endsWith("TestSample"))
+                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties).isEmpty();
+    }
+
+    @Test
+    public void requires_step_emits_nothing_when_no_engine_detected() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(null, candidate -> candidate.endsWith("TestSample"))
+                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties).isEmpty();
+    }
+
+    private BuildExecutor newExecutor() throws IOException {
+        return BuildExecutor.of(root, new HashDigestFunction("MD5"), BuildExecutorCallback.nop());
+    }
+
+    private static Properties readRequires(Path stepFolder) throws IOException {
+        Path file = stepFolder.resolve("output").resolve(BuildStep.REQUIRES);
+        Properties properties = new Properties();
+        try (Reader reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        }
+        return properties;
     }
 }
