@@ -218,56 +218,18 @@ public class MavenDefaultRepository implements MavenRepository {
         }
     }
 
-    private static class ValidatingInputStream extends FilterInputStream {
-
-        private final Map<LazyRepositoryItem, MessageDigest> digests;
-        private boolean eof;
-
-        private ValidatingInputStream(InputStream inputStream, Map<LazyRepositoryItem, MessageDigest> digests) {
-            super(inputStream);
-            this.digests = digests;
-        }
+    private static class ValidatingInputStream {
 
         private static Optional<InputStream> of(URI uri, Map<LazyRepositoryItem, MessageDigest> digests) throws IOException {
-            InputStream inputStream;
-            try {
-                inputStream = uri.toURL().openStream();
+            byte[] bytes;
+            try (InputStream inputStream = uri.toURL().openStream()) {
+                bytes = inputStream.readAllBytes();
             } catch (FileNotFoundException _) {
                 return Optional.empty();
             }
             if (digests.isEmpty()) {
-                return Optional.of(inputStream);
+                return Optional.of(new ByteArrayInputStream(bytes));
             }
-            for (MessageDigest digest : digests.values()) {
-                inputStream = new DigestInputStream(inputStream, digest);
-            }
-            return Optional.of(new ValidatingInputStream(inputStream, digests));
-        }
-
-        @Override
-        public int read() throws IOException {
-            int read = super.read();
-            if (read == -1) {
-                eof = true;
-            }
-            return read;
-        }
-
-        @Override
-        public int read(byte[] b, int off, int len) throws IOException {
-            int read = super.read(b, off, len);
-            if (read == -1) {
-                eof = true;
-            }
-            return read;
-        }
-
-        @Override
-        public void close() throws IOException {
-            if (!eof) {
-                in.transferTo(OutputStream.nullOutputStream());
-            }
-            super.close();
             String invalid = null;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
             for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
@@ -278,6 +240,7 @@ public class MavenDefaultRepository implements MavenRepository {
                         expected = inputStream.readAllBytes();
                     }
                     results.put(entry.getKey(), expected);
+                    entry.getValue().update(bytes);
                     if (!Arrays.equals(
                             HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
                             entry.getValue().digest())) {
@@ -286,16 +249,16 @@ public class MavenDefaultRepository implements MavenRepository {
                     }
                 }
             }
-            if (invalid == null) {
-                for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
-                    entry.getKey().storeIfNotPresent(entry.getValue());
-                }
-            } else {
+            if (invalid != null) {
                 for (LazyRepositoryItem item : digests.keySet()) {
                     item.deleteIfPresent();
                 }
                 throw new IllegalStateException("Failed checksum validation for " + invalid);
             }
+            for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
+                entry.getKey().storeIfNotPresent(entry.getValue());
+            }
+            return Optional.of(new ByteArrayInputStream(bytes));
         }
     }
 }
