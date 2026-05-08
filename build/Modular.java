@@ -31,6 +31,6 @@ public class Modular {
 
         root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
 
-        root.execute();
+        root.execute(args);
     }
 }

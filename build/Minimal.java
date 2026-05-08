@@ -37,6 +37,6 @@ public class Minimal {
         root.addStep("test-javac", Javac.tool(), "main-jar", "test-dependencies-downloaded", "test");
         root.addStep("tests", new Tests(TestEngine.JUNIT5).jarsOnly(false), "main-jar", "test-dependencies-downloaded", "test-javac");
 
-        root.execute();
+        root.execute(args);
     }
 }

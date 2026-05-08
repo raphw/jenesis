@@ -46,6 +46,6 @@ public class ModularByMaven {
 
         root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
 
-        root.execute();
+        root.execute(args);
     }
 }

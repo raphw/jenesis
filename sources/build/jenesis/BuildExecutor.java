@@ -398,15 +398,15 @@ public class BuildExecutor {
         registrations.replace(identity, new Registration(bound, Set.of(appended), Map.of(appended, appended)));
     }
 
-    public SequencedMap<String, Path> execute() {
+    public SequencedMap<String, Path> execute(String... targets) {
         try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
-            return execute(executorService).toCompletableFuture().join();
+            return execute(executorService, targets).toCompletableFuture().join();
         }
     }
 
-    public CompletionStage<SequencedMap<String, Path>> execute(Executor executor) {
+    public CompletionStage<SequencedMap<String, Path>> execute(Executor executor, String... targets) {
         BiConsumer<Boolean, Throwable> completion = callback.step(null, registrations.sequencedKeySet());
-        return doExecute(executor).thenApplyAsync(summaries -> {
+        return doExecute(executor, targets).thenApplyAsync(summaries -> {
             SequencedMap<String, Path> translated = new LinkedHashMap<>();
             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                 translated.put(entry.getKey(), entry.getValue().folder());
@@ -415,7 +415,11 @@ public class BuildExecutor {
         }, executor).whenComplete((_, throwable) -> completion.accept(null, throwable));
     }
 
-    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor) {
+    // TODO: Only execute steps that are specified in 'targets', including their dependent steps. If a build
+    // contains foo -> bar -> qux and the executor is run with argument bar, foo and bar should be running
+    // (in the order that is implied by the graph). If an argument has children /bar/step1 and /bar/step2, the entire
+    // subtree should be run.
+    private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, String[] targets) {
         CompletionStage<Map<String, Map<String, StepSummary>>> initial = CompletableFuture.completedStage(Map.of());
         SequencedMap<String, Registration> pending = new LinkedHashMap<>(registrations);
         SequencedMap<String, CompletionStage<Map<String, Map<String, StepSummary>>>> dispatched = new LinkedHashMap<>();

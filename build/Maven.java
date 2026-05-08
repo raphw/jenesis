@@ -20,6 +20,6 @@ public class Maven {
 
         root.addStep("final", new Relocate(MavenProject.artifactsByModule()), "maven");
 
-        root.execute();
+        root.execute(args);
     }
 }

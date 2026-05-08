@@ -49,6 +49,6 @@ public class Manual {
             module.addStep("tests", new Tests(TestEngine.JUNIT5), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
-        root.execute();
+        root.execute(args);
     }
 }

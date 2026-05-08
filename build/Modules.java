@@ -33,6 +33,6 @@ public class Modules {
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaModule().test(TestEngine.JUNIT5), "test-artifacts", "test-sources", "main");
 
-        root.execute();
+        root.execute(args);
     }
 }
