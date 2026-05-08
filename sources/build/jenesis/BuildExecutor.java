@@ -431,66 +431,63 @@ public class BuildExecutor {
     }
 
     private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, Set<Selector> selectors) {
-        SequencedSet<String> retained = new LinkedHashSet<>();
-        Set<String> matched = new HashSet<>(), terminal = new HashSet<>();
-        Map<String, Set<Selector>> next = new LinkedHashMap<>();
+        SequencedSet<String> scheduled = new LinkedHashSet<>();
+        Set<String> pinned = new HashSet<>(), direct = new HashSet<>();
+        Map<String, Set<Selector>> forwarded = new LinkedHashMap<>();
         if (selectors.isEmpty()) {
-            retained.addAll(registrations.keySet());
+            scheduled.addAll(registrations.keySet());
         } else {
             Queue<Selector> queue = new ArrayDeque<>(selectors);
             while (!queue.isEmpty()) {
-                Selector selector = queue.poll();
+                Selector selector = queue.poll(), tail = selector.tail();
                 String first = selector.first();
-                Selector tail = selector.tail();
                 if (first.equals(":") || first.equals("::")) {
-                    retained.addAll(registrations.keySet());
+                    scheduled.addAll(registrations.keySet());
                     if (tail == null) {
-                        terminal.addAll(registrations.keySet());
-                        matched.addAll(registrations.keySet());
+                        direct.addAll(registrations.keySet());
+                        pinned.addAll(registrations.keySet());
                     } else {
-                        Selector forwarded;
-                        if (first.equals("::")) {
+                        boolean anyDepth = first.equals("::");
+                        if (anyDepth) {
                             queue.add(tail.asLenient());
-                            forwarded = selector;
-                        } else {
-                            forwarded = tail;
                         }
+                        Selector descend = (anyDepth ? selector : tail).asLenient();
                         registrations.keySet().forEach(identity ->
-                                next.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
-                                        .add(forwarded.asLenient()));
+                                forwarded.computeIfAbsent(identity, _ -> new LinkedHashSet<>())
+                                        .add(descend));
                     }
                 } else if (!registrations.containsKey(first)) {
                     if (!selector.lenient()) {
                         throw new IllegalArgumentException("Unknown selector: " + selector.path());
                     }
                 } else {
-                    retained.add(first);
-                    matched.add(first);
+                    scheduled.add(first);
+                    pinned.add(first);
                     if (tail == null) {
-                        terminal.add(first);
+                        direct.add(first);
                     } else {
-                        next.computeIfAbsent(first, _ -> new LinkedHashSet<>()).add(tail);
+                        forwarded.computeIfAbsent(first, _ -> new LinkedHashSet<>()).add(tail);
                     }
                 }
             }
-            ArrayDeque<String> prelimQueue = new ArrayDeque<>(matched);
+            ArrayDeque<String> prelimQueue = new ArrayDeque<>(pinned);
             while (!prelimQueue.isEmpty()) {
                 for (String preliminary : registrations.get(prelimQueue.poll()).preliminaries()) {
-                    retained.add(preliminary);
-                    terminal.add(preliminary);
-                    if (matched.add(preliminary)) {
+                    scheduled.add(preliminary);
+                    direct.add(preliminary);
+                    if (pinned.add(preliminary)) {
                         prelimQueue.add(preliminary);
                     }
                 }
             }
-            for (String identity : terminal) {
-                next.remove(identity);
+            for (String identity : direct) {
+                forwarded.remove(identity);
             }
         }
         CompletionStage<Map<String, Map<String, StepSummary>>> initial = CompletableFuture.completedStage(Map.of());
         SequencedMap<String, Registration> pending = new LinkedHashMap<>();
         for (Map.Entry<String, Registration> entry : registrations.entrySet()) {
-            if (retained.contains(entry.getKey())) {
+            if (scheduled.contains(entry.getKey())) {
                 pending.put(entry.getKey(), entry.getValue());
             }
         }
@@ -538,7 +535,7 @@ public class BuildExecutor {
                                     entry.getKey(),
                                     executor,
                                     propagated,
-                                    next.getOrDefault(entry.getKey(), Set.of()));
+                                    forwarded.getOrDefault(entry.getKey(), Set.of()));
                         } catch (Throwable t) {
                             return CompletableFuture.failedStage(new BuildExecutorException(
                                     location + entry.getKey(),
@@ -550,7 +547,7 @@ public class BuildExecutor {
             }
         }
         CompletionStage<Map<String, StepSummary>> result = CompletableFuture.completedStage(Map.of());
-        for (String identity : retained) {
+        for (String identity : scheduled) {
             result = result.thenCombineAsync(dispatched.get(identity), (left, right) -> {
                 SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(left);
                 right.values().forEach(merged::putAll);

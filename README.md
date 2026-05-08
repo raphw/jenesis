@@ -75,6 +75,11 @@ own sub-modules. The `inherited` map exposes the predecessor folders the parent 
 steps into modules turns commonly-recurring patterns (compile + jar + test, resolve + checksum + download, scan a
 multi-project tree, …) into reusable units that take only their inputs as configuration.
 
+Unlike steps, modules are not cached: `accept(...)` runs on every build to (re-)register its sub-graph, and only
+the registered steps are then content-hashed and considered for skipping. Logic that lives inside the module body
+itself — file scans, classpath assembly, conditional step wiring — therefore executes unconditionally on every
+run; wrap it in a step if you need it skipped on unchanged inputs.
+
 Three properties of the model give incremental builds and reproducibility for free:
 
 - **Each step's output folder is immutable once produced.** A step only ever writes into its own `next`; downstream
@@ -389,3 +394,4 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - High-level builder for Project with defaults. With that builder, add an entry point for running tests on the command line where tests always run and run by selection of needed.
 - Add support for plugin steps via repository.
 - Consider automatic wrapping of build in Docker.
+- Check range resolution for Maven version resolver by adding more tests.
