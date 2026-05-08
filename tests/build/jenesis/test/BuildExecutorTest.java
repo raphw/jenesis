@@ -1060,4 +1060,183 @@ public class BuildExecutorTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Duplicated synonym: duplicate");
     }
+
+    @Test
+    public void can_execute_single_target_with_transitive_dependency() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step1", (_, context, arguments) -> {
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        buildExecutor.addStep("step2", (_, _, _) -> {
+            throw new AssertionError("step2 should not run");
+        }, "step1");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "step1").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step1");
+        assertThat(root.resolve("step1").resolve("output").resolve("file")).content().isEqualTo("foobar");
+        assertThat(root.resolve("step2")).doesNotExist();
+    }
+
+    @Test
+    public void can_execute_multiple_targets() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step1", (_, context, arguments) -> {
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        buildExecutor.addStep("step2", (_, context, arguments) -> {
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("source").folder().resolve("file")) + "qux");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        buildExecutor.addStep("step3", (_, _, _) -> {
+            throw new AssertionError("step3 should not run");
+        }, "step1");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "step1", "step2").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "step1", "step2");
+        assertThat(root.resolve("step3")).doesNotExist();
+    }
+
+    @Test
+    public void can_execute_target_skipping_unrelated_branch() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        Files.writeString(source2.resolve("file"), "bar");
+        buildExecutor.addSource("source1", source);
+        buildExecutor.addSource("source2", source2);
+        buildExecutor.addStep("branchA", (_, context, arguments) -> {
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("source1").folder().resolve("file")) + "A");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source1");
+        buildExecutor.addStep("branchB", (_, _, _) -> {
+            throw new AssertionError("branchB should not run");
+        }, "source2");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "branchA").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source1", "branchA");
+        assertThat(root.resolve("branchB")).doesNotExist();
+        assertThat(root.resolve("source2")).doesNotExist();
+    }
+
+    @Test
+    public void rejects_unknown_target() {
+        buildExecutor.addStep("step1", (_, _, _) -> {
+            throw new AssertionError();
+        });
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run, "nonexistent").toCompletableFuture().join())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unknown target: nonexistent");
+    }
+
+    @Test
+    public void can_execute_nested_target_with_sub_step() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("module", (module, _) -> {
+            module.addSource("source", source);
+            module.addStep("step1", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+            module.addStep("step2", (_, _, _) -> {
+                throw new AssertionError("step2 should not run");
+            }, "step1");
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "module/step1").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("module/source", "module/step1");
+        assertThat(root.resolve("module").resolve("step2")).doesNotExist();
+    }
+
+    @Test
+    public void can_execute_bare_module_target_runs_entire_subtree() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("module", (module, _) -> {
+            module.addSource("source", source);
+            module.addStep("step1", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+            module.addStep("step2", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "step1");
+        });
+        buildExecutor.addStep("other", (_, _, _) -> {
+            throw new AssertionError("other should not run");
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "module").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("module/source", "module/step1", "module/step2");
+        assertThat(root.resolve("other")).doesNotExist();
+    }
+
+    @Test
+    public void can_execute_deeply_nested_target() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addModule("outer", (outer, _) -> {
+            outer.addModule("inner", (inner, _) -> {
+                inner.addStep("leaf", (_, context, arguments) -> {
+                    Files.writeString(
+                            context.next().resolve("file"),
+                            Files.readString(arguments.get("../../source").folder().resolve("file")) + "bar");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                }, "../../source");
+                inner.addStep("sibling", (_, _, _) -> {
+                    throw new AssertionError("sibling should not run");
+                });
+            }, "../source");
+        }, "source");
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "outer/inner/leaf").toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("source", "outer/inner/leaf");
+        assertThat(root.resolve("outer").resolve("inner").resolve("sibling")).doesNotExist();
+    }
+
+    @Test
+    public void rejects_unknown_nested_target() {
+        buildExecutor.addModule("module", (module, _) -> module.addStep("step1", (_, _, _) -> {
+            throw new AssertionError();
+        }));
+        assertThatThrownBy(() -> buildExecutor.execute(Runnable::run, "module/nonexistent")
+                .toCompletableFuture().join())
+                .isInstanceOf(BuildExecutorException.class)
+                .hasMessage("Failed to execute module")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unknown target: nonexistent");
+    }
+
+    @Test
+    public void bare_target_overrides_sub_path() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addModule("module", (module, _) -> {
+            module.addSource("source", source);
+            module.addStep("step1", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "source");
+            module.addStep("step2", (_, context, arguments) -> {
+                Files.writeString(
+                        context.next().resolve("file"),
+                        Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, "step1");
+        });
+        Map<String, ?> build = buildExecutor.execute(Runnable::run, "module/step1", "module")
+                .toCompletableFuture().join();
+        assertThat(build).containsOnlyKeys("module/source", "module/step1", "module/step2");
+    }
 }

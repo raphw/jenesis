@@ -415,13 +415,47 @@ public class BuildExecutor {
         }, executor).whenComplete((_, throwable) -> completion.accept(null, throwable));
     }
 
-    // TODO: Only execute steps that are specified in 'targets', including their dependent steps. If a build
-    // contains foo -> bar -> qux and the executor is run with argument bar, foo and bar should be running
-    // (in the order that is implied by the graph). If an argument has children /bar/step1 and /bar/step2, the entire
-    // subtree should be run.
     private CompletionStage<Map<String, StepSummary>> doExecute(Executor executor, Set<String> targets) {
+        SequencedSet<String> retained = new LinkedHashSet<>();
+        Map<String, Set<String>> subTargets = new LinkedHashMap<>();
+        Set<String> bare = new HashSet<>();
+        if (targets.isEmpty()) {
+            retained.addAll(registrations.keySet());
+        } else {
+            ArrayDeque<String> queue = new ArrayDeque<>();
+            for (String target : targets) {
+                int index = target.indexOf('/');
+                String local = index == -1 ? target : target.substring(0, index);
+                if (!registrations.containsKey(local)) {
+                    throw new IllegalArgumentException("Unknown target: " + target);
+                }
+                if (retained.add(local)) {
+                    queue.add(local);
+                }
+                if (index == -1) {
+                    bare.add(local);
+                } else {
+                    subTargets.computeIfAbsent(local, _ -> new LinkedHashSet<>()).add(target.substring(index + 1));
+                }
+            }
+            for (String identity : bare) {
+                subTargets.remove(identity);
+            }
+            while (!queue.isEmpty()) {
+                for (String preliminary : registrations.get(queue.poll()).preliminaries()) {
+                    if (retained.add(preliminary)) {
+                        queue.add(preliminary);
+                    }
+                }
+            }
+        }
         CompletionStage<Map<String, Map<String, StepSummary>>> initial = CompletableFuture.completedStage(Map.of());
-        SequencedMap<String, Registration> pending = new LinkedHashMap<>(registrations);
+        SequencedMap<String, Registration> pending = new LinkedHashMap<>();
+        for (Map.Entry<String, Registration> entry : registrations.entrySet()) {
+            if (retained.contains(entry.getKey())) {
+                pending.put(entry.getKey(), entry.getValue());
+            }
+        }
         SequencedMap<String, CompletionStage<Map<String, Map<String, StepSummary>>>> dispatched = new LinkedHashMap<>();
         while (!pending.isEmpty()) {
             Iterator<Map.Entry<String, Registration>> it = pending.entrySet().iterator();
@@ -462,7 +496,11 @@ public class BuildExecutor {
                                     }
                                 }
                             });
-                            return entry.getValue().bound().apply(entry.getKey(), executor, propagated, targets);
+                            return entry.getValue().bound().apply(
+                                    entry.getKey(),
+                                    executor,
+                                    propagated,
+                                    subTargets.getOrDefault(entry.getKey(), Set.of()));
                         } catch (Throwable t) {
                             return CompletableFuture.failedStage(new BuildExecutorException(
                                     location + entry.getKey(),
@@ -474,7 +512,7 @@ public class BuildExecutor {
             }
         }
         CompletionStage<Map<String, StepSummary>> result = CompletableFuture.completedStage(Map.of());
-        for (String identity : registrations.keySet()) {
+        for (String identity : retained) {
             result = result.thenCombineAsync(dispatched.get(identity), (left, right) -> {
                 SequencedMap<String, StepSummary> merged = new LinkedHashMap<>(left);
                 right.values().forEach(merged::putAll);
