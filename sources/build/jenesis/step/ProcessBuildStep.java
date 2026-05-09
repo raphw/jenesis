@@ -43,27 +43,6 @@ public abstract class ProcessBuildStep implements BuildStep {
         return code == 0;
     }
 
-    public static void resolvePaths(SequencedMap<String, BuildStepArgument> arguments,
-                                    SequencedMap<String, SequencedMap<String, String>> properties,
-                                    Set<String> keys) {
-        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            SequencedMap<String, String> folderProps = properties.get(entry.getKey());
-            if (folderProps == null) {
-                continue;
-            }
-            Path folder = entry.getValue().folder();
-            for (String key : keys) {
-                String value = folderProps.get(key);
-                if (value == null) {
-                    continue;
-                }
-                folderProps.put(key, Stream.of(value.split("\n"))
-                        .map(part -> part.isEmpty() ? part : folder.resolve(part).toString())
-                        .collect(Collectors.joining("\n")));
-            }
-        }
-    }
-
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,

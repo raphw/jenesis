@@ -1,11 +1,12 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 
-import module java.base;
-
 public abstract class Java extends ProcessBuildStep {
+
+    private static final String MODULE_PATH = "--module-path", CLASS_PATH = "--class-path";
 
     protected boolean modular = true, jarsOnly = false;
 
@@ -67,7 +68,6 @@ public abstract class Java extends ProcessBuildStep {
                                                  SequencedMap<String, BuildStepArgument> arguments,
                                                  SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
-        resolvePaths(arguments, properties, Set.of("--module-path", "--class-path"));
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             BuildStepArgument argument = entry.getValue();
@@ -75,7 +75,7 @@ public abstract class Java extends ProcessBuildStep {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
                     if (Files.isDirectory(candidate)) {
-                        if (modular && Files.exists(candidate.resolve("module-info.class")) ) { // TODO: multi-release?
+                        if (modular && Files.exists(candidate.resolve("module-info.class"))) { // TODO: multi-release?
                             modulePath.add(candidate.toString()); // TODO: does manifest apply without jar file?
                         } else {
                             classPath.add(candidate.toString());
@@ -107,34 +107,32 @@ public abstract class Java extends ProcessBuildStep {
                     }
                 });
             }
-            SequencedMap<String, String> folderProps = properties.get(entry.getKey());
-            if (folderProps != null) {
-                String mp = folderProps.remove("--module-path");
-                if (mp != null) {
-                    for (String part : mp.split("\n")) {
-                        if (!part.isEmpty()) {
-                            modulePath.add(part);
-                        }
-                    }
-                }
-                String cp = folderProps.remove("--class-path");
-                if (cp != null) {
-                    for (String part : cp.split("\n")) {
-                        if (!part.isEmpty()) {
-                            classPath.add(part);
+            SequencedMap<String, String> folders = properties.get(entry.getKey());
+            if (folders != null) {
+                for (Map.Entry<String, List<String>> paths : Map.of(
+                        MODULE_PATH, modulePath,
+                        CLASS_PATH, classPath
+                ).entrySet()) {
+                    String value = folders.remove(paths.getKey());
+                    if (value != null) {
+                        for (String part : value.split("\n")) {
+                            if (!part.isEmpty()) {
+                                paths.getValue().add(argument.folder().resolve(part).toString());
+                            }
                         }
                     }
                 }
             }
         }
         List<String> prefixes = new ArrayList<>();
-        if (!classPath.isEmpty()) {
-            prefixes.add("-classpath");
-            prefixes.add(String.join(File.pathSeparator, classPath));
-        }
-        if (!modulePath.isEmpty()) {
-            prefixes.add("--module-path");
-            prefixes.add(String.join(File.pathSeparator, modulePath));
+        for (Map.Entry<String, List<String>> paths : Map.of(
+                MODULE_PATH, modulePath,
+                CLASS_PATH, classPath
+        ).entrySet()) {
+            if (!paths.getValue().isEmpty()) {
+                prefixes.add(paths.getKey());
+                prefixes.add(String.join(File.pathSeparator, paths.getValue()));
+            }
         }
         return commands(executor, context, arguments).thenApplyAsync(commands -> Stream.concat(
                 prefixes.stream(),
