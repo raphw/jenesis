@@ -43,6 +43,27 @@ public abstract class ProcessBuildStep implements BuildStep {
         return code == 0;
     }
 
+    public static void resolvePaths(SequencedMap<String, BuildStepArgument> arguments,
+                                    SequencedMap<String, SequencedMap<String, String>> properties,
+                                    Set<String> keys) {
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+            SequencedMap<String, String> folderProps = properties.get(entry.getKey());
+            if (folderProps == null) {
+                continue;
+            }
+            Path folder = entry.getValue().folder();
+            for (String key : keys) {
+                String value = folderProps.get(key);
+                if (value == null) {
+                    continue;
+                }
+                folderProps.put(key, Stream.of(value.split("\n"))
+                        .map(part -> part.isEmpty() ? part : folder.resolve(part).toString())
+                        .collect(Collectors.joining("\n")));
+            }
+        }
+    }
+
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
@@ -69,7 +90,7 @@ public abstract class ProcessBuildStep implements BuildStep {
                 List<String> prepended = new ArrayList<>();
                 for (SequencedMap<String, String> folderMap : properties.values()) {
                     for (Map.Entry<String, String> entry : folderMap.entrySet()) {
-                        for (String value : entry.getValue().split("\n", -1)) {
+                        for (String value : entry.getValue().split("\n")) {
                             prepended.add(entry.getKey());
                             if (!value.isEmpty()) {
                                 prepended.add(value);
@@ -77,9 +98,8 @@ public abstract class ProcessBuildStep implements BuildStep {
                         }
                     }
                 }
-                List<String> finalArgs = Stream.concat(prepended.stream(), processed.stream()).toList();
                 Path output = context.supplement().resolve("output"), error = context.supplement().resolve("error");
-                ProcessHandler handler = factory.apply(finalArgs);
+                ProcessHandler handler = factory.apply(Stream.concat(prepended.stream(), processed.stream()).toList());
                 executor.execute(() -> {
                     try {
                         int exitCode = handler.execute(output, error);

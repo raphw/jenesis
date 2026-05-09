@@ -472,3 +472,4 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - Add support for external plugin steps via repository.
 - Consider automatic wrapping of build in Docker.
 - Check range resolution for Maven version resolver by adding more tests.
+- Fix different TODOs within the project.

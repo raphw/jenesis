@@ -67,6 +67,7 @@ public abstract class Java extends ProcessBuildStep {
                                                  SequencedMap<String, BuildStepArgument> arguments,
                                                  SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
+        resolvePaths(arguments, properties, Set.of("--module-path", "--class-path"));
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             BuildStepArgument argument = entry.getValue();
@@ -110,17 +111,17 @@ public abstract class Java extends ProcessBuildStep {
             if (folderProps != null) {
                 String mp = folderProps.remove("--module-path");
                 if (mp != null) {
-                    for (String part : mp.split("\n", -1)) {
+                    for (String part : mp.split("\n")) {
                         if (!part.isEmpty()) {
-                            modulePath.add(argument.folder().resolve(part).toString());
+                            modulePath.add(part);
                         }
                     }
                 }
                 String cp = folderProps.remove("--class-path");
                 if (cp != null) {
-                    for (String part : cp.split("\n", -1)) {
+                    for (String part : cp.split("\n")) {
                         if (!part.isEmpty()) {
-                            classPath.add(argument.folder().resolve(part).toString());
+                            classPath.add(part);
                         }
                     }
                 }
