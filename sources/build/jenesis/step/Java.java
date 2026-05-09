@@ -109,10 +109,10 @@ public abstract class Java extends ProcessBuildStep {
             }
             SequencedMap<String, String> folders = properties.get(entry.getKey());
             if (folders != null) {
-                for (Map.Entry<String, List<String>> paths : Map.of(
-                        MODULE_PATH, modulePath,
-                        CLASS_PATH, classPath
-                ).entrySet()) {
+                for (Map.Entry<String, List<String>> paths : List.of(
+                        Map.entry(MODULE_PATH, modulePath),
+                        Map.entry(CLASS_PATH, classPath)
+                )) {
                     String value = folders.remove(paths.getKey());
                     if (value != null) {
                         for (String part : value.split("\n")) {
@@ -125,10 +125,10 @@ public abstract class Java extends ProcessBuildStep {
             }
         }
         List<String> prefixes = new ArrayList<>();
-        for (Map.Entry<String, List<String>> paths : Map.of(
-                MODULE_PATH, modulePath,
-                CLASS_PATH, classPath
-        ).entrySet()) {
+        for (Map.Entry<String, List<String>> paths : List.of(
+                Map.entry(MODULE_PATH, modulePath),
+                Map.entry(CLASS_PATH, classPath)
+        )) {
             if (!paths.getValue().isEmpty()) {
                 prefixes.add(paths.getKey());
                 prefixes.add(String.join(File.pathSeparator, paths.getValue()));
