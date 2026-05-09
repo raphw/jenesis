@@ -87,7 +87,7 @@ public class Tests implements BuildExecutorModule {
         Stream<String> dependencies;
         if (repositories != null && resolvers != null) {
             buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
-            buildExecutor.addStep(PREPARE_RESOLVED, new Resolve(repositories, resolvers), RESOLVED);
+            buildExecutor.addStep(PREPARE_RESOLVED, new Resolve(repositories, resolvers, false), RESOLVED);
             buildExecutor.addStep(PREPARE, new Prepare(repositories), PREPARE_RESOLVED);
             dependencies = Stream.concat(
                     upstream.stream(),

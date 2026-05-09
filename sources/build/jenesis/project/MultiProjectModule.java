@@ -2,6 +2,7 @@ package build.jenesis.project;
 
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
 
@@ -12,7 +13,9 @@ public class MultiProjectModule implements BuildExecutorModule {
     public static final String SOURCES = "sources",
             MANIFESTS = "manifests",
             CHECKED = "checked",
-            ARTIFACTS = "artifacts";
+            ARTIFACTS = "artifacts",
+            COMPILE = "compile",
+            RUNTIME = "runtime";
 
     private static final String IDENTIFIER = "identifier",
             GROUP = "group",
@@ -72,7 +75,8 @@ public class MultiProjectModule implements BuildExecutorModule {
                 }
             }
             process.addStep(GROUP,
-                    new Group(identifier -> Optional.of(modules.get(identifier))),
+                    new Group(identifier -> Optional.of(modules.get(identifier)),
+                            COMPILE + "/" + BuildStep.REQUIRES),
                     modules.sequencedKeySet());
             process.addModule(MODULE, (build, paths) -> {
                 SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();

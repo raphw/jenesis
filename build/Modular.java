@@ -33,7 +33,10 @@ public class Modular {
                     resolvers,
                     descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
                             new JavaModule().testIfAvailable(repositories, resolvers),
-                            descriptor.sources(), descriptor.manifests(), descriptor.artifacts())));
+                            descriptor.sources(),
+                            descriptor.manifests(),
+                            descriptor.artifacts(),
+                            descriptor.runtimeArtifacts())));
         }, "download");
 
         root.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");

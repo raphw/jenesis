@@ -26,12 +26,12 @@ public class Modules {
         root.addSource("deps", Path.of("dependencies"));
 
         root.addStep("main-deps", Bind.asRequires("main.properties"), "deps");
-        root.addModule("main-artifacts", new DependenciesModule(repositories, resolvers), "main-deps");
+        root.addModule("main-artifacts", new DependenciesModule(repositories, resolvers, true), "main-deps");
         root.addSource("main-sources", Bind.asSources(), Path.of("sources"));
         root.addModule("main", new JavaModule(), identifier -> identifier.equals("artifacts") ? Optional.of(identifier) : Optional.empty(), "main-artifacts", "main-sources");
 
         root.addStep("test-deps", Bind.asRequires("test.properties"), "deps");
-        root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers), "test-deps");
+        root.addModule("test-artifacts", new DependenciesModule(repositories, resolvers, true), "test-deps");
         root.addSource("test-sources", Bind.asSources(), Path.of("tests"));
         root.addModule("test", new JavaModule().test(TestDefaultEngine.JUNIT5), "test-artifacts", "test-sources", "main");
 

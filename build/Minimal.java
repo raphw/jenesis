@@ -30,7 +30,7 @@ public class Minimal {
         root.addStep("main-jar", Jar.tool(Jar.Sort.CLASSES), "main-javac");
 
         root.addSource("test-dependencies", Bind.asRequires("test.properties"), Path.of("dependencies"));
-        root.addStep("test-dependencies-resolved", new Resolve(repositories, resolvers), "test-dependencies");
+        root.addStep("test-dependencies-resolved", new Resolve(repositories, resolvers, true), "test-dependencies");
         root.addStep("test-dependencies-downloaded", new Download(repositories), "test-dependencies-resolved");
 
         root.addSource("test", Bind.asSources(), Path.of("tests"));

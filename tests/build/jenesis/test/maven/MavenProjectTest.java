@@ -10,6 +10,7 @@ import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
+import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.JavaModule;
 
 import module java.base;
@@ -69,9 +70,10 @@ public class MavenProjectTest {
                 "maven/group/artifact/jar/1",
                 "maven/group/artifact/pom/1");
         assertThat(coordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
-        assertThat(module.resolve(BuildStep.REQUIRES)).exists();
+        Path moduleRequires = module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
+        assertThat(moduleRequires).exists();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.REQUIRES))) {
+        try (Reader reader = Files.newBufferedReader(moduleRequires)) {
             dependencies.load(reader);
         }
         assertThat(dependencies).containsOnlyKeys("maven/other/artifact/jar/1");
@@ -86,9 +88,10 @@ public class MavenProjectTest {
                 "maven/group/artifact/jar/tests/1",
                 "maven/group/artifact/pom/1");
         assertThat(testCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
-        assertThat(testModule.resolve(BuildStep.REQUIRES)).exists();
+        Path testModuleRequires = testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
+        assertThat(testModuleRequires).exists();
         Properties testDependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.REQUIRES))) {
+        try (Reader reader = Files.newBufferedReader(testModuleRequires)) {
             testDependencies.load(reader);
         }
         assertThat(testDependencies).containsOnlyKeys("maven/group/artifact/jar/1");
@@ -144,7 +147,7 @@ public class MavenProjectTest {
                 "maven/parent/artifact/jar/1",
                 "maven/parent/artifact/pom/1");
         assertThat(parentCoordinates.getProperty("maven/parent/artifact/jar/1")).isEmpty();
-        assertThat(parent.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
+        assertThat(parent.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
         Path parentTests = results.get("maven/module/test-module-/manifests");
         assertThat(parentTests.resolve(BuildStep.IDENTITY)).exists();
         Properties parentTestCoordinates = new Properties();
@@ -156,7 +159,7 @@ public class MavenProjectTest {
                 "maven/parent/artifact/pom/1");
         assertThat(parentTestCoordinates.getProperty("maven/parent/artifact/jar/tests/1")).isEmpty();
         Properties parentTestDependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.REQUIRES))) {
+        try (Reader reader = Files.newBufferedReader(parentTests.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES))) {
             parentTestDependencies.load(reader);
         }
         assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/jar/1");
@@ -171,7 +174,7 @@ public class MavenProjectTest {
                 "maven/group/artifact/jar/1",
                 "maven/group/artifact/pom/1");
         assertThat(childCoordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
-        assertThat(child.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
+        assertThat(child.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
         Path childTests = results.get("maven/module/test-module-subproject/manifests");
         assertThat(childTests.resolve(BuildStep.IDENTITY)).exists();
         Properties childTestCoordinates = new Properties();
@@ -183,7 +186,7 @@ public class MavenProjectTest {
                 "maven/group/artifact/pom/1");
         assertThat(childTestCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
         Properties childTestDependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.REQUIRES))) {
+        try (Reader reader = Files.newBufferedReader(childTests.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES))) {
             childTestDependencies.load(reader);
         }
         assertThat(childTestDependencies).containsOnlyKeys("maven/group/artifact/jar/1");
@@ -385,24 +388,32 @@ public class MavenProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
-                                    "../checked",
-                                    "../artifacts");
+                                    "../compile-checked",
+                                    "../compile-artifacts",
+                                    "../runtime-checked",
+                                    "../runtime-artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
-                                    "../checked",
-                                    "../artifacts",
-                                    "../../module-foo/prepare",
-                                    "../../module-foo/dependencies/resolved",
-                                    "../../module-foo/dependencies/checked",
-                                    "../../module-foo/dependencies/artifacts",
-                                    "../../module-foo/build/java/classes",
-                                    "../../module-foo/build/java/artifacts",
+                                    "../compile-checked",
+                                    "../compile-artifacts",
+                                    "../runtime-checked",
+                                    "../runtime-artifacts",
+                                    "../../module-foo/prepare-compile",
+                                    "../../module-foo/prepare-runtime",
+                                    "../../module-foo/dependencies-compile/resolved",
+                                    "../../module-foo/dependencies-compile/checked",
+                                    "../../module-foo/dependencies-compile/artifacts",
+                                    "../../module-foo/dependencies-runtime/resolved",
+                                    "../../module-foo/dependencies-runtime/checked",
+                                    "../../module-foo/dependencies-runtime/artifacts",
+                                    "../../module-foo/produce/java/classes",
+                                    "../../module-foo/produce/java/artifacts",
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
                         buildExecutor.addModule("java", new JavaModule(),
-                                "../sources", "../manifests", "../artifacts");
+                                "../sources", "../manifests", "../compile-artifacts", "../runtime-artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
@@ -414,7 +425,7 @@ public class MavenProjectTest {
         }
         assertThat(foo.stringPropertyNames()).containsExactly("maven/group/foo/jar/1", "maven/group/foo/pom/1");
         assertThat(foo.getProperty("maven/group/foo/jar/1")).isEqualTo(build
-                .resolve("maven/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("maven/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar")
                 .toString());
         assertThat(foo.getProperty("maven/group/foo/pom/1")).isEqualTo(build
                 .resolve("maven/identifier/scan/output/pom/foo/pom.xml")
@@ -427,7 +438,7 @@ public class MavenProjectTest {
         }
         assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/jar/1", "maven/group/bar/pom/1");
         assertThat(bar.getProperty("maven/group/bar/jar/1")).isEqualTo(build
-                .resolve("maven/build/module/module-bar/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("maven/build/module/module-bar/produce/java/artifacts/output/artifacts/classes.jar")
                 .toString());
         assertThat(bar.getProperty("maven/group/bar/pom/1")).isEqualTo(build
                 .resolve("maven/identifier/scan/output/pom/bar/pom.xml")
@@ -437,7 +448,7 @@ public class MavenProjectTest {
     @Test
     public void artifactsByModule_links_classes_jar_and_pom_xml_under_sub_module_folder() {
         Function<Path, Optional<Path>> placement = MavenProject.artifactsByModule();
-        Path jar = Path.of("/wrap/build/module/test-module-foo/build/java/artifacts/output/artifacts/classes.jar");
+        Path jar = Path.of("/wrap/build/module/test-module-foo/produce/java/artifacts/output/artifacts/classes.jar");
         Path pom = Path.of("/wrap/build/module/test-module-foo/build/pom/output/pom.xml");
         Path other = Path.of("/wrap/build/module/test-module-foo/build/java/classes/output/A.class");
         assertThat(placement.apply(jar)).contains(Path.of("test-module-foo", "classes.jar"));

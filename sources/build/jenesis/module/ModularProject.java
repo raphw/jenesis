@@ -17,7 +17,11 @@ import module java.base;
 
 public class ModularProject implements BuildExecutorModule {
 
-    private static final String DEPENDENCIES = "dependencies";
+    private static final String DEPENDENCIES = "dependencies",
+            DEPENDENCIES_COMPILE = DEPENDENCIES + "-" + MultiProjectModule.COMPILE,
+            DEPENDENCIES_RUNTIME = DEPENDENCIES + "-" + MultiProjectModule.RUNTIME,
+            PREPARE_COMPILE = "prepare-" + MultiProjectModule.COMPILE,
+            PREPARE_RUNTIME = "prepare-" + MultiProjectModule.RUNTIME;
 
     private final String prefix;
     private final Path root;
@@ -66,32 +70,45 @@ public class ModularProject implements BuildExecutorModule {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
-                    buildExecutor.addStep("prepare",
+                    Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
+                            Repository.ofProperties(BuildStep.IDENTITY,
+                                    inherited.entrySet().stream()
+                                            .filter(entry ->
+                                                    entry.getKey().startsWith(PREVIOUS + "module-")
+                                                            && entry.getKey().endsWith("/assign"))
+                                            .map(Map.Entry::getValue)
+                                            .toList(),
+                                    file -> Path.of(file).toUri(),
+                                    null));
+                    buildExecutor.addStep(PREPARE_COMPILE,
                             new MultiProjectDependencies(
                                     algorithm,
                                     identifier -> identifier.startsWith(MultiProjectModule.IDENTIFIER_PATH
-                                            + name + "/")),
+                                            + name + "/"),
+                                    MultiProjectModule.COMPILE),
                             inherited.sequencedKeySet());
-                    buildExecutor.addModule(DEPENDENCIES,
-                            new DependenciesModule(
-                                    Repository.prepend(repositories,
-                                            Repository.ofProperties(BuildStep.IDENTITY,
-                                                    inherited.entrySet().stream()
-                                                            .filter(entry ->
-                                                                    entry.getKey().startsWith(PREVIOUS + "module-")
-                                                                            && entry.getKey().endsWith("/assign"))
-                                                            .map(Map.Entry::getValue)
-                                                            .toList(),
-                                                    file -> Path.of(file).toUri(),
-                                                    null)),
-                                    resolvers).computeChecksums(algorithm),
-                            "prepare");
+                    buildExecutor.addModule(DEPENDENCIES_COMPILE,
+                            new DependenciesModule(mergedRepositories, resolvers, true).computeChecksums(algorithm),
+                            PREPARE_COMPILE);
+                    buildExecutor.addStep(PREPARE_RUNTIME,
+                            new MultiProjectDependencies(
+                                    algorithm,
+                                    identifier -> identifier.startsWith(MultiProjectModule.IDENTIFIER_PATH
+                                            + name + "/"),
+                                    MultiProjectModule.RUNTIME),
+                            inherited.sequencedKeySet());
+                    buildExecutor.addModule(DEPENDENCIES_RUNTIME,
+                            new DependenciesModule(mergedRepositories, resolvers, false).computeChecksums(algorithm),
+                            PREPARE_RUNTIME);
                     buildExecutor.addModule("build",
                             builder.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
-                                            Stream.of(DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
+                                            Stream.of(
+                                                    DEPENDENCIES_COMPILE + "/" + MultiProjectModule.CHECKED,
+                                                    DEPENDENCIES_COMPILE + "/" + MultiProjectModule.ARTIFACTS,
+                                                    DEPENDENCIES_RUNTIME + "/" + MultiProjectModule.CHECKED,
+                                                    DEPENDENCIES_RUNTIME + "/" + MultiProjectModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -101,7 +118,12 @@ public class ModularProject implements BuildExecutorModule {
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
                                                         + name + "/"
                                                         + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
-                                                case String value when value.startsWith(DEPENDENCIES + "/") -> value.substring(DEPENDENCIES.length() + 1);
+                                                case String value when value.startsWith(DEPENDENCIES_COMPILE + "/") ->
+                                                        MultiProjectModule.COMPILE + "-"
+                                                                + value.substring(DEPENDENCIES_COMPILE.length() + 1);
+                                                case String value when value.startsWith(DEPENDENCIES_RUNTIME + "/") ->
+                                                        MultiProjectModule.RUNTIME + "-"
+                                                                + value.substring(DEPENDENCIES_RUNTIME.length() + 1);
                                                 default -> key;
                                             },
                                             (a, _) -> a,
@@ -117,6 +139,20 @@ public class ModularProject implements BuildExecutorModule {
 
     public static <T extends Function<Path, Optional<Path>> & Serializable> T artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
+    }
+
+    private static void writeRequires(Path folder,
+                                      String scope,
+                                      String prefix,
+                                      SequencedSet<String> requires) throws IOException {
+        Path target = Files.createDirectories(folder.resolve(scope));
+        Properties properties = new SequencedProperties();
+        for (String dependency : requires) {
+            properties.setProperty(prefix + "/" + dependency, "");
+        }
+        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.REQUIRES))) {
+            properties.store(writer, null);
+        }
     }
 
     @Override
@@ -142,15 +178,8 @@ public class ModularProject implements BuildExecutorModule {
                                         .resolve(BuildStep.IDENTITY))) {
                                     coordinates.store(writer, null);
                                 }
-                                Properties dependencies = new SequencedProperties();
-                                for (String dependency : info.requires()) {
-                                    dependencies.setProperty(prefix + "/" + dependency, "");
-                                }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context
-                                        .next()
-                                        .resolve(BuildStep.REQUIRES))) {
-                                    dependencies.store(writer, null);
-                                }
+                                writeRequires(context.next(), MultiProjectModule.COMPILE, prefix, info.requires());
+                                writeRequires(context.next(), MultiProjectModule.RUNTIME, prefix, info.runtimeRequires());
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             }, "sources");
                         });

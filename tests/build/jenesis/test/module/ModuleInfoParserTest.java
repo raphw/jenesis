@@ -23,6 +23,23 @@ public class ModuleInfoParserTest {
                 }
                 """);
         assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java"))).isEqualTo(
-                new ModuleInfo("foo", new LinkedHashSet<>(List.of("bar"))));
+                new ModuleInfo("foo",
+                        new LinkedHashSet<>(List.of("bar")),
+                        new LinkedHashSet<>(List.of("bar"))));
+    }
+
+    @Test
+    public void separates_static_requires_from_runtime() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                module foo {
+                  requires bar;
+                  requires static qux;
+                  requires static transitive baz;
+                }
+                """);
+        assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java"))).isEqualTo(
+                new ModuleInfo("foo",
+                        new LinkedHashSet<>(List.of("bar", "qux", "baz")),
+                        new LinkedHashSet<>(List.of("bar"))));
     }
 }

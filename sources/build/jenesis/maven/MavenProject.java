@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
+import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.MultiProjectDependencies;
@@ -22,7 +23,12 @@ public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
-    private static final String MODULE = "module", DEPENDENCIES = "dependencies";
+    private static final String MODULE = "module",
+            DEPENDENCIES = "dependencies",
+            DEPENDENCIES_COMPILE = DEPENDENCIES + "-" + MultiProjectModule.COMPILE,
+            DEPENDENCIES_RUNTIME = DEPENDENCIES + "-" + MultiProjectModule.RUNTIME,
+            PREPARE_COMPILE = "prepare-" + MultiProjectModule.COMPILE,
+            PREPARE_RUNTIME = "prepare-" + MultiProjectModule.RUNTIME;
 
     private final Path root;
     private final String prefix;
@@ -53,33 +59,48 @@ public class MavenProject implements BuildExecutorModule {
                         ? Optional.of(identifier.substring(MODULE.length() + 1, identifier.indexOf('/', MODULE.length() + 1)))
                         : Optional.empty(),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
-                    buildExecutor.addStep("prepare",
+                    Map<String, Repository> mergedRepositories = Repository.prepend(Map.of(prefix, mavenRepository),
+                            Repository.ofProperties(BuildStep.IDENTITY,
+                                    inherited.entrySet().stream()
+                                            .filter(entry ->
+                                                    entry.getKey().startsWith(PREVIOUS + "module-")
+                                                            && entry.getKey().endsWith("/assign"))
+                                            .map(Map.Entry::getValue)
+                                            .toList(),
+                                    file -> Path.of(file).toUri(),
+                                    null));
+                    Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
+                    buildExecutor.addStep(PREPARE_COMPILE,
                             new MultiProjectDependencies(
                                     algorithm,
                                     identifier -> identifier.startsWith(MultiProjectModule.IDENTIFIER_PATH
                                             + MODULE + "/"
-                                            + name + "/")),
+                                            + name + "/"),
+                                    MultiProjectModule.COMPILE),
                             inherited.sequencedKeySet());
-                    buildExecutor.addModule(DEPENDENCIES,
-                            new DependenciesModule(
-                                    Repository.prepend(Map.of(prefix, mavenRepository),
-                                            Repository.ofProperties(BuildStep.IDENTITY,
-                                                    inherited.entrySet().stream()
-                                                            .filter(entry ->
-                                                                    entry.getKey().startsWith(PREVIOUS + "module-")
-                                                                            && entry.getKey().endsWith("/assign"))
-                                                            .map(Map.Entry::getValue)
-                                                            .toList(),
-                                                    file -> Path.of(file).toUri(),
-                                                    null)),
-                                    Map.of(prefix, mavenResolver)).computeChecksums(algorithm),
-                            "prepare");
+                    buildExecutor.addModule(DEPENDENCIES_COMPILE,
+                            new DependenciesModule(mergedRepositories, resolverMap, true).computeChecksums(algorithm),
+                            PREPARE_COMPILE);
+                    buildExecutor.addStep(PREPARE_RUNTIME,
+                            new MultiProjectDependencies(
+                                    algorithm,
+                                    identifier -> identifier.startsWith(MultiProjectModule.IDENTIFIER_PATH
+                                            + MODULE + "/"
+                                            + name + "/"),
+                                    MultiProjectModule.RUNTIME),
+                            inherited.sequencedKeySet());
+                    buildExecutor.addModule(DEPENDENCIES_RUNTIME,
+                            new DependenciesModule(mergedRepositories, resolverMap, false).computeChecksums(algorithm),
+                            PREPARE_RUNTIME);
                     buildExecutor.addModule("produce",
                             builder.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
-                                            Stream.of(DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
+                                            Stream.of(
+                                                    DEPENDENCIES_COMPILE + "/" + MultiProjectModule.CHECKED,
+                                                    DEPENDENCIES_COMPILE + "/" + MultiProjectModule.ARTIFACTS,
+                                                    DEPENDENCIES_RUNTIME + "/" + MultiProjectModule.CHECKED,
+                                                    DEPENDENCIES_RUNTIME + "/" + MultiProjectModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -91,7 +112,12 @@ public class MavenProject implements BuildExecutorModule {
                                                         + MODULE + "/"
                                                         + name + "/"
                                                         + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
-                                                case String value when value.startsWith(DEPENDENCIES + "/") -> value.substring(DEPENDENCIES.length() + 1);
+                                                case String value when value.startsWith(DEPENDENCIES_COMPILE + "/") ->
+                                                        MultiProjectModule.COMPILE + "-"
+                                                                + value.substring(DEPENDENCIES_COMPILE.length() + 1);
+                                                case String value when value.startsWith(DEPENDENCIES_RUNTIME + "/") ->
+                                                        MultiProjectModule.RUNTIME + "-"
+                                                                + value.substring(DEPENDENCIES_RUNTIME.length() + 1);
                                                 default -> key;
                                             },
                                             (a, _) -> a,
@@ -107,6 +133,13 @@ public class MavenProject implements BuildExecutorModule {
 
     public static <T extends Function<Path, Optional<Path>> & Serializable> T artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
+    }
+
+    private static void writeRequires(Path folder, String scope, Properties dependencies) throws IOException {
+        Path target = Files.createDirectories(folder.resolve(scope));
+        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.REQUIRES))) {
+            dependencies.store(writer, null);
+        }
     }
 
     @Override
@@ -272,9 +305,8 @@ public class MavenProject implements BuildExecutorModule {
                                         dependencies.setProperty(dependency, "");
                                     }
                                 }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                                    dependencies.store(writer, null);
-                                }
+                                writeRequires(context.next(), MultiProjectModule.COMPILE, dependencies);
+                                writeRequires(context.next(), MultiProjectModule.RUNTIME, dependencies);
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
                         }

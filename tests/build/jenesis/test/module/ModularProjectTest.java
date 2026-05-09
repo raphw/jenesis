@@ -8,6 +8,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
+import build.jenesis.project.MultiProjectModule;
 
 import module java.base;
 import module org.junit.jupiter.api;
@@ -42,9 +43,10 @@ public class ModularProjectTest {
         }
         assertThat(coordinates).containsOnlyKeys("module/foo");
         assertThat(coordinates.getProperty("module/foo")).isEmpty();
-        assertThat(module.resolve(BuildStep.REQUIRES)).exists();
+        Path moduleRequires = module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
+        assertThat(moduleRequires).exists();
         Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.REQUIRES))) {
+        try (Reader reader = Files.newBufferedReader(moduleRequires)) {
             dependencies.load(reader);
         }
         assertThat(dependencies).containsOnlyKeys("module/bar");
@@ -92,24 +94,32 @@ public class ModularProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
-                                    "../checked",
-                                    "../artifacts");
+                                    "../compile-checked",
+                                    "../compile-artifacts",
+                                    "../runtime-checked",
+                                    "../runtime-artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
-                                    "../checked",
-                                    "../artifacts",
-                                    "../../module-foo/prepare",
-                                    "../../module-foo/dependencies/resolved",
-                                    "../../module-foo/dependencies/checked",
-                                    "../../module-foo/dependencies/artifacts",
+                                    "../compile-checked",
+                                    "../compile-artifacts",
+                                    "../runtime-checked",
+                                    "../runtime-artifacts",
+                                    "../../module-foo/prepare-compile",
+                                    "../../module-foo/prepare-runtime",
+                                    "../../module-foo/dependencies-compile/resolved",
+                                    "../../module-foo/dependencies-compile/checked",
+                                    "../../module-foo/dependencies-compile/artifacts",
+                                    "../../module-foo/dependencies-runtime/resolved",
+                                    "../../module-foo/dependencies-runtime/checked",
+                                    "../../module-foo/dependencies-runtime/artifacts",
                                     "../../module-foo/build/java/classes",
                                     "../../module-foo/build/java/artifacts",
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
                         buildExecutor.addModule("java", new JavaModule(),
-                                "../sources", "../manifests", "../artifacts");
+                                "../sources", "../manifests", "../compile-artifacts", "../runtime-artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

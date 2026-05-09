@@ -36,7 +36,8 @@ public class DependenciesModuleTest {
         buildExecutor.addModule("output", new DependenciesModule(
                 Map.of("foo", (_, coordinate) -> Optional.of(() -> new ByteArrayInputStream(
                         coordinate.getBytes(StandardCharsets.UTF_8)))),
-                Map.of("foo", Resolver.identity())), "input");
+                Map.of("foo", Resolver.identity()),
+                true), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/resolved", "output/artifacts");
         Properties resolved = new Properties();
@@ -61,7 +62,8 @@ public class DependenciesModuleTest {
         buildExecutor.addModule("output", new DependenciesModule(
                 Map.of("foo", (_, coordinate) -> Optional.of(() -> new ByteArrayInputStream(
                         coordinate.getBytes(StandardCharsets.UTF_8)))),
-                Map.of("foo", Resolver.identity())).computeChecksums("SHA256"), "input");
+                Map.of("foo", Resolver.identity()),
+                true).computeChecksums("SHA256"), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/resolved", "output/checked", "output/artifacts");
         Properties checked = new Properties();

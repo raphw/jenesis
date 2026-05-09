@@ -12,10 +12,14 @@ public class MultiProjectDependencies implements BuildStep {
 
     private final String algorithm;
     private final Predicate<String> isModule;
+    private final String scope;
 
-    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(String algorithm, P isModule) {
+    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(String algorithm,
+                                                                                 P isModule,
+                                                                                 String scope) {
         this.algorithm = algorithm;
         this.isModule = isModule;
+        this.scope = scope;
     }
 
     @Override
@@ -26,7 +30,7 @@ public class MultiProjectDependencies implements BuildStep {
         SequencedMap<String, String> coordinates = new LinkedHashMap<>(), dependencies = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
-                Path file = entry.getValue().folder().resolve(REQUIRES);
+                Path file = entry.getValue().folder().resolve(scope).resolve(REQUIRES);
                 if (Files.exists(file)) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(file)) {

@@ -25,15 +25,19 @@ public class ModuleInfoParser {
         for (CompilationUnitTree unit : javac.parse()) {
             ModuleTree module = unit.getModule();
             SequencedSet<String> dependencies = new LinkedHashSet<>();
+            SequencedSet<String> runtimeDependencies = new LinkedHashSet<>();
             for (DirectiveTree directive : requireNonNull(module).getDirectives()) {
                 if (directive instanceof RequiresTree requires) {
                     String name = requires.getModuleName().toString();
                     if (!name.startsWith("java.") && !name.startsWith("jdk.")) {
                         dependencies.add(name);
+                        if (!requires.isStatic()) {
+                            runtimeDependencies.add(name);
+                        }
                     }
                 }
             }
-            return new ModuleInfo(module.getName().toString(), dependencies);
+            return new ModuleInfo(module.getName().toString(), dependencies, runtimeDependencies);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
     }

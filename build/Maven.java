@@ -16,7 +16,7 @@ public class Maven {
                 "SHA256",
                 descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
-                        descriptor.sources(), descriptor.manifests(), descriptor.artifacts())));
+                        descriptor.sources(), descriptor.manifests(), descriptor.artifacts(), descriptor.runtimeArtifacts())));
 
         root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
 

@@ -26,7 +26,8 @@ public class ModularJarResolver implements Resolver {
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
-                                                     SequencedSet<String> coordinates) throws IOException {
+                                                     SequencedSet<String> coordinates,
+                                                     boolean compile) throws IOException {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         Queue<String> queue = new ArrayDeque<>(coordinates);
@@ -62,7 +63,7 @@ public class ModularJarResolver implements Resolver {
                 }
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
-                                || requires.accessFlags().contains(AccessFlag.TRANSITIVE))
+                                || compile && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
                         .map(ModuleDescriptor.Requires::name)
                         .filter(module -> !module.startsWith("java.") && !module.startsWith("jdk."))
                         .forEach(module -> {
@@ -73,7 +74,7 @@ public class ModularJarResolver implements Resolver {
             }
         }
         if (!unresolved.isEmpty()) {
-            fallback.dependencies(executor, prefix, repositories, unresolved).forEach(dependencies::putIfAbsent);
+            fallback.dependencies(executor, prefix, repositories, unresolved, compile).forEach(dependencies::putIfAbsent);
         }
         return dependencies;
     }

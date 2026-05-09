@@ -28,7 +28,8 @@ public class MavenPomResolver implements Resolver {
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
-                                                     SequencedSet<String> coordinates) throws IOException {
+                                                     SequencedSet<String> coordinates,
+                                                     boolean compile) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> {
             String[] elements = coordinate.split("/");

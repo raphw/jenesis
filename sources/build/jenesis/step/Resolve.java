@@ -14,10 +14,12 @@ public class Resolve implements DependencyTransformingBuildStep {
 
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
+    private final boolean compile;
 
-    public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
+    public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers, boolean compile) {
         this.repositories = repositories;
         this.resolvers = new LinkedHashMap<>(resolvers);
+        this.compile = compile;
     }
 
     @Override
@@ -34,7 +36,8 @@ public class Resolve implements DependencyTransformingBuildStep {
                     executor,
                     group.getKey(),
                     repositories,
-                    group.getValue().sequencedKeySet()).entrySet()) {
+                    group.getValue().sequencedKeySet(),
+                    compile).entrySet()) {
                 String value;
                 if (Objects.equals(group.getKey(), entry.getKey().substring(0, entry.getKey().indexOf('/')))) {
                     value = group.getValue().getOrDefault(

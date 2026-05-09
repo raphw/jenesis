@@ -24,7 +24,8 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")));
+                new LinkedHashSet<>(Set.of("root")),
+                true);
         assertThat(dependencies).containsExactly(
                 Map.entry("foo/root", ""),
                 Map.entry("foo/transitive", ""),
@@ -32,7 +33,7 @@ public class ModularJarResolverTest {
     }
 
     @Test
-    public void skips_non_transitive_static_requires() throws IOException {
+    public void skips_non_transitive_static_requires_in_compile_scope() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
                 "foo",
@@ -44,12 +45,13 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")));
+                new LinkedHashSet<>(Set.of("root")),
+                true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
     }
 
     @Test
-    public void includes_static_transitive_requires() throws IOException {
+    public void includes_static_transitive_requires_in_compile_scope() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
                 "foo",
@@ -62,10 +64,30 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")));
+                new LinkedHashSet<>(Set.of("root")),
+                true);
         assertThat(dependencies).containsExactly(
                 Map.entry("foo/root", ""),
                 Map.entry("foo/propagated", ""));
+    }
+
+    @Test
+    public void skips_static_transitive_requires_in_runtime_scope() throws IOException {
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("sample", require("propagated",
+                                ClassFile.ACC_STATIC_PHASE | ClassFile.ACC_TRANSITIVE));
+                        case "propagated" -> () -> toJar("propagated");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                false);
+        assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
     }
 
     private static ModuleRequireInfo require(String name, int flags) {

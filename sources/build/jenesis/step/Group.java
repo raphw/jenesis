@@ -13,9 +13,15 @@ public class Group implements BuildStep {
     public static final String GROUPS = "groups/";
 
     private final Function<String, Optional<String>> identification;
+    private final String requiresPath;
 
     public <T extends Function<String, Optional<String>> & Serializable> Group(T identification) {
+        this(identification, REQUIRES);
+    }
+
+    public <T extends Function<String, Optional<String>> & Serializable> Group(T identification, String requiresPath) {
         this.identification = identification;
+        this.requiresPath = requiresPath;
     }
 
     @Override
@@ -35,7 +41,7 @@ public class Group implements BuildStep {
                     _ -> new LinkedHashSet<>()).add(name));
             to.computeIfAbsent(name, _ -> new LinkedHashSet<>()).addAll(toProperties(entry.getValue()
                     .folder()
-                    .resolve(REQUIRES)));
+                    .resolve(requiresPath)));
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));
         for (Map.Entry<String, Set<String>> entry : to.entrySet()) {

@@ -31,7 +31,8 @@ public class MultiProjectDependenciesTest {
     public void can_assign_coordinate_target_dependencies() throws IOException, NoSuchAlgorithmException {
         Properties dependencies = new Properties();
         dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
+        Path scopeFolder = Files.createDirectory(module.resolve("compile"));
+        try (Writer writer = Files.newBufferedWriter(scopeFolder.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         Path file = target.resolve("file");
@@ -41,7 +42,7 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals).apply(
+        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, "compile").apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(

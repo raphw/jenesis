@@ -19,6 +19,9 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
+    private static final String COMPILE_PREFIX = MultiProjectModule.COMPILE + "-",
+            RUNTIME_PREFIX = MultiProjectModule.RUNTIME + "-";
+
     public BuildExecutorModule testIfAvailable() {
         return test(null, null, null);
     }
@@ -48,16 +51,19 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 }
                 buildExecutor.addModule(TESTS, tests, Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
-                        inherited.sequencedKeySet().stream()));
+                        inherited.sequencedKeySet().stream().filter(key -> !key.startsWith(COMPILE_PREFIX))));
             }
         };
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), inherited.sequencedKeySet());
+        SequencedSet<String> compileScope = inherited.sequencedKeySet().stream()
+                .filter(key -> !key.startsWith(RUNTIME_PREFIX))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), compileScope);
         buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
                 Stream.of(CLASSES),
-                inherited.sequencedKeySet().stream()));
+                compileScope.stream()));
     }
 }

@@ -17,10 +17,18 @@ public record ModularModuleDescriptor(String name, SequencedSet<String> dependen
     }
 
     public String artifacts() {
-        return BuildExecutorModule.PREVIOUS + MultiProjectModule.ARTIFACTS;
+        return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "-" + MultiProjectModule.ARTIFACTS;
+    }
+
+    public String runtimeArtifacts() {
+        return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "-" + MultiProjectModule.ARTIFACTS;
     }
 
     public String checked() {
-        return BuildExecutorModule.PREVIOUS + MultiProjectModule.CHECKED;
+        return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "-" + MultiProjectModule.CHECKED;
+    }
+
+    public String runtimeChecked() {
+        return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "-" + MultiProjectModule.CHECKED;
     }
 }
