@@ -36,7 +36,7 @@ public class Modular {
                             descriptor.sources(), descriptor.manifests(), descriptor.artifacts())));
         }, "download");
 
-        root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
+        root.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");
 
         root.execute(args);
     }

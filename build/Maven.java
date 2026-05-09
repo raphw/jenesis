@@ -12,13 +12,13 @@ public class Maven {
     static void main(String[] args) throws IOException {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
-        root.addModule("maven", MavenProject.make(Path.of("."),
+        root.addModule("build", MavenProject.make(Path.of("."),
                 "SHA256",
                 descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(),
                         descriptor.sources(), descriptor.manifests(), descriptor.artifacts())));
 
-        root.addStep("final", new Relocate(MavenProject.artifactsByModule()), "maven");
+        root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
 
         root.execute(args);
     }

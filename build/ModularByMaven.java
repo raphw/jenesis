@@ -46,7 +46,7 @@ public class ModularByMaven {
                     }));
         }, "download");
 
-        root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
+        root.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");
 
         root.execute(args);
     }
