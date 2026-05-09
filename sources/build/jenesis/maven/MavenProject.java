@@ -23,12 +23,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
-    private static final String MODULE = "module",
-            DEPENDENCIES = "dependencies",
-            DEPENDENCIES_COMPILE = DEPENDENCIES + "-" + MultiProjectModule.COMPILE,
-            DEPENDENCIES_RUNTIME = DEPENDENCIES + "-" + MultiProjectModule.RUNTIME,
-            PREPARE_COMPILE = "prepare-" + MultiProjectModule.COMPILE,
-            PREPARE_RUNTIME = "prepare-" + MultiProjectModule.RUNTIME;
+    private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare";
 
     private final Path root;
     private final String prefix;
@@ -70,37 +65,31 @@ public class MavenProject implements BuildExecutorModule {
                                     file -> Path.of(file).toUri(),
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
-                    buildExecutor.addStep(PREPARE_COMPILE,
-                            new MultiProjectDependencies(
-                                    algorithm,
-                                    identifier -> identifier.startsWith(MultiProjectModule.IDENTIFIER_PATH
-                                            + MODULE + "/"
-                                            + name + "/"),
-                                    MultiProjectModule.COMPILE),
-                            inherited.sequencedKeySet());
-                    buildExecutor.addModule(DEPENDENCIES_COMPILE,
-                            new DependenciesModule(mergedRepositories, resolverMap, true).computeChecksums(algorithm),
-                            PREPARE_COMPILE);
-                    buildExecutor.addStep(PREPARE_RUNTIME,
-                            new MultiProjectDependencies(
-                                    algorithm,
-                                    identifier -> identifier.startsWith(MultiProjectModule.IDENTIFIER_PATH
-                                            + MODULE + "/"
-                                            + name + "/"),
-                                    MultiProjectModule.RUNTIME),
-                            inherited.sequencedKeySet());
-                    buildExecutor.addModule(DEPENDENCIES_RUNTIME,
-                            new DependenciesModule(mergedRepositories, resolverMap, false).computeChecksums(algorithm),
-                            PREPARE_RUNTIME);
+                    addScope(buildExecutor,
+                            MultiProjectModule.COMPILE,
+                            true,
+                            inherited.sequencedKeySet(),
+                            algorithm,
+                            name,
+                            mergedRepositories,
+                            resolverMap);
+                    addScope(buildExecutor,
+                            MultiProjectModule.RUNTIME,
+                            false,
+                            inherited.sequencedKeySet(),
+                            algorithm,
+                            name,
+                            mergedRepositories,
+                            resolverMap);
                     buildExecutor.addModule("produce",
                             builder.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    DEPENDENCIES_COMPILE + "/" + MultiProjectModule.CHECKED,
-                                                    DEPENDENCIES_COMPILE + "/" + MultiProjectModule.ARTIFACTS,
-                                                    DEPENDENCIES_RUNTIME + "/" + MultiProjectModule.CHECKED,
-                                                    DEPENDENCIES_RUNTIME + "/" + MultiProjectModule.ARTIFACTS))
+                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
+                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS,
+                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
+                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -112,12 +101,6 @@ public class MavenProject implements BuildExecutorModule {
                                                         + MODULE + "/"
                                                         + name + "/"
                                                         + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
-                                                case String value when value.startsWith(DEPENDENCIES_COMPILE + "/") ->
-                                                        MultiProjectModule.COMPILE + "-"
-                                                                + value.substring(DEPENDENCIES_COMPILE.length() + 1);
-                                                case String value when value.startsWith(DEPENDENCIES_RUNTIME + "/") ->
-                                                        MultiProjectModule.RUNTIME + "-"
-                                                                + value.substring(DEPENDENCIES_RUNTIME.length() + 1);
                                                 default -> key;
                                             },
                                             (a, _) -> a,
@@ -129,6 +112,27 @@ public class MavenProject implements BuildExecutorModule {
                                             MultiProjectModule.IDENTIFIER_PATH)),
                                     Stream.of("produce")));
                 });
+    }
+
+    private static void addScope(BuildExecutor buildExecutor,
+                                 String scope,
+                                 boolean compile,
+                                 SequencedSet<String> inheritedScopeInputs,
+                                 String algorithm,
+                                 String name,
+                                 Map<String, Repository> repositories,
+                                 Map<String, Resolver> resolvers) {
+        buildExecutor.addModule(scope, (scopeExec, scopeInherited) -> {
+            scopeExec.addStep(PREPARE,
+                    new MultiProjectDependencies(
+                            algorithm,
+                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
+                            scope),
+                    scopeInherited.sequencedKeySet());
+            scopeExec.addModule(DEPENDENCIES,
+                    new DependenciesModule(repositories, resolvers, compile).computeChecksums(algorithm),
+                    PREPARE);
+        }, inheritedScopeInputs);
     }
 
     public static <T extends Function<Path, Optional<Path>> & Serializable> T artifactsByModule() {

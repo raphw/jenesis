@@ -17,8 +17,9 @@ public class MultiProjectModule implements BuildExecutorModule {
             COMPILE = "compile",
             RUNTIME = "runtime";
 
-    private static final String IDENTIFIER = "identifier",
-            GROUP = "group",
+    public static final String IDENTIFIER = "identifier";
+
+    private static final String GROUP = "group",
             BUILD = "build",
             MODULE = "module";
 

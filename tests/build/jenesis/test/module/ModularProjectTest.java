@@ -94,32 +94,34 @@ public class ModularProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
-                                    "../compile-checked",
-                                    "../compile-artifacts",
-                                    "../runtime-checked",
-                                    "../runtime-artifacts");
+                                    "../compile/dependencies/checked",
+                                    "../compile/dependencies/artifacts",
+                                    "../runtime/dependencies/checked",
+                                    "../runtime/dependencies/artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../sources",
-                                    "../compile-checked",
-                                    "../compile-artifacts",
-                                    "../runtime-checked",
-                                    "../runtime-artifacts",
-                                    "../../module-foo/prepare-compile",
-                                    "../../module-foo/prepare-runtime",
-                                    "../../module-foo/dependencies-compile/resolved",
-                                    "../../module-foo/dependencies-compile/checked",
-                                    "../../module-foo/dependencies-compile/artifacts",
-                                    "../../module-foo/dependencies-runtime/resolved",
-                                    "../../module-foo/dependencies-runtime/checked",
-                                    "../../module-foo/dependencies-runtime/artifacts",
+                                    "../compile/dependencies/checked",
+                                    "../compile/dependencies/artifacts",
+                                    "../runtime/dependencies/checked",
+                                    "../runtime/dependencies/artifacts",
+                                    "../../module-foo/compile/prepare",
+                                    "../../module-foo/compile/dependencies/resolved",
+                                    "../../module-foo/compile/dependencies/checked",
+                                    "../../module-foo/compile/dependencies/artifacts",
+                                    "../../module-foo/runtime/prepare",
+                                    "../../module-foo/runtime/dependencies/resolved",
+                                    "../../module-foo/runtime/dependencies/checked",
+                                    "../../module-foo/runtime/dependencies/artifacts",
                                     "../../module-foo/build/java/classes",
                                     "../../module-foo/build/java/artifacts",
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
                         buildExecutor.addModule("java", new JavaModule(),
-                                "../sources", "../manifests", "../compile-artifacts", "../runtime-artifacts");
+                                "../sources", "../manifests",
+                                "../compile/dependencies/artifacts",
+                                "../runtime/dependencies/artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

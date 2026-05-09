@@ -19,9 +19,6 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
-    private static final String COMPILE_PREFIX = MultiProjectModule.COMPILE + "-",
-            RUNTIME_PREFIX = MultiProjectModule.RUNTIME + "-";
-
     public BuildExecutorModule testIfAvailable() {
         return test(null, null, null);
     }
@@ -51,7 +48,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 }
                 buildExecutor.addModule(TESTS, tests, Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
-                        inherited.sequencedKeySet().stream().filter(key -> !key.startsWith(COMPILE_PREFIX))));
+                        inherited.sequencedKeySet().stream().filter(key -> !hasSegment(key, MultiProjectModule.COMPILE))));
             }
         };
     }
@@ -59,11 +56,20 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> compileScope = inherited.sequencedKeySet().stream()
-                .filter(key -> !key.startsWith(RUNTIME_PREFIX))
+                .filter(key -> !hasSegment(key, MultiProjectModule.RUNTIME))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), compileScope);
         buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
                 Stream.of(CLASSES),
                 compileScope.stream()));
+    }
+
+    private static boolean hasSegment(String key, String segment) {
+        for (String part : key.split("/")) {
+            if (part.equals(segment)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
