@@ -26,7 +26,7 @@ public class Javadoc extends ProcessBuildStep {
     protected CompletionStage<List<String>> process(Executor executor,
                                                     BuildStepContext context,
                                                     SequencedMap<String, BuildStepArgument> arguments,
-                                                    SequencedMap<String, String> properties)
+                                                    SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         List<String> commands = new ArrayList<>(List.of("-d", Files
                 .createDirectory(context.next().resolve(JAVADOC))

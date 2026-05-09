@@ -33,12 +33,8 @@ public abstract class ProcessBuildStep implements BuildStep {
     protected abstract CompletionStage<List<String>> process(Executor executor,
                                                              BuildStepContext context,
                                                              SequencedMap<String, BuildStepArgument> arguments,
-                                                             SequencedMap<String, String> properties)
+                                                             SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException;
-
-    protected boolean isPathKey(String key) {
-        return false;
-    }
 
     public boolean acceptableExitCode(int code,
                                       Executor executor,
@@ -52,34 +48,32 @@ public abstract class ProcessBuildStep implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> properties = new LinkedHashMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path file = argument.folder().resolve(PROCESS + command + ".properties");
+        SequencedMap<String, SequencedMap<String, String>> properties = new LinkedHashMap<>();
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+            SequencedMap<String, String> folderMap = new LinkedHashMap<>();
+            Path file = entry.getValue().folder().resolve(PROCESS + command + ".properties");
             if (Files.exists(file)) {
                 Properties loaded = new SequencedProperties();
                 try (Reader reader = Files.newBufferedReader(file)) {
                     loaded.load(reader);
                 }
                 for (String key : loaded.stringPropertyNames()) {
-                    String value = loaded.getProperty(key);
-                    if (isPathKey(key)) {
-                        value = Stream.of(value.split("\n", -1))
-                                .map(part -> part.isEmpty() ? part : argument.folder().resolve(part).toAbsolutePath().toString())
-                                .collect(Collectors.joining("\n"));
-                    }
-                    properties.merge(key, value, (a, b) -> a + "\n" + b);
+                    folderMap.put(key, loaded.getProperty(key));
                 }
             }
+            properties.put(entry.getKey(), folderMap);
         }
         return process(executor, context, arguments, properties).thenComposeAsync(processed -> {
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
                 List<String> prepended = new ArrayList<>();
-                for (Map.Entry<String, String> entry : properties.entrySet()) {
-                    for (String value : entry.getValue().split("\n", -1)) {
-                        prepended.add(entry.getKey());
-                        if (!value.isEmpty()) {
-                            prepended.add(value);
+                for (SequencedMap<String, String> folderMap : properties.values()) {
+                    for (Map.Entry<String, String> entry : folderMap.entrySet()) {
+                        for (String value : entry.getValue().split("\n", -1)) {
+                            prepended.add(entry.getKey());
+                            if (!value.isEmpty()) {
+                                prepended.add(value);
+                            }
                         }
                     }
                 }

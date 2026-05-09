@@ -124,7 +124,7 @@ others are declared next to the step that emits them.
 | `identity.properties`      | `BuildStep.IDENTITY`             | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<jpms-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
 | `requires.properties`      | `BuildStep.REQUIRES`             | Same `<prefix>/<coordinate>` keys as `identity.properties`, mapped to either an empty value (still to be resolved or hashed) or an `<algorithm>/<hex>` content checksum that downstream consumers verify against the downloaded artifact.                                                             |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<jpms-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a JPMS module name into a download URL.                                                        |
-| `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value separating repeated instances of the same flag. When several input folders contribute the same key, the consumer concatenates the values with `\n`, so each contribution becomes its own flag instance on the command line. Values for path-like keys (declared per subclass via `isPathKey`; `Java` declares `--module-path` and `--class-path`) are interpreted relative to the file's containing folder, so the path remains valid after the producing step's temporary output folder is moved into place.                                                                                          |
+| `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value emitting the same flag once per piece. Each input folder's file is processed independently and its entries are appended to the command line in folder order, so the same key in two folders becomes two flag instances. Values that name filesystem paths are written relative to the file's containing folder (paths are not resolved until the consumer step needs them), which keeps the on-disk content position-independent so build outputs can be relocated or shared between caches without rewriting.                                                                                          |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
 | `cache/`                   | by convention                    | A folder used for caches that outlive a single build, such as previously fetched JPMS module URI registries; cached entries are content-addressable and refreshed on demand by whatever produced them.                                                |
@@ -161,19 +161,22 @@ step of `Tests`); `Java.of(...)` gives an ad-hoc command runner. `DependencyTran
 them, and write `requires.properties` back.
 
 Before launching its tool, every `ProcessBuildStep` walks each input folder for `process/<command>.properties`
-(where `<command>` is the tool name supplied to the constructor — `java`, `javac`, `jar`, `javadoc`), merges
-entries across folders by appending values with `\n`, and prepends the materialised flag tokens to the command
-line the subclass produced. The result is that any predecessor can patch the eventual command line by writing a
-properties file: each entry becomes a `--key value` pair on the command line, and `\n` inside a value (either
-written by the producer or introduced by the cross-folder merge) emits the same flag once per piece. Subclasses
-declare which keys hold paths via `isPathKey` (the base returns `false` for everything; `Java` returns `true` for
-`--module-path` and `--class-path`); for those keys, each value is resolved relative to the file's containing
-folder when loaded — so the producing step can record stable, relocation-safe paths into its own output. A
-subclass may also consume specific keys by removing them from the merged map before returning, in which case they
-are no longer materialised as standalone flags. `Java` does this for `--module-path` and `--class-path`: their
-collected values are folded into the same path lists it builds from each predecessor's `classes/`/`resources/`
-/`artifacts/` and emitted as a single `--module-path` / `-classpath` argument joined with the platform
-path-separator, instead of repeated flag instances the JVM would treat as last-wins overrides.
+(where `<command>` is the tool name supplied to the constructor — `java`, `javac`, `jar`, `javadoc`), loads each
+folder's file into its own map keyed by argument, and passes the per-folder maps to `process(...)`. Whatever the
+subclass leaves behind in those maps is then materialised as command-line tokens prepended to the command line
+the subclass produced, in folder order: each entry becomes a `--key value` pair, and `\n` inside a value emits
+the same flag once per piece (so a predecessor can write `--add-modules=foo\nbar` to repeat a flag, and the same
+key contributed by two predecessors yields two flag instances).
+
+Path-shaped values are stored as paths relative to the file's containing folder and never resolved by
+`ProcessBuildStep` itself — keeping the on-disk content position-independent in the same way `requires.properties`
+does for coordinates. Resolution is the consumer's job. `Java` does this in its own per-folder iteration: in
+addition to scanning each predecessor's `classes/`/`resources/`/`artifacts/`, it pulls `--module-path` and
+`--class-path` entries out of that folder's properties map, splits each value on `\n`, resolves each piece against
+the same `argument.folder()`, and folds the result into the path lists it ultimately joins with the platform
+path-separator into a single `--module-path` / `-classpath` argument. Removing the keys from the per-folder map as
+it consumes them keeps `ProcessBuildStep` from also materialising them as repeated flag instances the JVM would
+treat as last-wins overrides.
 
 `Export` is the one step that intentionally breaks two of the conventions that every other step holds to. Its
 job is to publish a build's outputs outside the `target/` tree (e.g. into the user's local Maven repository, a
@@ -262,9 +265,10 @@ on the side, so the user never has to declare it as a compile-time `requires` of
   that scans for module artifacts — and writes `process/java.properties` with `--module-path=<paths>` (paths
   separated by `\n`, recorded relative to the step's own output folder so they survive the temp-to-persistent move).
 - `execute` (`Tests.Run` extends `Java`) picks the properties file up via the standard `ProcessBuildStep`
-  mechanism: `Java.isPathKey` claims `--module-path` and `--class-path`, so their relative values are resolved
-  against the input folder and folded into the consumer's own computed paths and emitted as a single combined
-  flag, instead of as repeated flag instances the JVM would treat as last-wins overrides.
+  mechanism. `Java` consumes `--module-path` and `--class-path` entries in its own per-folder iteration,
+  resolving each relative value against the same `argument.folder()` it scans for `classes/`/`artifacts/` and
+  folding them into the same path lists, so they end up in a single combined `--module-path` / `-classpath`
+  argument instead of repeated flag instances the JVM would treat as last-wins overrides.
 
 ```mermaid
 flowchart LR

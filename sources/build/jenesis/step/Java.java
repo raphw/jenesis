@@ -57,11 +57,6 @@ public abstract class Java extends ProcessBuildStep {
         return this;
     }
 
-    @Override
-    protected boolean isPathKey(String key) {
-        return key.equals("--module-path") || key.equals("--class-path");
-    }
-
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
                                                               SequencedMap<String, BuildStepArgument> arguments) throws IOException;
@@ -70,10 +65,11 @@ public abstract class Java extends ProcessBuildStep {
     public CompletionStage<List<String>> process(Executor executor,
                                                  BuildStepContext context,
                                                  SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, String> properties)
+                                                 SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
-        for (BuildStepArgument argument : arguments.values()) {
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+            BuildStepArgument argument = entry.getValue();
             if (!jarsOnly) {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
@@ -110,20 +106,23 @@ public abstract class Java extends ProcessBuildStep {
                     }
                 });
             }
-        }
-        String modulePathExtension = properties.remove("--module-path");
-        if (modulePathExtension != null) {
-            for (String entry : modulePathExtension.split("\n", -1)) {
-                if (!entry.isEmpty()) {
-                    modulePath.add(entry);
+            SequencedMap<String, String> folderProps = properties.get(entry.getKey());
+            if (folderProps != null) {
+                String mp = folderProps.remove("--module-path");
+                if (mp != null) {
+                    for (String part : mp.split("\n", -1)) {
+                        if (!part.isEmpty()) {
+                            modulePath.add(argument.folder().resolve(part).toString());
+                        }
+                    }
                 }
-            }
-        }
-        String classPathExtension = properties.remove("--class-path");
-        if (classPathExtension != null) {
-            for (String entry : classPathExtension.split("\n", -1)) {
-                if (!entry.isEmpty()) {
-                    classPath.add(entry);
+                String cp = folderProps.remove("--class-path");
+                if (cp != null) {
+                    for (String part : cp.split("\n", -1)) {
+                        if (!part.isEmpty()) {
+                            classPath.add(argument.folder().resolve(part).toString());
+                        }
+                    }
                 }
             }
         }

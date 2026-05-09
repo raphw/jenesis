@@ -27,7 +27,7 @@ public class Jar extends ProcessBuildStep {
     public CompletionStage<List<String>> process(Executor executor,
                                                  BuildStepContext context,
                                                  SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, String> properties)
+                                                 SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         List<String> commands = new ArrayList<>(List.of(
                 "--create",
