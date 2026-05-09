@@ -92,7 +92,7 @@ public class ModularProject implements BuildExecutorModule {
                             name,
                             mergedRepositories,
                             resolvers);
-                    buildExecutor.addModule("build",
+                    buildExecutor.addModule("produce",
                             builder.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
@@ -119,7 +119,7 @@ public class ModularProject implements BuildExecutorModule {
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier
                                             .startsWith(MultiProjectModule.IDENTIFIER_PATH)),
-                                    Stream.of("build")));
+                                    Stream.of("produce")));
                 });
     }
 

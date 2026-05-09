@@ -113,8 +113,8 @@ public class ModularProjectTest {
                                     "../../module-foo/runtime/dependencies/resolved",
                                     "../../module-foo/runtime/dependencies/checked",
                                     "../../module-foo/runtime/dependencies/artifacts",
-                                    "../../module-foo/build/java/classes",
-                                    "../../module-foo/build/java/artifacts",
+                                    "../../module-foo/produce/java/classes",
+                                    "../../module-foo/produce/java/artifacts",
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
@@ -133,7 +133,7 @@ public class ModularProjectTest {
         }
         assertThat(foo.stringPropertyNames()).containsExactly("module/foo");
         assertThat(foo.getProperty("module/foo")).isEqualTo(build
-                .resolve("modules/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("modules/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar")
                 .toString());
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
@@ -143,7 +143,7 @@ public class ModularProjectTest {
         }
         assertThat(bar.stringPropertyNames()).containsExactly("module/bar");
         assertThat(bar.getProperty("module/bar")).isEqualTo(build
-                .resolve("modules/build/module/module-bar/build/java/artifacts/output/artifacts/classes.jar")
+                .resolve("modules/build/module/module-bar/produce/java/artifacts/output/artifacts/classes.jar")
                 .toString());
     }
 
