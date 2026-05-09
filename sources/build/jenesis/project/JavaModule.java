@@ -2,6 +2,8 @@ package build.jenesis.project;
 
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.Repository;
+import build.jenesis.Resolver;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestEngine;
@@ -18,10 +20,21 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
 
     public BuildExecutorModule testIfAvailable() {
-        return test(null);
+        return test(null, null, null);
+    }
+
+    public BuildExecutorModule testIfAvailable(Map<String, Repository> repositories,
+                                               Map<String, Resolver> resolvers) {
+        return test(null, repositories, resolvers);
     }
 
     public BuildExecutorModule test(TestEngine engine) {
+        return test(engine, null, null);
+    }
+
+    public BuildExecutorModule test(TestEngine engine,
+                                    Map<String, Repository> repositories,
+                                    Map<String, Resolver> resolvers) {
         return (buildExecutor, inherited) -> {
             TestEngine candidate = engine;
             if (candidate == null) {
@@ -29,7 +42,11 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
             }
             accept(buildExecutor, inherited);
             if (candidate != null) {
-                buildExecutor.addModule(TESTS, new Tests(candidate), Stream.concat(
+                Tests tests = new Tests(candidate);
+                if (repositories != null && resolvers != null) {
+                    tests = tests.withResolvers(repositories, resolvers);
+                }
+                buildExecutor.addModule(TESTS, tests, Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
                         inherited.sequencedKeySet().stream()));
             }

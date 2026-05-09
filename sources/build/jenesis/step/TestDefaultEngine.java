@@ -10,7 +10,9 @@ public enum TestDefaultEngine implements TestEngine {
             "org.junit.runner.JUnitCore",
             ""),
     JUNIT5("org.junit.platform.console",
-            Set.of("maven/org.junit.platform/junit-platform-console/1.11.4"),
+            new LinkedHashSet<>(List.of(
+                    "module/org.junit.platform.console",
+                    "maven/org.junit.platform/junit-platform-console/1.11.4")),
             "org.junit.jupiter.api.Test",
             "org.junit.platform.console.ConsoleLauncher",
             "-select-class=",

@@ -8,13 +8,15 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
+import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
-import build.jenesis.project.DependenciesModule;
 
 public class Tests implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", PREPARE = "prepare", EXECUTION = "execute";
+    public static final String RESOLVED = "resolved", PREPARE_RESOLVED = "prepare-resolved", PREPARE = "prepare", EXECUTION = "execute";
+
+    private static final String RUNNER = "runner/";
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
@@ -84,15 +86,12 @@ public class Tests implements BuildExecutorModule {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
         Stream<String> dependencies;
         if (repositories != null && resolvers != null) {
-            buildExecutor.addStep(RESOLVED, new Requires(engine), upstream);
-            DependenciesModule deps = new DependenciesModule(repositories, resolvers);
-            if (checksum != null) {
-                deps = deps.computeChecksums(checksum);
-            }
-            buildExecutor.addModule(PREPARE, deps, RESOLVED);
+            buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
+            buildExecutor.addStep(PREPARE_RESOLVED, new Resolve(repositories, resolvers), RESOLVED);
+            buildExecutor.addStep(PREPARE, new Prepare(repositories), PREPARE_RESOLVED);
             dependencies = Stream.concat(
                     upstream.stream(),
-                    Stream.of(PREPARE + "/" + DependenciesModule.ARTIFACTS));
+                    Stream.of(PREPARE));
         } else {
             dependencies = upstream.stream();
         }
@@ -101,7 +100,7 @@ public class Tests implements BuildExecutorModule {
         buildExecutor.addStep(EXECUTION, run, dependencies);
     }
 
-    private record Requires(TestEngine engine) implements BuildStep {
+    private record Requires(TestEngine engine, Set<String> prefixes) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -115,13 +114,101 @@ public class Tests implements BuildExecutorModule {
                     && !resolved.coordinates().isEmpty()
                     && !TestEngine.hasRunner(resolved, folders)) {
                 for (String coordinate : resolved.coordinates()) {
-                    properties.setProperty(coordinate, "");
+                    int index = coordinate.indexOf('/');
+                    String prefix = index > 0 ? coordinate.substring(0, index) : "";
+                    if (prefixes.contains(prefix)) {
+                        properties.setProperty(coordinate, "");
+                        break;
+                    }
                 }
             }
             try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 properties.store(writer, null);
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private record Prepare(Map<String, Repository> repositories) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            SequencedMap<String, String> requires = new LinkedHashMap<>();
+            for (BuildStepArgument argument : arguments.values()) {
+                Path file = argument.folder().resolve(BuildStep.REQUIRES);
+                if (!Files.exists(file)) {
+                    continue;
+                }
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(file)) {
+                    properties.load(reader);
+                }
+                for (String coordinate : properties.stringPropertyNames()) {
+                    requires.putIfAbsent(coordinate, properties.getProperty(coordinate));
+                }
+            }
+            if (requires.isEmpty()) {
+                writeProperties(context, List.of());
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }
+            Path runner = Files.createDirectory(context.next().resolve(RUNNER));
+            List<CompletableFuture<Path>> futures = new ArrayList<>();
+            for (Map.Entry<String, String> entry : requires.entrySet()) {
+                String coordinate = entry.getKey();
+                int index = coordinate.indexOf('/');
+                String prefix = index > 0 ? coordinate.substring(0, index) : "";
+                String key = index > 0 ? coordinate.substring(index + 1) : coordinate;
+                String filename = coordinate.replace('/', '-') + ".jar";
+                Repository repository = repositories.getOrDefault(prefix, Repository.empty());
+                CompletableFuture<Path> future = new CompletableFuture<>();
+                executor.execute(() -> {
+                    try {
+                        RepositoryItem item = repository.fetch(executor, key).orElseThrow(
+                                () -> new IllegalStateException("Unresolved: " + coordinate));
+                        Path target = runner.resolve(filename);
+                        Path file = item.getFile().orElse(null);
+                        if (file == null) {
+                            try (InputStream input = item.toInputStream()) {
+                                Files.copy(input, target);
+                            }
+                        } else {
+                            Files.createLink(target, file);
+                        }
+                        future.complete(target);
+                    } catch (Throwable t) {
+                        future.completeExceptionally(new RuntimeException("Failed to fetch " + coordinate, t));
+                    }
+                });
+                futures.add(future);
+            }
+            Path output = context.next();
+            return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+                    .thenApply(_ -> {
+                        try {
+                            List<String> paths = futures.stream()
+                                    .map(CompletableFuture::join)
+                                    .map(file -> output.relativize(file).toString())
+                                    .toList();
+                            writeProperties(context, paths);
+                            return new BuildStepResult(true);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+        }
+
+        private static void writeProperties(BuildStepContext context, List<String> modulePath) throws IOException {
+            Properties properties = new SequencedProperties();
+            if (!modulePath.isEmpty()) {
+                properties.setProperty("--module-path", String.join("\n", modulePath));
+            }
+            Path processDir = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+            try (Writer writer = Files.newBufferedWriter(processDir.resolve("java.properties"))) {
+                properties.store(writer, null);
+            }
         }
     }
 

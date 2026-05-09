@@ -8,7 +8,7 @@ import module java.base;
 public class Javac extends ProcessBuildStep {
 
     protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
-        super(factory);
+        super("javac", factory);
     }
 
     public static Javac tool() {
@@ -22,7 +22,8 @@ public class Javac extends ProcessBuildStep {
     @Override
     public CompletionStage<List<String>> process(Executor executor,
                                                  BuildStepContext context,
-                                                 SequencedMap<String, BuildStepArgument> arguments)
+                                                 SequencedMap<String, BuildStepArgument> arguments,
+                                                 SequencedMap<String, String> properties)
             throws IOException {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(

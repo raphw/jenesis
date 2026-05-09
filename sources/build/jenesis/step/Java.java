@@ -10,11 +10,11 @@ public abstract class Java extends ProcessBuildStep {
     protected boolean modular = true, jarsOnly = false;
 
     protected Java() {
-        super(ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
-        super(factory);
+        super("java", factory);
     }
 
     public static Java of(String... commands) {
@@ -57,6 +57,11 @@ public abstract class Java extends ProcessBuildStep {
         return this;
     }
 
+    @Override
+    protected boolean isPathKey(String key) {
+        return key.equals("--module-path") || key.equals("--class-path");
+    }
+
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
                                                               SequencedMap<String, BuildStepArgument> arguments) throws IOException;
@@ -64,7 +69,8 @@ public abstract class Java extends ProcessBuildStep {
     @Override
     public CompletionStage<List<String>> process(Executor executor,
                                                  BuildStepContext context,
-                                                 SequencedMap<String, BuildStepArgument> arguments)
+                                                 SequencedMap<String, BuildStepArgument> arguments,
+                                                 SequencedMap<String, String> properties)
             throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -103,6 +109,22 @@ public abstract class Java extends ProcessBuildStep {
                         return FileVisitResult.CONTINUE;
                     }
                 });
+            }
+        }
+        String modulePathExtension = properties.remove("--module-path");
+        if (modulePathExtension != null) {
+            for (String entry : modulePathExtension.split("\n", -1)) {
+                if (!entry.isEmpty()) {
+                    modulePath.add(entry);
+                }
+            }
+        }
+        String classPathExtension = properties.remove("--class-path");
+        if (classPathExtension != null) {
+            for (String entry : classPathExtension.split("\n", -1)) {
+                if (!entry.isEmpty()) {
+                    classPath.add(entry);
+                }
             }
         }
         List<String> prefixes = new ArrayList<>();

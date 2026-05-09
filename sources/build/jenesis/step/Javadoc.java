@@ -11,7 +11,7 @@ public class Javadoc extends ProcessBuildStep {
     public static final String JAVADOC = "javadoc/";
 
     protected Javadoc(Function<List<String>, ? extends ProcessHandler> factory) {
-        super(factory);
+        super("javadoc", factory);
     }
 
     public static Javadoc tool() {
@@ -25,7 +25,8 @@ public class Javadoc extends ProcessBuildStep {
     @Override
     protected CompletionStage<List<String>> process(Executor executor,
                                                     BuildStepContext context,
-                                                    SequencedMap<String, BuildStepArgument> arguments)
+                                                    SequencedMap<String, BuildStepArgument> arguments,
+                                                    SequencedMap<String, String> properties)
             throws IOException {
         List<String> commands = new ArrayList<>(List.of("-d", Files
                 .createDirectory(context.next().resolve(JAVADOC))

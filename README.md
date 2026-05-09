@@ -124,6 +124,7 @@ others are declared next to the step that emits them.
 | `identity.properties`      | `BuildStep.IDENTITY`             | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<jpms-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
 | `requires.properties`      | `BuildStep.REQUIRES`             | Same `<prefix>/<coordinate>` keys as `identity.properties`, mapped to either an empty value (still to be resolved or hashed) or an `<algorithm>/<hex>` content checksum that downstream consumers verify against the downloaded artifact.                                                             |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<jpms-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a JPMS module name into a download URL.                                                        |
+| `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value separating repeated instances of the same flag. When several input folders contribute the same key, the consumer concatenates the values with `\n`, so each contribution becomes its own flag instance on the command line. Values for path-like keys (declared per subclass via `isPathKey`; `Java` declares `--module-path` and `--class-path`) are interpreted relative to the file's containing folder, so the path remains valid after the producing step's temporary output folder is moved into place.                                                                                          |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
 | `cache/`                   | by convention                    | A folder used for caches that outlive a single build, such as previously fetched JPMS module URI registries; cached entries are content-addressable and refreshed on demand by whatever produced them.                                                |
@@ -142,7 +143,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar under `artifacts/`.                                                                                               | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`         | `artifacts/classes.jar`, `artifacts/sources.jar`, or `artifacts/javadoc.jar` (depending on `Jar.Sort`) |
 | `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
 | `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
-| `Tests`                    | Specialisation of `Java` that scans each predecessor's `classes/` for test-named classes and hands them to a configured `TestEngine` (e.g. JUnit 5), with `artifacts/` on the runtime path.    | inherits `Java`; selects test classes from `classes/`                                                                                 | runs the configured `TestEngine`                                                 |
+| `Tests`                    | A `BuildExecutorModule` (described under *Build executor modules*) that scans each predecessor's `classes/` for test-named classes, runs them through a configured `TestEngine` via an internal `Java` subclass, and optionally fetches the runner on the side when `.withResolvers(...)` is set.   | `classes/`, `artifacts/`                                                                                                              | sub-steps: `resolved`, `prepare-resolved`, `prepare`, `execute`                  |
 | `Resolve`                  | Reads `requires.properties`, asks each prefixed group's `Resolver` for the transitive closure, and writes the resolved coordinates to a fresh `requires.properties`.                          | `requires.properties`                                                                                                                 | `requires.properties` (transitively resolved, per-prefix `Resolver`)             |
 | `Checksum`                 | Reads `requires.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `requires.properties` where each empty value is replaced by `algorithm/<hex>`.        | `requires.properties`                                                                                                                 | `requires.properties` (with computed checksums)                                  |
 | `Download`                 | Reads `requires.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid.  | `requires.properties`                                                                                                                 | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `requires.properties`       |
@@ -154,10 +155,25 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
 | `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); `Export.toLocalMavenRepository()` / `toMavenRepository(Path)` ship a Maven-layout placement that reads each sibling `pom.xml` and writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}`. | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
 
-`ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and `Tests`); `Java.of(...)`
-gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
+`ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and the inner `execute`
+step of `Tests`); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
 `Download`, and `Translate`; they all parse `requires.properties` into `(prefix, coordinate)` groups, transform
 them, and write `requires.properties` back.
+
+Before launching its tool, every `ProcessBuildStep` walks each input folder for `process/<command>.properties`
+(where `<command>` is the tool name supplied to the constructor — `java`, `javac`, `jar`, `javadoc`), merges
+entries across folders by appending values with `\n`, and prepends the materialised flag tokens to the command
+line the subclass produced. The result is that any predecessor can patch the eventual command line by writing a
+properties file: each entry becomes a `--key value` pair on the command line, and `\n` inside a value (either
+written by the producer or introduced by the cross-folder merge) emits the same flag once per piece. Subclasses
+declare which keys hold paths via `isPathKey` (the base returns `false` for everything; `Java` returns `true` for
+`--module-path` and `--class-path`); for those keys, each value is resolved relative to the file's containing
+folder when loaded — so the producing step can record stable, relocation-safe paths into its own output. A
+subclass may also consume specific keys by removing them from the merged map before returning, in which case they
+are no longer materialised as standalone flags. `Java` does this for `--module-path` and `--class-path`: their
+collected values are folded into the same path lists it builds from each predecessor's `classes/`/`resources/`
+/`artifacts/` and emitted as a single `--module-path` / `-classpath` argument joined with the platform
+path-separator, instead of repeated flag instances the JVM would treat as last-wins overrides.
 
 `Export` is the one step that intentionally breaks two of the conventions that every other step holds to. Its
 job is to publish a build's outputs outside the `target/` tree (e.g. into the user's local Maven repository, a
@@ -204,7 +220,9 @@ the method that enables them.
 ### `JavaModule`
 
 Used for compiling and packaging a single Java module from its sources and its resolved dependencies. Calling
-`.test(engine)` or `.testIfAvailable()` adds an extra step that runs the compiled tests.
+`.test(engine)` or `.testIfAvailable()` adds an extra `tests` sub-module that runs the compiled tests; the
+`(repositories, resolvers)` overloads forward into `Tests.withResolvers(...)` so the test runner can be fetched
+on the side instead of being a compile-time `requires` of the test module (see *`Tests`* below).
 
 ```mermaid
 flowchart LR
@@ -223,6 +241,46 @@ flowchart LR
   classes -.->|".test(engine) /<br/>.testIfAvailable()"| tests
   artifacts -.-> tests
   arts -.-> tests
+```
+
+### `Tests`
+
+A `BuildExecutorModule` that runs a configured `TestEngine` (e.g. JUnit 5) against the compiled tests of its
+predecessors. The simple form adds only an `execute` step (`Java`) and expects the runner module to already be on
+the inherited class- or module-path. Calling `withResolvers(repositories, resolvers)` instead fetches the runner
+on the side, so the user never has to declare it as a compile-time `requires` of their test module:
+
+- `resolved` (`Tests.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
+  `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers — `TestDefaultEngine.JUNIT5`
+  ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
+  so the same engine works across `Modular`, `ModularByMaven`, and `Manual`-style builds. If the runner is already
+  visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
+- `prepare-resolved` (`Resolve`) expands that single coordinate into its transitive closure via the matching
+  `Resolver`.
+- `prepare` (`Tests.Prepare`) fetches each resolved coordinate via its `Repository` into a `runner/` subfolder of
+  its output — deliberately not `artifacts/`, so the runner's jars stay invisible to a downstream `Assign` step
+  that scans for module artifacts — and writes `process/java.properties` with `--module-path=<paths>` (paths
+  separated by `\n`, recorded relative to the step's own output folder so they survive the temp-to-persistent move).
+- `execute` (`Tests.Run` extends `Java`) picks the properties file up via the standard `ProcessBuildStep`
+  mechanism: `Java.isPathKey` claims `--module-path` and `--class-path`, so their relative values are resolved
+  against the input folder and folded into the consumer's own computed paths and emitted as a single combined
+  flag, instead of as repeated flag instances the JVM would treat as last-wins overrides.
+
+```mermaid
+flowchart LR
+  classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
+  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
+  arts(["inherited classes/<br/>+ artifacts/"]):::input
+  resolved["resolved<br/>(Requires)"]:::optional
+  preResolved["prepare-resolved<br/>(Resolve)"]:::optional
+  prepare["prepare<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::optional
+  execute["execute<br/>(Java/Run)"]:::step
+  arts --> execute
+  arts -.->|".withResolvers(repositories, resolvers)"| resolved
+  resolved -.-> preResolved
+  preResolved -.-> prepare
+  prepare -.-> execute
 ```
 
 ### `DependenciesModule`
@@ -405,8 +463,8 @@ Status
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
 - Evaluate module to publish to Maven Central and local Maven repository. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
-- Extending all build step implementations to expose their full set of standard options.
+- Extending all build step implementations to expose their full set of standard options. (Evaluate configuration through properties file by previous steps).
 - High-level builder for Project with defaults. With that builder, add an entry point for running tests on the command line where tests always run and run by selection of needed.
-- Add support for plugin steps via repository.
+- Add support for external plugin steps via repository.
 - Consider automatic wrapping of build in Docker.
 - Check range resolution for Maven version resolver by adding more tests.

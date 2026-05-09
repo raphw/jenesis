@@ -141,14 +141,49 @@ public class TestsTest {
         executor.addModule(
                 "test",
                 new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                        .withResolvers(Map.<String, Repository>of(), Map.of("maven", noResolver()))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
         Properties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
-                .containsExactlyInAnyOrderElementsOf(TestDefaultEngine.JUNIT5.coordinates());
+                .containsExactly("maven/org.junit.platform/junit-platform-console/1.11.4");
+    }
+
+    @Test
+    public void requires_step_picks_module_coordinate_when_module_resolver_available() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                        .withResolvers(Map.<String, Repository>of(), Map.of("module", noResolver()))
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties.stringPropertyNames())
+                .containsExactly("module/org.junit.platform.console");
+    }
+
+    @Test
+    public void requires_step_emits_nothing_when_no_resolver_matches() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties).isEmpty();
     }
 
     @Test
@@ -204,6 +239,10 @@ public class TestsTest {
 
     private BuildExecutor newExecutor() throws IOException {
         return BuildExecutor.of(root, new HashDigestFunction("MD5"), BuildExecutorCallback.nop());
+    }
+
+    private static Resolver noResolver() {
+        return (_, _, _, _) -> new LinkedHashMap<>();
     }
 
     private static Properties readRequires(Path stepFolder) throws IOException {

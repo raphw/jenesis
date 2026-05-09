@@ -2,7 +2,9 @@ package build;
 
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
+import build.jenesis.Resolver;
 import build.jenesis.module.DownloadModuleUris;
+import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.step.Relocate;
@@ -18,16 +20,21 @@ public class Modular {
                 DownloadModuleUris.DEFAULT,
                 Path.of("dependencies/modules.properties").toUri())));
 
-        root.addModule("build", (build, downloaded) -> build.addModule("modules", ModularProject.make(
-                Path.of("."),
-                "SHA256",
-                Repository.ofProperties(DownloadModuleUris.URIS,
-                        downloaded.values(),
-                        URI::create,
-                        Files.createDirectories(Path.of("cache/modules"))),
-                descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
-                        new JavaModule().testIfAvailable(),
-                        descriptor.sources(), descriptor.manifests(), descriptor.artifacts()))), "download");
+        root.addModule("build", (build, downloaded) -> {
+            Map<String, Repository> repositories = Repository.ofProperties(DownloadModuleUris.URIS,
+                    downloaded.values(),
+                    URI::create,
+                    Files.createDirectories(Path.of("cache/modules")));
+            Map<String, Resolver> resolvers = Map.of("module", new ModularJarResolver(true));
+            build.addModule("modules", ModularProject.make(
+                    Path.of("."),
+                    "SHA256",
+                    repositories,
+                    resolvers,
+                    descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
+                            new JavaModule().testIfAvailable(repositories, resolvers),
+                            descriptor.sources(), descriptor.manifests(), descriptor.artifacts())));
+        }, "download");
 
         root.addStep("final", new Relocate(ModularProject.artifactsByModule()), "build");
 

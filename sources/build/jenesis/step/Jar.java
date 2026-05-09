@@ -11,7 +11,7 @@ public class Jar extends ProcessBuildStep {
     private final Sort sort;
 
     protected Jar(Function<List<String>, ? extends ProcessHandler> factory, Sort sort) {
-        super(factory);
+        super("jar", factory);
         this.sort = sort;
     }
 
@@ -26,7 +26,8 @@ public class Jar extends ProcessBuildStep {
     @Override
     public CompletionStage<List<String>> process(Executor executor,
                                                  BuildStepContext context,
-                                                 SequencedMap<String, BuildStepArgument> arguments)
+                                                 SequencedMap<String, BuildStepArgument> arguments,
+                                                 SequencedMap<String, String> properties)
             throws IOException {
         List<String> commands = new ArrayList<>(List.of(
                 "--create",
