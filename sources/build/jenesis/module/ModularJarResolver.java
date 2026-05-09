@@ -61,7 +61,8 @@ public class ModularJarResolver implements Resolver {
                     throw new IllegalArgumentException("No module-info.class found for " + current);
                 }
                 descriptor.requires().stream()
-                        .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE))
+                        .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
+                                || requires.accessFlags().contains(AccessFlag.TRANSITIVE))
                         .map(ModuleDescriptor.Requires::name)
                         .filter(module -> !module.startsWith("java.") && !module.startsWith("jdk."))
                         .forEach(module -> {

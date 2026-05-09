@@ -17,8 +17,8 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("sample", "transitive");
-                        case "transitive" -> () -> toJar("transitive", "last");
+                        case "root" -> () -> toJar("sample", require("transitive", 0));
+                        case "transitive" -> () -> toJar("transitive", require("last", 0));
                         case "last" -> () -> toJar("last");
                         default -> null;
                     };
@@ -31,7 +31,48 @@ public class ModularJarResolverTest {
                 Map.entry("foo/last", ""));
     }
 
-    private static InputStream toJar(String module, String... requires) throws IOException {
+    @Test
+    public void skips_non_transitive_static_requires() throws IOException {
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("sample", require("optional", ClassFile.ACC_STATIC_PHASE));
+                        case "optional" -> () -> toJar("optional");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")));
+        assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
+    }
+
+    @Test
+    public void includes_static_transitive_requires() throws IOException {
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("sample", require("propagated",
+                                ClassFile.ACC_STATIC_PHASE | ClassFile.ACC_TRANSITIVE));
+                        case "propagated" -> () -> toJar("propagated");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")));
+        assertThat(dependencies).containsExactly(
+                Map.entry("foo/root", ""),
+                Map.entry("foo/propagated", ""));
+    }
+
+    private static ModuleRequireInfo require(String name, int flags) {
+        return ModuleRequireInfo.of(ModuleDesc.of(name), flags, null);
+    }
+
+    private static InputStream toJar(String module, ModuleRequireInfo... requires) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (JarOutputStream jarOutputStream = new JarOutputStream(outputStream)) {
             jarOutputStream.putNextEntry(new JarEntry("module-info.class"));
@@ -39,8 +80,8 @@ public class ModularJarResolverTest {
                     ModuleDesc.of(module),
                     builder -> {
                         builder.requires(ModuleRequireInfo.of(ModuleDesc.of("java.base"), 0, null));
-                        for (String require : requires) {
-                            builder.requires(ModuleRequireInfo.of(ModuleDesc.of(require), 0, null));
+                        for (ModuleRequireInfo require : requires) {
+                            builder.requires(require);
                         }
                     })));
             jarOutputStream.closeEntry();
