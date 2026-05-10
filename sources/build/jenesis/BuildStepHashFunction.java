@@ -7,7 +7,7 @@ public interface BuildStepHashFunction {
 
     byte[] hash(BuildStep step) throws IOException;
 
-    static BuildStepHashFunction ofDigest(String algorithm) {
+    static BuildStepHashFunction ofSerializationDigest(String algorithm) {
         return step -> {
             try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
                 try (ObjectOutputStream out = new ObjectOutputStream(bytes) {

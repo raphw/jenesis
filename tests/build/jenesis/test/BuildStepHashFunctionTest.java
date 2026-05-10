@@ -16,7 +16,7 @@ public class BuildStepHashFunctionTest {
 
     @Test
     public void hashes_serializable_step_by_class_and_fields() throws IOException {
-        BuildStepHashFunction hash = BuildStepHashFunction.ofDigest("MD5");
+        BuildStepHashFunction hash = BuildStepHashFunction.ofSerializationDigest("MD5");
         byte[] first = hash.hash(new ConfigurableStep("foo"));
         byte[] second = hash.hash(new ConfigurableStep("foo"));
         byte[] different = hash.hash(new ConfigurableStep("bar"));
@@ -26,7 +26,7 @@ public class BuildStepHashFunctionTest {
 
     @Test
     public void throws_for_non_serializable_step() {
-        BuildStepHashFunction hash = BuildStepHashFunction.ofDigest("MD5");
+        BuildStepHashFunction hash = BuildStepHashFunction.ofSerializationDigest("MD5");
         BuildStep step = new NonSerializableStep();
         assertThatThrownBy(() -> hash.hash(step)).isInstanceOf(NotSerializableException.class);
     }

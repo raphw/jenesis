@@ -18,12 +18,12 @@ import module org.junit.jupiter.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class BuildExecutorTest {
+public class BuildExecutorTest implements Serializable {
 
     @TempDir
     private Path root, source, source2;
-    private HashFunction hash;
-    private BuildExecutor buildExecutor;
+    private transient HashFunction hash;
+    private transient BuildExecutor buildExecutor;
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -138,7 +138,7 @@ public class BuildExecutorTest {
             throw new AssertionError("Did not expect that step is executed");
         };
         Files.writeString(checksum.resolve("step"),
-                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+                HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -167,7 +167,7 @@ public class BuildExecutorTest {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         };
         Files.writeString(checksum.resolve("step"),
-                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+                HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -207,7 +207,7 @@ public class BuildExecutorTest {
             }
         };
         Files.writeString(checksum.resolve("step"),
-                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+                HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -236,7 +236,7 @@ public class BuildExecutorTest {
             return CompletableFuture.completedStage(new BuildStepResult(false));
         };
         Files.writeString(checksum.resolve("step"),
-                HexFormat.of().formatHex(BuildStepHashFunction.ofDigest("MD5").hash(buildStep)));
+                HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();

@@ -36,12 +36,12 @@ public class BuildExecutor {
     public static BuildExecutor of(Path target) throws IOException {
         return of(target,
                 new HashDigestFunction("MD5"),
-                BuildStepHashFunction.ofDigest("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target));
     }
 
     public static BuildExecutor of(Path target, HashFunction hash, BuildExecutorCallback callback) throws IOException {
-        return of(target, hash, BuildStepHashFunction.ofDigest("MD5"), callback);
+        return of(target, hash, BuildStepHashFunction.ofSerializationDigest("MD5"), callback);
     }
 
     public static BuildExecutor of(Path target,
