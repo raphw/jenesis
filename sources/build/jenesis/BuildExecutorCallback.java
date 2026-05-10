@@ -2,6 +2,7 @@ package build.jenesis;
 
 import module java.base;
 
+@FunctionalInterface
 public interface BuildExecutorCallback {
 
     BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys);
