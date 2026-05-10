@@ -14,7 +14,7 @@ import build.jenesis.SequencedProperties;
 
 public class Tests implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", PREPARE_RESOLVED = "prepare-resolved", PREPARE = "prepare", EXECUTION = "execute";
+    public static final String RESOLVED = "resolved", CHECKED = "checked", REQUIRED = "required", PREPARE = "prepare", EXECUTION = "execute";
 
     private static final String RUNNER = "runner/";
 
@@ -87,8 +87,13 @@ public class Tests implements BuildExecutorModule {
         Stream<String> dependencies;
         if (repositories != null && resolvers != null) {
             buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
-            buildExecutor.addStep(PREPARE_RESOLVED, new Resolve(repositories, resolvers, false), RESOLVED);
-            buildExecutor.addStep(PREPARE, new Prepare(repositories), PREPARE_RESOLVED);
+            if (checksum != null) {
+                buildExecutor.addStep(CHECKED, new Checksum(checksum, repositories), RESOLVED);
+                buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), CHECKED);
+            } else {
+                buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), RESOLVED);
+            }
+            buildExecutor.addStep(PREPARE, new Prepare(repositories), REQUIRED);
             dependencies = Stream.concat(
                     upstream.stream(),
                     Stream.of(PREPARE));
@@ -216,10 +221,6 @@ public class Tests implements BuildExecutorModule {
 
         private final TestEngine engine;
         private final Predicate<String> isTest;
-
-        {
-            jarsOnly = true;
-        }
 
         Run(TestEngine engine, Predicate<String> isTest) {
             this.engine = engine;
