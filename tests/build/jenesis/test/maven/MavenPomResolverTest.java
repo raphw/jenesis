@@ -1631,6 +1631,835 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_unbounded_upper_range_version() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[2,)</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("3", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_unbounded_lower_range_version() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>(,2]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_exclusive_upper_range_version() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,3)</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_multi_range_version() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,2),[3,)</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "4", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>4</latest>
+                    <release>4</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                      <version>4</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("4", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_multi_range_version_with_gap() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,2],[4,5]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "5", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>6</latest>
+                    <release>6</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                      <version>4</version>
+                      <version>5</version>
+                      <version>6</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("5", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_intersecting_ranges() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>first</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>second</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("first", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,3]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("second", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[2,4]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>4</latest>
+                    <release>4</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                      <version>4</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("first", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("second", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("3", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void cannot_resolve_disjoint_ranges() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>first</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>second</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("first", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,1]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("second", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[3,3]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Could not resolve version");
+    }
+
+    @Test
+    public void cannot_resolve_range_with_no_matching_version() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>(1,)</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>1</latest>
+                    <release>1</release>
+                    <versions>
+                      <version>1</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Could not resolve version in range");
+    }
+
+    @Test
+    public void can_resolve_hard_requirement_over_soft_requirement() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>dep</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>2</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("dep", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>2</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("dep", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_range_over_soft_requirement_in_transitive_dependencies() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>first</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>second</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("first", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,2]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("second", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>3</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("first", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("second", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("2", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_direct_soft_with_transitive_range() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>dep</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("dep", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[2,3]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("3", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("dep", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_direct_range_with_transitive_soft() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[2,3]</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>dep</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("dep", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3</latest>
+                    <release>3</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                      <version>3</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(
+                Map.entry(
+                        new MavenDependencyKey("transitive", "artifact", "jar", null),
+                        new MavenDependencyValue("3", MavenDependencyScope.COMPILE, null, null, null)),
+                Map.entry(
+                        new MavenDependencyKey("dep", "artifact", "jar", null),
+                        new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_range_with_multi_segment_versions() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1.0,2.0]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "2.0", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>3.0</latest>
+                    <release>3.0</release>
+                    <versions>
+                      <version>1.0</version>
+                      <version>1.5</version>
+                      <version>2.0</version>
+                      <version>3.0</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("transitive", "artifact", "jar", null),
+                new MavenDependencyValue("2.0", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
     public void can_resolve_local_pom() throws IOException {
         Files.writeString(project.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>

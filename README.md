@@ -473,5 +473,4 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - Consider automatic wrapping of build in Docker.
 - Check range resolution for Maven version resolver by adding more tests.
 - Fix different TODOs within the project.
-- Detect JVM version change during processing of JVM tooling for caches.
-- Add additional compile time resolve to unit test engine resolver, similar to runtime, to avoid explicit API guardian dependency mismatch.
+- Extend Export step to allow emulating regular Maven install (local)

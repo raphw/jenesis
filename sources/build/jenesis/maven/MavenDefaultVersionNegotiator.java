@@ -38,35 +38,22 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                                   String classifier,
                                   String current,
                                   SequencedSet<String> versions) throws IOException {
-                String lower = null, upper = null;
+                List<List<Restriction>> hardRequirements = new ArrayList<>();
                 for (String version : versions) {
-                    if ((version.startsWith("[") || version.startsWith("(")) && (version.endsWith("]") || version.endsWith(")"))) {
-                        String value = version.substring(1, version.length() - 1), minimum, maximum;
-                        int includeMinimum = version.startsWith("[") ? 1 : 0, includeMaximum = version.endsWith("]") ? 1 : 0, index = value.indexOf(',');
-                        if (index == -1) {
-                            minimum = maximum = value.trim();
-                        } else {
-                            minimum = value.substring(0, index).trim();
-                            maximum = value.substring(index + 1).trim();
-                        }
-                        if (lower != null && compare(lower, minimum) < 0) {
-                            throw new IllegalStateException("Cannot resolve common minimum for " + groupId + ":" + artifactId);
-                        } else {
-                            lower = minimum;
-                        }
-                        if (upper != null && compare(upper, maximum) > 0) {
-                            throw new IllegalStateException("Cannot resolve common maximum for " + groupId + ":" + artifactId);
-                        } else {
-                            upper = maximum;
-                        }
-                        current = toMetadata(executor, repository, groupId, artifactId).versions().stream()
-                                .filter(candidate -> compare(minimum, candidate) < includeMinimum)
-                                .filter(candidate -> compare(candidate, maximum) < includeMaximum)
-                                .reduce((_, right) -> right)
-                                .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
+                    if (isRange(version)) {
+                        hardRequirements.add(parseRanges(version));
                     }
                 }
-                return current;
+                if (hardRequirements.isEmpty()) {
+                    return current;
+                }
+                return toMetadata(executor, repository, groupId, artifactId).versions().stream()
+                        .filter(candidate -> hardRequirements.stream().allMatch(restrictions ->
+                                restrictions.stream().anyMatch(restriction -> restriction.contains(candidate))))
+                        .reduce((_, right) -> right)
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Could not resolve version conflict for " + groupId + ":" + artifactId
+                                        + " among " + versions));
             }
         };
     }
@@ -119,23 +106,86 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         return switch (version) {
             case "RELEASE" -> toMetadata(executor, repository, groupId, artifactId).release();
             case "LATEST" -> toMetadata(executor, repository, groupId, artifactId).latest();
-            case String range when (range.startsWith("[") || range.startsWith("(")) && (range.endsWith("]") || range.endsWith(")")) -> {
-                String value = range.substring(1, range.length() - 1), minimum, maximum;
-                int includeMinimum = range.startsWith("[") ? 1 : 0, includeMaximum = range.endsWith("]") ? 1 : 0, index = value.indexOf(',');
-                if (index == -1) {
-                    minimum = maximum = value.trim();
-                } else {
-                    minimum = value.substring(0, index).trim();
-                    maximum = value.substring(index + 1).trim();
-                }
+            case String range when isRange(range) -> {
+                List<Restriction> restrictions = parseRanges(range);
                 yield toMetadata(executor, repository, groupId, artifactId).versions().stream()
-                        .filter(candidate -> compare(minimum, candidate) < includeMinimum)
-                        .filter(candidate -> compare(candidate, maximum) < includeMaximum)
+                        .filter(candidate -> restrictions.stream().anyMatch(r -> r.contains(candidate)))
                         .reduce((_, right) -> right)
                         .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
             }
             default -> version;
         };
+    }
+
+    static boolean isRange(String version) {
+        return !version.isEmpty()
+                && (version.charAt(0) == '[' || version.charAt(0) == '(')
+                && (version.charAt(version.length() - 1) == ']' || version.charAt(version.length() - 1) == ')');
+    }
+
+    static List<Restriction> parseRanges(String input) {
+        List<Restriction> result = new ArrayList<>();
+        int index = 0;
+        while (index < input.length()) {
+            while (index < input.length() && (input.charAt(index) == ',' || Character.isWhitespace(input.charAt(index)))) {
+                index++;
+            }
+            if (index >= input.length()) {
+                break;
+            }
+            char open = input.charAt(index);
+            if (open != '[' && open != '(') {
+                throw new IllegalArgumentException("Invalid version range: " + input);
+            }
+            int close = index + 1;
+            while (close < input.length() && input.charAt(close) != ']' && input.charAt(close) != ')') {
+                close++;
+            }
+            if (close >= input.length()) {
+                throw new IllegalArgumentException("Unclosed version range: " + input);
+            }
+            String value = input.substring(index + 1, close).trim();
+            char closeChar = input.charAt(close);
+            String lower, upper;
+            int comma = value.indexOf(',');
+            if (comma == -1) {
+                lower = upper = value;
+            } else {
+                lower = value.substring(0, comma).trim();
+                upper = value.substring(comma + 1).trim();
+            }
+            result.add(new Restriction(
+                    lower.isEmpty() ? null : lower,
+                    open == '[',
+                    upper.isEmpty() ? null : upper,
+                    closeChar == ']'));
+            index = close + 1;
+        }
+        if (result.isEmpty()) {
+            throw new IllegalArgumentException("Invalid version range: " + input);
+        }
+        return result;
+    }
+
+    record Restriction(String lower,
+                       boolean lowerInclusive,
+                       String upper,
+                       boolean upperInclusive) {
+        boolean contains(String version) {
+            if (lower != null) {
+                int c = compare(lower, version);
+                if (lowerInclusive ? c > 0 : c >= 0) {
+                    return false;
+                }
+            }
+            if (upper != null) {
+                int c = compare(version, upper);
+                if (upperInclusive ? c > 0 : c >= 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     Metadata toMetadata(Executor executor,
@@ -189,20 +239,25 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
     static int compare(String left, String right) {
         int leftIndex = 0, rightIndex = 0;
         while (leftIndex < left.length() && rightIndex < right.length()) {
-            int leftNext = leftIndex, rightNext = rightIndex;
-            while (leftNext < left.length()) {
-                if (left.charAt(leftNext) == '.' || left.charAt(leftNext) == '-') {
-                    break;
-                } else {
-                    leftNext++;
-                }
+            if (left.charAt(leftIndex) == '.' || left.charAt(leftIndex) == '-') {
+                leftIndex++;
             }
-            while (rightNext < right.length()) {
-                if (right.charAt(rightNext) == '.' || right.charAt(rightNext) == '-') {
-                    break;
-                } else {
-                    rightNext++;
-                }
+            if (rightIndex < right.length() && (right.charAt(rightIndex) == '.' || right.charAt(rightIndex) == '-')) {
+                rightIndex++;
+            }
+            if (leftIndex >= left.length() || rightIndex >= right.length()) {
+                break;
+            }
+            int leftNext = leftIndex, rightNext = rightIndex;
+            while (leftNext < left.length()
+                    && left.charAt(leftNext) != '.'
+                    && left.charAt(leftNext) != '-') {
+                leftNext++;
+            }
+            while (rightNext < right.length()
+                    && right.charAt(rightNext) != '.'
+                    && right.charAt(rightNext) != '-') {
+                rightNext++;
             }
             boolean leftText = false, rightText = false;
             int leftInteger = 0, rightInteger = 0;
