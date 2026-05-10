@@ -17,7 +17,7 @@ public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Se
     }
 
     public static BuildStep toRepository(Path target) {
-        return new Export(target, new MavenRepositoryLayout(), install());
+        return new Export(target, new MavenRepositoryLayout(), createMavenLocalMetadata());
     }
 
     @Override
@@ -49,7 +49,7 @@ public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Se
                 coordinates.artifactId() + "-" + coordinates.version() + suffix));
     }
 
-    public static <C extends Consumer<Path> & Serializable> C install() {
+    public static <C extends Consumer<Path> & Serializable> C createMavenLocalMetadata() {
         return (C) (Consumer<Path> & Serializable) (target -> {
             try {
                 TransformerFactory transformerFactory = TransformerFactory.newInstance();

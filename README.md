@@ -472,7 +472,8 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 
 - Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 - Extending all build step implementations to expose their full set of standard options. (Evaluate configuration through properties file by previous steps).
-- High-level builder for Project with defaults. With that builder, add an entry point for running tests on the command line where tests always run and run by selection of needed.
+- High-level builder for Project with defaults as default entry point.
 - Add support for external plugin steps via repository.
 - Consider automatic wrapping of build in Docker.
 - Fix different TODOs within the project.
+- Add command line option to run dedicated tests.

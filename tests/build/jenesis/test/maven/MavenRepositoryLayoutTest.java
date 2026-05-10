@@ -199,7 +199,7 @@ public class MavenRepositoryLayoutTest {
     }
 
     @Test
-    public void install_is_idempotent_on_re_export() throws IOException {
+    public void createMavenLocalMetadata_is_idempotent_on_re_export() throws IOException {
         Path module = Files.createDirectory(source.resolve("module-x"));
         Files.writeString(module.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
