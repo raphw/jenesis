@@ -56,11 +56,17 @@ public interface Repository {
     }
 
     static Repository ofUris(Map<String, URI> uris) {
+        boolean verbose = Boolean.getBoolean("jenesis.verbose");
         return (_, coordinate) -> {
             URI uri = uris.get(coordinate);
             if (uri == null) {
                 return Optional.empty();
-            } else if (Objects.equals("file", uri.getScheme())) {
+            }
+            if (verbose) {
+                System.out.printf("%s%-11s%s %s%n",
+                        BuildExecutorCallback.YELLOW, "[DOWNLOAD]", BuildExecutorCallback.RESET, uri);
+            }
+            if (Objects.equals("file", uri.getScheme())) {
                 return Optional.of(RepositoryItem.ofFile(Path.of(uri)));
             } else {
                 return Optional.of(() -> uri.toURL().openStream());

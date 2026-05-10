@@ -1,6 +1,7 @@
 package build.jenesis.maven;
 
 import module java.base;
+import build.jenesis.BuildExecutorCallback;
 import build.jenesis.RepositoryItem;
 
 public class MavenDefaultRepository implements MavenRepository {
@@ -8,6 +9,7 @@ public class MavenDefaultRepository implements MavenRepository {
     private final URI repository;
     private final Path local;
     private final Map<String, URI> validations;
+    private final boolean verbose = Boolean.getBoolean("jenesis.verbose");
 
     public MavenDefaultRepository() {
         String environment = System.getenv("MAVEN_REPOSITORY_URI");
@@ -34,11 +36,16 @@ public class MavenDefaultRepository implements MavenRepository {
                                           String type,
                                           String classifier,
                                           String checksum) throws IOException {
-        return fetch(repository, groupId.replace('.', '/')
+        String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
-                + "." + type + (checksum == null ? "" : ("." + checksum)), checksum == null).materialize();
+                + "." + type + (checksum == null ? "" : ("." + checksum));
+        if (verbose) {
+            System.out.printf("%s%-11s%s %s%n",
+                    BuildExecutorCallback.YELLOW, "[DOWNLOAD]", BuildExecutorCallback.RESET, repository.resolve(path));
+        }
+        return fetch(repository, path, checksum == null).materialize();
     }
 
     @Override
@@ -46,9 +53,14 @@ public class MavenDefaultRepository implements MavenRepository {
                                                   String groupId,
                                                   String artifactId,
                                                   String checksum) throws IOException {
-        return fetch(repository, groupId.replace('.', '/')
+        String path = groupId.replace('.', '/')
                 + "/" + artifactId
-                + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum), checksum == null).materialize();
+                + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum);
+        if (verbose) {
+            System.out.printf("%s%-11s%s %s%n",
+                    BuildExecutorCallback.YELLOW, "[DOWNLOAD]", BuildExecutorCallback.RESET, repository.resolve(path));
+        }
+        return fetch(repository, path, checksum == null).materialize();
     }
 
     private LazyRepositoryItem fetch(URI repository, String path, boolean validate) throws IOException {

@@ -18,7 +18,12 @@ public class BuildExecutorCallbackTest {
                     .accept(true, null);
         }
         assertThat(outputStream.toString(StandardCharsets.UTF_8))
-                .matches("\\[EXECUTED ] foo in [0-9]+.[0-9]{2} seconds\n");
+                .matches(Pattern.quote(BuildExecutorCallback.GREEN + "[EXECUTED] " + BuildExecutorCallback.RESET)
+                        + " foo "
+                        + Pattern.quote(BuildExecutorCallback.CYAN)
+                        + "in [0-9]+.[0-9]{2} seconds"
+                        + Pattern.quote(BuildExecutorCallback.RESET)
+                        + "\n");
     }
 
     @Test
@@ -29,7 +34,8 @@ public class BuildExecutorCallbackTest {
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(false, null);
         }
-        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[SKIPPED  ] foo\n");
+        assertThat(outputStream.toString(StandardCharsets.UTF_8))
+                .isEqualTo(BuildExecutorCallback.BLUE + "[SKIPPED]  " + BuildExecutorCallback.RESET + " foo\n");
     }
 
     @Test
@@ -40,6 +46,7 @@ public class BuildExecutorCallbackTest {
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(null, new RuntimeException("message"));
         }
-        assertThat(outputStream.toString(StandardCharsets.UTF_8)).matches("\\[FAILED   ] foo: message\n");
+        assertThat(outputStream.toString(StandardCharsets.UTF_8))
+                .isEqualTo(BuildExecutorCallback.RED + "[FAILED]   " + BuildExecutorCallback.RESET + " foo: message\n");
     }
 }

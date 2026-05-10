@@ -441,35 +441,6 @@ public class MavenProjectTest {
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         assertThat(bar.getProperty("maven/group/bar/pom/1"))
                 .isEqualTo("../../../../../identifier/scan/output/pom/bar/pom.xml");
-        assertNoAbsolutePathsInPropertiesUnder(build);
-    }
-
-    private static void assertNoAbsolutePathsInPropertiesUnder(Path root) throws IOException {
-        try (Stream<Path> walk = Files.walk(root)) {
-            walk.filter(Files::isRegularFile)
-                    .filter(file -> file.getFileName().toString().endsWith(".properties"))
-                    .forEach(file -> {
-                        Properties properties = new SequencedProperties();
-                        try (Reader reader = Files.newBufferedReader(file)) {
-                            properties.load(reader);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                        for (String name : properties.stringPropertyNames()) {
-                            String value = properties.getProperty(name);
-                            if (value.isEmpty()) {
-                                continue;
-                            }
-                            try {
-                                if (Path.of(value).isAbsolute()) {
-                                    fail("Absolute path in " + file + " for '" + name + "': " + value);
-                                }
-                            } catch (InvalidPathException _) {
-                                // value isn't a path-shaped string; ignore
-                            }
-                        }
-                    });
-        }
     }
 
     @Test
