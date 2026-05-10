@@ -6,7 +6,7 @@ import build.jenesis.BuildStepContext;
 
 import module java.base;
 
-public class Jar extends ProcessBuildStep {
+public class Jar extends JdkProcessBuildStep {
 
     private final Sort sort;
 

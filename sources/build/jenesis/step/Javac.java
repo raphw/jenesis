@@ -5,7 +5,7 @@ import build.jenesis.BuildStepContext;
 
 import module java.base;
 
-public class Javac extends ProcessBuildStep {
+public class Javac extends JdkProcessBuildStep {
 
     protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
         super("javac", factory);
