@@ -50,7 +50,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                 return toMetadata(executor, repository, groupId, artifactId).versions().stream()
                         .filter(candidate -> hardRequirements.stream().allMatch(restrictions ->
                                 restrictions.stream().anyMatch(restriction -> restriction.contains(candidate))))
-                        .reduce((_, right) -> right)
+                        .max(MavenDefaultVersionNegotiator::compareVersions)
                         .orElseThrow(() -> new IllegalStateException(
                                 "Could not resolve version conflict for " + groupId + ":" + artifactId
                                         + " among " + versions));
@@ -110,7 +110,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                 List<Restriction> restrictions = parseRanges(range);
                 yield toMetadata(executor, repository, groupId, artifactId).versions().stream()
                         .filter(candidate -> restrictions.stream().anyMatch(r -> r.contains(candidate)))
-                        .reduce((_, right) -> right)
+                        .max(MavenDefaultVersionNegotiator::compareVersions)
                         .orElseThrow(() -> new IllegalStateException("Could not resolve version in range: " + version));
             }
             default -> version;
@@ -173,13 +173,13 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                        boolean upperInclusive) {
         boolean contains(String version) {
             if (lower != null) {
-                int c = compare(lower, version);
+                int c = compareVersions(lower, version);
                 if (lowerInclusive ? c > 0 : c >= 0) {
                     return false;
                 }
             }
             if (upper != null) {
-                int c = compare(version, upper);
+                int c = compareVersions(version, upper);
                 if (upperInclusive ? c > 0 : c >= 0) {
                     return false;
                 }
@@ -236,66 +236,188 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
         return metadata;
     }
 
-    static int compare(String left, String right) {
-        int leftIndex = 0, rightIndex = 0;
-        while (leftIndex < left.length() && rightIndex < right.length()) {
-            if (left.charAt(leftIndex) == '.' || left.charAt(leftIndex) == '-') {
-                leftIndex++;
+    public static int compareVersions(String left, String right) {
+        return compareItems(parseVersion(left), parseVersion(right));
+    }
+
+    private static final List<String> QUALIFIERS = List.of(
+            "alpha", "beta", "milestone", "rc", "snapshot", "", "sp");
+    private static final String RELEASE_INDEX = String.valueOf(QUALIFIERS.indexOf(""));
+    private static final Map<String, String> ALIASES = Map.of(
+            "ga", "", "final", "", "release", "", "cr", "rc");
+
+    private static String comparableQualifier(String value) {
+        int index = QUALIFIERS.indexOf(value);
+        return index >= 0 ? Integer.toString(index) : QUALIFIERS.size() + "-" + value;
+    }
+
+    private sealed interface Item permits IntegerItem, StringItem, ListItem {
+        boolean isNull();
+    }
+
+    private record IntegerItem(BigInteger value) implements Item {
+        static final IntegerItem ZERO = new IntegerItem(BigInteger.ZERO);
+
+        @Override
+        public boolean isNull() {
+            return value.signum() == 0;
+        }
+    }
+
+    private record StringItem(String value) implements Item {
+        static StringItem of(String raw, boolean followedByDigit) {
+            String expanded = followedByDigit && raw.length() == 1
+                    ? switch (raw.charAt(0)) {
+                        case 'a' -> "alpha";
+                        case 'b' -> "beta";
+                        case 'm' -> "milestone";
+                        default -> raw;
+                    }
+                    : raw;
+            return new StringItem(ALIASES.getOrDefault(expanded, expanded));
+        }
+
+        @Override
+        public boolean isNull() {
+            return comparableQualifier(value).equals(RELEASE_INDEX);
+        }
+    }
+
+    private record ListItem(List<Item> items) implements Item {
+        @Override
+        public boolean isNull() {
+            return items.isEmpty();
+        }
+    }
+
+    private static List<Item> parseVersion(String version) {
+        String lowered = version.toLowerCase(Locale.ENGLISH);
+        List<List<Item>> stack = new ArrayList<>();
+        List<Item> root = new ArrayList<>();
+        stack.add(root);
+        List<Item> current = root;
+        boolean isDigit = false;
+        int start = 0;
+        for (int index = 0; index < lowered.length(); index++) {
+            char c = lowered.charAt(index);
+            if (c == '.') {
+                if (index == start) {
+                    current.add(IntegerItem.ZERO);
+                } else {
+                    current.add(parseSegment(isDigit, lowered.substring(start, index), false));
+                }
+                start = index + 1;
+            } else if (c == '-') {
+                if (index == start) {
+                    current.add(IntegerItem.ZERO);
+                } else {
+                    current.add(parseSegment(isDigit, lowered.substring(start, index), false));
+                }
+                start = index + 1;
+                List<Item> nested = new ArrayList<>();
+                current.add(new ListItem(nested));
+                current = nested;
+                stack.add(nested);
+            } else if (Character.isDigit(c)) {
+                if (!isDigit && index > start) {
+                    current.add(StringItem.of(lowered.substring(start, index), true));
+                    start = index;
+                    List<Item> nested = new ArrayList<>();
+                    current.add(new ListItem(nested));
+                    current = nested;
+                    stack.add(nested);
+                }
+                isDigit = true;
+            } else {
+                if (isDigit && index > start) {
+                    current.add(parseSegment(true, lowered.substring(start, index), true));
+                    start = index;
+                    List<Item> nested = new ArrayList<>();
+                    current.add(new ListItem(nested));
+                    current = nested;
+                    stack.add(nested);
+                }
+                isDigit = false;
             }
-            if (rightIndex < right.length() && (right.charAt(rightIndex) == '.' || right.charAt(rightIndex) == '-')) {
-                rightIndex++;
+        }
+        if (lowered.length() > start) {
+            current.add(parseSegment(isDigit, lowered.substring(start), false));
+        }
+        for (int j = stack.size() - 1; j >= 0; j--) {
+            normalize(stack.get(j));
+        }
+        return root;
+    }
+
+    private static Item parseSegment(boolean isDigit, String text, boolean followedByDigit) {
+        if (isDigit) {
+            int firstNonZero = 0;
+            while (firstNonZero < text.length() - 1 && text.charAt(firstNonZero) == '0') {
+                firstNonZero++;
             }
-            if (leftIndex >= left.length() || rightIndex >= right.length()) {
+            return new IntegerItem(new BigInteger(text.substring(firstNonZero)));
+        }
+        return StringItem.of(text, followedByDigit);
+    }
+
+    private static void normalize(List<Item> items) {
+        for (int index = items.size() - 1; index >= 0; index--) {
+            Item item = items.get(index);
+            if (item.isNull()) {
+                items.remove(index);
+            } else if (!(item instanceof ListItem)) {
                 break;
             }
-            int leftNext = leftIndex, rightNext = rightIndex;
-            while (leftNext < left.length()
-                    && left.charAt(leftNext) != '.'
-                    && left.charAt(leftNext) != '-') {
-                leftNext++;
-            }
-            while (rightNext < right.length()
-                    && right.charAt(rightNext) != '.'
-                    && right.charAt(rightNext) != '-') {
-                rightNext++;
-            }
-            boolean leftText = false, rightText = false;
-            int leftInteger = 0, rightInteger = 0;
-            try {
-                leftInteger = Integer.parseInt(left, leftIndex, leftNext, 10);
-            } catch (NumberFormatException _) {
-                leftText = true;
-            }
-            try {
-                rightInteger = Integer.parseInt(right, rightIndex, rightNext, 10);
-            } catch (NumberFormatException _) {
-                rightText = true;
-            }
-            int comparison;
-            if (leftText && rightText) {
-                comparison = CharSequence.compare(
-                        left.subSequence(leftIndex, leftNext),
-                        right.substring(rightIndex, rightNext));
-            } else if (leftText) {
-                return 1;
-            } else if (rightText) {
-                return -1;
+        }
+    }
+
+    private static int compareItems(List<Item> left, List<Item> right) {
+        int n = Math.max(left.size(), right.size());
+        for (int index = 0; index < n; index++) {
+            Item l = index < left.size() ? left.get(index) : null;
+            Item r = index < right.size() ? right.get(index) : null;
+            int result;
+            if (l == null && r == null) {
+                result = 0;
+            } else if (l == null) {
+                result = -compareToNull(r);
+            } else if (r == null) {
+                result = compareToNull(l);
             } else {
-                comparison = Integer.compare(leftInteger, rightInteger);
+                result = compareItem(l, r);
             }
-            if (comparison != 0) {
-                return comparison;
+            if (result != 0) {
+                return result;
             }
-            leftIndex = leftNext;
-            rightIndex = rightNext;
         }
-        if (leftIndex < left.length()) {
-            return -1;
-        } else if (rightIndex < right.length()) {
-            return 1;
-        } else {
-            return 0;
-        }
+        return 0;
+    }
+
+    private static int compareItem(Item left, Item right) {
+        return switch (left) {
+            case IntegerItem(BigInteger lv) -> switch (right) {
+                case IntegerItem(BigInteger rv) -> lv.compareTo(rv);
+                case StringItem _, ListItem _ -> 1;
+            };
+            case StringItem(String lv) -> switch (right) {
+                case IntegerItem _ -> -1;
+                case StringItem(String rv) -> comparableQualifier(lv).compareTo(comparableQualifier(rv));
+                case ListItem _ -> -1;
+            };
+            case ListItem(List<Item> lv) -> switch (right) {
+                case IntegerItem _ -> -1;
+                case StringItem _ -> 1;
+                case ListItem(List<Item> rv) -> compareItems(lv, rv);
+            };
+        };
+    }
+
+    private static int compareToNull(Item item) {
+        return switch (item) {
+            case IntegerItem ii -> ii.isNull() ? 0 : 1;
+            case StringItem si -> comparableQualifier(si.value()).compareTo(RELEASE_INDEX);
+            case ListItem li -> li.items().isEmpty() ? 0 : compareToNull(li.items().get(0));
+        };
     }
 
     private record Metadata(String latest, String release, List<String> versions) {
