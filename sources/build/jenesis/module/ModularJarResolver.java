@@ -47,7 +47,17 @@ public class ModularJarResolver implements Resolver {
                 ModuleDescriptor descriptor;
                 if (file == null) {
                     try (ZipInputStream inputStream = new ZipInputStream(item.toInputStream())) {
-                        descriptor = toDescriptor(inputStream, current);
+                        ModuleDescriptor read = null;
+                        ZipEntry entry;
+                        while ((entry = inputStream.getNextEntry()) != null) {
+                            if (entry.getName().equals("module-info.class")
+                                    || entry.getName().startsWith("META-INF/versions/")
+                                    && entry.getName().endsWith("module-info.class")) {
+                                read = ModuleDescriptor.read(inputStream);
+                                break;
+                            }
+                        }
+                        descriptor = read == null ? ModuleDescriptor.newAutomaticModule(current).build() : read;
                     }
                 } else {
                     descriptor = ModuleFinder.of(file).findAll().stream()
@@ -79,15 +89,4 @@ public class ModularJarResolver implements Resolver {
         return dependencies;
     }
 
-    private static ModuleDescriptor toDescriptor(ZipInputStream inputStream, String module) throws IOException {
-        ZipEntry entry;
-        while ((entry = inputStream.getNextEntry()) != null) {
-            if (entry.getName().equals("module-info.class")
-                    || entry.getName().startsWith("META-INF/versions/")
-                    && entry.getName().endsWith("module-info.class")) {
-                return ModuleDescriptor.read(inputStream);
-            }
-        }
-        return ModuleDescriptor.newAutomaticModule(module).build();
-    }
 }

@@ -618,19 +618,6 @@ public class MavenPomResolver implements Resolver {
         }
     }
 
-    private static MavenDependencyScope toScope(String scope) {
-        return switch (scope) {
-            case "compile" -> MavenDependencyScope.COMPILE;
-            case "provided" -> MavenDependencyScope.PROVIDED;
-            case "runtime" -> MavenDependencyScope.RUNTIME;
-            case "test" -> MavenDependencyScope.TEST;
-            case "system" -> MavenDependencyScope.SYSTEM;
-            case "import" -> MavenDependencyScope.IMPORT;
-            case null -> MavenDependencyScope.COMPILE;
-            default -> throw new IllegalArgumentException("");
-        };
-    }
-
     private static MavenDependencyValue merge(MavenDependencyValue left, MavenDependencyValue right) {
         return right == null ? left : new MavenDependencyValue(
                 left.version() == null ? right.version() : left.version(),
@@ -663,7 +650,7 @@ public class MavenPomResolver implements Resolver {
                                    String optional) {
         private MavenDependencyValue resolve(Map<String, String> properties) {
             return new MavenDependencyValue(property(version, properties),
-                    toScope(property(scope, properties)),
+                    MavenDependencyScope.of(property(scope, properties)),
                     systemPath == null ? null : Path.of(property(systemPath, properties)),
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new MavenDependencyName(
                             property(exclusion.groupId(), properties),
