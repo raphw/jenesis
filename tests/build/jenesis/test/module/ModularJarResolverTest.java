@@ -72,6 +72,33 @@ public class ModularJarResolverTest {
     }
 
     @Test
+    public void emits_transitive_requires_in_sorted_order_independent_of_declaration_order() throws IOException {
+        // ModuleDescriptor.requires() returns a Set.of-style set whose iteration order is
+        // randomised per JVM run; the resolver must still emit dependencies in a stable order.
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root",
+                                require("zeta", 0),
+                                require("alpha", 0),
+                                require("middle", 0));
+                        case "alpha", "middle", "zeta" -> () -> toJar(coordinate);
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                true);
+        assertThat(dependencies).containsExactly(
+                Map.entry("foo/root", ""),
+                Map.entry("foo/alpha", ""),
+                Map.entry("foo/middle", ""),
+                Map.entry("foo/zeta", ""));
+    }
+
+    @Test
     public void skips_static_transitive_requires_in_runtime_scope() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,

@@ -84,7 +84,7 @@ public interface Repository {
 
     static Map<String, Repository> ofProperties(String suffix,
                                                 Iterable<Path> folders,
-                                                Function<String, URI> resolver,
+                                                BiFunction<Path, String, URI> resolver,
                                                 Path cache) throws IOException {
         Map<String, Map<String, URI>> artifacts = new HashMap<>();
         for (Path folder : folders) {
@@ -97,11 +97,10 @@ public interface Repository {
                 for (String coordinate : properties.stringPropertyNames()) {
                     String location = properties.getProperty(coordinate);
                     if (!location.isEmpty()) {
-                        Path resolved = folder.resolve(location);
                         int index = coordinate.indexOf('/');
                         artifacts.computeIfAbsent(
                                 coordinate.substring(0, index),
-                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(resolved.toString()));
+                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(folder, location));
                     }
                 }
             }

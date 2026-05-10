@@ -74,7 +74,7 @@ public class ModularProject implements BuildExecutorModule {
                                                             && entry.getKey().endsWith("/assign"))
                                             .map(Map.Entry::getValue)
                                             .toList(),
-                                    file -> Path.of(file).toUri(),
+                                    (folder, file) -> folder.resolve(file).toUri(),
                                     null));
                     addScope(buildExecutor,
                             MultiProjectModule.COMPILE,

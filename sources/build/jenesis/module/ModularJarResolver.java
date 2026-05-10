@@ -75,6 +75,7 @@ public class ModularJarResolver implements Resolver {
                                 || compile && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
                         .map(ModuleDescriptor.Requires::name)
                         .filter(module -> !module.startsWith("java.") && !module.startsWith("jdk."))
+                        .sorted()
                         .forEach(module -> {
                             if (!unresolved.contains(module) && !dependencies.containsKey(prefix + "/" + module)) {
                                 queue.add(module);

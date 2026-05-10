@@ -21,7 +21,7 @@ public class Modular {
         root.addModule("build", (build, downloaded) -> {
             Map<String, Repository> repositories = Repository.ofProperties(DownloadModuleUris.URIS,
                     downloaded.values(),
-                    URI::create,
+                    (_, value) -> URI.create(value),
                     Files.createDirectories(Path.of("cache/modules")));
             Map<String, Resolver> resolvers = Map.of("module", new ModularJarResolver(true));
             build.addModule("modules", ModularProject.make(
