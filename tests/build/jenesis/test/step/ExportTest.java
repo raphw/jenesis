@@ -74,47 +74,44 @@ public class ExportTest {
     }
 
     @Test
-    public void maven_layout_routes_jar_and_pom_under_groupId_artifactId_version() throws IOException {
-        Path module = Files.createDirectory(source.resolve("module-x"));
-        Files.writeString(module.resolve("pom.xml"), """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                    <groupId>com.example</groupId>
-                    <artifactId>foo</artifactId>
-                    <version>1.2.3</version>
-                </project>
-                """);
-        Files.writeString(module.resolve("classes.jar"), "jar bytes");
+    public void invokes_finalizer_with_target_after_copy() throws IOException {
+        Files.writeString(source.resolve("artifact.jar"), "data");
 
-        Export export = Export.toMavenRepository(target);
-        BuildStepResult result = export.apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
-                                source,
-                                Map.of(Path.of("module-x/classes.jar"), ChecksumStatus.ADDED,
-                                        Path.of("module-x/pom.xml"), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        assertThat(result.next()).isTrue();
-        assertThat(target.resolve("com/example/foo/1.2.3/foo-1.2.3.jar")).hasContent("jar bytes");
-        assertThat(target.resolve("com/example/foo/1.2.3/foo-1.2.3.pom")).exists();
-    }
-
-    @Test
-    public void maven_layout_skips_files_without_sibling_pom() throws IOException {
-        Files.writeString(source.resolve("classes.jar"), "ignored");
-
-        Export export = Export.toMavenRepository(target);
+        Path marker = root.resolve("finalizer-called.txt");
+        Export export = new Export(target,
+                (Function<Path, Optional<Path>> & Serializable) (file -> Optional.of(Path.of(file.getFileName().toString()))),
+                (Consumer<Path> & Serializable) (received -> {
+                    try {
+                        Files.writeString(marker, received.toString());
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }));
         export.apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
-                                Map.of(Path.of("classes.jar"), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of("artifact.jar"), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
-        try (Stream<Path> contents = Files.list(target)) {
-            assertThat(contents).isEmpty();
-        }
+        assertThat(target.resolve("artifact.jar")).hasContent("data");
+        assertThat(marker).hasContent(target.toString());
+    }
+
+    @Test
+    public void skips_finalizer_when_target_does_not_exist() throws IOException {
+        Path absentTarget = root.resolve("missing");
+        AtomicBoolean called = new AtomicBoolean();
+        Export export = new Export(absentTarget,
+                (Function<Path, Optional<Path>> & Serializable) (_ -> Optional.empty()),
+                (Consumer<Path> & Serializable) (_ -> called.set(true)));
+        export.apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
+                                source,
+                                Map.of()))))
+                .toCompletableFuture()
+                .join();
+        assertThat(called).isFalse();
     }
 }

@@ -395,28 +395,28 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
 
     private static int compareItem(Item left, Item right) {
         return switch (left) {
-            case IntegerItem(BigInteger lv) -> switch (right) {
-                case IntegerItem(BigInteger rv) -> lv.compareTo(rv);
+            case IntegerItem(BigInteger leftValue) -> switch (right) {
+                case IntegerItem(BigInteger rightValue) -> leftValue.compareTo(rightValue);
                 case StringItem _, ListItem _ -> 1;
             };
-            case StringItem(String lv) -> switch (right) {
+            case StringItem(String leftValue) -> switch (right) {
                 case IntegerItem _ -> -1;
-                case StringItem(String rv) -> comparableQualifier(lv).compareTo(comparableQualifier(rv));
+                case StringItem(String rightValue) -> comparableQualifier(leftValue).compareTo(comparableQualifier(rightValue));
                 case ListItem _ -> -1;
             };
-            case ListItem(List<Item> lv) -> switch (right) {
+            case ListItem(List<Item> leftItems) -> switch (right) {
                 case IntegerItem _ -> -1;
                 case StringItem _ -> 1;
-                case ListItem(List<Item> rv) -> compareItems(lv, rv);
+                case ListItem(List<Item> rightItems) -> compareItems(leftItems, rightItems);
             };
         };
     }
 
     private static int compareToNull(Item item) {
         return switch (item) {
-            case IntegerItem ii -> ii.isNull() ? 0 : 1;
-            case StringItem si -> comparableQualifier(si.value()).compareTo(RELEASE_INDEX);
-            case ListItem li -> li.items().isEmpty() ? 0 : compareToNull(li.items().get(0));
+            case IntegerItem integerItem -> integerItem.isNull() ? 0 : 1;
+            case StringItem stringItem -> comparableQualifier(stringItem.value()).compareTo(RELEASE_INDEX);
+            case ListItem listItem -> listItem.items().isEmpty() ? 0 : compareToNull(listItem.items().get(0));
         };
     }
 

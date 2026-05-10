@@ -153,7 +153,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
 | `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`, with checksums for resolved local artifacts       |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
-| `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); `Export.toLocalMavenRepository()` / `toMavenRepository(Path)` ship a Maven-layout placement that reads each sibling `pom.xml` and writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}`. | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
+| `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); after copying it invokes an optional `Consumer<Path>` finalizer against the target. `MavenRepositoryLayout.toLocalRepository()` / `toRepository(Path)` ship a Maven-layout placement that writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}` plus a finalizer that mirrors `mvn install` (writes `maven-metadata-local.xml` per artifact, `_remote.repositories` markers per version dir, and per-version snapshot metadata for `-SNAPSHOT` versions). | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and the inner `execute`
 step of `Tests`); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
@@ -194,9 +194,9 @@ output folder" invariant that drives incremental builds:
   results just shorten the diff status the placement function sees, not whether it runs.
 
 The placement is the same `Function<Path, Optional<Path>>` shape `Relocate` uses: each visited file is mapped to
-an `Optional<Path>` relative to the configured target, or skipped. `Export.toLocalMavenRepository()` and
-`Export.toMavenRepository(Path)` ship a placement that consumes the canonical per-module output produced by
-`Relocate(ModularProject.artifactsByModule())` (i.e. each sub-module folder contains both `classes.jar` and
+an `Optional<Path>` relative to the configured target, or skipped. `MavenRepositoryLayout.toLocalRepository()` and
+`MavenRepositoryLayout.toRepository(Path)` ship a placement that consumes the canonical per-module output produced
+by `Relocate(ModularProject.artifactsByModule())` (i.e. each sub-module folder contains both `classes.jar` and
 `pom.xml`): for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of
 it, and routes the file to the standard Maven layout —
 
@@ -206,10 +206,14 @@ it, and routes the file to the standard Maven layout —
 | `pom.xml`     | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.pom` |
 
 Files without a sibling `pom.xml` are skipped, so the same step can be pointed at a tree that mixes
-multi-module output and arbitrary other content without false hits. Unhandled today: checksum sidecars
-(`.sha1`/`.md5`), GPG signatures, classifier'd artifacts (sources, javadoc, tests jars), and `<parent>`
-version inheritance — the `Pom` step always emits an explicit `<version>`, so the last is fine in practice for
-artifacts produced by this build.
+multi-module output and arbitrary other content without false hits. After copying, the bundled finalizer
+walks the target and writes the `mvn install`-equivalent metadata: a `maven-metadata-local.xml` per artifact
+(`<release>` set to the highest non-SNAPSHOT version by Maven semantics, `<versions>` sorted ascending,
+`<lastUpdated>` timestamp), an `_remote.repositories` marker per version directory, and a `modelVersion="1.1.0"`
+`maven-metadata-local.xml` inside each `-SNAPSHOT` version directory listing per-extension/classifier
+`<snapshotVersions>`. Unhandled today: checksum sidecars (`.sha1`/`.md5`), GPG signatures, classifier'd
+artifacts (sources, javadoc, tests jars), and `<parent>` version inheritance — the `Pom` step always emits
+an explicit `<version>`, so the last is fine in practice for artifacts produced by this build.
 
 Build executor modules
 ----------------------
@@ -466,11 +470,9 @@ Status
 
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
-- Evaluate module to publish to Maven Central and local Maven repository. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
+- Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 - Extending all build step implementations to expose their full set of standard options. (Evaluate configuration through properties file by previous steps).
 - High-level builder for Project with defaults. With that builder, add an entry point for running tests on the command line where tests always run and run by selection of needed.
 - Add support for external plugin steps via repository.
 - Consider automatic wrapping of build in Docker.
-- Check range resolution for Maven version resolver by adding more tests.
 - Fix different TODOs within the project.
-- Extend Export step to allow emulating regular Maven install (local)
