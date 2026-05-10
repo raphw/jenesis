@@ -185,82 +185,7 @@ public class MavenProject implements BuildExecutorModule {
                 return true;
             }
         });
-        buildExecutor.addStep("prepare", (executor, context, arguments) -> {
-            Path maven = Files.createDirectory(context.next().resolve(MAVEN));
-            for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(executor,
-                    repository,
-                    arguments.get("scan")
-                            .folder()
-                            .resolve(POM)).entrySet()) {
-                if (Objects.equals("pom", entry.getValue().packaging())) {
-                    continue;
-                }
-                String coordinate = prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
-                        + "/" + entry.getValue().version();
-                Properties module = new SequencedProperties();
-                module.setProperty("coordinate", coordinate);
-                module.setProperty("pom", prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/pom"
-                        + "/" + entry.getValue().version());
-                module.setProperty("path", entry.getKey().toString());
-                module.setProperty("groupId", entry.getValue().groupId());
-                module.setProperty("artifactId", entry.getValue().artifactId());
-                module.setProperty("version", entry.getValue().version());
-                module.setProperty("type", entry.getValue().packaging() == null
-                        ? "jar"
-                        : entry.getValue().packaging());
-                module.setProperty("dependencies", toDependencies(
-                        entry.getValue().dependencies(),
-                        Set.of(MavenDependencyScope.COMPILE, MavenDependencyScope.PROVIDED)));
-                module.setProperty("sources", entry.getValue().sourceDirectory() == null
-                        ? "src/main/java"
-                        : entry.getValue().sourceDirectory());
-                module.setProperty("resources", entry.getValue().resourceDirectories() == null
-                        ? "src/main/resources"
-                        : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + URLEncoder.encode(
-                        entry.getKey().toString(),
-                        StandardCharsets.UTF_8) + ".properties"))) {
-                    module.store(writer, null);
-                }
-                Properties testModule = new SequencedProperties();
-                testModule.setProperty("coordinate", prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
-                        + "/tests"
-                        + "/" + entry.getValue().version());
-                testModule.setProperty("pom", prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/pom"
-                        + "/" + entry.getValue().version());
-                testModule.setProperty("path", entry.getKey().toString());
-                String dependencies = toDependencies(
-                        entry.getValue().dependencies(),
-                        Set.of(MavenDependencyScope.TEST, MavenDependencyScope.RUNTIME));
-                testModule.setProperty("dependencies", dependencies.isEmpty()
-                        ? coordinate
-                        : dependencies + "," + coordinate);
-                testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
-                        ? "src/test/java"
-                        : entry.getValue().testSourceDirectory());
-                testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
-                        ? "src/test/resources"
-                        : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + URLEncoder.encode(
-                        entry.getKey().toString(),
-                        StandardCharsets.UTF_8) + ".properties"))) {
-                    testModule.store(writer, null);
-                }
-            }
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }, "scan");
+        buildExecutor.addStep("prepare", new Prepare(prefix, resolver, repository), "scan");
         buildExecutor.addModule(MODULE, (modules, paths) -> {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
                     paths.get("../prepare").resolve(MAVEN),
@@ -320,16 +245,113 @@ public class MavenProject implements BuildExecutorModule {
         }, "scan", "prepare");
     }
 
-    private String toDependencies(SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
-                                  Set<MavenDependencyScope> scopes) {
-        return values == null ? "" : values.entrySet().stream()
-                .filter(dependency -> scopes.contains(dependency.getValue().scope()))
-                .map(entry -> prefix
-                        + "/" + entry.getKey().groupId()
-                        + "/" + entry.getKey().artifactId()
-                        + "/" + (entry.getKey().type() == null ? "jar" : entry.getKey().type())
-                        + (entry.getKey().classifier() == null ? "" : "/" + entry.getKey().classifier())
-                        + "/" + entry.getValue().version())
-                .collect(Collectors.joining(","));
+    private static class Prepare implements BuildStep {
+
+        private final String prefix;
+        private final MavenPomResolver resolver;
+        private final transient MavenRepository repository;
+
+        private Prepare(String prefix, MavenPomResolver resolver, MavenRepository repository) {
+            this.prefix = prefix;
+            this.resolver = resolver;
+            this.repository = repository;
+        }
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Path maven = Files.createDirectory(context.next().resolve(MAVEN));
+            for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(executor,
+                    repository,
+                    arguments.get("scan")
+                            .folder()
+                            .resolve(POM)).entrySet()) {
+                if (Objects.equals("pom", entry.getValue().packaging())) {
+                    continue;
+                }
+                String coordinate = prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
+                        + "/" + entry.getValue().version();
+                Properties module = new SequencedProperties();
+                module.setProperty("coordinate", coordinate);
+                module.setProperty("pom", prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/pom"
+                        + "/" + entry.getValue().version());
+                module.setProperty("path", entry.getKey().toString());
+                module.setProperty("groupId", entry.getValue().groupId());
+                module.setProperty("artifactId", entry.getValue().artifactId());
+                module.setProperty("version", entry.getValue().version());
+                module.setProperty("type", entry.getValue().packaging() == null
+                        ? "jar"
+                        : entry.getValue().packaging());
+                module.setProperty("dependencies", toDependencies(
+                        prefix,
+                        entry.getValue().dependencies(),
+                        Set.of(MavenDependencyScope.COMPILE, MavenDependencyScope.PROVIDED)));
+                module.setProperty("sources", entry.getValue().sourceDirectory() == null
+                        ? "src/main/java"
+                        : entry.getValue().sourceDirectory());
+                module.setProperty("resources", entry.getValue().resourceDirectories() == null
+                        ? "src/main/resources"
+                        : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + URLEncoder.encode(
+                        entry.getKey().toString(),
+                        StandardCharsets.UTF_8) + ".properties"))) {
+                    module.store(writer, null);
+                }
+                Properties testModule = new SequencedProperties();
+                testModule.setProperty("coordinate", prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
+                        + "/tests"
+                        + "/" + entry.getValue().version());
+                testModule.setProperty("pom", prefix
+                        + "/" + entry.getValue().groupId()
+                        + "/" + entry.getValue().artifactId()
+                        + "/pom"
+                        + "/" + entry.getValue().version());
+                testModule.setProperty("path", entry.getKey().toString());
+                String dependencies = toDependencies(
+                        prefix,
+                        entry.getValue().dependencies(),
+                        Set.of(MavenDependencyScope.TEST, MavenDependencyScope.RUNTIME));
+                testModule.setProperty("dependencies", dependencies.isEmpty()
+                        ? coordinate
+                        : dependencies + "," + coordinate);
+                testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
+                        ? "src/test/java"
+                        : entry.getValue().testSourceDirectory());
+                testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
+                        ? "src/test/resources"
+                        : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + URLEncoder.encode(
+                        entry.getKey().toString(),
+                        StandardCharsets.UTF_8) + ".properties"))) {
+                    testModule.store(writer, null);
+                }
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+
+        private static String toDependencies(String prefix,
+                                             SequencedMap<MavenDependencyKey, MavenDependencyValue> values,
+                                             Set<MavenDependencyScope> scopes) {
+            return values == null ? "" : values.entrySet().stream()
+                    .filter(dependency -> scopes.contains(dependency.getValue().scope()))
+                    .map(entry -> prefix
+                            + "/" + entry.getKey().groupId()
+                            + "/" + entry.getKey().artifactId()
+                            + "/" + (entry.getKey().type() == null ? "jar" : entry.getKey().type())
+                            + (entry.getKey().classifier() == null ? "" : "/" + entry.getKey().classifier())
+                            + "/" + entry.getValue().version())
+                    .collect(Collectors.joining(","));
+        }
     }
 }

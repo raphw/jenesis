@@ -3,6 +3,8 @@ package build.jenesis.module;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
+import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
@@ -22,8 +24,6 @@ public class ModularProject implements BuildExecutorModule {
     private final String prefix;
     private final Path root;
     private final Predicate<Path> filter;
-
-    private final transient ModuleInfoParser parser = new ModuleInfoParser();
 
     public ModularProject(String prefix, Path root, Predicate<Path> filter) {
         this.prefix = prefix;
@@ -162,6 +162,29 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
+    private record Manifests(String prefix) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            ModuleInfo info = new ModuleInfoParser().identify(arguments.get("sources").folder()
+                    .resolve(BuildStep.SOURCES)
+                    .resolve("module-info.java"));
+            Properties coordinates = new SequencedProperties();
+            coordinates.setProperty(prefix + "/" + info.coordinate(), "");
+            try (BufferedWriter writer = Files.newBufferedWriter(context
+                    .next()
+                    .resolve(BuildStep.IDENTITY))) {
+                coordinates.store(writer, null);
+            }
+            writeRequires(context.next(), MultiProjectModule.COMPILE, prefix, info.requires());
+            writeRequires(context.next(), MultiProjectModule.RUNTIME, prefix, info.runtimeRequires());
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
@@ -170,25 +193,12 @@ public class ModularProject implements BuildExecutorModule {
                 if (file.getFileName().toString().equals("module-info.java")) {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
+                        String modulePrefix = prefix;
                         buildExecutor.addModule("module-" + URLEncoder.encode(
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MultiProjectModule.MANIFESTS, (_, context, arguments) -> {
-                                ModuleInfo info = parser.identify(arguments.get("sources").folder()
-                                        .resolve(BuildStep.SOURCES)
-                                        .resolve("module-info.java"));
-                                Properties coordinates = new SequencedProperties();
-                                coordinates.setProperty(prefix + "/" + info.coordinate(), "");
-                                try (BufferedWriter writer = Files.newBufferedWriter(context
-                                        .next()
-                                        .resolve(BuildStep.IDENTITY))) {
-                                    coordinates.store(writer, null);
-                                }
-                                writeRequires(context.next(), MultiProjectModule.COMPILE, prefix, info.requires());
-                                writeRequires(context.next(), MultiProjectModule.RUNTIME, prefix, info.runtimeRequires());
-                                return CompletableFuture.completedStage(new BuildStepResult(true));
-                            }, "sources");
+                            module.addStep(MultiProjectModule.MANIFESTS, new Manifests(modulePrefix), "sources");
                         });
                     }
                 }

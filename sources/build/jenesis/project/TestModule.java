@@ -148,7 +148,13 @@ public class TestModule implements BuildExecutorModule {
         }
     }
 
-    private record Prepare(Map<String, Repository> repositories) implements BuildStep {
+    private static class Prepare implements BuildStep {
+
+        private final transient Map<String, Repository> repositories;
+
+        private Prepare(Map<String, Repository> repositories) {
+            this.repositories = repositories;
+        }
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -237,6 +243,7 @@ public class TestModule implements BuildExecutorModule {
         private final Predicate<String> isTest;
         private final String filter = System.getProperty("jenesis.test");
 
+        // isTest must be Serializable; TestModule's public constructors enforce the bound on input.
         private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
             this.engine = engine;
             this.isTest = isTest;

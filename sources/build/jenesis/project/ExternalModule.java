@@ -22,7 +22,8 @@ public class ExternalModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final List<?> arguments;
-    
+    private final String checksum;
+
     public ExternalModule(String coordinate,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers,
@@ -34,10 +35,23 @@ public class ExternalModule implements BuildExecutorModule {
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers,
                           List<?> arguments) {
+        this(coordinate, repositories, resolvers, arguments, null);
+    }
+
+    private ExternalModule(String coordinate,
+                           Map<String, Repository> repositories,
+                           Map<String, Resolver> resolvers,
+                           List<?> arguments,
+                           String checksum) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.arguments = arguments;
+        this.checksum = checksum;
+    }
+
+    public ExternalModule computeChecksums(String algorithm) {
+        return new ExternalModule(coordinate, repositories, resolvers, arguments, algorithm);
     }
 
     @Override
@@ -54,9 +68,11 @@ public class ExternalModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addStep(COORDINATE, new WriteCoordinate(coordinate));
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, false),
-                COORDINATE);
+        DependenciesModule dependencies = new DependenciesModule(repositories, resolvers, false);
+        if (checksum != null) {
+            dependencies = dependencies.computeChecksums(checksum);
+        }
+        buildExecutor.addModule(DEPENDENCIES, dependencies, COORDINATE);
         buildExecutor.addStep(EXTERNAL, new ExtractExternal(coordinate), EXTERNAL_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
@@ -106,6 +122,22 @@ public class ExternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(EXTERNAL, EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
+    private record WriteCoordinate(String coordinate) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Properties properties = new SequencedProperties();
+            properties.setProperty(coordinate, "");
+            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
+                properties.store(writer, null);
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
     private record ExtractExternal(String coordinate) implements BuildStep {
 
         @Override
@@ -128,22 +160,6 @@ public class ExternalModule implements BuildExecutorModule {
             Properties properties = new SequencedProperties();
             properties.setProperty(JENESIS_MODULE, name);
             try (Writer writer = Files.newBufferedWriter(context.next().resolve(EXTERNAL_PROPERTIES))) {
-                properties.store(writer, null);
-            }
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }
-    }
-
-    private record WriteCoordinate(String coordinate) implements BuildStep {
-
-        @Override
-        public CompletionStage<BuildStepResult> apply(Executor executor,
-                                                      BuildStepContext context,
-                                                      SequencedMap<String, BuildStepArgument> arguments)
-                throws IOException {
-            Properties properties = new SequencedProperties();
-            properties.setProperty(coordinate, "");
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 properties.store(writer, null);
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));

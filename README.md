@@ -469,6 +469,34 @@ flowchart LR
   pBassn --> pAprep
 ```
 
+### `ExternalModule`
+
+Used for loading a `BuildExecutorModule` from a jar coordinate at build time, so a build can pull in plug-in
+modules published to a repository instead of vendoring them as source. Given a `<prefix>/<key>` coordinate, a map
+of `Repository` instances, a map of `Resolver` instances, and optional constructor arguments, it registers four
+internal nodes:
+
+- `coordinate` writes the requested coordinate into a fresh `requires.properties`.
+- `dependencies` is an embedded `DependenciesModule` that resolves + downloads the coordinate's transitive closure
+  using the supplied resolvers and repositories.
+- `external` reads the main jar's `META-INF/MANIFEST.MF`, looks up the `Jenesis-Module` attribute, and writes the
+  recorded class name into `external.properties`. Because this is a cached `BuildStep` keyed off the `artifacts/`
+  folder, the manifest read is skipped on subsequent runs whose downloaded artifacts checksum-identically.
+- `delegate` opens a `URLClassLoader` over the downloaded jars, loads the recorded class, picks the unique public
+  constructor whose parameter count matches the supplied arguments, instantiates it, and invokes its `accept(...)`
+  against the same inherited folders `ExternalModule` itself received.
+
+The `URLClassLoader` parents to the build's own class loader, so `BuildExecutorModule` and the rest of the public
+API stay shared types between host and plug-in — but the external coordinate's transitive dependencies live only
+inside the loader, so they don't leak into the host classpath and two external modules with conflicting libraries
+don't clash. The loader is intentionally kept alive for the build's lifetime, because the build steps the delegated
+module registers hold class references to it.
+
+`ExternalModule` overrides `resolve(...)` to hide its four internal nodes from the published output map and to
+strip the `delegate/` prefix from the delegated module's results, so the delegated module's outputs appear under
+`ExternalModule`'s registered name — exactly as if the delegated module had been wired into the build directly.
+The hidden steps still execute and participate in the cache normally; only their published names disappear.
+
 Implementing a `BuildStep`
 --------------------------
 
