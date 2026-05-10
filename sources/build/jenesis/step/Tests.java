@@ -100,8 +100,9 @@ public class Tests implements BuildExecutorModule {
         } else {
             dependencies = upstream.stream();
         }
-        Run run = factory == null ? new Run(engine, isTest) : new Run(factory, engine, isTest);
-        run.jarsOnly(jarsOnly).modular(modular);
+        Run run = factory == null
+                ? new Run(engine, isTest, jarsOnly, modular)
+                : new Run(factory, engine, isTest, jarsOnly, modular);
         buildExecutor.addStep(EXECUTION, run, dependencies);
     }
 
@@ -222,15 +223,23 @@ public class Tests implements BuildExecutorModule {
         private final TestEngine engine;
         private final Predicate<String> isTest;
 
-        Run(TestEngine engine, Predicate<String> isTest) {
+        Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
             this.engine = engine;
             this.isTest = isTest;
+            this.jarsOnly = jarsOnly;
+            this.modular = modular;
         }
 
-        Run(Function<List<String>, ProcessHandler.OfProcess> factory, TestEngine engine, Predicate<String> isTest) {
+        Run(Function<List<String>, ProcessHandler.OfProcess> factory,
+            TestEngine engine,
+            Predicate<String> isTest,
+            boolean jarsOnly,
+            boolean modular) {
             super(factory);
             this.engine = engine;
             this.isTest = isTest;
+            this.jarsOnly = jarsOnly;
+            this.modular = modular;
         }
 
         @Override

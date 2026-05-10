@@ -143,7 +143,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar under `artifacts/`.                                                                                               | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`         | `artifacts/classes.jar`, `artifacts/sources.jar`, or `artifacts/javadoc.jar` (depending on `Jar.Sort`) |
 | `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
 | `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
-| `Tests`                    | A `BuildExecutorModule` (described under *Build executor modules*) that scans each predecessor's `classes/` for test-named classes, runs them through a configured `TestEngine` via an internal `Java` subclass, and optionally fetches the runner on the side when `.withResolvers(...)` is set.   | `classes/`, `artifacts/`                                                                                                              | sub-steps: `resolved`, `prepare-resolved`, `prepare`, `execute`                  |
+| `Tests`                    | A `BuildExecutorModule` (described under *Build executor modules*) that scans each predecessor's `classes/` for test-named classes, runs them through a configured `TestEngine` via an internal `Java` subclass, and optionally fetches the runner on the side when `.withResolvers(...)` is set.   | `classes/`, `artifacts/`                                                                                                              | sub-steps: `resolved`, `checked` (optional), `required`, `prepare`, `execute`    |
 | `Resolve`                  | Reads `requires.properties`, asks each prefixed group's `Resolver` for the transitive closure, and writes the resolved coordinates to a fresh `requires.properties`.                          | `requires.properties`                                                                                                                 | `requires.properties` (transitively resolved, per-prefix `Resolver`)             |
 | `Checksum`                 | Reads `requires.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `requires.properties` where each empty value is replaced by `algorithm/<hex>`.        | `requires.properties`                                                                                                                 | `requires.properties` (with computed checksums)                                  |
 | `Download`                 | Reads `requires.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid.  | `requires.properties`                                                                                                                 | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `requires.properties`       |
@@ -262,7 +262,9 @@ on the side, so the user never has to declare it as a compile-time `requires` of
   ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
   so the same engine works across `Modular`, `ModularByMaven`, and `Manual`-style builds. If the runner is already
   visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
-- `prepare-resolved` (`Resolve`) expands that single coordinate into its transitive closure via the matching
+- `checked` (`Checksum`, optional, only when `.computeChecksums(algorithm)` is set) fetches each unresolved
+  coordinate from its `Repository` and rewrites `requires.properties` with `algorithm/<hex>` checksums.
+- `required` (`Resolve`) expands that single coordinate into its transitive closure via the matching
   `Resolver`.
 - `prepare` (`Tests.Prepare`) fetches each resolved coordinate via its `Repository` into a `runner/` subfolder of
   its output — deliberately not `artifacts/`, so the runner's jars stay invisible to a downstream `Assign` step
@@ -281,13 +283,16 @@ flowchart LR
   classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   arts(["inherited classes/<br/>+ artifacts/"]):::input
   resolved["resolved<br/>(Requires)"]:::optional
-  preResolved["prepare-resolved<br/>(Resolve)"]:::optional
+  checked["checked<br/>(Checksum)"]:::optional
+  required["required<br/>(Resolve)"]:::optional
   prepare["prepare<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::optional
   execute["execute<br/>(Java/Run)"]:::step
   arts --> execute
   arts -.->|".withResolvers(repositories, resolvers)"| resolved
-  resolved -.-> preResolved
-  preResolved -.-> prepare
+  resolved -.->|".computeChecksums(algorithm)"| checked
+  checked -.-> required
+  resolved -.-> required
+  required -.-> prepare
   prepare -.-> execute
 ```
 
