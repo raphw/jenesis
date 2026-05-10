@@ -132,9 +132,8 @@ public class ModularProjectTest {
             foo.load(reader);
         }
         assertThat(foo.stringPropertyNames()).containsExactly("module/foo");
-        assertThat(foo.getProperty("module/foo")).isEqualTo(build
-                .resolve("modules/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar")
-                .toString());
+        assertThat(foo.getProperty("module/foo"))
+                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
                 .get("modules/build/module/module-bar/assign")
@@ -142,9 +141,37 @@ public class ModularProjectTest {
             bar.load(reader);
         }
         assertThat(bar.stringPropertyNames()).containsExactly("module/bar");
-        assertThat(bar.getProperty("module/bar")).isEqualTo(build
-                .resolve("modules/build/module/module-bar/produce/java/artifacts/output/artifacts/classes.jar")
-                .toString());
+        assertThat(bar.getProperty("module/bar"))
+                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+        assertNoAbsolutePathsInPropertiesUnder(build);
+    }
+
+    private static void assertNoAbsolutePathsInPropertiesUnder(Path root) throws IOException {
+        try (Stream<Path> walk = Files.walk(root)) {
+            walk.filter(Files::isRegularFile)
+                    .filter(file -> file.getFileName().toString().endsWith(".properties"))
+                    .forEach(file -> {
+                        Properties properties = new SequencedProperties();
+                        try (Reader reader = Files.newBufferedReader(file)) {
+                            properties.load(reader);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                        for (String name : properties.stringPropertyNames()) {
+                            String value = properties.getProperty(name);
+                            if (value.isEmpty()) {
+                                continue;
+                            }
+                            try {
+                                if (Path.of(value).isAbsolute()) {
+                                    fail("Absolute path in " + file + " for '" + name + "': " + value);
+                                }
+                            } catch (InvalidPathException _) {
+                                // value isn't a path-shaped string; ignore
+                            }
+                        }
+                    });
+        }
     }
 
     @Test

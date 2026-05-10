@@ -426,12 +426,10 @@ public class MavenProjectTest {
             foo.load(reader);
         }
         assertThat(foo.stringPropertyNames()).containsExactly("maven/group/foo/jar/1", "maven/group/foo/pom/1");
-        assertThat(foo.getProperty("maven/group/foo/jar/1")).isEqualTo(build
-                .resolve("maven/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar")
-                .toString());
-        assertThat(foo.getProperty("maven/group/foo/pom/1")).isEqualTo(build
-                .resolve("maven/identifier/scan/output/pom/foo/pom.xml")
-                .toString());
+        assertThat(foo.getProperty("maven/group/foo/jar/1"))
+                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+        assertThat(foo.getProperty("maven/group/foo/pom/1"))
+                .isEqualTo("../../../../../identifier/scan/output/pom/foo/pom.xml");
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
                 .get("maven/build/module/module-bar/assign")
@@ -439,12 +437,39 @@ public class MavenProjectTest {
             bar.load(reader);
         }
         assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/jar/1", "maven/group/bar/pom/1");
-        assertThat(bar.getProperty("maven/group/bar/jar/1")).isEqualTo(build
-                .resolve("maven/build/module/module-bar/produce/java/artifacts/output/artifacts/classes.jar")
-                .toString());
-        assertThat(bar.getProperty("maven/group/bar/pom/1")).isEqualTo(build
-                .resolve("maven/identifier/scan/output/pom/bar/pom.xml")
-                .toString());
+        assertThat(bar.getProperty("maven/group/bar/jar/1"))
+                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+        assertThat(bar.getProperty("maven/group/bar/pom/1"))
+                .isEqualTo("../../../../../identifier/scan/output/pom/bar/pom.xml");
+        assertNoAbsolutePathsInPropertiesUnder(build);
+    }
+
+    private static void assertNoAbsolutePathsInPropertiesUnder(Path root) throws IOException {
+        try (Stream<Path> walk = Files.walk(root)) {
+            walk.filter(Files::isRegularFile)
+                    .filter(file -> file.getFileName().toString().endsWith(".properties"))
+                    .forEach(file -> {
+                        Properties properties = new SequencedProperties();
+                        try (Reader reader = Files.newBufferedReader(file)) {
+                            properties.load(reader);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                        for (String name : properties.stringPropertyNames()) {
+                            String value = properties.getProperty(name);
+                            if (value.isEmpty()) {
+                                continue;
+                            }
+                            try {
+                                if (Path.of(value).isAbsolute()) {
+                                    fail("Absolute path in " + file + " for '" + name + "': " + value);
+                                }
+                            } catch (InvalidPathException _) {
+                                // value isn't a path-shaped string; ignore
+                            }
+                        }
+                    });
+        }
     }
 
     @Test

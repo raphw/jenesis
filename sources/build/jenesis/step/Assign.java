@@ -47,7 +47,15 @@ public class Assign implements BuildStep {
                 try (Reader reader = Files.newBufferedReader(coordinates)) {
                     properties.load(reader);
                 }
-                properties.stringPropertyNames().forEach(name -> assignments.put(name, properties.getProperty(name)));
+                for (String name : properties.stringPropertyNames()) {
+                    String value = properties.getProperty(name);
+                    if (value.isEmpty()) {
+                        assignments.put(name, "");
+                    } else {
+                        Path resolved = argument.folder().resolve(value);
+                        assignments.put(name, context.next().relativize(resolved).toString());
+                    }
+                }
             }
         }
         assigner.apply(assignments.stringPropertyNames().stream()
@@ -57,7 +65,7 @@ public class Assign implements BuildStep {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
             }
-            assignments.setProperty(coordinate, path.toString());
+            assignments.setProperty(coordinate, context.next().relativize(path).toString());
         });
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
             assignments.store(writer, null);

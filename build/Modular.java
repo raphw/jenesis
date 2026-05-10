@@ -16,9 +16,7 @@ public class Modular {
     static void main(String[] args) throws IOException {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
-        root.addStep("download", new DownloadModuleUris("module", List.of(
-                DownloadModuleUris.DEFAULT,
-                Path.of("dependencies/modules.properties").toUri())));
+        root.addStep("download", new DownloadModuleUris());
 
         root.addModule("build", (build, downloaded) -> {
             Map<String, Repository> repositories = Repository.ofProperties(DownloadModuleUris.URIS,

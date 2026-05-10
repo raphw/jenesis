@@ -31,7 +31,9 @@ public class AssignTest {
     public void can_assign_all_dependencies() throws IOException {
         Properties properties = new SequencedProperties();
         properties.setProperty("foo", "");
-        properties.setProperty("bar", "qux");
+        Path passthroughArtifact = argument.resolve("passthrough.jar");
+        Files.writeString(passthroughArtifact, "other");
+        properties.setProperty("bar", argument.relativize(passthroughArtifact).toString());
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             properties.store(writer, null);
         }
@@ -51,15 +53,19 @@ public class AssignTest {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsExactly(
-                Map.entry("foo", argument.resolve(BuildStep.ARTIFACTS).resolve("artifact").toString()),
-                Map.entry("bar", "qux"));
+                Map.entry("foo", next.relativize(argument.resolve(BuildStep.ARTIFACTS).resolve("artifact")).toString()),
+                Map.entry("bar", next.relativize(passthroughArtifact).toString()));
+        assertThat(coordinates.getProperty("foo")).doesNotStartWith("/");
+        assertThat(coordinates.getProperty("bar")).doesNotStartWith("/");
     }
 
     @Test
     public void can_assign_dependencies() throws IOException {
         Properties properties = new SequencedProperties();
         properties.setProperty("foo", "");
-        properties.setProperty("bar", "qux");
+        Path passthroughArtifact = argument.resolve("passthrough.jar");
+        Files.writeString(passthroughArtifact, "other");
+        properties.setProperty("bar", argument.relativize(passthroughArtifact).toString());
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             properties.store(writer, null);
         }
@@ -84,9 +90,12 @@ public class AssignTest {
         try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.IDENTITY))) {
             coordinates.load(reader);
         }
+        Path artifact = argument.resolve(BuildStep.ARTIFACTS).resolve("artifact");
         assertThat(coordinates).containsExactly(
-                Map.entry("foo", argument.resolve(BuildStep.ARTIFACTS).resolve("artifact").toString()),
-                Map.entry("bar", "qux"),
-                Map.entry("qux", argument.resolve(BuildStep.ARTIFACTS).resolve("artifact").toString()));
+                Map.entry("foo", next.relativize(artifact).toString()),
+                Map.entry("bar", next.relativize(passthroughArtifact).toString()),
+                Map.entry("qux", next.relativize(artifact).toString()));
+        coordinates.stringPropertyNames().forEach(name ->
+                assertThat(coordinates.getProperty(name)).doesNotStartWith("/"));
     }
 }

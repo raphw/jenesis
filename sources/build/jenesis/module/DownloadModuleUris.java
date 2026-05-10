@@ -15,14 +15,17 @@ public class DownloadModuleUris implements BuildStep {
             "com/github/sormuras/modules/modules.properties");
 
     private final String prefix;
-    private final List<URI> locations;
+    private final Supplier<List<URI>> locations;
 
     public DownloadModuleUris() {
-        prefix = "module";
-        locations = List.of(DEFAULT);
+        this("module");
     }
 
-    public DownloadModuleUris(String prefix, List<URI> locations) {
+    public DownloadModuleUris(String prefix) {
+        this(prefix, () -> List.of(DEFAULT));
+    }
+
+    public <S extends Supplier<List<URI>> & Serializable> DownloadModuleUris(String prefix, S locations) {
         this.prefix = prefix;
         this.locations = locations;
     }
@@ -33,7 +36,7 @@ public class DownloadModuleUris implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(URIS))) {
-            for (URI location : locations) {
+            for (URI location : locations.get()) {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                         location.toURL().openStream(),
                         StandardCharsets.UTF_8))) {

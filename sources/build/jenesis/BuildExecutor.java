@@ -168,7 +168,7 @@ public class BuildExecutor {
                         location + identity,
                         new LinkedHashSet<>(summaries.keySet()));
                 if (!consistent || step.shouldRun(arguments)) {
-                    Path next = Files.createTempDirectory(URLEncoder.encode(identity, StandardCharsets.UTF_8));
+                    Path next = Files.createTempDirectory(target, URLEncoder.encode(identity, StandardCharsets.UTF_8));
                     return step.apply(executor,
                             new BuildStepContext(
                                     consistent ? output : null,

@@ -22,9 +22,7 @@ public class ModularByMaven {
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
-        root.addStep("download", new DownloadModuleUris(null, List.of(
-                DownloadModuleUris.DEFAULT,
-                Path.of("dependencies/modules.properties").toUri())));
+        root.addStep("download", new DownloadModuleUris(null));
 
         root.addModule("build", (build, downloaded) -> {
             Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),

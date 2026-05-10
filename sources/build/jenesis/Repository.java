@@ -97,10 +97,11 @@ public interface Repository {
                 for (String coordinate : properties.stringPropertyNames()) {
                     String location = properties.getProperty(coordinate);
                     if (!location.isEmpty()) {
+                        Path resolved = folder.resolve(location);
                         int index = coordinate.indexOf('/');
                         artifacts.computeIfAbsent(
                                 coordinate.substring(0, index),
-                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(location));
+                                _ -> new HashMap<>()).put(coordinate.substring(index + 1), resolver.apply(resolved.toString()));
                     }
                 }
             }

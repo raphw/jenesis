@@ -187,11 +187,12 @@ public class MavenProject implements BuildExecutorModule {
                             module.addStep(MultiProjectModule.MANIFESTS, (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
-                                coordinates.setProperty(properties.getProperty("pom"), paths.get("../scan")
+                                Path pomFile = paths.get("../scan")
                                         .resolve(POM)
                                         .resolve(properties.getProperty("path"))
-                                        .resolve("pom.xml")
-                                        .toString());
+                                        .resolve("pom.xml");
+                                coordinates.setProperty(properties.getProperty("pom"),
+                                        context.next().relativize(pomFile).toString());
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
                                     coordinates.store(writer, null);
                                 }
