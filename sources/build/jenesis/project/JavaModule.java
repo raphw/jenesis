@@ -17,7 +17,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
         this(false);
     }
 
-    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TESTS = "tests";
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TEST = "test";
 
     public BuildExecutorModule testIfAvailable() {
         return test(null, null, null);
@@ -46,7 +46,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 if (repositories != null && resolvers != null) {
                     tests = tests.withResolvers(repositories, resolvers);
                 }
-                buildExecutor.addModule(TESTS, tests, Stream.concat(
+                buildExecutor.addModule(TEST, tests, Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
                         inherited.sequencedKeySet().stream().filter(key -> !hasSegment(key, MultiProjectModule.COMPILE))));
             }

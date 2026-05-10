@@ -270,7 +270,12 @@ on the side, so the user never has to declare it as a compile-time `requires` of
   its output — deliberately not `artifacts/`, so the runner's jars stay invisible to a downstream `Assign` step
   that scans for module artifacts — and writes `process/java.properties` with `--module-path=<paths>` (paths
   separated by `\n`, recorded relative to the step's own output folder so they survive the temp-to-persistent move).
-- `execute` (`Tests.Run` extends `Java`) picks the properties file up via the standard `ProcessBuildStep`
+- `execute` (`Tests.Run` extends `Java`) honours the `-Djenesis.test=<patterns>` system property: a
+  comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. Class entries are
+  emitted via the engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()` (e.g.
+  `-select-method=`). The property's value is part of the step's serialized state (so changing it invalidates
+  the cache); when set, the step is also forced to re-run regardless of cache consistency. The step picks the
+  properties file up via the standard `ProcessBuildStep`
   mechanism. `Java` consumes `--module-path` and `--class-path` entries in its own per-folder iteration,
   resolving each relative value against the same `argument.folder()` it scans for `classes/`/`artifacts/` and
   folding them into the same path lists, so they end up in a single combined `--module-path` / `-classpath`
@@ -481,4 +486,3 @@ Jenesis is still a proof of concept. Pieces still on the to-do list:
 - Add support for external plugin steps via repository.
 - Consider automatic wrapping of build in Docker.
 - Fix different TODOs within the project.
-- Add command line option to run dedicated tests.

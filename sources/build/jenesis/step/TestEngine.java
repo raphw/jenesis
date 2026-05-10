@@ -16,6 +16,10 @@ public interface TestEngine extends Serializable {
 
     String prefix();
 
+    default String methodPrefix() {
+        return null;
+    }
+
     List<String> arguments();
 
     static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {

@@ -25,7 +25,7 @@ public interface BuildExecutorCallback {
                     out.printf("[%-9s] Building in '%s'...%n", "STARTED", target);
                     return (_, throwable) -> {
                         double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
-                        out.printf("[%-9s] build in %.2f seconds%n", throwable == null ? "COMPLETED" : "FAILED", time);
+                        out.printf("[%-9s] Finished in %.2f seconds%n", throwable == null ? "COMPLETED" : "FAILED", time);
                     };
                 }
                 return (executed, throwable) -> {

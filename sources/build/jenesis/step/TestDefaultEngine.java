@@ -8,7 +8,8 @@ public enum TestDefaultEngine implements TestEngine {
             Set.of(),
             "junit.framework.Test",
             "org.junit.runner.JUnitCore",
-            ""),
+            "",
+            null),
     JUNIT5("org.junit.platform.console",
             new LinkedHashSet<>(List.of(
                     "module/org.junit.platform.console",
@@ -16,6 +17,7 @@ public enum TestDefaultEngine implements TestEngine {
             "org.junit.jupiter.api.Test",
             "org.junit.platform.console.ConsoleLauncher",
             "-select-class=",
+            "-select-method=",
             "execute",
             "--disable-banner",
             "--disable-ansi-colors");
@@ -25,6 +27,7 @@ public enum TestDefaultEngine implements TestEngine {
     private final String markerClass;
     private final String mainClass;
     private final String prefix;
+    private final String methodPrefix;
     private final List<String> arguments;
 
     TestDefaultEngine(String module,
@@ -32,12 +35,14 @@ public enum TestDefaultEngine implements TestEngine {
                       String markerClass,
                       String mainClass,
                       String prefix,
+                      String methodPrefix,
                       String... arguments) {
         this.module = module;
         this.coordinates = coordinates;
         this.markerClass = markerClass;
         this.mainClass = mainClass;
         this.prefix = prefix;
+        this.methodPrefix = methodPrefix;
         this.arguments = List.of(arguments);
     }
 
@@ -64,6 +69,11 @@ public enum TestDefaultEngine implements TestEngine {
     @Override
     public String prefix() {
         return prefix;
+    }
+
+    @Override
+    public String methodPrefix() {
+        return methodPrefix;
     }
 
     @Override

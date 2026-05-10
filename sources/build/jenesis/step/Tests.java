@@ -222,24 +222,30 @@ public class Tests implements BuildExecutorModule {
 
         private final TestEngine engine;
         private final Predicate<String> isTest;
+        private final String filter = System.getProperty("jenesis.test");
 
-        Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
+        private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
             this.engine = engine;
             this.isTest = isTest;
             this.jarsOnly = jarsOnly;
             this.modular = modular;
         }
 
-        Run(Function<List<String>, ProcessHandler.OfProcess> factory,
-            TestEngine engine,
-            Predicate<String> isTest,
-            boolean jarsOnly,
-            boolean modular) {
+        private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
+                    TestEngine engine,
+                    Predicate<String> isTest,
+                    boolean jarsOnly,
+                    boolean modular) {
             super(factory);
             this.engine = engine;
             this.isTest = isTest;
             this.jarsOnly = jarsOnly;
             this.modular = modular;
+        }
+
+        @Override
+        public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+            return filter != null || super.shouldRun(arguments);
         }
 
         @Override
@@ -250,6 +256,7 @@ public class Tests implements BuildExecutorModule {
             TestEngine resolved = engine == null ? TestEngine
                                                    .of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
                                                    .orElseThrow(() -> new IllegalArgumentException("No test engine found")) : engine;
+            List<TestSelector> selectors = TestSelector.parse(filter);
             List<String> commands = new ArrayList<>();
             if (modular && resolved.module() != null) {
                 commands.add("--add-modules");
@@ -269,8 +276,26 @@ public class Tests implements BuildExecutorModule {
                             if (file.toString().endsWith(".class")) {
                                 String raw = classes.relativize(file).toString();
                                 String className = raw.substring(0, raw.length() - 6).replace('/', '.');
-                                if (isTest.test(className)) {
-                                    commands.add(resolved.prefix() + className);
+                                if (selectors.isEmpty()) {
+                                    if (isTest.test(className)) {
+                                        commands.add(resolved.prefix() + className);
+                                    }
+                                } else {
+                                    for (TestSelector selector : selectors) {
+                                        if (selector.classPattern.matcher(className).matches()) {
+                                            if (selector.method == null) {
+                                                commands.add(resolved.prefix() + className);
+                                            } else {
+                                                String methodPrefix = resolved.methodPrefix();
+                                                if (methodPrefix == null) {
+                                                    throw new IllegalStateException(
+                                                            "Engine does not support method selection: " + resolved);
+                                                }
+                                                commands.add(methodPrefix + className + "#" + selector.method);
+                                            }
+                                            break;
+                                        }
+                                    }
                                 }
                             }
                             return FileVisitResult.CONTINUE;
@@ -279,6 +304,31 @@ public class Tests implements BuildExecutorModule {
                 }
             }
             return CompletableFuture.completedFuture(commands);
+        }
+    }
+
+    private record TestSelector(Pattern classPattern, String method) {
+
+        static List<TestSelector> parse(String spec) {
+            if (spec == null || spec.isBlank()) {
+                return List.of();
+            }
+            List<TestSelector> result = new ArrayList<>();
+            for (String entry : spec.split(",")) {
+                String trimmed = entry.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                int separator = trimmed.indexOf('#');
+                if (separator < 0) {
+                    result.add(new TestSelector(Pattern.compile(trimmed), null));
+                } else {
+                    result.add(new TestSelector(
+                            Pattern.compile(trimmed.substring(0, separator)),
+                            trimmed.substring(separator + 1)));
+                }
+            }
+            return result;
         }
     }
 }

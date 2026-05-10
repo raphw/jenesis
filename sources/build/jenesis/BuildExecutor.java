@@ -307,43 +307,54 @@ public class BuildExecutor {
     }
 
     private Bound bindModule(BuildExecutorModule module, Function<String, Optional<String>> resolver) {
-        return (prefix, executor, summaries, selectors) -> {
-            Consumer<Throwable> resolution = callback.module(location + prefix);
-            try {
-                SequencedMap<String, Path> folders = new LinkedHashMap<>();
-                SequencedMap<String, StepSummary> inherited = new LinkedHashMap<>();
-                for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                    String identity = BuildExecutorModule.PREVIOUS + entry.getKey();
-                    folders.put(identity, entry.getValue().folder());
-                    inherited.put(identity, entry.getValue());
-                }
-                BuildExecutor buildExecutor = new BuildExecutor(target.resolve(prefix),
-                        hash,
-                        stepHash,
-                        callback,
-                        location + prefix + "/",
-                        inherited);
-                module.accept(buildExecutor, folders);
-                resolution.accept(null);
-                return buildExecutor.doExecute(executor, selectors).thenComposeAsync(results -> {
-                    try {
-                        Map<String, StepSummary> prefixed = new LinkedHashMap<>();
-                        results.forEach((identity, values) -> {
-                            String resolved = module.resolve(identity).flatMap(resolver).orElse(null);
-                            if (resolved != null && prefixed.putIfAbsent(
-                                    resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
-                                    values) != null) {
-                                throw new IllegalArgumentException("Duplicate resolution " + resolved);
-                            }
-                        });
-                        return CompletableFuture.completedStage(Map.of(prefix, prefixed));
-                    } catch (Throwable t) {
-                        return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
+        return new Bound() {
+            @Override
+            public boolean module() {
+                return true;
+            }
+
+            @Override
+            public CompletionStage<Map<String, Map<String, StepSummary>>> apply(String prefix,
+                                                                                Executor executor,
+                                                                                Map<String, StepSummary> summaries,
+                                                                                Set<Selector> selectors) {
+                Consumer<Throwable> resolution = callback.module(location + prefix);
+                try {
+                    SequencedMap<String, Path> folders = new LinkedHashMap<>();
+                    SequencedMap<String, StepSummary> inherited = new LinkedHashMap<>();
+                    for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
+                        String identity = BuildExecutorModule.PREVIOUS + entry.getKey();
+                        folders.put(identity, entry.getValue().folder());
+                        inherited.put(identity, entry.getValue());
                     }
-                }, executor);
-            } catch (Throwable t) {
-                resolution.accept(t);
-                return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
+                    BuildExecutor buildExecutor = new BuildExecutor(target.resolve(prefix),
+                            hash,
+                            stepHash,
+                            callback,
+                            location + prefix + "/",
+                            inherited);
+                    module.accept(buildExecutor, folders);
+                    resolution.accept(null);
+                    return buildExecutor.doExecute(executor, selectors).thenComposeAsync(results -> {
+                        try {
+                            Map<String, StepSummary> prefixed = new LinkedHashMap<>();
+                            results.forEach((identity, values) -> {
+                                String resolved = module.resolve(identity).flatMap(resolver).orElse(null);
+                                if (resolved != null && prefixed.putIfAbsent(
+                                        resolved.isEmpty() ? prefix : prefix + "/" + validated(resolved, VALIDATE_RESOLVED),
+                                        values) != null) {
+                                    throw new IllegalArgumentException("Duplicate resolution " + resolved);
+                                }
+                            });
+                            return CompletableFuture.completedStage(Map.of(prefix, prefixed));
+                        } catch (Throwable t) {
+                            return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
+                        }
+                    }, executor);
+                } catch (Throwable t) {
+                    resolution.accept(t);
+                    return CompletableFuture.failedStage(new BuildExecutorException(location + prefix, t));
+                }
             }
         };
     }
@@ -474,6 +485,11 @@ public class BuildExecutor {
                 }
             }
             ArrayDeque<String> prelimQueue = new ArrayDeque<>(pinned);
+            for (String identity : scheduled) {
+                if (registrations.get(identity).bound().module() && pinned.add(identity)) {
+                    prelimQueue.add(identity);
+                }
+            }
             while (!prelimQueue.isEmpty()) {
                 for (String preliminary : registrations.get(prelimQueue.poll()).preliminaries()) {
                     scheduled.add(preliminary);
@@ -601,7 +617,6 @@ public class BuildExecutor {
         return map;
     }
 
-    @FunctionalInterface
     private interface Bound {
 
         CompletionStage<Map<String, Map<String, StepSummary>>> apply(String identity,
@@ -610,15 +625,32 @@ public class BuildExecutor {
                                                                      Set<Selector> selectors)
                 throws IOException;
 
+        default boolean module() {
+            return false;
+        }
+
         default Bound summaries(HashFunction hash, Set<Path> paths) {
-            return (identity, executor, summaries, selectors) -> {
-                SequencedMap<String, StepSummary> extended = new LinkedHashMap<>(summaries);
-                for (Path path : paths) {
-                    extended.put(
-                            ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
-                            new StepSummary(path, HashFunction.read(path, hash)));
+            Bound delegate = this;
+            return new Bound() {
+                @Override
+                public CompletionStage<Map<String, Map<String, StepSummary>>> apply(String identity,
+                                                                                    Executor executor,
+                                                                                    Map<String, StepSummary> summaries,
+                                                                                    Set<Selector> selectors)
+                        throws IOException {
+                    SequencedMap<String, StepSummary> extended = new LinkedHashMap<>(summaries);
+                    for (Path path : paths) {
+                        extended.put(
+                                ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
+                                new StepSummary(path, HashFunction.read(path, hash)));
+                    }
+                    return delegate.apply(identity, executor, extended, selectors);
                 }
-                return apply(identity, executor, extended, selectors);
+
+                @Override
+                public boolean module() {
+                    return delegate.module();
+                }
             };
         }
     }
