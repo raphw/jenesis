@@ -62,7 +62,7 @@ public class MavenProject implements BuildExecutorModule {
                                                             && entry.getKey().endsWith("/assign"))
                                             .map(Map.Entry::getValue)
                                             .toList(),
-                                    (folder, file) -> folder.resolve(file).toUri(),
+                                    (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
                     addScope(buildExecutor,

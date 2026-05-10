@@ -18,11 +18,13 @@ public interface Repository {
         if (folder == null) {
             return this;
         }
+        boolean verbose = Boolean.getBoolean("jenesis.verbose");
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
         return (executor, coordinate) -> {
             try {
+                Path candidate = folder.resolve(URLEncoder.encode(coordinate, StandardCharsets.UTF_8) + ".jar");
+                boolean preexisting = Files.exists(candidate);
                 Path target = cache.computeIfAbsent(coordinate, key -> {
-                    Path candidate = folder.resolve(URLEncoder.encode(key, StandardCharsets.UTF_8) + ".jar");
                     if (Files.exists(candidate)) {
                         return candidate;
                     }
@@ -44,6 +46,11 @@ public interface Repository {
                         throw new UncheckedIOException(e);
                     }
                 });
+                if (verbose && preexisting && target != null) {
+                    System.out.printf("%s%-11s%s %s%n",
+                            BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET,
+                            target.toAbsolutePath().toUri());
+                }
                 return target == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(target));
             } catch (UncheckedIOException e) {
                 throw e.getCause();
@@ -64,7 +71,7 @@ public interface Repository {
             }
             if (verbose) {
                 System.out.printf("%s%-11s%s %s%n",
-                        BuildExecutorCallback.YELLOW, "[DOWNLOAD]", BuildExecutorCallback.RESET, uri);
+                        BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, uri);
             }
             if (Objects.equals("file", uri.getScheme())) {
                 return Optional.of(RepositoryItem.ofFile(Path.of(uri)));

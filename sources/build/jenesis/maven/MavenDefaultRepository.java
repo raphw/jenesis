@@ -43,7 +43,7 @@ public class MavenDefaultRepository implements MavenRepository {
                 + "." + type + (checksum == null ? "" : ("." + checksum));
         if (verbose) {
             System.out.printf("%s%-11s%s %s%n",
-                    BuildExecutorCallback.YELLOW, "[DOWNLOAD]", BuildExecutorCallback.RESET, repository.resolve(path));
+                    BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, repository.resolve(path));
         }
         return fetch(repository, path, checksum == null).materialize();
     }
@@ -58,7 +58,7 @@ public class MavenDefaultRepository implements MavenRepository {
                 + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum);
         if (verbose) {
             System.out.printf("%s%-11s%s %s%n",
-                    BuildExecutorCallback.YELLOW, "[DOWNLOAD]", BuildExecutorCallback.RESET, repository.resolve(path));
+                    BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, repository.resolve(path));
         }
         return fetch(repository, path, checksum == null).materialize();
     }

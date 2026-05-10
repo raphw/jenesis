@@ -50,7 +50,7 @@ public class MultiProjectDependencies implements BuildStep {
                     for (String property : properties.stringPropertyNames()) {
                         String value = properties.getProperty(property);
                         if (!value.isEmpty()) {
-                            coordinates.put(property, entry.getValue().folder().resolve(value).toString());
+                            coordinates.put(property, entry.getValue().folder().resolve(value).normalize().toString());
                         }
                     }
                 }
