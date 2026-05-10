@@ -108,8 +108,12 @@ Three properties of the model give incremental builds and reproducibility for fr
   inputs are unchanged. Configuration that should *not* count as part of the build's identity (a `Repository` that
   by contract returns the same artifact for the same coordinate, a JDK service factory, a `MavenPomEmitter`) is
   marked `transient` so it never reaches the digest. Lambdas held by step fields use intersection bounds
-  (`<T extends Function<…> & Serializable>`) at the constructor so the compiler generates them serializable;
-  steps that hold non-serializable state simply fall back to a stable empty hash and don't false-invalidate.
+  (`<T extends Function<…> & Serializable>`) at the constructor so the compiler generates them serializable. The
+  hash stream also installs a `replaceObject` hook that substitutes any `java.nio.file.Path` for its `toString()`,
+  making `Path`-typed step fields a first-class part of the configuration hash by design — the JDK's `Path`
+  interface is not declared `Serializable`, so without this substitution any step that held a `Path` would fail
+  serialization. Steps that still hold genuinely non-serializable state throw `NotSerializableException` at hash
+  time so the bug surfaces at the first run instead of silently breaking cache invalidation.
 
 The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
 `ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `cache/` by
@@ -527,9 +531,12 @@ A few rules of thumb for new steps:
 
 - **Hold lambdas through serializable bounds.** Constructors that take functional values should declare an
   intersection bound (`<T extends Function<…> & Serializable>`) so the compiler emits a serializable lambda.
-  A step that holds a non-serializable value will fail outright when `BuildStepHashFunction.ofDigest` tries to
-  serialize it for the configuration hash, propagating a `NotSerializableException`. This is intentional — silent
-  fallback would hide a bug that breaks cache invalidation, so the surface is loud at build time instead.
+  A step that holds a non-serializable value will fail outright when `BuildStepHashFunction.ofSerializationDigest`
+  tries to serialize it for the configuration hash, propagating a `NotSerializableException`. This is intentional —
+  silent fallback would hide a bug that breaks cache invalidation, so the surface is loud at build time instead.
+  `java.nio.file.Path` is the one exception that is *not* a bug to hold: the digest stream substitutes any `Path`
+  for its `toString()`, making it a serializable participant in the configuration hash by design even though the
+  JDK's concrete `Path` implementations don't implement `Serializable`.
 
 - **Bump `serialVersionUID` to communicate code changes.** The cache's notion of "configuration" is the step's
   *serialized form* — the values of its non-transient fields plus the class's `serialVersionUID`. Editing the
