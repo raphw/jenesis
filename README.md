@@ -469,6 +469,56 @@ flowchart LR
   pBassn --> pAprep
 ```
 
+Implementing a `BuildStep`
+--------------------------
+
+A custom `BuildStep` is a serializable functional implementation of:
+
+```java
+CompletionStage<BuildStepResult> apply(Executor executor,
+                                       BuildStepContext context,
+                                       SequencedMap<String, BuildStepArgument> arguments);
+```
+
+A few rules of thumb for new steps:
+
+- **Write only into `context.next()`.** Treat predecessor folders (`argument.folder()`) and `context.previous()` as
+  read-only; use `context.supplement()` for scratch files that should not be published. The "immutable output
+  folder" invariant is what makes downstream caches correct.
+
+- **Use `shouldRun(...)` for finer dependencies.** The default re-runs the step whenever any input checksum
+  changed. Overriding it lets a step ignore subtrees that do not affect its output (`Bind` only watches its bound
+  paths; `Relocate` only watches its declared prefixes).
+
+- **Decide what counts as "configuration".** Every non-`transient` field is folded into the step's configuration
+  hash via `ObjectOutputStream.writeObject(step)`. Anything that should *not* count as part of the build's
+  identity — a `Repository` that by contract returns the same artifact for the same coordinate, a JDK service
+  factory, a `MavenPomEmitter` — must be marked `transient` so swapping equivalent backends does not invalidate
+  the cache. Conversely, fields that *do* affect the output (a sort order, a placement function, a flag list)
+  must stay non-transient.
+
+- **Hold lambdas through serializable bounds.** Constructors that take functional values should declare an
+  intersection bound (`<T extends Function<…> & Serializable>`) so the compiler emits a serializable lambda.
+  A step that holds a non-serializable value falls back to a stable empty configuration hash, which means later
+  changes to *any* of its other fields silently fail to invalidate the cache.
+
+- **Bump `serialVersionUID` to communicate code changes.** The cache's notion of "configuration" is the step's
+  *serialized form* — the values of its non-transient fields plus the class's `serialVersionUID`. Editing the
+  body of `apply(...)` (fixing a bug, changing a tool flag, switching to a different output layout) does not
+  alter the serialized form, and therefore does **not** invalidate previously cached outputs. To force a rebuild
+  after such a change, increment the step's `serialVersionUID`: the new value flows into the stream's class
+  descriptor, the configuration hash changes, and every previously cached run of that step re-executes.
+  (`-Djenesis.rebuild=true` achieves the same thing globally, but discards every other step's cache too.)
+
+- **Return a meaningful `BuildStepResult`.** A successful result with `next() == true` atomically promotes
+  `context.next()` over the previous run. A result with `next() == false` keeps the previous folder and discards
+  the temp (useful for steps that detect their inputs would yield the same output as last time). A failed
+  `CompletionStage` or a thrown exception deletes the temp and propagates as a build failure.
+
+Steps that follow these rules participate fully in incremental builds: identical inputs and identical
+configuration reuse the previous output unchanged, and a meaningful change anywhere — fields,
+`serialVersionUID`, or predecessor outputs — re-executes the step into a fresh `next` folder.
+
 Configuration
 -------------
 
