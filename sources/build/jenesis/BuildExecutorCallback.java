@@ -17,7 +17,7 @@ public interface BuildExecutorCallback {
         };
     }
 
-    static BuildExecutorCallback printing(PrintStream out, boolean debug, Path target) {
+    static BuildExecutorCallback printing(PrintStream out, boolean verbose, Path target) {
         return new BuildExecutorCallback() {
             @Override
             public BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys) {
@@ -38,7 +38,7 @@ public interface BuildExecutorCallback {
                         double time = ((double) (System.nanoTime() - started) / 1_000_000) / 1_000;
                         synchronized (out) {
                             out.printf("[%-9s] %s in %.2f seconds%n", "EXECUTED", identity, time);
-                            if (debug) {
+                            if (verbose) {
                                 Path checksums = target.resolve(identity)
                                         .resolve("checksum")
                                         .resolve("checksums");

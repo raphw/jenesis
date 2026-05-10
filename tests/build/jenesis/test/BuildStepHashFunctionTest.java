@@ -10,6 +10,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BuildStepHashFunctionTest {
 
@@ -24,15 +25,22 @@ public class BuildStepHashFunctionTest {
     }
 
     @Test
-    public void falls_back_to_stable_empty_hash_for_non_serializable_step() throws IOException {
+    public void throws_for_non_serializable_step() {
         BuildStepHashFunction hash = BuildStepHashFunction.ofDigest("MD5");
-        BuildStep step = (_, _, _) -> CompletableFuture.completedStage(new BuildStepResult(true));
-        byte[] first = hash.hash(step);
-        byte[] second = hash.hash(step);
-        assertThat(first).isEqualTo(second);
+        BuildStep step = new NonSerializableStep();
+        assertThatThrownBy(() -> hash.hash(step)).isInstanceOf(NotSerializableException.class);
     }
 
     private record ConfigurableStep(String value) implements BuildStep {
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments) {
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private class NonSerializableStep implements BuildStep {
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
                                                       BuildStepContext context,

@@ -151,40 +151,7 @@ public class MavenProject implements BuildExecutorModule {
         if (!Files.exists(root.resolve("pom.xml"))) {
             return;
         }
-        buildExecutor.addStep("scan", new BuildStep() {
-            @Override
-            public CompletionStage<BuildStepResult> apply(Executor executor,
-                                                          BuildStepContext context,
-                                                          SequencedMap<String, BuildStepArgument> arguments)
-                    throws IOException {
-                Path poms = Files.createDirectory(context.next().resolve(POM));
-                Files.walkFileTree(root, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        if (file.getFileName().toString().equals("pom.xml")) {
-                            Path target = poms.resolve(root.relativize(file));
-                            Files.createDirectories(target.getParent());
-                            Files.createLink(target, file);
-                        }
-                        return FileVisitResult.CONTINUE;
-                    }
-
-                    @Override
-                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                        if (Files.exists(dir.resolve(BuildExecutor.BUILD_MARKER))) {
-                            return FileVisitResult.SKIP_SUBTREE;
-                        }
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
-                return CompletableFuture.completedStage(new BuildStepResult(true));
-            }
-
-            @Override
-            public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-                return true;
-            }
-        });
+        buildExecutor.addStep("scan", new Scan(root));
         buildExecutor.addStep("prepare", new Prepare(prefix, resolver, repository), "scan");
         buildExecutor.addModule(MODULE, (modules, paths) -> {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
@@ -243,6 +210,45 @@ public class MavenProject implements BuildExecutorModule {
                 }
             }
         }, "scan", "prepare");
+    }
+
+    private record Scan(Path root) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Path poms = Files.createDirectory(context.next().resolve(POM));
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    if (file.getFileName().toString().equals("pom.xml")) {
+                        Path target = poms.resolve(root.relativize(file));
+                        Files.createDirectories(target.getParent());
+                        Files.createLink(target, file);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (Files.exists(dir.resolve(BuildExecutor.BUILD_MARKER))) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+
+        @Override
+        public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+            // depends on root but also all files within the root. The easiest is to trigger
+            // this build step each time to scan for possible changes of POMs and analyze them
+            // in a subsequent (cached) build step.
+            return true;
+        }
     }
 
     private static class Prepare implements BuildStep {

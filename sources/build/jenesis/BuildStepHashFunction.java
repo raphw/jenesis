@@ -9,16 +9,24 @@ public interface BuildStepHashFunction {
 
     static BuildStepHashFunction ofDigest(String algorithm) {
         return step -> {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
-                out.writeObject(step);
-            } catch (NotSerializableException e) {
-                bytes.reset();
-            }
-            try {
-                return MessageDigest.getInstance(algorithm).digest(bytes.toByteArray());
-            } catch (NoSuchAlgorithmException e) {
-                throw new IllegalStateException(e);
+            try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                try (ObjectOutputStream out = new ObjectOutputStream(bytes) {
+                    {
+                        enableReplaceObject(true);
+                    }
+
+                    @Override
+                    protected Object replaceObject(Object value) {
+                        return value instanceof Path path ? path.toString() : value;
+                    }
+                }) {
+                    out.writeObject(step);
+                }
+                try {
+                    return MessageDigest.getInstance(algorithm).digest(bytes.toByteArray());
+                } catch (NoSuchAlgorithmException e) {
+                    throw new IllegalStateException(e);
+                }
             }
         };
     }

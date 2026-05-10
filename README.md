@@ -527,8 +527,9 @@ A few rules of thumb for new steps:
 
 - **Hold lambdas through serializable bounds.** Constructors that take functional values should declare an
   intersection bound (`<T extends Function<…> & Serializable>`) so the compiler emits a serializable lambda.
-  A step that holds a non-serializable value falls back to a stable empty configuration hash, which means later
-  changes to *any* of its other fields silently fail to invalidate the cache.
+  A step that holds a non-serializable value will fail outright when `BuildStepHashFunction.ofDigest` tries to
+  serialize it for the configuration hash, propagating a `NotSerializableException`. This is intentional — silent
+  fallback would hide a bug that breaks cache invalidation, so the surface is loud at build time instead.
 
 - **Bump `serialVersionUID` to communicate code changes.** The cache's notion of "configuration" is the step's
   *serialized form* — the values of its non-transient fields plus the class's `serialVersionUID`. Editing the
@@ -555,7 +556,7 @@ The following system properties and environment variables tune the build at laun
 | Name                    | Kind                | Effect                                                                                                                                                                                                                                |
 | ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `jenesis.rebuild`       | system property     | When `true`, the build script (e.g. `Modules.java`) deletes `target/` before constructing the `BuildExecutor`, forcing a full re-run of every step.                                                                                  |
-| `jenesis.debug`         | system property     | When `true`, the default `BuildExecutorCallback` prints per-step debug output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                                |
+| `jenesis.verbose`       | system property     | When `true`, the default `BuildExecutorCallback` prints per-step verbose output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                              |
 | `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
