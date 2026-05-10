@@ -1,12 +1,11 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
-
-import module java.base;
 
 public abstract class ProcessBuildStep implements BuildStep {
 

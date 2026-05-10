@@ -1,11 +1,10 @@
 package build.jenesis.module;
 
+import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-
-import module java.base;
 
 public class DownloadModuleUris implements BuildStep {
 

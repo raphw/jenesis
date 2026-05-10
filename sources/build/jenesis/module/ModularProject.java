@@ -144,7 +144,7 @@ public class ModularProject implements BuildExecutorModule {
         }, inheritedScopeInputs);
     }
 
-    public static <T extends Function<Path, Optional<Path>> & Serializable> T artifactsByModule() {
+    public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
     }
 

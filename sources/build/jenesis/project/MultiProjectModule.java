@@ -1,12 +1,11 @@
 package build.jenesis.project;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
-
-import module java.base;
 
 public class MultiProjectModule implements BuildExecutorModule {
 
@@ -38,9 +37,9 @@ public class MultiProjectModule implements BuildExecutorModule {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Function<Path, Optional<Path>> & Serializable> T linkBySubModule(String... names) {
+    public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);
-        return (T) (Function<Path, Optional<Path>> & Serializable) (file -> {
+        return (F) (Function<Path, Optional<Path>> & Serializable) (file -> {
             Path filename = file.getFileName();
             if (filename == null || !allowed.contains(filename.toString())) {
                 return Optional.empty();

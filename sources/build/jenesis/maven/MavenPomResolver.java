@@ -1,10 +1,10 @@
 package build.jenesis.maven;
 
+import module java.base;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 
-import module java.base;
 import module java.xml;
 
 public class MavenPomResolver implements Resolver {

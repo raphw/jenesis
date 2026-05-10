@@ -1,8 +1,7 @@
 package build.jenesis.maven;
 
-import build.jenesis.RepositoryItem;
-
 import module java.base;
+import build.jenesis.RepositoryItem;
 
 public class MavenDefaultRepository implements MavenRepository {
 

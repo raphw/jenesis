@@ -154,7 +154,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar under `artifacts/`.                                                                                               | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`         | `artifacts/classes.jar`, `artifacts/sources.jar`, or `artifacts/javadoc.jar` (depending on `Jar.Sort`) |
 | `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
 | `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
-| `Tests`                    | A `BuildExecutorModule` (described under *Build executor modules*) that scans each predecessor's `classes/` for test-named classes, runs them through a configured `TestEngine` via an internal `Java` subclass, and optionally fetches the runner on the side when `.withResolvers(...)` is set.   | `classes/`, `artifacts/`                                                                                                              | sub-steps: `resolved`, `checked` (optional), `required`, `prepare`, `execute`    |
+| `TestModule`                    | A `BuildExecutorModule` (described under *Build executor modules*) that scans each predecessor's `classes/` for test-named classes, runs them through a configured `TestEngine` via an internal `Java` subclass, and optionally fetches the runner on the side when `.withResolvers(...)` is set.   | `classes/`, `artifacts/`                                                                                                              | sub-steps: `resolved`, `checked` (optional), `required`, `prepared`, `executed`  |
 | `Resolve`                  | Reads `requires.properties`, asks each prefixed group's `Resolver` for the transitive closure, and writes the resolved coordinates to a fresh `requires.properties`.                          | `requires.properties`                                                                                                                 | `requires.properties` (transitively resolved, per-prefix `Resolver`)             |
 | `Checksum`                 | Reads `requires.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `requires.properties` where each empty value is replaced by `algorithm/<hex>`.        | `requires.properties`                                                                                                                 | `requires.properties` (with computed checksums)                                  |
 | `Download`                 | Reads `requires.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid.  | `requires.properties`                                                                                                                 | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `requires.properties`       |
@@ -167,7 +167,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); after copying it invokes an optional `Consumer<Path>` finalizer against the target. `MavenRepositoryLayout.toLocalRepository()` / `toRepository(Path)` ship a Maven-layout placement that writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}` plus a finalizer that mirrors `mvn install` (writes `maven-metadata-local.xml` per artifact, `_remote.repositories` markers per version dir, and per-version snapshot metadata for `-SNAPSHOT` versions). | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and the inner `execute`
-step of `Tests`); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
+step of `TestModule`); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
 `Download`, and `Translate`; they all parse `requires.properties` into `(prefix, coordinate)` groups, transform
 them, and write `requires.properties` back.
 
@@ -239,8 +239,8 @@ the method that enables them.
 
 Used for compiling and packaging a single Java module from its sources and its resolved dependencies. Calling
 `.test(engine)` or `.testIfAvailable()` adds an extra `tests` sub-module that runs the compiled tests; the
-`(repositories, resolvers)` overloads forward into `Tests.withResolvers(...)` so the test runner can be fetched
-on the side instead of being a compile-time `requires` of the test module (see *`Tests`* below).
+`(repositories, resolvers)` overloads forward into `TestModule.withResolvers(...)` so the test runner can be fetched
+on the side instead of being a compile-time `requires` of the test module (see *`TestModule`* below).
 
 ```mermaid
 flowchart LR
@@ -251,7 +251,7 @@ flowchart LR
   arts(["dependency artifacts/"]):::input
   classes["classes<br/>(Javac)"]:::step
   artifacts["artifacts<br/>(Jar, Sort.CLASSES)"]:::step
-  tests["tests<br/>(Tests)"]:::optional
+  tests["tests<br/>(TestModule)"]:::optional
   src --> classes
   arts --> classes
   classes --> artifacts
@@ -261,14 +261,14 @@ flowchart LR
   arts -.-> tests
 ```
 
-### `Tests`
+### `TestModule`
 
 A `BuildExecutorModule` that runs a configured `TestEngine` (e.g. JUnit 5) against the compiled tests of its
 predecessors. The simple form adds only an `execute` step (`Java`) and expects the runner module to already be on
 the inherited class- or module-path. Calling `withResolvers(repositories, resolvers)` instead fetches the runner
 on the side, so the user never has to declare it as a compile-time `requires` of their test module:
 
-- `resolved` (`Tests.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
+- `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
   `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers — `TestDefaultEngine.JUNIT5`
   ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
   so the same engine works across `Modular`, `ModularByMaven`, and `Manual`-style builds. If the runner is already
@@ -277,11 +277,11 @@ on the side, so the user never has to declare it as a compile-time `requires` of
   coordinate from its `Repository` and rewrites `requires.properties` with `algorithm/<hex>` checksums.
 - `required` (`Resolve`) expands that single coordinate into its transitive closure via the matching
   `Resolver`.
-- `prepare` (`Tests.Prepare`) fetches each resolved coordinate via its `Repository` into a `runner/` subfolder of
+- `prepared` (`TestModule.Prepare`) fetches each resolved coordinate via its `Repository` into a `runner/` subfolder of
   its output — deliberately not `artifacts/`, so the runner's jars stay invisible to a downstream `Assign` step
   that scans for module artifacts — and writes `process/java.properties` with `--module-path=<paths>` (paths
   separated by `\n`, recorded relative to the step's own output folder so they survive the temp-to-persistent move).
-- `execute` (`Tests.Run` extends `Java`) honours the `-Djenesis.test=<patterns>` system property: a
+- `executed` (`TestModule.Run` extends `Java`) honours the `-Djenesis.test=<patterns>` system property: a
   comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. Class entries are
   emitted via the engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()` (e.g.
   `-select-method=`). The property's value is part of the step's serialized state (so changing it invalidates
@@ -301,15 +301,15 @@ flowchart LR
   resolved["resolved<br/>(Requires)"]:::optional
   checked["checked<br/>(Checksum)"]:::optional
   required["required<br/>(Resolve)"]:::optional
-  prepare["prepare<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::optional
-  execute["execute<br/>(Java/Run)"]:::step
-  arts --> execute
+  prepared["prepared<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::optional
+  executed["executed<br/>(Java/Run)"]:::step
+  arts --> executed
   arts -.->|".withResolvers(repositories, resolvers)"| resolved
   resolved -.->|".computeChecksums(algorithm)"| checked
   checked -.-> required
   resolved -.-> required
-  required -.-> prepare
-  prepare -.-> execute
+  required -.-> prepared
+  prepared -.-> executed
 ```
 
 ### `DependenciesModule`
@@ -479,7 +479,7 @@ The following system properties and environment variables tune the build at laun
 | ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `jenesis.rebuild`       | system property     | When `true`, the build script (e.g. `Modules.java`) deletes `target/` before constructing the `BuildExecutor`, forcing a full re-run of every step.                                                                                  |
 | `jenesis.debug`         | system property     | When `true`, the default `BuildExecutorCallback` prints per-step debug output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                                |
-| `jenesis.test`          | system property     | When set, `Tests.execute` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
+| `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
@@ -498,7 +498,7 @@ arguments, the full graph runs.
 | `java build/Modular.java`                 | Whole graph. On a warm cache, every step is `[SKIPPED]`.                                                                                                        |
 | `java build/Modular.java ::/test`         | Every `test` sub-module at any depth, plus its transitive preliminary closure. Modules along the path have their step preliminaries cache-checked; sibling sub-graphs that happen to be scheduled by `::` lenient-skip. |
 | `java build/Modular.java build/::/test`   | Same, but anchored under the top-level `build` module. Top-level entries that aren't on the path to `build` (e.g. the `collect` step that depends on `build`) are not scheduled at all.                  |
-| `java -Djenesis.test='.*FooTest' build/Modular.java ::/test` | Same selector, but `Tests.execute` re-runs unconditionally and only selects classes matching the regex; upstream `classes`/`artifacts` etc. stay cached. |
+| `java -Djenesis.test='.*FooTest' build/Modular.java ::/test` | Same selector, but `TestModule.executed` re-runs unconditionally and only selects classes matching the regex; upstream `classes`/`artifacts` etc. stay cached. |
 
 A literal selector that doesn't resolve throws (`Unknown selector: …`). Wildcards (`:` and `::`) are lenient — they
 silently skip branches with no match — but as a result they over-schedule sibling subtrees: their modules' `accept`
@@ -585,7 +585,7 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
 - **`ProcessBuildStep`** is the abstract base for every step that shells out to an external command. Subclasses
   return their command-line via `process(...)`; the base class assembles the process, captures stdout/stderr,
   validates the exit code, and reports a `BuildStepResult`. It also defines the `process/<name>.properties`
-  convention used by upstream steps to inject command-line arguments (see `Tests.Prepare`, which writes
+  convention used by upstream steps to inject command-line arguments (see `TestModule.Prepare`, which writes
   `process/java.properties` with `--module-path=…`).
 - **`JdkProcessBuildStep`** extends `ProcessBuildStep` with a single twist: it serializes `Runtime.version()`
   into its config hash so a JDK upgrade invalidates every cached `javac`/`java`/`javadoc` output without any
@@ -596,12 +596,12 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
 - **`Javac`, `Jar`, `Javadoc`, `Java`** are the concrete tool drivers. They consume the conventional folders
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.
-- **`Tests`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` and `TestDefaultEngine`
+- **`TestModule`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` and `TestDefaultEngine`
   encode per-framework metadata (main class, command-line prefix for selecting classes/methods, marker class
   used to detect the framework on the classpath, optional Maven coordinates of the runner). New frameworks slot
   in by implementing `TestEngine`.
 - **`JavaModule`** is the canonical `BuildExecutorModule` for "compile sources, package as a jar, optionally run
-  tests". It delegates to `Javac`, `Jar`, and `Tests`. Build scripts that don't have multi-project structure
+  tests". It delegates to `Javac`, `Jar`, and `TestModule`. Build scripts that don't have multi-project structure
   (`Minimal.java`, `Manual.java`) wire it directly.
 - **`ModuleInfoParser` / `ModuleInfo`** read JPMS `module-info.class` straight from bytecode (no class loading)
   and surface the module name and `requires` set — including `requires transitive`, `requires static`, and
@@ -666,8 +666,8 @@ resolver mechanics directly — they pass a `Map<String, Resolver>` keyed by pre
 `JavaModule.testIfAvailable(...)` or `DependenciesModule`, and the generic infrastructure dispatches
 coordinates to the right resolver by prefix.
 
-Status
-------
+Future planned development
+--------------------------
 
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 

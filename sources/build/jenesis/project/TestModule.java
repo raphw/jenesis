@@ -1,4 +1,4 @@
-package build.jenesis.step;
+package build.jenesis.project;
 
 import module java.base;
 import build.jenesis.BuildExecutor;
@@ -11,74 +11,87 @@ import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Checksum;
+import build.jenesis.step.Java;
+import build.jenesis.step.ProcessBuildStep;
+import build.jenesis.step.ProcessHandler;
+import build.jenesis.step.Resolve;
+import build.jenesis.step.TestEngine;
 
-public class Tests implements BuildExecutorModule {
+public class TestModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", CHECKED = "checked", REQUIRED = "required", PREPARE = "prepare", EXECUTION = "execute";
+    public static final String RESOLVED = "resolved", CHECKED = "checked", REQUIRED = "required", PREPARED = "prepared", EXECUTED = "executed";
 
     private static final String RUNNER = "runner/";
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
     private final Function<List<String>, ProcessHandler.OfProcess> factory;
+    private final Map<String, Repository> repositories;
+    private final Map<String, Resolver> resolvers;
+    private final String checksum;
+    private final boolean jarsOnly;
+    private final boolean modular;
 
-    private Map<String, Repository> repositories;
-    private Map<String, Resolver> resolvers;
-    private String checksum;
-    private boolean jarsOnly = true;
-    private boolean modular = true;
-
-    public Tests() {
-        this(null);
+    public TestModule() {
+        this(null, defaultIsTest(), null, null, null, null, true, true);
     }
 
-    public Tests(TestEngine engine) {
-        this.engine = engine;
-        List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
-                .map(Pattern::compile)
-                .toList();
-        isTest = (Predicate<String> & Serializable) (name -> patterns.stream().anyMatch(pattern ->
-                pattern.matcher(name).matches()));
-        factory = null;
+    public TestModule(TestEngine engine) {
+        this(engine, defaultIsTest(), null, null, null, null, true, true);
     }
 
-    public <P extends Predicate<String> & Serializable> Tests(TestEngine engine, P isTest) {
-        this(engine, isTest, null);
+    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine, P isTest) {
+        this(engine, isTest, null, null, null, null, true, true);
     }
 
-    public <P extends Predicate<String> & Serializable> Tests(Function<List<String>, ProcessHandler.OfProcess> factory,
-                                                              TestEngine engine,
-                                                              P isTest) {
-        this(engine, isTest, factory);
+    public <P extends Predicate<String> & Serializable> TestModule(
+            Function<List<String>, ProcessHandler.OfProcess> factory,
+            TestEngine engine,
+            P isTest) {
+        this(engine, isTest, factory, null, null, null, true, true);
     }
 
-    private Tests(TestEngine engine,
-                  Predicate<String> isTest,
-                  Function<List<String>, ProcessHandler.OfProcess> factory) {
+    private TestModule(TestEngine engine,
+                       Predicate<String> isTest,
+                       Function<List<String>, ProcessHandler.OfProcess> factory,
+                       Map<String, Repository> repositories,
+                       Map<String, Resolver> resolvers,
+                       String checksum,
+                       boolean jarsOnly,
+                       boolean modular) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
-    }
-
-    public Tests jarsOnly(boolean jarsOnly) {
-        this.jarsOnly = jarsOnly;
-        return this;
-    }
-
-    public Tests modular(boolean modular) {
-        this.modular = modular;
-        return this;
-    }
-
-    public Tests withResolvers(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         this.repositories = repositories;
         this.resolvers = resolvers;
-        return this;
+        this.checksum = checksum;
+        this.jarsOnly = jarsOnly;
+        this.modular = modular;
     }
 
-    public Tests computeChecksums(String algorithm) {
-        this.checksum = algorithm;
-        return this;
+    private static Predicate<String> defaultIsTest() {
+        List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
+                .map(Pattern::compile)
+                .toList();
+        return (Predicate<String> & Serializable) (name -> patterns.stream().anyMatch(pattern ->
+                pattern.matcher(name).matches()));
+    }
+
+    public TestModule jarsOnly(boolean jarsOnly) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
+    }
+
+    public TestModule modular(boolean modular) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
+    }
+
+    public TestModule withResolvers(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
+    }
+
+    public TestModule computeChecksums(String checksum) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
     }
 
     @Override
@@ -93,17 +106,17 @@ public class Tests implements BuildExecutorModule {
             } else {
                 buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), RESOLVED);
             }
-            buildExecutor.addStep(PREPARE, new Prepare(repositories), REQUIRED);
+            buildExecutor.addStep(PREPARED, new Prepare(repositories), REQUIRED);
             dependencies = Stream.concat(
                     upstream.stream(),
-                    Stream.of(PREPARE));
+                    Stream.of(PREPARED));
         } else {
             dependencies = upstream.stream();
         }
         Run run = factory == null
                 ? new Run(engine, isTest, jarsOnly, modular)
                 : new Run(factory, engine, isTest, jarsOnly, modular);
-        buildExecutor.addStep(EXECUTION, run, dependencies);
+        buildExecutor.addStep(EXECUTED, run, dependencies);
     }
 
     private record Requires(TestEngine engine, Set<String> prefixes) implements BuildStep {

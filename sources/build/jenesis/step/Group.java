@@ -1,12 +1,11 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
-
-import module java.base;
 
 public class Group implements BuildStep {
 
@@ -15,11 +14,11 @@ public class Group implements BuildStep {
     private final Function<String, Optional<String>> identification;
     private final String requiresPath;
 
-    public <T extends Function<String, Optional<String>> & Serializable> Group(T identification) {
+    public <F extends Function<String, Optional<String>> & Serializable> Group(F identification) {
         this(identification, REQUIRES);
     }
 
-    public <T extends Function<String, Optional<String>> & Serializable> Group(T identification, String requiresPath) {
+    public <F extends Function<String, Optional<String>> & Serializable> Group(F identification, String requiresPath) {
         this.identification = identification;
         this.requiresPath = requiresPath;
     }

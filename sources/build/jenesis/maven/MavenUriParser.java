@@ -1,8 +1,7 @@
 package build.jenesis.maven;
 
-import build.jenesis.SequencedProperties;
-
 import module java.base;
+import build.jenesis.SequencedProperties;
 
 public class MavenUriParser implements Function<String, String> {
 

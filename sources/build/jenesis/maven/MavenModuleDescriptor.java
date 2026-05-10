@@ -1,10 +1,9 @@
 package build.jenesis.maven;
 
+import module java.base;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
-
-import module java.base;
 
 public record MavenModuleDescriptor(String name, SequencedSet<String> dependencies) implements ModuleDescriptor {
 

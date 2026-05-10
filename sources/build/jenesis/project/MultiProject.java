@@ -1,8 +1,7 @@
 package build.jenesis.project;
 
-import build.jenesis.BuildExecutorModule;
-
 import module java.base;
+import build.jenesis.BuildExecutorModule;
 
 @FunctionalInterface
 public interface MultiProject {

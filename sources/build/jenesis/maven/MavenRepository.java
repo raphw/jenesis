@@ -1,9 +1,8 @@
 package build.jenesis.maven;
 
+import module java.base;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
-
-import module java.base;
 
 @FunctionalInterface
 public interface MavenRepository extends Repository {

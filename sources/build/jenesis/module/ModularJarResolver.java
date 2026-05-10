@@ -1,10 +1,9 @@
 package build.jenesis.module;
 
+import module java.base;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
-
-import module java.base;
 
 public class ModularJarResolver implements Resolver {
 

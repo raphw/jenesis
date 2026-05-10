@@ -1,9 +1,8 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
-
-import module java.base;
 
 public class Javac extends JdkProcessBuildStep {
 

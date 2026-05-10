@@ -1,4 +1,4 @@
-package build.jenesis.test.step;
+package build.jenesis.test.project;
 
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
@@ -7,9 +7,9 @@ import build.jenesis.BuildStep;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.project.TestModule;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestDefaultEngine;
-import build.jenesis.step.Tests;
 import sample.TestSample;
 
 import module java.base;
@@ -19,7 +19,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestsTest {
+public class TestModuleTest {
 
     @TempDir
     private Path root, dependencies, classes, emptyDependencies;
@@ -59,11 +59,11 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
-        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();
     }
@@ -75,11 +75,11 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modular(false),
+                new TestModule(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modular(false),
                 "dependencies", "classes");
         executor.execute();
 
-        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();
     }
@@ -91,11 +91,11 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
-        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();
     }
@@ -107,11 +107,11 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT5).jarsOnly(false),
+                new TestModule(TestDefaultEngine.JUNIT5).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
-        Path supplement = root.resolve("test").resolve("execute").resolve("supplement");
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
     }
 
@@ -122,12 +122,12 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
 
         assertThatThrownBy(executor::execute)
                 .isInstanceOf(BuildExecutorException.class)
-                .hasMessage("Failed to execute test/" + "execute")
+                .hasMessage("Failed to execute test/" + "executed")
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("No test engine found");
@@ -140,7 +140,7 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.of("maven", noResolver()))
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -158,7 +158,7 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.of("module", noResolver()))
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -176,7 +176,7 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -193,7 +193,7 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -210,7 +210,7 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(TestDefaultEngine.JUNIT4, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(TestDefaultEngine.JUNIT4, candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -227,7 +227,7 @@ public class TestsTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new Tests(null, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(null, candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");

@@ -1,12 +1,11 @@
 package build.jenesis.maven;
 
+import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
-
-import module java.base;
 
 public class Pom implements BuildStep {
 
@@ -32,7 +31,7 @@ public class Pom implements BuildStep {
         });
     }
 
-    public <T extends Function<String, String> & Serializable> Pom(T resolver) {
+    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
         this.resolver = resolver;
     }
 

@@ -1,8 +1,7 @@
 package build.jenesis.step;
 
-import build.jenesis.BuildStep;
-
 import module java.base;
+import build.jenesis.BuildStep;
 
 public interface TestEngine extends Serializable {
 

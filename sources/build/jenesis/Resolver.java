@@ -11,7 +11,7 @@ public interface Resolver extends Serializable {
                                               SequencedSet<String> coordinates,
                                               boolean compile) throws IOException;
 
-    default <T extends BiFunction<String, String, String> & Serializable> Resolver translated(String translated, T translator) {
+    default <F extends BiFunction<String, String, String> & Serializable> Resolver translated(String translated, F translator) {
         return (executor, prefix, repositories, coordinates, compile) -> dependencies(executor,
                 translated,
                 repositories,
@@ -29,7 +29,7 @@ public interface Resolver extends Serializable {
         };
     }
 
-    static <T extends Function<String, SequencedCollection<String>> & Serializable> Resolver of(T translator) {
+    static <F extends Function<String, SequencedCollection<String>> & Serializable> Resolver of(F translator) {
         return (_, prefix, _, coordinates, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             coordinates.stream()

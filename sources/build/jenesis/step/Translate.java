@@ -1,16 +1,15 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.SequencedProperties;
-
-import module java.base;
 
 public class Translate implements DependencyTransformingBuildStep {
 
     private final Map<String, Function<String, String>> translators;
 
-    public <T extends Function<String, String> & Serializable> Translate(Map<String, T> translators) {
+    public <F extends Function<String, String> & Serializable> Translate(Map<String, F> translators) {
         this.translators = new LinkedHashMap<>(translators);
     }
 

@@ -1,22 +1,21 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-
-import module java.base;
 
 public class Relocate implements BuildStep {
 
     private final Function<Path, Optional<Path>> placement;
     private final Set<Path> prefixes;
 
-    public <T extends Function<Path, Optional<Path>> & Serializable> Relocate(T placement) {
+    public <F extends Function<Path, Optional<Path>> & Serializable> Relocate(F placement) {
         this(placement, null);
     }
 
-    public <T extends Function<Path, Optional<Path>> & Serializable> Relocate(T placement, Set<Path> prefixes) {
+    public <F extends Function<Path, Optional<Path>> & Serializable> Relocate(F placement, Set<Path> prefixes) {
         this.placement = placement;
         this.prefixes = prefixes;
     }

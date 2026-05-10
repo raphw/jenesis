@@ -7,7 +7,6 @@ import build.jenesis.Resolver;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestEngine;
-import build.jenesis.step.Tests;
 
 import module java.base;
 
@@ -42,7 +41,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
             }
             accept(buildExecutor, inherited);
             if (candidate != null) {
-                Tests tests = new Tests(candidate);
+                TestModule tests = new TestModule(candidate);
                 if (repositories != null && resolvers != null) {
                     tests = tests.withResolvers(repositories, resolvers);
                 }

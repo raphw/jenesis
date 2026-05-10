@@ -1,12 +1,11 @@
 package build.jenesis.step;
 
+import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.SequencedProperties;
-
-import module java.base;
 
 public class Checksum implements DependencyTransformingBuildStep {
 
