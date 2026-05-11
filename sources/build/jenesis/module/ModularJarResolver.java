@@ -29,10 +29,14 @@ public class ModularJarResolver implements Resolver {
                                                      SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
+        SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         Queue<String> queue = new ArrayDeque<>(coordinates);
         while (!queue.isEmpty()) { // TODO: consider multi-release-jars better?
             String current = queue.remove();
+            if (resolved.contains(current) || unresolved.contains(current)) {
+                continue;
+            }
             RepositoryItem item = repositories.getOrDefault(prefix, Repository.empty()).fetch(
                     executor,
                     current).orElse(null);
@@ -42,7 +46,6 @@ public class ModularJarResolver implements Resolver {
                 }
                 unresolved.add(current);
             } else {
-                dependencies.put(prefix + "/" + current, "");
                 Path file = item.getFile().orElse(null);
                 ModuleDescriptor descriptor;
                 if (file == null) {
@@ -71,6 +74,10 @@ public class ModularJarResolver implements Resolver {
                     }
                     throw new IllegalArgumentException("No module-info.class found for " + current);
                 }
+                String pin = versions.get(current);
+                String version = pin != null ? pin : descriptor.rawVersion().orElse(null);
+                dependencies.put(prefix + "/" + current + (version == null ? "" : "/" + version), "");
+                resolved.add(current);
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
                                 || compile && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
@@ -78,7 +85,7 @@ public class ModularJarResolver implements Resolver {
                         .filter(module -> !module.startsWith("java.") && !module.startsWith("jdk."))
                         .sorted()
                         .forEach(module -> {
-                            if (!unresolved.contains(module) && !dependencies.containsKey(prefix + "/" + module)) {
+                            if (!unresolved.contains(module) && !resolved.contains(module)) {
                                 queue.add(module);
                             }
                         });
