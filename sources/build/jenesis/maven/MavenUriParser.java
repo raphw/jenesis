@@ -3,11 +3,12 @@ package build.jenesis.maven;
 import module java.base;
 import build.jenesis.SequencedProperties;
 
-public class MavenUriParser implements Function<String, String> {
+public class MavenUriParser implements Function<String, String>, Serializable {
 
-    public static Function<String, String> ofUris(MavenUriParser parser,
-                                                  String location,
-                                                  Iterable<Path> folders) throws IOException {
+    public static <F extends Function<String, String> & Serializable> F ofUris(MavenUriParser parser,
+                                                                               String location,
+                                                                               Iterable<Path> folders)
+            throws IOException {
         Properties properties = new SequencedProperties();
         for (Path folder : folders) {
             Path file = folder.resolve(location);
@@ -17,7 +18,7 @@ public class MavenUriParser implements Function<String, String> {
                 }
             }
         }
-        return property -> {
+        return (F) (Function<String, String> & Serializable) property -> {
             String value = properties.getProperty(property);
             if (value == null) {
                 throw new IllegalArgumentException("Could not translate " + property);
