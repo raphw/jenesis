@@ -1,3 +1,7 @@
+/**
+ * @requires org.junit.jupiter 5.11.3
+ * @requires org.assertj.core 3.27.0
+ */
 open module build.jenesis.test {
 
     requires build.jenesis;
