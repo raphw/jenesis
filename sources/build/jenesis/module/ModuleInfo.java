@@ -4,5 +4,10 @@ import module java.base;
 
 public record ModuleInfo(String coordinate,
                          SequencedSet<String> requires,
-                         SequencedSet<String> runtimeRequires) {
+                         SequencedSet<String> runtimeRequires,
+                         SequencedMap<String, String> versions) {
+
+    public ModuleInfo(String coordinate, SequencedSet<String> requires, SequencedSet<String> runtimeRequires) {
+        this(coordinate, requires, runtimeRequires, new LinkedHashMap<>());
+    }
 }

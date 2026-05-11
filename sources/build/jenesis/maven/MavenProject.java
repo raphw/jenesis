@@ -146,6 +146,16 @@ public class MavenProject implements BuildExecutorModule {
         }
     }
 
+    private static void writeVersions(Path folder, String scope, Properties versions) throws IOException {
+        if (versions.isEmpty()) {
+            return;
+        }
+        Path target = Files.createDirectories(folder.resolve(scope));
+        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.VERSIONS))) {
+            versions.store(writer, null);
+        }
+    }
+
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         if (!Files.exists(root.resolve("pom.xml"))) {
@@ -204,6 +214,16 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 writeRequires(context.next(), MultiProjectModule.COMPILE, dependencies);
                                 writeRequires(context.next(), MultiProjectModule.RUNTIME, dependencies);
+                                Properties versions = new SequencedProperties();
+                                String managed = properties.getProperty("managedDependencies", "");
+                                if (!managed.isEmpty()) {
+                                    for (String entry : managed.split(",")) {
+                                        int split = entry.lastIndexOf('/');
+                                        versions.setProperty(entry.substring(0, split), entry.substring(split + 1));
+                                    }
+                                }
+                                writeVersions(context.next(), MultiProjectModule.COMPILE, versions);
+                                writeVersions(context.next(), MultiProjectModule.RUNTIME, versions);
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
                         }
@@ -301,6 +321,9 @@ public class MavenProject implements BuildExecutorModule {
                         prefix,
                         entry.getValue().dependencies(),
                         Set.of(MavenDependencyScope.COMPILE, MavenDependencyScope.PROVIDED)));
+                module.setProperty("managedDependencies", toManagedDependencies(
+                        prefix,
+                        entry.getValue().managedDependencies()));
                 module.setProperty("sources", entry.getValue().sourceDirectory() == null
                         ? "src/main/java"
                         : entry.getValue().sourceDirectory());
@@ -332,6 +355,9 @@ public class MavenProject implements BuildExecutorModule {
                 testModule.setProperty("dependencies", dependencies.isEmpty()
                         ? coordinate
                         : dependencies + "," + coordinate);
+                testModule.setProperty("managedDependencies", toManagedDependencies(
+                        prefix,
+                        entry.getValue().managedDependencies()));
                 testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
                         ? "src/test/java"
                         : entry.getValue().testSourceDirectory());
@@ -352,6 +378,18 @@ public class MavenProject implements BuildExecutorModule {
                                              Set<MavenDependencyScope> scopes) {
             return values == null ? "" : values.entrySet().stream()
                     .filter(dependency -> scopes.contains(dependency.getValue().scope()))
+                    .map(entry -> prefix
+                            + "/" + entry.getKey().groupId()
+                            + "/" + entry.getKey().artifactId()
+                            + "/" + (entry.getKey().type() == null ? "jar" : entry.getKey().type())
+                            + (entry.getKey().classifier() == null ? "" : "/" + entry.getKey().classifier())
+                            + "/" + entry.getValue().version())
+                    .collect(Collectors.joining(","));
+        }
+
+        private static String toManagedDependencies(String prefix,
+                                                    SequencedMap<MavenDependencyKey, MavenDependencyValue> values) {
+            return values == null ? "" : values.entrySet().stream()
                     .map(entry -> prefix
                             + "/" + entry.getKey().groupId()
                             + "/" + entry.getKey().artifactId()

@@ -51,6 +51,65 @@ public class ModularProjectTest {
         }
         assertThat(dependencies).containsOnlyKeys("module/bar");
         assertThat(dependencies.getProperty("module/bar")).isEmpty();
+        assertThat(module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(module.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).doesNotExist();
+    }
+
+    @Test
+    public void emits_versions_properties_from_javadoc_pins() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @requires bar 1.2.3
+                 * @requires transitive.pin 9.9.9
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Path module = results.get("module/module-/manifests");
+        Properties compileVersions = new Properties();
+        Path compileVersionsFile = module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS);
+        assertThat(compileVersionsFile).exists();
+        try (Reader reader = Files.newBufferedReader(compileVersionsFile)) {
+            compileVersions.load(reader);
+        }
+        assertThat(compileVersions).containsOnly(
+                Map.entry("module/bar", "1.2.3"),
+                Map.entry("module/transitive.pin", "9.9.9"));
+        Properties runtimeVersions = new Properties();
+        Path runtimeVersionsFile = module.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS);
+        assertThat(runtimeVersionsFile).exists();
+        try (Reader reader = Files.newBufferedReader(runtimeVersionsFile)) {
+            runtimeVersions.load(reader);
+        }
+        assertThat(runtimeVersions).containsOnly(
+                Map.entry("module/bar", "1.2.3"),
+                Map.entry("module/transitive.pin", "9.9.9"));
+    }
+
+    @Test
+    public void omits_versions_properties_when_no_pins() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * Module description with no pin tags.
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Path module = results.get("module/module-/manifests");
+        assertThat(module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(module.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
     @Test

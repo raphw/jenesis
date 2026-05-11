@@ -162,6 +162,21 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
+    private static void writeVersions(Path folder,
+                                      String scope,
+                                      String prefix,
+                                      SequencedMap<String, String> versions) throws IOException {
+        if (versions.isEmpty()) {
+            return;
+        }
+        Path target = Files.createDirectories(folder.resolve(scope));
+        Properties properties = new SequencedProperties();
+        versions.forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
+        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.VERSIONS))) {
+            properties.store(writer, null);
+        }
+    }
+
     private record Manifests(String prefix) implements BuildStep {
 
         @Override
@@ -181,6 +196,8 @@ public class ModularProject implements BuildExecutorModule {
             }
             writeRequires(context.next(), MultiProjectModule.COMPILE, prefix, info.requires());
             writeRequires(context.next(), MultiProjectModule.RUNTIME, prefix, info.runtimeRequires());
+            writeVersions(context.next(), MultiProjectModule.COMPILE, prefix, info.versions());
+            writeVersions(context.next(), MultiProjectModule.RUNTIME, prefix, info.versions());
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }

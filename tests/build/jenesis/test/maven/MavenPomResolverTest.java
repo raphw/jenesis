@@ -3117,4 +3117,231 @@ public class MavenPomResolverTest {
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
                 .resolve(artifactId + "-" + version + ".pom"), pom);
     }
+
+    @Test
+    public void spi_external_versions_pin_transitive() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>pinned</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("pinned", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("pinned", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<String, String> versions = new LinkedHashMap<>();
+        versions.put("pinned/artifact/jar", "2");
+        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.of("maven", mavenRepository),
+                new LinkedHashSet<>(List.of("group/artifact/1")),
+                versions,
+                true);
+        assertThat(resolved).containsOnlyKeys(
+                "maven/group/artifact/1",
+                "maven/other/artifact/1",
+                "maven/pinned/artifact/2");
+    }
+
+    @Test
+    public void spi_external_versions_pin_with_short_key_form() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>pinned</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("pinned", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("pinned", "artifact", "5", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<String, String> versions = new LinkedHashMap<>();
+        versions.put("pinned/artifact", "5");
+        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.of("maven", mavenRepository),
+                new LinkedHashSet<>(List.of("group/artifact/1")),
+                versions,
+                true);
+        assertThat(resolved).containsOnlyKeys(
+                "maven/group/artifact/1",
+                "maven/pinned/artifact/5");
+    }
+
+    @Test
+    public void spi_external_versions_pin_with_classifier() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>pinned</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <classifier>sources</classifier>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("pinned", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("pinned", "artifact", "3", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<String, String> versions = new LinkedHashMap<>();
+        versions.put("pinned/artifact/jar/sources", "3");
+        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.of("maven", mavenRepository),
+                new LinkedHashSet<>(List.of("group/artifact/1")),
+                versions,
+                true);
+        assertThat(resolved).containsOnlyKeys(
+                "maven/group/artifact/1",
+                "maven/pinned/artifact/sources/3");
+    }
+
+    @Test
+    public void spi_empty_versions_does_not_change_resolution() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.of("maven", mavenRepository),
+                new LinkedHashSet<>(List.of("group/artifact/1")),
+                new LinkedHashMap<>(),
+                true);
+        assertThat(resolved).containsOnlyKeys(
+                "maven/group/artifact/1",
+                "maven/other/artifact/1");
+    }
+
+    @Test
+    public void spi_external_versions_pin_without_direct_dependency() throws IOException {
+        // Pin a transitive that is reached through a chain — the direct dep doesn't mention it.
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>middle</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("middle", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>deep</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("deep", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("deep", "artifact", "7", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<String, String> versions = new LinkedHashMap<>();
+        versions.put("deep/artifact/jar", "7");
+        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.of("maven", mavenRepository),
+                new LinkedHashSet<>(List.of("group/artifact/1")),
+                versions,
+                true);
+        assertThat(resolved).containsOnlyKeys(
+                "maven/group/artifact/1",
+                "maven/middle/artifact/1",
+                "maven/deep/artifact/7");
+    }
 }

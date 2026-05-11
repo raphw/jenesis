@@ -444,6 +444,97 @@ public class MavenProjectTest {
     }
 
     @Test
+    public void emits_versions_properties_from_dependency_management() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>pinned</groupId>
+                                <artifactId>simple</artifactId>
+                                <version>2.0</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>pinned</groupId>
+                                <artifactId>typed</artifactId>
+                                <version>3.0</version>
+                                <type>war</type>
+                            </dependency>
+                            <dependency>
+                                <groupId>pinned</groupId>
+                                <artifactId>classified</artifactId>
+                                <version>4.0</version>
+                                <classifier>sources</classifier>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Path module = results.get("maven/module/module-/manifests");
+        Path compileVersions = module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS);
+        assertThat(compileVersions).exists();
+        Properties versions = new Properties();
+        try (Reader reader = Files.newBufferedReader(compileVersions)) {
+            versions.load(reader);
+        }
+        assertThat(versions).containsOnly(
+                Map.entry("maven/pinned/simple/jar", "2.0"),
+                Map.entry("maven/pinned/typed/war", "3.0"),
+                Map.entry("maven/pinned/classified/jar/sources", "4.0"));
+        Path runtimeVersions = module.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS);
+        assertThat(runtimeVersions).exists();
+        Properties runtime = new Properties();
+        try (Reader reader = Files.newBufferedReader(runtimeVersions)) {
+            runtime.load(reader);
+        }
+        assertThat(runtime).containsOnly(
+                Map.entry("maven/pinned/simple/jar", "2.0"),
+                Map.entry("maven/pinned/typed/war", "3.0"),
+                Map.entry("maven/pinned/classified/jar/sources", "4.0"));
+        Path testModule = results.get("maven/module/test-module-/manifests");
+        assertThat(testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).exists();
+        assertThat(testModule.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).exists();
+    }
+
+    @Test
+    public void omits_versions_properties_when_no_dependency_management() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Path module = results.get("maven/module/module-/manifests");
+        assertThat(module.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(module.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).doesNotExist();
+        Path testModule = results.get("maven/module/test-module-/manifests");
+        assertThat(testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(testModule.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).doesNotExist();
+    }
+
+    @Test
     public void artifactsByModule_links_classes_jar_and_pom_xml_under_sub_module_folder() {
         Function<Path, Optional<Path>> placement = MavenProject.artifactsByModule();
         Path jar = Path.of("/wrap/build/module/test-module-foo/produce/java/artifacts/output/artifacts/classes.jar");
