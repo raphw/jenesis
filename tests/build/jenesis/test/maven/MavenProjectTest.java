@@ -408,6 +408,7 @@ public class MavenProjectTest {
                                     "../../module-foo/runtime/dependencies/checked",
                                     "../../module-foo/runtime/dependencies/artifacts",
                                     "../../module-foo/produce/java/classes",
+                                    "../../module-foo/produce/java/versions",
                                     "../../module-foo/produce/java/artifacts",
                                     "../../module-foo/assign");
                             default -> fail("Unexpected module: " + descriptor.name());

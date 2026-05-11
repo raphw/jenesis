@@ -7,6 +7,7 @@ import build.jenesis.Resolver;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestEngine;
+import build.jenesis.step.Versions;
 
 import module java.base;
 
@@ -16,7 +17,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
         this(false);
     }
 
-    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TEST = "test";
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", VERSIONS = "versions", TEST = "test";
 
     public BuildExecutorModule testIfAvailable() {
         return test(null, null, null);
@@ -58,8 +59,11 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 .filter(key -> !hasSegment(key, MultiProjectModule.RUNTIME))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), compileScope);
-        buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
+        buildExecutor.addStep(VERSIONS, new Versions(), Stream.concat(
                 Stream.of(CLASSES),
+                compileScope.stream()));
+        buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
+                Stream.of(VERSIONS),
                 compileScope.stream()));
     }
 

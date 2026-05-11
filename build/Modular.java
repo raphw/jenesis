@@ -33,6 +33,8 @@ public class Modular {
                             new JavaModule().testIfAvailable(repositories, resolvers),
                             descriptor.sources(),
                             descriptor.manifests(),
+                            descriptor.checked(),
+                            descriptor.runtimeChecked(),
                             descriptor.artifacts(),
                             descriptor.runtimeArtifacts())));
         }, "download");

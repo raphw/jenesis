@@ -65,10 +65,17 @@ public interface Repository {
     static Repository ofUris(Map<String, URI> uris) {
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
         return (_, coordinate) -> {
-            URI uri = uris.get(coordinate);
-            if (uri == null) {
+            URI candidate = uris.get(coordinate);
+            if (candidate == null) {
+                int slash = coordinate.lastIndexOf('/');
+                if (slash > 0) {
+                    candidate = uris.get(coordinate.substring(0, slash));
+                }
+            }
+            if (candidate == null) {
                 return Optional.empty();
             }
+            URI uri = candidate;
             if (verbose) {
                 System.out.printf("%s%-11s%s %s%n",
                         BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, uri);
