@@ -25,6 +25,7 @@ public class ModularJarResolverTest {
                     return Optional.ofNullable(item);
                 }),
                 new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
                 Map.entry("foo/root", ""),
@@ -46,6 +47,7 @@ public class ModularJarResolverTest {
                     return Optional.ofNullable(item);
                 }),
                 new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
     }
@@ -65,6 +67,7 @@ public class ModularJarResolverTest {
                     return Optional.ofNullable(item);
                 }),
                 new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
                 Map.entry("foo/root", ""),
@@ -90,6 +93,7 @@ public class ModularJarResolverTest {
                     return Optional.ofNullable(item);
                 }),
                 new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
                 Map.entry("foo/root", ""),
@@ -113,6 +117,7 @@ public class ModularJarResolverTest {
                     return Optional.ofNullable(item);
                 }),
                 new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
                 false);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
     }

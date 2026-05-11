@@ -35,7 +35,7 @@ public class ResolveTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.forEach(descriptor -> {
                         resolved.put(prefix + "/" +descriptor, "");
@@ -72,7 +72,7 @@ public class ResolveTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "");
@@ -110,7 +110,7 @@ public class ResolveTest {
         try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
-        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "qux/" + descriptor);

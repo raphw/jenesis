@@ -26,7 +26,9 @@ public class MultiProjectDependencies implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> coordinates = new LinkedHashMap<>(), dependencies = new LinkedHashMap<>();
+        SequencedMap<String, String> coordinates = new LinkedHashMap<>(),
+                dependencies = new LinkedHashMap<>(),
+                versions = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
                 Path file = entry.getValue().folder().resolve(scope).resolve(REQUIRES);
@@ -39,6 +41,16 @@ public class MultiProjectDependencies implements BuildStep {
                         String value = properties.getProperty(property);
                         dependencies.put(property, value);
                     });
+                }
+                Path versionsFile = entry.getValue().folder().resolve(scope).resolve(VERSIONS);
+                if (Files.exists(versionsFile)) {
+                    Properties properties = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(versionsFile)) {
+                        properties.load(reader);
+                    }
+                    properties.stringPropertyNames().forEach(property -> versions.putIfAbsent(
+                            property,
+                            properties.getProperty(property)));
                 }
             } else {
                 Path file = entry.getValue().folder().resolve(IDENTITY);
@@ -79,6 +91,13 @@ public class MultiProjectDependencies implements BuildStep {
         }
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
             properties.store(writer, null);
+        }
+        if (!versions.isEmpty()) {
+            Properties versionProperties = new SequencedProperties();
+            versions.forEach(versionProperties::setProperty);
+            try (Writer writer = Files.newBufferedWriter(context.next().resolve(VERSIONS))) {
+                versionProperties.store(writer, null);
+            }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

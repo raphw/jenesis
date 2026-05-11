@@ -29,6 +29,7 @@ public class MavenPomResolver implements Resolver {
                                                      String prefix,
                                                      Map<String, Repository> repositories,
                                                      SequencedSet<String> coordinates,
+                                                     SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> {
@@ -46,10 +47,21 @@ public class MavenPomResolver implements Resolver {
                 default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
             }
         });
+        Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+        versions.forEach((coordinate, version) -> {
+            String[] elements = coordinate.split("/");
+            MavenDependencyKey key = switch (elements.length) {
+                case 2 -> new MavenDependencyKey(elements[0], elements[1], "jar", null);
+                case 3 -> new MavenDependencyKey(elements[0], elements[1], elements[2], null);
+                case 4 -> new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]);
+                default -> throw new IllegalArgumentException("Insufficient Maven managed coordinate: " + coordinate);
+            };
+            managedDependencies.put(key, new MavenDependencyValue(version, MavenDependencyScope.COMPILE, null, null, null));
+        });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
-                Map.of(),
+                managedDependencies,
                 dependencies).entrySet().stream().map(dependency -> prefix
                 + "/" + dependency.getKey().groupId()
                 + "/" + dependency.getKey().artifactId()

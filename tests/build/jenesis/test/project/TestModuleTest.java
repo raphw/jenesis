@@ -242,7 +242,7 @@ public class TestModuleTest {
     }
 
     private static Resolver noResolver() {
-        return (_, _, _, _, _) -> new LinkedHashMap<>();
+        return (_, _, _, _, _, _) -> new LinkedHashMap<>();
     }
 
     private static Properties readRequires(Path stepFolder) throws IOException {

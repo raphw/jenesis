@@ -17,8 +17,21 @@ public class Translate implements DependencyTransformingBuildStep {
     public CompletionStage<Properties> transform(Executor executor,
                                                  BuildStepContext context,
                                                  SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, SequencedMap<String, String>> groups)
+                                                 SequencedMap<String, SequencedMap<String, String>> groups,
+                                                 SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
+        return CompletableFuture.completedStage(doTransform(groups));
+    }
+
+    @Override
+    public CompletionStage<Properties> transformVersions(Executor executor,
+                                                         BuildStepContext context,
+                                                         SequencedMap<String, BuildStepArgument> arguments,
+                                                         SequencedMap<String, SequencedMap<String, String>> versions){
+        return CompletableFuture.completedStage(doTransform(versions));
+    }
+
+    private Properties doTransform(SequencedMap<String, SequencedMap<String, String>> groups) {
         Properties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             Function<String, String> translator = translators.get(group.getKey());
@@ -32,6 +45,6 @@ public class Translate implements DependencyTransformingBuildStep {
                         expectation));
             }
         }
-        return CompletableFuture.completedStage(properties);
+        return properties;
     }
 }

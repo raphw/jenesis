@@ -25,7 +25,8 @@ public class Resolve implements DependencyTransformingBuildStep {
     public CompletionStage<Properties> transform(Executor executor,
                                                  BuildStepContext context,
                                                  SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, SequencedMap<String, String>> groups)
+                                                 SequencedMap<String, SequencedMap<String, String>> groups,
+                                                 SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         Properties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
@@ -36,6 +37,7 @@ public class Resolve implements DependencyTransformingBuildStep {
                     group.getKey(),
                     repositories,
                     group.getValue().sequencedKeySet(),
+                    versions.getOrDefault(group.getKey(), new LinkedHashMap<>()),
                     compile).entrySet()) {
                 String value;
                 if (Objects.equals(group.getKey(), entry.getKey().substring(0, entry.getKey().indexOf('/')))) {

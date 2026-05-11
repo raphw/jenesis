@@ -26,6 +26,7 @@ public class ModularJarResolver implements Resolver {
                                                      String prefix,
                                                      Map<String, Repository> repositories,
                                                      SequencedSet<String> coordinates,
+                                                     SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
@@ -84,7 +85,7 @@ public class ModularJarResolver implements Resolver {
             }
         }
         if (!unresolved.isEmpty()) {
-            fallback.dependencies(executor, prefix, repositories, unresolved, compile).forEach(dependencies::putIfAbsent);
+            fallback.dependencies(executor, prefix, repositories, unresolved, versions, compile).forEach(dependencies::putIfAbsent);
         }
         return dependencies;
     }

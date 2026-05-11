@@ -27,7 +27,7 @@ public class TranslateTest {
     }
 
     @Test
-    public void can_translate_dependencies() throws IOException {
+    public void can_transform_dependencies() throws IOException {
         Properties properties = new Properties();
         properties.setProperty("foo/qux", "foobar");
         properties.setProperty("bar/baz", "quxbaz");

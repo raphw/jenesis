@@ -18,38 +18,59 @@ public interface DependencyTransformingBuildStep extends BuildStep {
             throws IOException {
         // TODO: improve incremental resolve
         SequencedMap<String, SequencedMap<String, String>> groups = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, String>> versions = new LinkedHashMap<>();
+        Map<String, SequencedMap<String, SequencedMap<String, String>>> sources = new LinkedHashMap<>();
+        sources.put(REQUIRES, groups);
+        sources.put(VERSIONS, versions);
         for (BuildStepArgument argument : arguments.values()) {
-            Path dependencies = argument.folder().resolve(REQUIRES);
-            if (!Files.exists(dependencies)) {
-                continue;
-            }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(dependencies)) {
-                properties.load(reader);
-            }
-            for (String property : properties.stringPropertyNames()) {
-                int index = property.indexOf('/');
-                groups.computeIfAbsent(property.substring(0, index), _ -> new LinkedHashMap<>()).merge(
-                        property.substring(index + 1),
-                        properties.getProperty(property),
-                        (left, right) -> left.isEmpty() ? right : left);
+            for (Map.Entry<String, SequencedMap<String, SequencedMap<String, String>>> source : sources.entrySet()) {
+                Path file = argument.folder().resolve(source.getKey());
+                if (!Files.exists(file)) {
+                    continue;
+                }
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(file)) {
+                    properties.load(reader);
+                }
+                for (String property : properties.stringPropertyNames()) {
+                    int index = property.indexOf('/');
+                    source.getValue().computeIfAbsent(property.substring(0, index), _ -> new LinkedHashMap<>()).merge(
+                            property.substring(index + 1),
+                            properties.getProperty(property),
+                            (left, right) -> left.isEmpty() ? right : left);
+                }
             }
         }
-        return transform(executor, context, arguments, groups).thenComposeAsync(properties -> {
-            CompletableFuture<BuildStepResult> result = new CompletableFuture<>();
+        CompletionStage<Properties> requiresStage = transform(executor, context, arguments, groups, versions);
+        CompletionStage<Properties> versionsStage = transformVersions(executor, context, arguments, versions);
+        return requiresStage.thenCombineAsync(versionsStage, (requiresProperties, versionsProperties) -> {
             try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
-                properties.store(writer, null);
-                result.complete(new BuildStepResult(true));
-            } catch (Throwable t) {
-                result.completeExceptionally(t);
+                requiresProperties.store(writer, null);
+            } catch (IOException e) {
+                throw new CompletionException(e);
             }
-            return result;
+            if (!versionsProperties.isEmpty()) {
+                try (Writer writer = Files.newBufferedWriter(context.next().resolve(VERSIONS))) {
+                    versionsProperties.store(writer, null);
+                } catch (IOException e) {
+                    throw new CompletionException(e);
+                }
+            }
+            return new BuildStepResult(true);
         }, executor);
     }
 
     CompletionStage<Properties> transform(Executor executor,
                                           BuildStepContext context,
                                           SequencedMap<String, BuildStepArgument> arguments,
-                                          SequencedMap<String, SequencedMap<String, String>> groups) throws IOException;
-}
+                                          SequencedMap<String, SequencedMap<String, String>> groups,
+                                          SequencedMap<String, SequencedMap<String, String>> versions) throws IOException;
 
+    default CompletionStage<Properties> transformVersions(Executor executor,
+                                                          BuildStepContext context,
+                                                          SequencedMap<String, BuildStepArgument> arguments,
+                                                          SequencedMap<String, SequencedMap<String, String>> versions)
+            throws IOException {
+        return CompletableFuture.completedStage(new SequencedProperties());
+    }
+}
