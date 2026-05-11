@@ -31,15 +31,27 @@ public class ModularJarResolver implements Resolver {
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
+        SequencedMap<String, String> propagated = new LinkedHashMap<>();
         Queue<String> queue = new ArrayDeque<>(coordinates);
         while (!queue.isEmpty()) { // TODO: consider multi-release-jars better?
             String current = queue.remove();
             if (resolved.contains(current) || unresolved.contains(current)) {
                 continue;
             }
-            RepositoryItem item = repositories.getOrDefault(prefix, Repository.empty()).fetch(
-                    executor,
-                    current).orElse(null);
+            String pin = versions.get(current);
+            String hint = propagated.get(current);
+            String requested = pin != null ? pin : hint;
+            Repository repository = repositories.getOrDefault(prefix, Repository.empty());
+            RepositoryItem item = requested == null
+                    ? repository.fetch(executor, current).orElse(null)
+                    : repository.fetch(executor, current + "/" + requested)
+                            .or(() -> {
+                                try {
+                                    return repository.fetch(executor, current);
+                                } catch (IOException e) {
+                                    throw new UncheckedIOException(e);
+                                }
+                            }).orElse(null);
             if (item == null) {
                 if (fallback == null) {
                     throw new IllegalArgumentException("No module found for " + current);
@@ -74,19 +86,19 @@ public class ModularJarResolver implements Resolver {
                     }
                     throw new IllegalArgumentException("No module-info.class found for " + current);
                 }
-                String pin = versions.get(current);
-                String version = pin != null ? pin : descriptor.rawVersion().orElse(null);
+                String version = requested != null ? requested : descriptor.rawVersion().orElse(null);
                 dependencies.put(prefix + "/" + current + (version == null ? "" : "/" + version), "");
                 resolved.add(current);
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
                                 || compile && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
-                        .map(ModuleDescriptor.Requires::name)
-                        .filter(module -> !module.startsWith("java.") && !module.startsWith("jdk."))
-                        .sorted()
-                        .forEach(module -> {
-                            if (!unresolved.contains(module) && !resolved.contains(module)) {
-                                queue.add(module);
+                        .filter(requires -> !requires.name().startsWith("java.") && !requires.name().startsWith("jdk."))
+                        .sorted(Comparator.comparing(ModuleDescriptor.Requires::name))
+                        .forEach(requires -> {
+                            String name = requires.name();
+                            requires.rawCompiledVersion().ifPresent(v -> propagated.putIfAbsent(name, v));
+                            if (!unresolved.contains(name) && !resolved.contains(name)) {
+                                queue.add(name);
                             }
                         });
             }

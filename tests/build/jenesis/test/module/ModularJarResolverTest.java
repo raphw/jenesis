@@ -126,6 +126,10 @@ public class ModularJarResolverTest {
         return ModuleRequireInfo.of(ModuleDesc.of(name), flags, null);
     }
 
+    private static ModuleRequireInfo require(String name, int flags, String compiledVersion) {
+        return ModuleRequireInfo.of(ModuleDesc.of(name), flags, compiledVersion);
+    }
+
     private static InputStream toJar(String module, ModuleRequireInfo... requires) throws IOException {
         return toJar(module, null, requires);
     }
@@ -266,6 +270,133 @@ public class ModularJarResolverTest {
                 Map.entry("foo/root/1.0", ""),
                 Map.entry("foo/alpha/2.0", ""),
                 Map.entry("foo/beta", ""));
+    }
+
+    @Test
+    public void propagates_compiled_version_from_parent_requires() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", "1.0", require("pinned", 0, "1.0"));
+                        case "pinned/1.0" -> () -> toJar("pinned", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
+                true);
+        assertThat(fetched).containsOnlyKeys("root", "pinned/1.0");
+        assertThat(dependencies).containsExactly(
+                Map.entry("foo/root/1.0", ""),
+                Map.entry("foo/pinned/1.0", ""));
+    }
+
+    @Test
+    public void compiled_version_falls_back_to_bare_lookup_when_absent() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", "1.0", require("plain", 0));
+                        case "plain" -> () -> toJar("plain", "2.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
+                true);
+        // No compiledVersion on the requires → bare-name fetch, output uses the fetched jar's rawVersion.
+        assertThat(fetched).containsOnlyKeys("root", "plain");
+        assertThat(dependencies).containsExactly(
+                Map.entry("foo/root/1.0", ""),
+                Map.entry("foo/plain/2.0", ""));
+    }
+
+    @Test
+    public void input_pin_overrides_compiled_version_propagation() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", "1.0", require("dep", 0, "1.0"));
+                        case "dep/9.9" -> () -> toJar("dep", "9.9");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("dep", "9.9")),
+                true);
+        assertThat(fetched).containsOnlyKeys("root", "dep/9.9");
+        assertThat(dependencies).containsExactly(
+                Map.entry("foo/root/1.0", ""),
+                Map.entry("foo/dep/9.9", ""));
+    }
+
+    @Test
+    public void compiled_version_propagates_through_chain() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", "1.0", require("middle", 0, "1.0"));
+                        case "middle/1.0" -> () -> toJar("middle", "1.0", require("deep", 0, "1.0"));
+                        case "deep/1.0" -> () -> toJar("deep", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
+                true);
+        assertThat(fetched).containsOnlyKeys("root", "middle/1.0", "deep/1.0");
+        assertThat(dependencies).containsExactly(
+                Map.entry("foo/root/1.0", ""),
+                Map.entry("foo/middle/1.0", ""),
+                Map.entry("foo/deep/1.0", ""));
+    }
+
+    @Test
+    public void compiled_version_first_seen_wins_when_two_parents_disagree() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        // root requires "shared" at 1.0 and "middle" (also at 1.0)
+                        case "root" -> () -> toJar("root", "1.0",
+                                require("middle", 0, "1.0"),
+                                require("shared", 0, "1.0"));
+                        // middle/1.0 requires "shared" at 2.0 — but root already pinned shared to 1.0
+                        case "middle/1.0" -> () -> toJar("middle", "1.0", require("shared", 0, "2.0"));
+                        case "shared/1.0" -> () -> toJar("shared", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
+                true);
+        // root is processed first; it records "shared -> 1.0" before middle gets a chance to overwrite.
+        assertThat(fetched).contains(Map.entry("shared/1.0", ""));
+        assertThat(dependencies).containsEntry("foo/shared/1.0", "");
     }
 
     @Test
