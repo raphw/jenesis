@@ -176,7 +176,10 @@ public class TestModule implements BuildExecutorModule {
                 }
             }
             if (requires.isEmpty()) {
-                writeProperties(context, List.of());
+                Path processDir = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+                try (Writer writer = Files.newBufferedWriter(processDir.resolve("java.properties"))) {
+                    new SequencedProperties().store(writer, null);
+                }
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }
             Path runner = Files.createDirectory(context.next().resolve(RUNNER));
@@ -217,7 +220,14 @@ public class TestModule implements BuildExecutorModule {
                                     .map(CompletableFuture::join)
                                     .map(file -> output.relativize(file).toString())
                                     .toList();
-                            writeProperties(context, paths);
+                            Properties properties = new SequencedProperties();
+                            if (!paths.isEmpty()) {
+                                properties.setProperty("--module-path", String.join("\n", paths));
+                            }
+                            Path processDir = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+                            try (Writer writer = Files.newBufferedWriter(processDir.resolve("java.properties"))) {
+                                properties.store(writer, null);
+                            }
                             return new BuildStepResult(true);
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
@@ -225,16 +235,6 @@ public class TestModule implements BuildExecutorModule {
                     });
         }
 
-        private static void writeProperties(BuildStepContext context, List<String> modulePath) throws IOException {
-            Properties properties = new SequencedProperties();
-            if (!modulePath.isEmpty()) {
-                properties.setProperty("--module-path", String.join("\n", modulePath));
-            }
-            Path processDir = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
-            try (Writer writer = Files.newBufferedWriter(processDir.resolve("java.properties"))) {
-                properties.store(writer, null);
-            }
-        }
     }
 
     private static class Run extends Java {

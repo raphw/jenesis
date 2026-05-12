@@ -76,22 +76,23 @@ public class ModularProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
-                    addScope(buildExecutor,
-                            MultiProjectModule.COMPILE,
-                            true,
-                            inherited.sequencedKeySet(),
-                            algorithm,
-                            name,
-                            mergedRepositories,
-                            resolvers);
-                    addScope(buildExecutor,
-                            MultiProjectModule.RUNTIME,
-                            false,
-                            inherited.sequencedKeySet(),
-                            algorithm,
-                            name,
-                            mergedRepositories,
-                            resolvers);
+                    for (Map.Entry<String, Boolean> entry : List.of(
+                            Map.entry(MultiProjectModule.COMPILE, true),
+                            Map.entry(MultiProjectModule.RUNTIME, false))) {
+                        String scope = entry.getKey();
+                        boolean compile = entry.getValue();
+                        buildExecutor.addModule(scope, (scopeExec, scopeInherited) -> {
+                            scopeExec.addStep(PREPARE,
+                                    new MultiProjectDependencies(
+                                            algorithm,
+                                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
+                                            scope),
+                                    scopeInherited.sequencedKeySet());
+                            scopeExec.addModule(DEPENDENCIES,
+                                    new DependenciesModule(mergedRepositories, resolvers, compile).computeChecksums(algorithm),
+                                    PREPARE);
+                        }, inherited.sequencedKeySet());
+                    }
                     buildExecutor.addModule("produce",
                             builder.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
@@ -123,60 +124,9 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
-    private static void addScope(BuildExecutor buildExecutor,
-                                 String scope,
-                                 boolean compile,
-                                 SequencedSet<String> inheritedScopeInputs,
-                                 String algorithm,
-                                 String name,
-                                 Map<String, Repository> repositories,
-                                 Map<String, Resolver> resolvers) {
-        buildExecutor.addModule(scope, (scopeExec, scopeInherited) -> {
-            scopeExec.addStep(PREPARE,
-                    new MultiProjectDependencies(
-                            algorithm,
-                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                            scope),
-                    scopeInherited.sequencedKeySet());
-            scopeExec.addModule(DEPENDENCIES,
-                    new DependenciesModule(repositories, resolvers, compile).computeChecksums(algorithm),
-                    PREPARE);
-        }, inheritedScopeInputs);
-    }
-
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
     }
-
-    private static void writeRequires(Path folder,
-                                      String scope,
-                                      String prefix,
-                                      SequencedSet<String> requires) throws IOException {
-        Path target = Files.createDirectories(folder.resolve(scope));
-        Properties properties = new SequencedProperties();
-        for (String dependency : requires) {
-            properties.setProperty(prefix + "/" + dependency, "");
-        }
-        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
-    }
-
-    private static void writeVersions(Path folder,
-                                      String scope,
-                                      String prefix,
-                                      SequencedMap<String, String> versions) throws IOException {
-        if (versions.isEmpty()) {
-            return;
-        }
-        Path target = Files.createDirectories(folder.resolve(scope));
-        Properties properties = new SequencedProperties();
-        versions.forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
-        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.VERSIONS))) {
-            properties.store(writer, null);
-        }
-    }
-
 
     private record Manifests(String prefix) implements BuildStep {
 
@@ -195,10 +145,28 @@ public class ModularProject implements BuildExecutorModule {
                     .resolve(BuildStep.IDENTITY))) {
                 coordinates.store(writer, null);
             }
-            writeRequires(context.next(), MultiProjectModule.COMPILE, prefix, info.requires());
-            writeRequires(context.next(), MultiProjectModule.RUNTIME, prefix, info.runtimeRequires());
-            writeVersions(context.next(), MultiProjectModule.COMPILE, prefix, info.versions());
-            writeVersions(context.next(), MultiProjectModule.RUNTIME, prefix, info.versions());
+            for (Map.Entry<String, SequencedSet<String>> entry : List.of(
+                    Map.entry(MultiProjectModule.COMPILE, info.requires()),
+                    Map.entry(MultiProjectModule.RUNTIME, info.runtimeRequires()))) {
+                Path target = Files.createDirectories(context.next().resolve(entry.getKey()));
+                Properties properties = new SequencedProperties();
+                for (String dependency : entry.getValue()) {
+                    properties.setProperty(prefix + "/" + dependency, "");
+                }
+                try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.REQUIRES))) {
+                    properties.store(writer, null);
+                }
+            }
+            if (!info.versions().isEmpty()) {
+                for (String scope : List.of(MultiProjectModule.COMPILE, MultiProjectModule.RUNTIME)) {
+                    Path target = Files.createDirectories(context.next().resolve(scope));
+                    Properties properties = new SequencedProperties();
+                    info.versions().forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
+                    try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.VERSIONS))) {
+                        properties.store(writer, null);
+                    }
+                }
+            }
             Javac.writeRelease(context.next(), info.release());
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

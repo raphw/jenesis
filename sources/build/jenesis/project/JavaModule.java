@@ -47,7 +47,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 }
                 buildExecutor.addModule(TEST, tests, Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
-                        inherited.sequencedKeySet().stream().filter(key -> !hasSegment(key, MultiProjectModule.COMPILE))));
+                        inherited.sequencedKeySet().stream().filter(key -> !List.of(key.split("/")).contains(MultiProjectModule.COMPILE))));
             }
         };
     }
@@ -55,7 +55,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> compileScope = inherited.sequencedKeySet().stream()
-                .filter(key -> !hasSegment(key, MultiProjectModule.RUNTIME))
+                .filter(key -> !List.of(key.split("/")).contains(MultiProjectModule.RUNTIME))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), compileScope);
         buildExecutor.addStep(VERSIONS, new Versions(), Stream.concat(
@@ -66,12 +66,4 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 compileScope.stream()));
     }
 
-    private static boolean hasSegment(String key, String segment) {
-        for (String part : key.split("/")) {
-            if (part.equals(segment)) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

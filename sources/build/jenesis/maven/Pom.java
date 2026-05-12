@@ -68,7 +68,13 @@ public class Pom implements BuildStep {
             if (separator == -1) {
                 continue;
             }
-            Parsed parsed = parse(resolved.substring(separator + 1));
+            String[] elements = resolved.substring(separator + 1).split("/");
+            Parsed parsed = switch (elements.length) {
+                case 3 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], "jar", null), elements[2]);
+                case 4 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], null), elements[3]);
+                case 5 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]), elements[4]);
+                default -> null;
+            };
             if (parsed == null || "pom".equals(parsed.key().type())) {
                 continue;
             }
@@ -86,7 +92,13 @@ public class Pom implements BuildStep {
             if (separator == -1 || !prefix.equals(name.substring(0, separator))) {
                 continue;
             }
-            Parsed parsed = parse(name.substring(separator + 1));
+            String[] elements = name.substring(separator + 1).split("/");
+            Parsed parsed = switch (elements.length) {
+                case 3 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], "jar", null), elements[2]);
+                case 4 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], null), elements[3]);
+                case 5 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]), elements[4]);
+                default -> null;
+            };
             if (parsed == null) {
                 throw new IllegalArgumentException("Insufficient Maven coordinate: " + name);
             }
@@ -107,16 +119,6 @@ public class Pom implements BuildStep {
                     deps).accept(writer);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
-    }
-
-    private static Parsed parse(String coordinate) {
-        String[] elements = coordinate.split("/");
-        return switch (elements.length) {
-            case 3 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], "jar", null), elements[2]);
-            case 4 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], null), elements[3]);
-            case 5 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]), elements[4]);
-            default -> null;
-        };
     }
 
     private record Parsed(MavenDependencyKey key, String version) {

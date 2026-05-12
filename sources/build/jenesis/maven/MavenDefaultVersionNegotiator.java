@@ -344,7 +344,15 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             current.add(parseSegment(isDigit, lowered.substring(start), false));
         }
         for (int j = stack.size() - 1; j >= 0; j--) {
-            normalize(stack.get(j));
+            List<Item> items = stack.get(j);
+            for (int index = items.size() - 1; index >= 0; index--) {
+                Item item = items.get(index);
+                if (item.isNull()) {
+                    items.remove(index);
+                } else if (!(item instanceof ListItem)) {
+                    break;
+                }
+            }
         }
         return root;
     }
@@ -358,17 +366,6 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
             return new IntegerItem(new BigInteger(text.substring(firstNonZero)));
         }
         return StringItem.of(text, followedByDigit);
-    }
-
-    private static void normalize(List<Item> items) {
-        for (int index = items.size() - 1; index >= 0; index--) {
-            Item item = items.get(index);
-            if (item.isNull()) {
-                items.remove(index);
-            } else if (!(item instanceof ListItem)) {
-                break;
-            }
-        }
     }
 
     private static int compareItems(List<Item> left, List<Item> right) {
