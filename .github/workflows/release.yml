@@ -32,26 +32,15 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Build artifacts
+      - name: Build and stage artifacts
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           java -Djenesis.buildVersion=${VERSION} \
                -Djenesis.project.sources=true \
                -Djenesis.project.docs=true \
-               -Djenesis.project.pom=true \
-               build/jenesis/Project.java collect
-
-      - name: Stage main module in Maven layout
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          DEST="out/staging-deploy/build/jenesis/jenesis/${VERSION}"
-          mkdir -p "${DEST}"
-          cp target/collect/output/module-sources/classes.jar "${DEST}/jenesis-${VERSION}.jar"
-          cp target/collect/output/module-sources/sources.jar "${DEST}/jenesis-${VERSION}-sources.jar"
-          cp target/collect/output/module-sources/javadoc.jar "${DEST}/jenesis-${VERSION}-javadoc.jar"
-          cp target/collect/output/module-sources/pom.xml     "${DEST}/jenesis-${VERSION}.pom"
+               -Djenesis.project.release=release.properties \
+               build/jenesis/Project.java stage
 
       - name: JReleaser deploy
         uses: jreleaser/release-action@v2

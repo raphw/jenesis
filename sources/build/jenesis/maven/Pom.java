@@ -10,27 +10,18 @@ import build.jenesis.SequencedProperties;
 public class Pom implements BuildStep {
 
     public static final String POM = "pom.xml";
+    public static final String RELEASE = "release.properties";
 
     private final Function<String, String> resolver;
-    private final MavenPomEmitter.Metadata metadata;
     private final String buildVersion = System.getProperty("jenesis.buildVersion");
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(defaultResolver(), null);
-    }
-
-    public Pom(MavenPomEmitter.Metadata metadata) {
-        this(defaultResolver(), metadata);
+        this(defaultResolver());
     }
 
     public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this(resolver, null);
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver, MavenPomEmitter.Metadata metadata) {
         this.resolver = resolver;
-        this.metadata = metadata;
     }
 
     @SuppressWarnings("unchecked")
@@ -46,7 +37,7 @@ public class Pom implements BuildStep {
                 return coordinate;
             }
             String groupId = elements[0] + "." + elements[1];
-            String artifactId = String.join(".", Arrays.asList(elements).subList(1, elements.length));
+            String artifactId = name;
             return "maven/" + groupId + "/" + artifactId + "/0-SNAPSHOT";
         });
     }
@@ -58,6 +49,7 @@ public class Pom implements BuildStep {
             throws IOException {
         Properties coordinates = new SequencedProperties();
         Properties dependencies = new SequencedProperties();
+        Properties release = new SequencedProperties();
         for (BuildStepArgument argument : arguments.values()) {
             Path coordinatesFile = argument.folder().resolve(IDENTITY);
             if (Files.exists(coordinatesFile)) {
@@ -69,6 +61,12 @@ public class Pom implements BuildStep {
             if (Files.exists(dependenciesFile)) {
                 try (Reader reader = Files.newBufferedReader(dependenciesFile)) {
                     dependencies.load(reader);
+                }
+            }
+            Path releaseFile = argument.folder().resolve(RELEASE);
+            if (Files.exists(releaseFile)) {
+                try (Reader reader = Files.newBufferedReader(releaseFile)) {
+                    release.load(reader);
                 }
             }
         }
@@ -101,6 +99,10 @@ public class Pom implements BuildStep {
             throw new IllegalStateException(
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
+        String targetModule = release.getProperty("project.module");
+        if (targetModule != null && !targetModule.equals(self.key().artifactId())) {
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
         for (String name : dependencies.stringPropertyNames()) {
             int separator = name.indexOf('/');
@@ -132,9 +134,45 @@ public class Pom implements BuildStep {
                     version,
                     "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps,
-                    metadata).accept(writer);
+                    release.isEmpty() ? null : parseMetadata(release)).accept(writer);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static MavenPomEmitter.Metadata parseMetadata(Properties properties) {
+        List<MavenPomEmitter.Metadata.License> licenses = List.of();
+        String licenseName = properties.getProperty("license.name");
+        String licenseUrl = properties.getProperty("license.url");
+        if (licenseName != null || licenseUrl != null) {
+            licenses = List.of(new MavenPomEmitter.Metadata.License(licenseName, licenseUrl));
+        }
+        List<MavenPomEmitter.Metadata.Developer> developers = List.of();
+        String developerId = properties.getProperty("developer.id");
+        String developerName = properties.getProperty("developer.name");
+        String developerEmail = properties.getProperty("developer.email");
+        if (developerId != null || developerName != null || developerEmail != null) {
+            developers = List.of(new MavenPomEmitter.Metadata.Developer(
+                    developerId,
+                    developerName,
+                    developerEmail));
+        }
+        MavenPomEmitter.Metadata.Scm scm = null;
+        String scmConnection = properties.getProperty("scm.connection");
+        String scmDeveloperConnection = properties.getProperty("scm.developerConnection");
+        String scmUrl = properties.getProperty("scm.url");
+        if (scmConnection != null || scmDeveloperConnection != null || scmUrl != null) {
+            scm = new MavenPomEmitter.Metadata.Scm(
+                    scmConnection,
+                    scmDeveloperConnection,
+                    scmUrl);
+        }
+        return new MavenPomEmitter.Metadata(
+                properties.getProperty("project.name"),
+                properties.getProperty("project.description"),
+                properties.getProperty("project.url"),
+                licenses,
+                developers,
+                scm);
     }
 
     private record Parsed(MavenDependencyKey key, String version) {

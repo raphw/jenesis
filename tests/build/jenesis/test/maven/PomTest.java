@@ -111,7 +111,7 @@ public class PomTest {
                 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">
                     <modelVersion>4.0.0</modelVersion>
                     <groupId>build.jenesis</groupId>
-                    <artifactId>jenesis.test</artifactId>
+                    <artifactId>build.jenesis.test</artifactId>
                     <version>0-SNAPSHOT</version>
                     <dependencies>
                         <dependency>
