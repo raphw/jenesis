@@ -15,11 +15,121 @@ import build.jenesis.step.Relocate;
 
 public final class Project {
 
-    public enum Kind {
+    public static final String BUILD = "build";
 
-        AUTO, MAVEN, MODULAR, MODULE_AWARE_MAVEN;
+    public record Context(
+            boolean tests,
+            String hashAlgorithm,
+            Map<String, Repository> repositories,
+            Map<String, Resolver> resolvers
+    ) {
+    }
 
-        public static Kind of(Path root) throws IOException {
+    @FunctionalInterface
+    public interface Assembler {
+
+        BuildExecutorModule apply(Context context, ModuleDescriptor descriptor);
+
+        static Assembler ofJava() {
+            return (context, descriptor) -> (sub, _) -> sub.addModule("java",
+                    context.tests()
+                            ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
+                            : new JavaModule(),
+                    descriptor.sources(), descriptor.manifests(),
+                    descriptor.checked(), descriptor.runtimeChecked(),
+                    descriptor.artifacts(), descriptor.runtimeArtifacts());
+        }
+    }
+
+    @FunctionalInterface
+    public interface Layout {
+
+        void apply(BuildExecutor executor, Builder builder, Assembler assembler) throws IOException;
+
+        Layout MAVEN = (executor, builder, assembler) -> {
+            Map<String, Repository> repositories = new LinkedHashMap<>();
+            repositories.put("maven", new MavenDefaultRepository());
+            if (builder.repositories() != null) {
+                repositories.putAll(builder.repositories());
+            }
+            Map<String, Resolver> resolvers = new LinkedHashMap<>();
+            resolvers.put("maven", new MavenPomResolver());
+            if (builder.resolvers() != null) {
+                resolvers.putAll(builder.resolvers());
+            }
+            Context context = new Context(builder.tests(), builder.hashAlgorithm(),
+                    Collections.unmodifiableMap(repositories),
+                    Collections.unmodifiableMap(resolvers));
+            executor.addModule(BUILD, MavenProject.make(builder.root(), builder.hashAlgorithm(),
+                    descriptor -> assembler.apply(context, descriptor)));
+            executor.addStep("collect", new Relocate(MavenProject.artifactsByModule()), BUILD);
+        };
+
+        Layout MODULAR = (executor, builder, assembler) -> {
+            executor.addStep("download", new DownloadModuleUris());
+            executor.addModule(BUILD, (sub, downloaded) -> {
+                Map<String, Repository> repositories = new LinkedHashMap<>(Repository.ofProperties(
+                        DownloadModuleUris.URIS,
+                        downloaded.values(),
+                        (_, value) -> URI.create(value),
+                        Files.createDirectories(builder.cache().resolve("modules"))));
+                if (builder.repositories() != null) {
+                    repositories.putAll(builder.repositories());
+                }
+                Map<String, Resolver> resolvers = new LinkedHashMap<>();
+                resolvers.put("module", new ModularJarResolver(true));
+                if (builder.resolvers() != null) {
+                    resolvers.putAll(builder.resolvers());
+                }
+                Context context = new Context(builder.tests(), builder.hashAlgorithm(),
+                        Collections.unmodifiableMap(repositories),
+                        Collections.unmodifiableMap(resolvers));
+                sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
+                        context.repositories(), context.resolvers(),
+                        descriptor -> assembler.apply(context, descriptor)));
+            }, "download");
+            executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);
+        };
+
+        Layout MODULE_AWARE_MAVEN = (executor, builder, assembler) -> {
+            executor.addStep("download", new DownloadModuleUris(null));
+            executor.addModule(BUILD, (sub, downloaded) -> {
+                Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
+                        DownloadModuleUris.URIS,
+                        downloaded.values());
+                Map<String, Repository> repositories = new LinkedHashMap<>();
+                repositories.put("maven", new MavenDefaultRepository());
+                if (builder.repositories() != null) {
+                    repositories.putAll(builder.repositories());
+                }
+                Map<String, Resolver> resolvers = new LinkedHashMap<>();
+                resolvers.put("module", new ModularJarResolver(false,
+                        new MavenPomResolver().translated("maven",
+                                (_, coordinate) -> parser.apply(coordinate))));
+                if (builder.resolvers() != null) {
+                    resolvers.putAll(builder.resolvers());
+                }
+                Context context = new Context(builder.tests(), builder.hashAlgorithm(),
+                        Collections.unmodifiableMap(repositories),
+                        Collections.unmodifiableMap(resolvers));
+                Assembler wrapped = (innerContext, descriptor) -> {
+                    BuildExecutorModule base = assembler.apply(innerContext, descriptor);
+                    return (inner, inherited) -> {
+                        base.accept(inner, inherited);
+                        inner.addStep("pom", new Pom(),
+                                descriptor.sources(), descriptor.manifests(), descriptor.checked());
+                    };
+                };
+                sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
+                        context.repositories(), context.resolvers(),
+                        descriptor -> wrapped.apply(context, descriptor)));
+            }, "download");
+            executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);
+        };
+
+        Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);
+
+        static Layout of(Path root) throws IOException {
             List<Path> moduleInfos = new ArrayList<>();
             Files.walkFileTree(root, new SimpleFileVisitor<>() {
                 @Override
@@ -47,49 +157,9 @@ public final class Project {
             if (Files.isRegularFile(root.resolve("pom.xml"))) {
                 return MAVEN;
             }
-            return AUTO;
-        }
-    }
-
-    public record Context(
-            Kind kind,
-            boolean tests,
-            String hashAlgorithm,
-            Map<String, Repository> repositories,
-            Map<String, Resolver> resolvers
-    ) {
-    }
-
-    @FunctionalInterface
-    public interface Factory {
-
-        BuildExecutorModule apply(Context context, ModuleDescriptor descriptor);
-
-        static Factory defaults() {
-            return (context, descriptor) -> switch (context.kind()) {
-                case MAVEN -> (sub, _) -> sub.addModule("java",
-                        context.tests() ? new JavaModule().testIfAvailable() : new JavaModule(),
-                        descriptor.sources(), descriptor.manifests(),
-                        descriptor.artifacts(), descriptor.runtimeArtifacts());
-                case MODULAR -> (sub, _) -> sub.addModule("java",
-                        context.tests()
-                                ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
-                                : new JavaModule(),
-                        descriptor.sources(), descriptor.manifests(),
-                        descriptor.checked(), descriptor.runtimeChecked(),
-                        descriptor.artifacts(), descriptor.runtimeArtifacts());
-                case MODULE_AWARE_MAVEN -> (sub, _) -> {
-                    sub.addModule("java",
-                            context.tests()
-                                    ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
-                                    : new JavaModule(),
-                            descriptor.sources(), descriptor.manifests(),
-                            descriptor.artifacts(), descriptor.runtimeArtifacts());
-                    sub.addStep("pom", new Pom(),
-                            descriptor.sources(), descriptor.manifests(), descriptor.checked());
-                };
-                case AUTO -> throw new AssertionError("unreachable: AUTO is resolved before the factory is consulted");
-            };
+            throw new IllegalStateException(
+                    "No build descriptor found under " + root.toAbsolutePath()
+                            + " (expected a module-info.java or a pom.xml)");
         }
     }
 
@@ -106,11 +176,11 @@ public final class Project {
                 Path.of("."),
                 Path.of("target"),
                 Path.of("cache"),
-                Kind.AUTO,
+                Layout.AUTO,
                 "SHA256",
                 true,
-                Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of("build"))),
-                Factory.defaults(),
+                Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
+                Assembler.ofJava(),
                 null,
                 null);
     }
@@ -120,62 +190,69 @@ public final class Project {
             Path root,
             Path target,
             Path cache,
-            Kind kind,
+            Layout layout,
             String hashAlgorithm,
             boolean tests,
             SequencedSet<String> defaultTarget,
-            Factory factory,
+            Assembler assembler,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers
     ) {
 
         public Builder root(Path root) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder target(Path target) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder cache(Path cache) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
-        public Builder force(Kind kind) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+        public Builder layout(Layout layout) {
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder hashAlgorithm(String hashAlgorithm) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder tests(boolean tests) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder defaultTarget(String... defaultTarget) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests,
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
                     Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
-                    factory, repositories, resolvers);
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
-        public Builder factory(Factory factory) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+        public Builder assembler(Assembler assembler) {
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder repositories(Map<String, Repository> repositories) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder resolvers(Map<String, Resolver> resolvers) {
-            return new Builder(root, target, cache, kind, hashAlgorithm, tests, defaultTarget, factory, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder resolveProperties() {
             Path resolvedRoot = root;
             Path resolvedTarget = target;
             Path resolvedCache = cache;
-            Kind resolvedKind = kind;
+            Layout resolvedLayout = layout;
             String resolvedAlgorithm = hashAlgorithm;
             boolean resolvedTests = tests;
             String rootOverride = System.getProperty("jenesis.project.root");
@@ -190,9 +267,16 @@ public final class Project {
             if (cacheOverride != null) {
                 resolvedCache = Path.of(cacheOverride);
             }
-            String forced = System.getProperty("jenesis.project.kind");
+            String forced = System.getProperty("jenesis.project.layout");
             if (forced != null) {
-                resolvedKind = Kind.valueOf(forced.toUpperCase(Locale.ROOT));
+                resolvedLayout = switch (forced.toLowerCase(Locale.ROOT)) {
+                    case "auto" -> Layout.AUTO;
+                    case "maven" -> Layout.MAVEN;
+                    case "modular" -> Layout.MODULAR;
+                    case "module_aware_maven" -> Layout.MODULE_AWARE_MAVEN;
+                    default -> throw new IllegalArgumentException(
+                            "Unknown layout: " + forced + " (expected auto, maven, modular, or module_aware_maven)");
+                };
             }
             String algorithm = System.getProperty("jenesis.project.hashAlgorithm");
             if (algorithm != null) {
@@ -204,72 +288,18 @@ public final class Project {
             return new Builder(resolvedRoot,
                     resolvedTarget,
                     resolvedCache,
-                    resolvedKind,
+                    resolvedLayout,
                     resolvedAlgorithm,
                     resolvedTests,
                     defaultTarget,
-                    factory,
+                    assembler,
                     repositories,
                     resolvers);
         }
 
         public void build(String... selectors) throws IOException {
             BuildExecutor executor = BuildExecutor.of(target);
-            switch ((kind == Kind.AUTO) ? Kind.of(root) : kind) {
-                case MAVEN -> {
-                    Context context = new Context(Kind.MAVEN, tests, hashAlgorithm,
-                            (repositories != null) ? repositories : Map.of("maven", new MavenDefaultRepository()),
-                            (resolvers != null) ? resolvers : Map.of("maven", new MavenPomResolver()));
-                    executor.addModule("build", MavenProject.make(root, hashAlgorithm,
-                            descriptor -> factory.apply(context, descriptor)));
-                    executor.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
-                }
-                case MODULAR -> {
-                    executor.addStep("download", new DownloadModuleUris());
-                    executor.addModule("build", (sub, downloaded) -> {
-                        Map<String, Repository> effectiveRepositories = (repositories != null)
-                                ? repositories
-                                : Repository.ofProperties(DownloadModuleUris.URIS,
-                                downloaded.values(),
-                                (_, value) -> URI.create(value),
-                                Files.createDirectories(cache.resolve("modules")));
-                        Map<String, Resolver> effectiveResolvers = (resolvers != null)
-                                ? resolvers
-                                : Map.of("module", new ModularJarResolver(true));
-                        Context context = new Context(Kind.MODULAR, tests, hashAlgorithm,
-                                effectiveRepositories, effectiveResolvers);
-                        sub.addModule("modules", ModularProject.make(root, hashAlgorithm,
-                                effectiveRepositories, effectiveResolvers,
-                                descriptor -> factory.apply(context, descriptor)));
-                    }, "download");
-                    executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");
-                }
-                case MODULE_AWARE_MAVEN -> {
-                    Map<String, Repository> effectiveRepositories = (repositories != null)
-                            ? repositories
-                            : Map.of("maven", new MavenDefaultRepository());
-                    executor.addStep("download", new DownloadModuleUris(null));
-                    executor.addModule("build", (sub, downloaded) -> {
-                        Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
-                                DownloadModuleUris.URIS,
-                                downloaded.values());
-                        Map<String, Resolver> effectiveResolvers = (resolvers != null)
-                                ? resolvers
-                                : Map.of("module", new ModularJarResolver(false,
-                                new MavenPomResolver().translated("maven",
-                                        (_, coordinate) -> parser.apply(coordinate))));
-                        Context context = new Context(Kind.MODULE_AWARE_MAVEN, tests, hashAlgorithm,
-                                effectiveRepositories, effectiveResolvers);
-                        sub.addModule("modules", ModularProject.make(root, hashAlgorithm,
-                                effectiveRepositories, effectiveResolvers,
-                                descriptor -> factory.apply(context, descriptor)));
-                    }, "download");
-                    executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");
-                }
-                case AUTO -> throw new IllegalStateException(
-                        "No build descriptor found under " + root.toAbsolutePath()
-                                + " (expected a module-info.java or a pom.xml)");
-            }
+            layout.apply(executor, this, assembler);
             executor.execute(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors);
         }
     }

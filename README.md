@@ -80,7 +80,7 @@ public class Canonical {
 
 ```java
 Project.builder()
-       .force(Project.Kind.MODULE_AWARE_MAVEN)
+       .layout(Project.Layout.MODULE_AWARE_MAVEN)
        .hashAlgorithm("SHA512")
        .tests(false)
        .build(args);
@@ -88,20 +88,19 @@ Project.builder()
 
 When `build(args)` is called with no positional arguments, `Project` substitutes the builder's `defaultTarget` as the selector list (default: `"build"`, which runs the discovered multi-project graph but skips the downstream `collect` step). Pass explicit selectors to override the default, or call `.defaultTarget(...)` to change what an argument-less invocation runs. This is a builder-only property and has no corresponding system property.
 
-The per-project "inner module" wiring — what each discovered module compiles, packages, tests, and (for `MODULE_AWARE_MAVEN`) emits a POM for — is also configurable via `.factory(Project.Factory)`. A factory receives a `Project.Context` (`kind`, `tests`, `hashAlgorithm`, effective `repositories`, effective `resolvers`) plus a `ModuleDescriptor` (giving access to the canonical sub-paths `sources()`, `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`) and returns a `BuildExecutorModule` registered inside the per-project sub-graph. The default — `Project.Factory.defaults()` — dispatches on `context.kind()` and reproduces the wiring shown in `build/Maven.java` / `build/Modular.java` / `build/ModularByMaven.java`, so overriding the factory typically means delegating to `defaults()` for the kinds you don't care about and substituting your own `BuildExecutorModule` for the ones you do. Like `defaultTarget`, this is a builder-only property.
+Two callbacks govern how the build is assembled, and they are pluggable independently:
 
-The supported `Kind`s map one-to-one onto the example scripts in `build/`:
+- `Project.Layout` (set via `.layout(...)`) wires the top-level pipeline — the `download` step (where applicable), the `build` multi-project module, the `collect` artifact relocation. The shipped constants `Layout.MAVEN`, `Layout.MODULAR`, `Layout.MODULE_AWARE_MAVEN` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularByMaven.java`. `Layout.AUTO` (the default) calls `Layout.of(root)` and dispatches to one of the concrete layouts; `MODULE_AWARE_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` + `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
+- `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph — what each discovered module compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, the effective `repositories`, the effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`, `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a `BuildExecutorModule` registered inside the per-project sub-graph. The default — `Assembler.ofJava()` — is layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths, using whatever repositories and resolvers the layout has provided. The `MODULE_AWARE_MAVEN` layout wraps the user's assembler to additionally emit a per-project `pom` step alongside whatever the assembler registered.
 
-| Kind                 | Pipeline                                                                                  | Mirrors                |
+Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived module repository for `MODULAR`) with any user-provided ones, and pass the merged maps to the factory through `Context`. User entries with the same key override the layout default.
+
+| Layout               | Pipeline                                                                                  | Mirrors                |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
-| `MAVEN`              | `MavenProject` scan + `JavaModule` (`testIfAvailable`) + `Relocate` artifacts             | `build/Maven.java`     |
-| `MODULAR`            | `DownloadModuleUris` + `ModularProject` over a URI-derived repository + `JavaModule`      | `build/Modular.java`   |
-| `MODULE_AWARE_MAVEN` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output | `build/ModularByMaven.java` |
-| `AUTO` (default)     | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws with a message pointing at `force(...)`. | — |
-
-`MODULE_AWARE_MAVEN` is reachable only by `force(...)` (or `-Djenesis.project.kind=module_aware_maven`) because its
-on-disk signature — a `module-info.java` plus a `pom.xml` — is indistinguishable from a pure modular project that
-keeps a `pom.xml` for IDE support, and guessing wrong would silently change dependency resolution.
+| `Layout.MAVEN`       | `MavenProject` scan + per-project `JavaModule` + `Relocate` artifacts                     | `build/Maven.java`     |
+| `Layout.MODULAR`     | `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` | `build/Modular.java`   |
+| `Layout.MODULE_AWARE_MAVEN` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output added on top of the factory | `build/ModularByMaven.java` |
+| `Layout.AUTO` (default) | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | — |
 
 The examples (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularByMaven`, `Modules`) remain alongside `Canonical` to
 illustrate the underlying primitives; only `Project` is part of the library proper.
@@ -677,7 +676,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.verbose`       | system property     | When `true`, the default `BuildExecutorCallback` prints per-step verbose output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                              |
 | `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
 | `jenesis.buildVersion`  | system property     | When set, stamps the version onto every artifact this build produces. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` replaces the project's own `<version>` element with this value; dependency versions are unaffected. The Maven export layout reads coordinates from the produced `pom.xml`, so the export folder path, artifact filenames and `maven-metadata-local.xml` follow along. |
-| `jenesis.project.kind`          | system property | Read by `Project.Builder` (the canonical entry point) to force a `Kind` regardless of auto-detection or any in-code `force(...)`. Accepts `auto`, `maven`, `modular`, `module_aware_maven` (case-insensitive). |
+| `jenesis.project.layout`        | system property | Read by `Project.Builder` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `module_aware_maven` (case-insensitive). Unknown values throw on `resolveProperties()`. |
 | `jenesis.project.hashAlgorithm` | system property | Read by `Project.Builder` to override the digest algorithm passed to `MavenProject.make` / `ModularProject.make` (default `SHA256`). Has no effect on builds that don't go through `Project`. |
 | `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` constructs its `JavaModule` without the `testIfAvailable(...)`/`test(...)` decoration, so test sources and test dependencies are not wired into the graph. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
