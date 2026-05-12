@@ -4,7 +4,7 @@ import module java.base;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
-import build.jenesis.docker.Docker;
+import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
@@ -178,18 +178,21 @@ public final class Project {
             if (Boolean.getBoolean("jenesis.project.docker")) {
                 SortedMap<String, String> properties = new TreeMap<>();
                 for (String name : System.getProperties().stringPropertyNames()) {
-                    if (name.startsWith("jenesis.") && !name.equals("jenesis.project.docker")) {
+                    if (name.startsWith("jenesis.") && !name.startsWith("jenesis.project.docker")) {
                         properties.put(name, System.getProperty(name));
                     }
                 }
                 String image = System.getProperty("jenesis.project.docker.image");
                 Path root = builder.root().toAbsolutePath().normalize();
-                Docker docker = image == null ? new Docker(root) : new Docker(root, image);
+                DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
                 for (Path path : List.of(builder.target(), builder.cache())) {
                     Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
                     if (!absolute.startsWith(root)) {
                         docker = docker.mount(absolute, absolute.toString(), false);
                     }
+                }
+                if (Boolean.getBoolean("jenesis.verbose")) {
+                    System.out.println("Wrapping build within Docker image: " + docker.image());
                 }
                 System.exit(docker.execute("build/jenesis/Project.java", properties, selectors));
             }

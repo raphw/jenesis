@@ -2,7 +2,7 @@ package build.jenesis.docker;
 
 import module java.base;
 
-public class Docker {
+public class DockerizedJava {
 
     public static final String JAVA_HOME_MOUNT = "/opt/java-home";
 
@@ -12,7 +12,7 @@ public class Docker {
     private final Path workingDirectory;
     private final Map<Path, String> mounts;
 
-    public Docker(Path workingDirectory) throws IOException, InterruptedException {
+    public DockerizedJava(Path workingDirectory) throws IOException, InterruptedException {
         String image;
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
@@ -45,23 +45,27 @@ public class Docker {
         this(workingDirectory, image);
     }
 
-    public Docker(Path workingDirectory, String image) {
+    public DockerizedJava(Path workingDirectory, String image) {
         this(workingDirectory, image, Map.of());
     }
 
-    private Docker(Path workingDirectory, String image, Map<Path, String> mounts) {
+    private DockerizedJava(Path workingDirectory, String image, Map<Path, String> mounts) {
         this.image = image;
         this.workingDirectory = workingDirectory;
         this.mounts = mounts;
     }
 
-    public Docker mount(Path host, String container, boolean readOnly) {
-        SequencedMap<Path, String> copy = new LinkedHashMap<>(mounts);
-        copy.put(host.toAbsolutePath(), container + (readOnly ? ":ro" : ""));
-        return new Docker(workingDirectory, image, copy);
+    public String image() {
+        return image;
     }
 
-    public int execute(String mainCommand, Map<String, String> properties, String... args) throws IOException, InterruptedException {
+    public DockerizedJava mount(Path host, String container, boolean readOnly) {
+        SequencedMap<Path, String> copy = new LinkedHashMap<>(mounts);
+        copy.put(host.toAbsolutePath(), container + (readOnly ? ":ro" : ""));
+        return new DockerizedJava(workingDirectory, image, copy);
+    }
+
+    public int execute(String main, Map<String, String> properties, String... args) throws IOException, InterruptedException {
         String home = System.getProperty("java.home");
         if (home == null) {
             home = System.getenv("JAVA_HOME");
@@ -90,7 +94,7 @@ public class Docker {
         for (Map.Entry<String, String> property : properties.entrySet()) {
             docker.add("-D" + property.getKey() + "=" + property.getValue());
         }
-        docker.add(mainCommand);
+        docker.add(main);
         docker.addAll(Arrays.asList(args));
         return new ProcessBuilder(docker).inheritIO().start().waitFor();
     }
