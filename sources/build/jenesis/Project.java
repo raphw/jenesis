@@ -18,7 +18,6 @@ import build.jenesis.step.Relocate;
 public final class Project {
 
     public static final String BUILD = "build";
-    private static final String DOCKER_ENABLED = "jenesis.project.docker";
 
     public record Context(
             boolean tests,
@@ -176,21 +175,23 @@ public final class Project {
     public static void main(String... selectors) {
         try {
             Builder builder = builder().resolveProperties();
-            if (Boolean.getBoolean(DOCKER_ENABLED)) {
+            if (Boolean.getBoolean("jenesis.project.docker")) {
                 SortedMap<String, String> properties = new TreeMap<>();
                 for (String name : System.getProperties().stringPropertyNames()) {
-                    properties.put(name, System.getProperty(name));
+                    if (name.startsWith("jenesis.") && !name.equals("jenesis.project.docker")) {
+                        properties.put(name, System.getProperty(name));
+                    }
                 }
-                properties.remove(DOCKER_ENABLED);
-                Docker docker = new Docker(Docker.implicitImage());
-                Path cwd = Path.of("").toAbsolutePath();
-                for (Path path : List.of(builder.root(), builder.target(), builder.cache())) {
-                    Path absolute = path.toAbsolutePath().normalize();
-                    if (!absolute.startsWith(cwd)) {
+                String image = System.getProperty("jenesis.project.docker.image");
+                Path root = builder.root().toAbsolutePath().normalize();
+                Docker docker = image == null ? new Docker(root) : new Docker(root, image);
+                for (Path path : List.of(builder.target(), builder.cache())) {
+                    Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
+                    if (!absolute.startsWith(root)) {
                         docker = docker.mount(absolute, absolute.toString(), false);
                     }
                 }
-                docker.execute(properties, selectors);
+                System.exit(docker.execute("build/jenesis/Project.java", properties, selectors));
             }
             builder.build(selectors);
         } catch (IOException e) {
