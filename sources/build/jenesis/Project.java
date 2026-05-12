@@ -95,7 +95,7 @@ public final class Project {
 
     public static void main(String... selectors) {
         try {
-            builder().build(selectors);
+            builder().resolveProperties().build(selectors);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed using selectors " + List.of(selectors), e);
         }
@@ -214,12 +214,6 @@ public final class Project {
         }
 
         public void build(String... selectors) throws IOException {
-            resolveProperties().runBuild(selectors.length == 0
-                    ? defaultTarget.toArray(String[]::new)
-                    : selectors);
-        }
-
-        private void runBuild(String... selectors) throws IOException {
             BuildExecutor executor = BuildExecutor.of(target);
             switch ((kind == Kind.AUTO) ? Kind.of(root) : kind) {
                 case MAVEN -> {
@@ -276,7 +270,7 @@ public final class Project {
                         "No build descriptor found under " + root.toAbsolutePath()
                                 + " (expected a module-info.java or a pom.xml)");
             }
-            executor.execute(selectors);
+            executor.execute(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors);
         }
     }
 }
