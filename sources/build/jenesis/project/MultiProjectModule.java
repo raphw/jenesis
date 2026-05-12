@@ -16,11 +16,11 @@ public class MultiProjectModule implements BuildExecutorModule {
             COMPILE = "compile",
             RUNTIME = "runtime";
 
-    public static final String IDENTIFIER = "identifier";
-
-    private static final String GROUP = "group",
+    public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
             MODULE = "module";
+
+    private static final String GROUP = "group";
 
     public static final String IDENTIFIER_PATH = PREVIOUS.repeat(3) + IDENTIFIER + "/";
 

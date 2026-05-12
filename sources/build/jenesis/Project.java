@@ -11,6 +11,7 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Relocate;
 
 public final class Project {
@@ -44,7 +45,7 @@ public final class Project {
     @FunctionalInterface
     public interface Layout {
 
-        void apply(BuildExecutor executor, Builder builder, Assembler assembler) throws IOException;
+        Function<String, String> apply(BuildExecutor executor, Builder builder, Assembler assembler) throws IOException;
 
         Layout MAVEN = (executor, builder, assembler) -> {
             Map<String, Repository> repositories = new LinkedHashMap<>();
@@ -60,9 +61,12 @@ public final class Project {
             Context context = new Context(builder.tests(), builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
-            executor.addModule(BUILD, MavenProject.make(builder.root(), builder.hashAlgorithm(),
-                    descriptor -> assembler.apply(context, descriptor)));
+            executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
+                    MavenProject.make(builder.root(), builder.hashAlgorithm(),
+                            descriptor -> assembler.apply(context, descriptor))));
             executor.addStep("collect", new Relocate(MavenProject.artifactsByModule()), BUILD);
+            String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
 
         Layout MODULAR = (executor, builder, assembler) -> {
@@ -89,6 +93,8 @@ public final class Project {
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);
+            String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
 
         Layout MODULE_AWARE_MAVEN = (executor, builder, assembler) -> {
@@ -125,6 +131,8 @@ public final class Project {
                         descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
             executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);
+            String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
 
         Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);
@@ -299,8 +307,10 @@ public final class Project {
 
         public void build(String... selectors) throws IOException {
             BuildExecutor executor = BuildExecutor.of(target);
-            layout.apply(executor, this, assembler);
-            executor.execute(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors);
+            Function<String, String> resolver = layout.apply(executor, this, assembler);
+            executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
+                    .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
+                    .toArray(String[]::new));
         }
     }
 }

@@ -37,16 +37,16 @@ so the jar that leaves the build path carries the versions that were used to ass
 The required Java release for the build can be declared in the same Javadoc/POM channels: an `@release <V>`
 Javadoc tag on a Java module declaration, or a `<properties><maven.compiler.release>` element in a Maven POM.
 The manifests step writes the value into a `process/javac.properties` sidecar (`--release=<V>`), which
-`ProcessBuildStep` picks up generically and forwards to `javac` — no Javac-specific wiring required. When no
+`ProcessBuildStep` picks up generically and forwards to `javac` - no Javac-specific wiring required. When no
 release is declared, `javac`'s own default applies (the source/target level of the running JDK).
 
 For releasing, a single system property `-Djenesis.buildVersion=<V>` stamps the version onto every artifact this
 build produces: the produced `module-info.class` carries it as `Module.version` (so downstream consumers pick it
 up as `compiledVersion` on their `requires` directives), the emitted `pom.xml` carries it as the project's own
 `<version>` element, and the Maven export layout (`MavenRepositoryLayout.toRepository(...)`) reads coordinates
-from that POM — so the export folder path (`<groupId>/<artifactId>/<version>/`), the artifact filenames
+from that POM - so the export folder path (`<groupId>/<artifactId>/<version>/`), the artifact filenames
 (`<artifactId>-<version>.jar`, `<artifactId>-<version>.pom`) and `maven-metadata-local.xml` follow along
-transparently. Dependency versions are unaffected — only the project's own version is overridden.
+transparently. Dependency versions are unaffected - only the project's own version is overridden.
 
 For IDE support, a `pom.xml` is kept alongside so the project opens, builds and debugs in any Maven-aware IDE.
 
@@ -88,10 +88,12 @@ Project.builder()
 
 When `build(args)` is called with no positional arguments, `Project` substitutes the builder's `defaultTarget` as the selector list (default: `"build"`, which runs the discovered multi-project graph but skips the downstream `collect` step). Pass explicit selectors to override the default, or call `.defaultTarget(...)` to change what an argument-less invocation runs. This is a builder-only property and has no corresponding system property.
 
+`Project` rewrites any selector starting with `+` into the full path of a per-project module by handing the part after `+` to a name resolver returned from `Layout.apply(...)`. The shipped layouts encode names as `module-<URLEncode(name)>` and place them under their per-project aggregator: `+sources` becomes `build/modules/compose/module/module-sources` (modular and module-aware maven) or `build/maven/compose/module/module-sources` (maven). `+` alone resolves to `module-.`, which is the identity Maven's scanner produces for the root POM (the "unnamed" project in a multi-module Maven layout); a pure modular project has no such root, so `+` alone won't resolve there. The resulting selector is literal, so the lenient `::/<name>` cascade across sibling modules is avoided. Run `java build/Canonical.java +sources` to build one module without dragging its siblings in.
+
 Two callbacks govern how the build is assembled, and they are pluggable independently:
 
-- `Project.Layout` (set via `.layout(...)`) wires the top-level pipeline — the `download` step (where applicable), the `build` multi-project module, the `collect` artifact relocation. The shipped constants `Layout.MAVEN`, `Layout.MODULAR`, `Layout.MODULE_AWARE_MAVEN` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularByMaven.java`. `Layout.AUTO` (the default) calls `Layout.of(root)` and dispatches to one of the concrete layouts; `MODULE_AWARE_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` + `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
-- `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph — what each discovered module compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, the effective `repositories`, the effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`, `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a `BuildExecutorModule` registered inside the per-project sub-graph. The default — `Assembler.ofJava()` — is layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths, using whatever repositories and resolvers the layout has provided. The `MODULE_AWARE_MAVEN` layout wraps the user's assembler to additionally emit a per-project `pom` step alongside whatever the assembler registered.
+- `Project.Layout` (set via `.layout(...)`) wires the top-level pipeline (the `download` step where applicable, the `build` multi-project module, the `collect` artifact relocation) and returns a `Function<String, String>` that expands `+`-prefixed selectors into literal paths. The shipped constants `Layout.MAVEN`, `Layout.MODULAR`, `Layout.MODULE_AWARE_MAVEN` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularByMaven.java`. `Layout.AUTO` (the default) calls `Layout.of(root)` and dispatches to one of the concrete layouts; `MODULE_AWARE_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` + `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
+- `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph - what each discovered module compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, the effective `repositories`, the effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`, `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a `BuildExecutorModule` registered inside the per-project sub-graph. The default - `Assembler.ofJava()` - is layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths, using whatever repositories and resolvers the layout has provided. The `MODULE_AWARE_MAVEN` layout wraps the user's assembler to additionally emit a per-project `pom` step alongside whatever the assembler registered.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived module repository for `MODULAR`) with any user-provided ones, and pass the merged maps to the factory through `Context`. User entries with the same key override the layout default.
 
@@ -100,7 +102,7 @@ Layouts always combine their built-in repositories and resolvers (e.g. a Maven d
 | `Layout.MAVEN`       | `MavenProject` scan + per-project `JavaModule` + `Relocate` artifacts                     | `build/Maven.java`     |
 | `Layout.MODULAR`     | `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` | `build/Modular.java`   |
 | `Layout.MODULE_AWARE_MAVEN` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output added on top of the factory | `build/ModularByMaven.java` |
-| `Layout.AUTO` (default) | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | — |
+| `Layout.AUTO` (default) | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
 
 The examples (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularByMaven`, `Modules`) remain alongside `Canonical` to
 illustrate the underlying primitives; only `Project` is part of the library proper.
@@ -142,14 +144,14 @@ Steps are organised into a graph by `BuildExecutor`:
 - `execute(selectors…)` runs the graph on a virtual-thread executor, scheduling each node as soon as its
   predecessors have completed. With no selectors, the full graph runs. Otherwise each selector is a slash-delimited
   path of identities (`module/step`) that restricts execution to the named steps and their preliminaries; `:`
-  matches any one path segment and `::` matches any depth (zero or more). Wildcards are lenient — branches without
-  a match are silently skipped — while a literal path that doesn't resolve throws.
+  matches any one path segment and `::` matches any depth (zero or more). Wildcards are lenient - branches without
+  a match are silently skipped - while a literal path that doesn't resolve throws.
 
   Once a step is matched, its **transitive preliminary closure** runs unconditionally (no further selector filtering)
   so its inputs are real folders, not lenient-skipped placeholders. Modules along the path are different from steps
   here: a module's `accept(...)` always runs (modules aren't cached), and `accept` is allowed to read its predecessor
-  folders to wire its sub-graph dynamically. So whenever a module is reached by any selector — including via lenient
-  `::` propagation — its step preliminaries are pinned and run normally (cache-checked but not lenient-skipped),
+  folders to wire its sub-graph dynamically. So whenever a module is reached by any selector - including via lenient
+  `::` propagation - its step preliminaries are pinned and run normally (cache-checked but not lenient-skipped),
   guaranteeing those folders exist when `accept` reads them. Sibling modules whose subtree contains no match still
   have their `accept` invoked and their declared step preliminaries run; the engine can't determine "no match here"
   without descending, since module substructure is registered by `accept` itself. In practice this is a hash check
@@ -165,7 +167,7 @@ multi-project tree, …) into reusable units that take only their inputs as conf
 
 Unlike steps, modules are not cached: `accept(...)` runs on every build to (re-)register its sub-graph, and only
 the registered steps are then content-hashed and considered for skipping. Logic that lives inside the module body
-itself — file scans, classpath assembly, conditional step wiring — therefore executes unconditionally on every
+itself - file scans, classpath assembly, conditional step wiring - therefore executes unconditionally on every
 run; wrap it in a step if you need it skipped on unchanged inputs.
 
 Three properties of the model give incremental builds and reproducibility for free:
@@ -180,14 +182,14 @@ Three properties of the model give incremental builds and reproducibility for fr
   re-executed into a fresh `next` folder, which transparently replaces its predecessor.
 - **Each step's configuration is content-hashed too.** `BuildStep extends Serializable`, and a
   `BuildStepHashFunction` digests the step's serialized form alongside the output checksums (in
-  `<step>/checksum/step`). When a step is reconstructed with different field values — a different `Jar.Sort`,
-  a different `Resolver`, a different placement function — its hash changes and the step re-runs even if its
+  `<step>/checksum/step`). When a step is reconstructed with different field values - a different `Jar.Sort`,
+  a different `Resolver`, a different placement function - its hash changes and the step re-runs even if its
   inputs are unchanged. Configuration that should *not* count as part of the build's identity (a `Repository` that
   by contract returns the same artifact for the same coordinate, a JDK service factory, a `MavenPomEmitter`) is
   marked `transient` so it never reaches the digest. Lambdas held by step fields use intersection bounds
   (`<T extends Function<…> & Serializable>`) at the constructor so the compiler generates them serializable. The
   hash stream also installs a `replaceObject` hook that substitutes any `java.nio.file.Path` for its `toString()`,
-  making `Path`-typed step fields a first-class part of the configuration hash by design — the JDK's `Path`
+  making `Path`-typed step fields a first-class part of the configuration hash by design - the JDK's `Path`
   interface is not declared `Serializable`, so without this substitution any step that held a `Path` would fail
   serialization. Steps that still hold genuinely non-serializable state throw `NotSerializableException` at hash
   time so the bug surfaces at the first run instead of silently breaking cache invalidation.
@@ -254,7 +256,7 @@ step that `TestModule` registers); `Java.of(...)` gives an ad-hoc command runner
 them, and write `requires.properties` back.
 
 Before launching its tool, every `ProcessBuildStep` walks each input folder for `process/<command>.properties`
-(where `<command>` is the tool name supplied to the constructor — `java`, `javac`, `jar`, `javadoc`), loads each
+(where `<command>` is the tool name supplied to the constructor - `java`, `javac`, `jar`, `javadoc`), loads each
 folder's file into its own map keyed by argument, and passes the per-folder maps to `process(...)`. Whatever the
 subclass leaves behind in those maps is then materialised as command-line tokens prepended to the command line
 the subclass produced, in folder order: each entry becomes a `--key value` pair, and `\n` inside a value emits
@@ -262,7 +264,7 @@ the same flag once per piece (so a predecessor can write `--add-modules=foo\nbar
 key contributed by two predecessors yields two flag instances).
 
 Path-shaped values are stored as paths relative to the file's containing folder and never resolved by
-`ProcessBuildStep` itself — keeping the on-disk content position-independent in the same way `requires.properties`
+`ProcessBuildStep` itself - keeping the on-disk content position-independent in the same way `requires.properties`
 does for coordinates. Resolution is the consumer's job. `Java` does this in its own per-folder iteration: in
 addition to scanning each predecessor's `classes/`/`resources/`/`artifacts/`, it pulls `--module-path` and
 `--class-path` entries out of that folder's properties map, splits each value on `\n`, resolves each piece against
@@ -277,12 +279,12 @@ shared distribution folder, or a release staging directory), so it cannot honour
 output folder" invariant that drives incremental builds:
 
 - **Writes outside `context.next()`.** The destination is supplied as a `Path` to the constructor and lives
-  wherever the user wants it — `~/.m2/repository`, a network share, an existing distribution layout. Files are
+  wherever the user wants it - `~/.m2/repository`, a network share, an existing distribution layout. Files are
   copied (not hard-linked, since the target may be on a different filesystem) and `REPLACE_EXISTING` always
   overwrites whatever is at the destination. `context.next()` itself is left empty.
 - **Always re-runs.** `shouldRun(...)` returns `true`, so even if all inputs are unchanged the export is performed
-  again. The reason is that the destination is outside the executor's control — anything could have edited or
-  removed those files between builds — so the only safe assumption is that the export needs redoing every time.
+  again. The reason is that the destination is outside the executor's control - anything could have edited or
+  removed those files between builds - so the only safe assumption is that the export needs redoing every time.
   The step's serialized form is still hashed (config-aware cache invalidation still applies), but `consistent`
   results just shorten the diff status the placement function sees, not whether it runs.
 
@@ -291,7 +293,7 @@ an `Optional<Path>` relative to the configured target, or skipped. `MavenReposit
 `MavenRepositoryLayout.toRepository(Path)` ship a placement that consumes the canonical per-module output produced
 by `Relocate(ModularProject.artifactsByModule())` (i.e. each sub-module folder contains both `classes.jar` and
 `pom.xml`): for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of
-it, and routes the file to the standard Maven layout —
+it, and routes the file to the standard Maven layout:
 
 | File          | Maven destination                                       |
 | ------------- | ------------------------------------------------------- |
@@ -305,7 +307,7 @@ walks the target and writes the `mvn install`-equivalent metadata: a `maven-meta
 `<lastUpdated>` timestamp), an `_remote.repositories` marker per version directory, and a `modelVersion="1.1.0"`
 `maven-metadata-local.xml` inside each `-SNAPSHOT` version directory listing per-extension/classifier
 `<snapshotVersions>`. Unhandled today: checksum sidecars (`.sha1`/`.md5`), GPG signatures, classifier'd
-artifacts (sources, javadoc, tests jars), and `<parent>` version inheritance — the `Pom` step always emits
+artifacts (sources, javadoc, tests jars), and `<parent>` version inheritance - the `Pom` step always emits
 an explicit `<version>`, so the last is fine in practice for artifacts produced by this build.
 
 Build executor modules
@@ -358,7 +360,7 @@ the inherited class- or module-path. Calling `withResolvers(repositories, resolv
 on the side, so the user never has to declare it as a compile-time `requires` of their test module:
 
 - `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
-  `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers — `TestDefaultEngine.JUNIT5`
+  `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers - `TestDefaultEngine.JUNIT5`
   ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
   so the same engine works across `Modular`, `ModularByMaven`, and `Manual`-style builds. If the runner is already
   visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
@@ -367,8 +369,8 @@ on the side, so the user never has to declare it as a compile-time `requires` of
 - `required` (`Resolve`) expands that single coordinate into its transitive closure via the matching
   `Resolver`.
 - `prepared` (`TestModule.Prepare`) fetches each resolved coordinate via its `Repository` into a `runner/` subfolder of
-  its output — deliberately not `artifacts/`, so the runner's jars stay invisible to a downstream `Assign` step
-  that scans for module artifacts — and writes `process/java.properties` with `--module-path=<paths>` (paths
+  its output - deliberately not `artifacts/`, so the runner's jars stay invisible to a downstream `Assign` step
+  that scans for module artifacts - and writes `process/java.properties` with `--module-path=<paths>` (paths
   separated by `\n`, recorded relative to the step's own output folder so they survive the temp-to-persistent move).
 - `executed` (`TestModule.Run` extends `Java`) honours the `-Djenesis.test=<patterns>` system property: a
   comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. Class entries are
@@ -473,7 +475,7 @@ every `pom.xml` into `pom/`, parses each into a per-module `maven/<path>.propert
 `manifests` step that writes the project's own coordinate (`identity.properties`) and its declared Maven
 dependencies (`requires.properties`). Each POM's `<dependencyManagement>` block is captured into the same
 manifests step's `versions.properties`, so the resolver sees the project's BOM entries the same way it would
-see them if they had been declared in a top-level POM under resolution — pinning applies uniformly to declared
+see them if they had been declared in a top-level POM under resolution - pinning applies uniformly to declared
 dependencies and to transitives that aren't directly required. A `<properties><maven.compiler.release>` element
 in the POM is captured by the same manifests step into a `process/javac.properties` sidecar with `--release=<V>`,
 which `ProcessBuildStep` forwards to `javac`. `MavenProject.make(...)` returns the full wrapped
@@ -528,7 +530,7 @@ walks the source tree for `module-info.java` files and emits one sub-module per 
 `sources` source and a `manifests` step that parses the descriptor and writes `identity.properties` plus
 `requires.properties` from the Java `requires` directives. Javadoc tags of the form `@requires <module> <version>`
 on the module declaration are captured into the same manifests step's `versions.properties` as a BOM-style pin
-map — the tag does not have to name a directly-required module, so a transitive can be pinned the same way:
+map - the tag does not have to name a directly-required module, so a transitive can be pinned the same way:
 
 ```java
 /**
@@ -601,14 +603,14 @@ internal nodes:
   against the same inherited folders `ExternalModule` itself received.
 
 The `URLClassLoader` parents to the build's own class loader, so `BuildExecutorModule` and the rest of the public
-API stay shared types between host and plug-in — but the external coordinate's transitive dependencies live only
+API stay shared types between host and plug-in - but the external coordinate's transitive dependencies live only
 inside the loader, so they don't leak into the host classpath and two external modules with conflicting libraries
 don't clash. The loader is intentionally kept alive for the build's lifetime, because the build steps the delegated
 module registers hold class references to it.
 
 `ExternalModule` overrides `resolve(...)` to hide its four internal nodes from the published output map and to
 strip the `delegate/` prefix from the delegated module's results, so the delegated module's outputs appear under
-`ExternalModule`'s registered name — exactly as if the delegated module had been wired into the build directly.
+`ExternalModule`'s registered name - exactly as if the delegated module had been wired into the build directly.
 The hidden steps still execute and participate in the cache normally; only their published names disappear.
 
 Implementing a `BuildStep`
@@ -634,22 +636,22 @@ A few rules of thumb for new steps:
 
 - **Decide what counts as "configuration".** Every non-`transient` field is folded into the step's configuration
   hash via `ObjectOutputStream.writeObject(step)`. Anything that should *not* count as part of the build's
-  identity — a `Repository` that by contract returns the same artifact for the same coordinate, a JDK service
-  factory, a `MavenPomEmitter` — must be marked `transient` so swapping equivalent backends does not invalidate
+  identity - a `Repository` that by contract returns the same artifact for the same coordinate, a JDK service
+  factory, a `MavenPomEmitter` - must be marked `transient` so swapping equivalent backends does not invalidate
   the cache. Conversely, fields that *do* affect the output (a sort order, a placement function, a flag list)
   must stay non-transient.
 
 - **Hold lambdas through serializable bounds.** Constructors that take functional values should declare an
   intersection bound (`<T extends Function<…> & Serializable>`) so the compiler emits a serializable lambda.
   A step that holds a non-serializable value will fail outright when `BuildStepHashFunction.ofSerializationDigest`
-  tries to serialize it for the configuration hash, propagating a `NotSerializableException`. This is intentional —
+  tries to serialize it for the configuration hash, propagating a `NotSerializableException`. This is intentional:
   silent fallback would hide a bug that breaks cache invalidation, so the surface is loud at build time instead.
   `java.nio.file.Path` is the one exception that is *not* a bug to hold: the digest stream substitutes any `Path`
   for its `toString()`, making it a serializable participant in the configuration hash by design even though the
   JDK's concrete `Path` implementations don't implement `Serializable`.
 
 - **Bump `serialVersionUID` to communicate code changes.** The cache's notion of "configuration" is the step's
-  *serialized form* — the values of its non-transient fields plus the class's `serialVersionUID`. Editing the
+  *serialized form* - the values of its non-transient fields plus the class's `serialVersionUID`. Editing the
   body of `apply(...)` (fixing a bug, changing a tool flag, switching to a different output layout) does not
   alter the serialized form, and therefore does **not** invalidate previously cached outputs. To force a rebuild
   after such a change, increment the step's `serialVersionUID`: the new value flows into the stream's class
@@ -662,8 +664,8 @@ A few rules of thumb for new steps:
   `CompletionStage` or a thrown exception deletes the temp and propagates as a build failure.
 
 Steps that follow these rules participate fully in incremental builds: identical inputs and identical
-configuration reuse the previous output unchanged, and a meaningful change anywhere — fields,
-`serialVersionUID`, or predecessor outputs — re-executes the step into a fresh `next` folder.
+configuration reuse the previous output unchanged, and a meaningful change anywhere - fields,
+`serialVersionUID`, or predecessor outputs - re-executes the step into a fresh `next` folder.
 
 Configuration
 -------------
@@ -702,8 +704,8 @@ arguments, the full graph runs.
 | `java build/Modular.java build/::/test`   | Same, but anchored under the top-level `build` module. Top-level entries that aren't on the path to `build` (e.g. the `collect` step that depends on `build`) are not scheduled at all.                  |
 | `java -Djenesis.test='.*FooTest' build/Modular.java ::/test` | Same selector, but `TestModule.executed` re-runs unconditionally and only selects classes matching the regex; upstream `classes`/`artifacts` etc. stay cached. |
 
-A literal selector that doesn't resolve throws (`Unknown selector: …`). Wildcards (`:` and `::`) are lenient — they
-silently skip branches with no match — but as a result they over-schedule sibling subtrees: their modules' `accept`
+A literal selector that doesn't resolve throws (`Unknown selector: …`). Wildcards (`:` and `::`) are lenient - they
+silently skip branches with no match - but as a result they over-schedule sibling subtrees: their modules' `accept`
 runs and their declared step preliminaries are pinned for safety. Prefer literal paths when you know them.
 
 Implementation details
@@ -713,7 +715,7 @@ Implementation details
 
 `BuildExecutor` is the engine that owns one level of the graph. It does two things in sequence: collect
 *registrations* into an ordered map, then *execute* that map under a set of selectors. The same class plays both
-roles at every nesting depth — a module is implemented as a child `BuildExecutor` whose `target` directory is a
+roles at every nesting depth - a module is implemented as a child `BuildExecutor` whose `target` directory is a
 subfolder of its parent's and whose `location` prefix is "parent-path/", so log lines and error messages stay
 addressable as slash-delimited paths.
 
@@ -726,7 +728,7 @@ summaries are filtered into a registration's input map. Sources reach the same c
 publishes a fixed folder.
 
 **`Bound`.** Each registration carries a `Bound`, a tiny internal interface with a single `apply(...)` method that
-returns a `CompletionStage<Map<String, Map<String, StepSummary>>>` — the outer map's single key is the
+returns a `CompletionStage<Map<String, Map<String, StepSummary>>>` - the outer map's single key is the
 registration's identity, the inner map is its published outputs (one entry per leaf for steps; potentially many,
 keyed by sub-paths, for modules). `Bound` also carries a `module()` flag (default `false`, overridden to `true` by
 `bindModule`). The flag is the only externally-visible distinction between steps and modules at execution time;
@@ -741,7 +743,7 @@ the step runs into a fresh temp directory; on success the temp directory atomica
 (or, if the step set `BuildStepResult.next() == false`, the temp is deleted and the previous run is reused).
 Crashed runs always delete the temp.
 
-**`bindModule`.** Wraps a `BuildExecutorModule` in a `Bound` whose `apply` is *not* short-circuited by selectors —
+**`bindModule`.** Wraps a `BuildExecutorModule` in a `Bound` whose `apply` is *not* short-circuited by selectors:
 modules always run their `accept(buildExecutor, folders)` to register a sub-graph. The child `BuildExecutor` it
 hands to `accept` shares the parent's hash functions and callback, but has its own `target` subfolder and its own
 empty `registrations`. After `accept` returns, the child's `doExecute(...)` is invoked with the same selectors that
@@ -761,7 +763,7 @@ to pass into each registration:
 
 After the queue drains, two passes pin preliminaries: every preliminary of any pinned registration is added to
 `scheduled`, `direct`, and `pinned`, transitively. The second pass adds every *scheduled module* to `pinned` so
-the same walk picks up the module's step preliminaries — this is what guarantees a module's `accept` finds its
+the same walk picks up the module's step preliminaries - this is what guarantees a module's `accept` finds its
 predecessor folders even when the selector reached it only via lenient propagation. Finally, registrations in
 `direct` have their forwarded selectors stripped, so they execute unconditionally instead of lenient-skipping.
 
@@ -774,8 +776,8 @@ published outputs), and call `bound.apply(...)` on the executor. Results are col
 **Caching invariants.** Three things have to match for a step to be reused: the step's *configuration hash* (a
 digest of `ObjectOutputStream.writeObject(step)`), the *predecessor input checksums* (compared against what was
 recorded on the previous run), and the *current output folder* (re-hashed and compared against the previously
-written `checksums` file). A divergence anywhere — a constructor field changed, a predecessor produced different
-bytes, the output was tampered with — flips `consistent` to `false` and the step re-runs. Selectors are *not* part
+written `checksums` file). A divergence anywhere - a constructor field changed, a predecessor produced different
+bytes, the output was tampered with - flips `consistent` to `false` and the step re-runs. Selectors are *not* part
 of the hash; they only gate scheduling, so a step that runs under selectors produces the same cached output a full
 build would have, and subsequent unselected runs hit the cache as expected.
 
@@ -808,7 +810,7 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
 - **`ModuleInfoParser` / `ModuleInfo`** parse `module-info.java` via the `javax.tools` / `com.sun.source` APIs
   and surface the module name, its `requires` set (including `requires transitive`, `requires static`, and
   `requires static transitive`), and a `versions` map extracted from `@requires <module> <version>` Javadoc tags
-  on the module declaration — the input that `ModularProject` writes to `versions.properties` so transitives can
+  on the module declaration - the input that `ModularProject` writes to `versions.properties` so transitives can
   be pinned without listing them as direct `requires`.
 - **`ModularJarResolver`** is a `Resolver` (the generic resolution interface) backed by parsing each fetched
   jar's `module-info.class` straight from bytecode (no class loading). It walks the `requires` edges into a
@@ -867,14 +869,14 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
 - **`MavenLocalPom`** captures a parsed POM (coordinates, parent, dependencies, dependency-management,
   properties). The resolver expands these lazily.
 - **`MavenVersionNegotiator` / `MavenDefaultVersionNegotiator`** handle Maven's version-range syntax
-  (`[1.0,2.0)`, `LATEST`, `RELEASE`, etc.) — picking a concrete version from a candidate list per the rules
+  (`[1.0,2.0)`, `LATEST`, `RELEASE`, etc.) - picking a concrete version from a candidate list per the rules
   described in the Maven version comparison spec.
 - **`MavenRepositoryLayout`** is a `Function<Path, Optional<Path>>` that maps a coordinate-named file (e.g.
   `maven-org.junit.jupiter-junit-jupiter-5.10.0.jar`) into the Maven local-repo layout
   (`org/junit/jupiter/junit-jupiter/5.10.0/junit-jupiter-5.10.0.jar`). It plugs into `Relocate` to materialize
   a local Maven repository alongside the build's normal artifact folder.
 - **`MavenUriParser`** maps coordinate strings to/from URI form, used by repository implementations.
-- **`MavenModuleDescriptor`** is `MavenProject`'s implementation of `ModuleDescriptor` — the bridge between
+- **`MavenModuleDescriptor`** is `MavenProject`'s implementation of `ModuleDescriptor` - the bridge between
   Maven's per-module data and `MultiProjectModule`'s generic factory contract.
 - **`MavenProject`** is the `BuildExecutorModule` entry point: scans a directory tree of `pom.xml` files,
   produces one `MavenModuleDescriptor` per module, and feeds them into `MultiProjectModule` along with a
@@ -883,7 +885,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
 
 Same uniform pattern as Java support: `BuildStep` for cached units of work, `BuildExecutorModule` for sub-graph
 wiring, `Resolver`/`Repository` for dependency lookup. A user wiring Maven into a build never touches the
-resolver mechanics directly — they pass a `Map<String, Resolver>` keyed by prefix (`"maven"`, `"module"`) to
+resolver mechanics directly - they pass a `Map<String, Resolver>` keyed by prefix (`"maven"`, `"module"`) to
 `JavaModule.testIfAvailable(...)` or `DependenciesModule`, and the generic infrastructure dispatches
 coordinates to the right resolver by prefix.
 

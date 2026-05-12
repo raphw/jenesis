@@ -180,4 +180,34 @@ public class ProjectTest {
     public void default_layout_is_auto() {
         assertThat(Project.builder().layout()).isSameAs(Project.Layout.AUTO);
     }
+
+    @Test
+    public void maven_layout_resolver_maps_named_and_unnamed_modules() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project.Builder builder = Project.builder().root(root).target(target);
+        Function<String, String> resolver = Project.Layout.MAVEN.apply(
+                BuildExecutor.of(target), builder, Project.Assembler.ofJava());
+        assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
+        assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-.");
+    }
+
+    @Test
+    public void modular_layout_resolver_maps_named_and_unnamed_modules() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project.Builder builder = Project.builder().root(root).target(target);
+        Function<String, String> resolver = Project.Layout.MODULAR.apply(
+                BuildExecutor.of(target), builder, Project.Assembler.ofJava());
+        assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
+        assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-.");
+    }
+
+    @Test
+    public void module_aware_maven_layout_resolver_maps_named_and_unnamed_modules() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project.Builder builder = Project.builder().root(root).target(target);
+        Function<String, String> resolver = Project.Layout.MODULE_AWARE_MAVEN.apply(
+                BuildExecutor.of(target), builder, Project.Assembler.ofJava());
+        assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
+        assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-.");
+    }
 }
