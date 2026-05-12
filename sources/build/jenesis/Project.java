@@ -45,9 +45,12 @@ public final class Project {
                         context.tests()
                                 ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
                                 : new JavaModule(),
-                        descriptor.sources(), descriptor.manifests(),
-                        descriptor.checked(), descriptor.runtimeChecked(),
-                        descriptor.artifacts(), descriptor.runtimeArtifacts());
+                        descriptor.sources(),
+                        descriptor.manifests(),
+                        descriptor.checked(),
+                        descriptor.runtimeChecked(),
+                        descriptor.artifacts(),
+                        descriptor.runtimeArtifacts());
                 if (context.sources()) {
                     sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
                 }
@@ -56,13 +59,18 @@ public final class Project {
                         module.addStep("classes", Javadoc.tool(), inherited.sequencedKeySet().stream());
                         module.addStep("artifacts", Jar.tool(Jar.Sort.JAVADOC), "classes");
                     },
-                    descriptor.sources(), descriptor.manifests(),
-                    descriptor.checked(), descriptor.runtimeChecked(),
-                    descriptor.artifacts(), descriptor.runtimeArtifacts());
+                    descriptor.sources(),
+                    descriptor.manifests(),
+                    descriptor.checked(),
+                    descriptor.runtimeChecked(),
+                    descriptor.artifacts(),
+                    descriptor.runtimeArtifacts());
                 }
                 if (context.pom()) {
                     sub.addStep("pom", new Pom(context.metadata()),
-                            descriptor.sources(), descriptor.manifests(), descriptor.checked());
+                            descriptor.sources(),
+                            descriptor.manifests(),
+                            descriptor.checked());
                 }
             };
         }
@@ -85,8 +93,10 @@ public final class Project {
                 resolvers.putAll(builder.resolvers());
             }
             Context context = new Context(builder.tests(),
-                    builder.sources(), builder.javadoc(),
-                    builder.pom(), builder.metadata(),
+                    builder.sources(),
+                    builder.javadoc(),
+                    builder.pom(),
+                    builder.metadata(),
                     builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
@@ -115,8 +125,10 @@ public final class Project {
                     resolvers.putAll(builder.resolvers());
                 }
                 Context context = new Context(builder.tests(),
-                        builder.sources(), builder.javadoc(),
-                        builder.pom(), builder.metadata(),
+                        builder.sources(),
+                        builder.javadoc(),
+                        builder.pom(),
+                        builder.metadata(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
@@ -148,8 +160,10 @@ public final class Project {
                     resolvers.putAll(builder.resolvers());
                 }
                 Context context = new Context(builder.tests(),
-                        builder.sources(), builder.javadoc(),
-                        true, builder.metadata(),
+                        builder.sources(),
+                        builder.javadoc(),
+                        builder.pom(),
+                        builder.metadata(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
@@ -268,43 +282,173 @@ public final class Project {
     ) {
 
         public Builder root(Path root) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder target(Path target) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder cache(Path cache) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder layout(Layout layout) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder hashAlgorithm(String hashAlgorithm) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder tests(boolean tests) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder sources(boolean sources) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder javadoc(boolean javadoc) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder pom(boolean pom) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder metadata(MavenPomEmitter.Metadata metadata) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder defaultTarget(String... defaultTarget) {
@@ -325,15 +469,54 @@ public final class Project {
         }
 
         public Builder assembler(Assembler assembler) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder repositories(Map<String, Repository> repositories) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder resolvers(Map<String, Resolver> resolvers) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    pom,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
         }
 
         public Builder resolveProperties() {
