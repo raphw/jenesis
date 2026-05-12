@@ -1,82 +1,26 @@
 Jenesis
 =======
 
-Overview
---------
+Getting started
+---------------
 
-Jenesis is a proof-of-concept build tool for Java projects, written and configured in Java itself. A build is a
-plain `.java` file that the user authors in their project's `build/` folder and launches with:
+Jenesis is a build tool for Java projects, written and configured in Java itself. It needs no installation, wrapper
+script, or precompiled binary: the tool's own sources sit next to your project's (typically as a Git submodule) and
+run directly via the JVM's single-file launcher. A build is fully reproducible from a clone of the project plus a
+JDK.
 
-    java build/Main.java
-
-The tool needs no installation, wrapper script, or precompiled binary; it relies on the JVM's ability to launch a
-multi-file Java program directly from sources, and only on the Java standard library at runtime. The tool's own
-sources are linked into the project alongside its `build/` script (or pulled in via Git submodules), so a build is
-fully reproducible from a clone of the repository plus a JDK.
-
-A build is described as a graph of *steps* and *modules*. Steps are individual units of work (compile, jar, resolve
-dependencies, run tests, …) whose outputs are folders on disk; modules are reusable sub-graphs that wire several
-steps together. The graph is executed in parallel, and every step's output folder is hashed: re-running the build
-re-executes only the steps whose inputs have changed, so incremental builds fall out by construction.
-
-Dependency declarations live outside the build script, in plain Java `.properties` files. Resolved dependency lists,
-together with their checksums, are themselves expressible as properties and can be checked into source control.
-This makes resolution deterministic and turns the dependency descriptor into a supply-chain artifact: a build won't
-silently pick up a new transitive version, and a downloaded jar that doesn't match its checksum is rejected. There
-is no hard dependency on Maven concepts. Maven is supported via `MavenRepository`/`MavenPomResolver`, but other
-repositories and resolvers can be plugged in.
-
-Version pinning is a uniform first-class concept across both dependency systems: a sibling `versions.properties`
-file ships alongside `requires.properties` and acts as a BOM-style pin map. For Maven projects it is populated from
-the local POM's `<dependencyManagement>` section; for Java modules it is populated from `@requires <module> <version>`
-Javadoc tags on the module declaration. The same map flows through the `Resolver` SPI so a pin written once applies
-to declared dependencies *and* to transitives reached through resolution. After packaging, a dedicated `Versions`
-step embeds the resolved versions into the produced `module-info.class` via the JDK's `java.lang.classfile` API,
-so the jar that leaves the build path carries the versions that were used to assemble its module path.
-
-The required Java release for the build can be declared in the same Javadoc/POM channels: an `@release <V>`
-Javadoc tag on a Java module declaration, or a `<properties><maven.compiler.release>` element in a Maven POM.
-The manifests step writes the value into a `process/javac.properties` sidecar (`--release=<V>`), which
-`ProcessBuildStep` picks up generically and forwards to `javac` - no Javac-specific wiring required. When no
-release is declared, `javac`'s own default applies (the source/target level of the running JDK).
-
-For releasing, a single system property `-Djenesis.buildVersion=<V>` stamps the version onto every artifact this
-build produces: the produced `module-info.class` carries it as `Module.version` (so downstream consumers pick it
-up as `compiledVersion` on their `requires` directives), the emitted `pom.xml` carries it as the project's own
-`<version>` element, and the Maven export layout (`MavenRepositoryLayout.toRepository(...)`) reads coordinates
-from that POM - so the export folder path (`<groupId>/<artifactId>/<version>/`), the artifact filenames
-(`<artifactId>-<version>.jar`, `<artifactId>-<version>.pom`) and `maven-metadata-local.xml` follow along
-transparently. Dependency versions are unaffected - only the project's own version is overridden.
-
-For IDE support, a `pom.xml` is kept alongside so the project opens, builds and debugs in any Maven-aware IDE.
-
-Canonical entry point
----------------------
-
-For projects whose build matches one of the supported shapes, the library ships a ready-made entry point so the
-user doesn't have to author a build script at all. `build.jenesis.Project` wires the same `BuildExecutor`/
-`MavenProject`/`ModularProject` pipelines the example scripts in `build/` show, and selects between them based on
-what it finds at the project root. The minimal invocation is therefore:
+The fastest way to use it is the canonical entry point, `build.jenesis.Project`. From a project root that contains
+a `module-info.java` (modular) or a `pom.xml` (Maven), run:
 
     java build/jenesis/Project.java
 
-A one-line stub like `build/Canonical.java`, shipped in this repository as an example, delegates to it:
+That is the whole invocation. `Project` auto-detects the project shape, wires the corresponding pipeline (compile,
+package, optionally test), and runs the discovered multi-project graph. Jenesis itself is built this way: clone
+this repository and run the command above from its root.
 
-```java
-package build;
+### Customizing the build
 
-import module java.base;
-import build.jenesis.Project;
-
-public class Canonical {
-
-    static void main(String[] args) throws IOException {
-        Project.main(args);
-    }
-}
-```
-
-`Project` exposes a fluent `Builder` so the same defaults can be overridden in code:
+`Project` exposes a fluent `Builder` so the defaults can be overridden in code:
 
 ```java
 Project.builder()
@@ -86,26 +30,85 @@ Project.builder()
        .build(args);
 ```
 
-When `build(args)` is called with no positional arguments, `Project` substitutes the builder's `defaultTarget` as the selector list (default: `"build"`, which runs the discovered multi-project graph but skips the downstream `collect` step). Pass explicit selectors to override the default, or call `.defaultTarget(...)` to change what an argument-less invocation runs. This is a builder-only property and has no corresponding system property.
+Most builder properties also have a corresponding system property (`jenesis.project.layout`,
+`jenesis.project.hashAlgorithm`, `jenesis.project.skipTests`, `jenesis.project.root` / `.target` / `.cache`),
+applied by `resolveProperties()` which `Project.main(...)` calls before delegating to `build(args)`. See the
+[Configuration](#configuration) section for the complete table.
 
-`Project` rewrites any selector starting with `+` into the full path of a per-project module by handing the part after `+` to a name resolver returned from `Layout.apply(...)`. The shipped layouts encode names as `module-<URLEncode(name)>` and place them under their per-project aggregator: `+sources` becomes `build/modules/compose/module/module-sources` (modular and module-aware maven) or `build/maven/compose/module/module-sources` (maven). `+` alone resolves to `module-.`, which is the identity Maven's scanner produces for the root POM (the "unnamed" project in a multi-module Maven layout); a pure modular project has no such root, so `+` alone won't resolve there. The resulting selector is literal, so the lenient `::/<name>` cascade across sibling modules is avoided. Run `java build/Canonical.java +sources` to build one module without dragging its siblings in.
+### Building other projects
+
+To use Jenesis to build a project of your own, add this repository as a Git submodule and expose its
+`build.jenesis` package under your project's `build/` folder so the launcher can find `Project.java`. The convention
+this repository uses is a single symlink, so the same `java build/jenesis/Project.java` invocation works from any
+project root:
+
+    git submodule add https://github.com/raphw/jenesis.git .jenesis
+    ln -s ../.jenesis/sources/build/jenesis build/jenesis
+
+The pinned submodule commit gives reproducibility: a clone of your project plus `git submodule update --init` is
+the entire setup, no Jenesis installation required. From there, the same auto-detection applies to your project's
+own `module-info.java` or `pom.xml`:
+
+    java build/jenesis/Project.java
+
+On platforms without symlink support, replace the `ln -s` with a one-time copy
+(`cp -r .jenesis/sources/build/jenesis build/jenesis`) and refresh it after each submodule update.
+
+Other distribution methods (a published jar, a wrapper script, a CI-friendly bootstrap) will follow.
+
+### Selectors
+
+`Project.main(args)` and `Builder.build(args)` accept selectors as positional arguments. With no positional
+arguments the builder's `defaultTarget` is used (default: `"build"`, which runs the discovered multi-project graph
+but skips the downstream `collect` step). `Builder.defaultTarget(...)` changes what an argument-less invocation
+runs; it has no corresponding system property.
+
+Selectors starting with `+` are rewritten into per-project module paths via a name resolver supplied by the active
+layout. The shipped layouts encode names as `module-<URLEncode(name)>` and place them under their per-project
+aggregator:
+
+- `+sources` resolves to `build/modules/compose/module/module-sources` under `MODULAR` and `MODULE_AWARE_MAVEN`, or
+  to `build/maven/compose/module/module-sources` under `MAVEN`.
+- `+` alone resolves to `module-.`, the identity Maven's scanner produces for the root POM (the "unnamed" project
+  in a multi-module Maven layout). A pure modular project has no such root, so `+` alone won't resolve there.
+
+The resulting path is a literal selector, which avoids the lenient `::/<name>` cascade across sibling modules. Run
+`java build/jenesis/Project.java +sources` to build one module without dragging its siblings in. The full selector
+syntax (`/`, `:`, `::`, literal paths) is described under [Selectors on the command line](#selectors-on-the-command-line).
+
+### Layouts and assemblers
 
 Two callbacks govern how the build is assembled, and they are pluggable independently:
 
-- `Project.Layout` (set via `.layout(...)`) wires the top-level pipeline (the `download` step where applicable, the `build` multi-project module, the `collect` artifact relocation) and returns a `Function<String, String>` that expands `+`-prefixed selectors into literal paths. The shipped constants `Layout.MAVEN`, `Layout.MODULAR`, `Layout.MODULE_AWARE_MAVEN` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularByMaven.java`. `Layout.AUTO` (the default) calls `Layout.of(root)` and dispatches to one of the concrete layouts; `MODULE_AWARE_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` + `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
-- `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph - what each discovered module compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, the effective `repositories`, the effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`, `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a `BuildExecutorModule` registered inside the per-project sub-graph. The default - `Assembler.ofJava()` - is layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths, using whatever repositories and resolvers the layout has provided. The `MODULE_AWARE_MAVEN` layout wraps the user's assembler to additionally emit a per-project `pom` step alongside whatever the assembler registered.
+- `Project.Layout` (set via `.layout(...)`) wires the top-level pipeline (the `download` step where applicable, the
+  `build` multi-project module, the `collect` artifact relocation) and returns the `Function<String, String>` that
+  expands `+`-prefixed selectors. The shipped constants `Layout.MAVEN`, `Layout.MODULAR`,
+  `Layout.MODULE_AWARE_MAVEN` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularByMaven.java`.
+  `Layout.AUTO` (the default) calls `Layout.of(root)` and dispatches to one of the concrete layouts;
+  `MODULE_AWARE_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` +
+  `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
+- `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph: what each discovered module
+  compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, effective
+  `repositories`, effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`,
+  `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a
+  `BuildExecutorModule` registered inside the per-project sub-graph. The default, `Assembler.ofJava()`, is
+  layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths,
+  using whatever repositories and resolvers the layout has provided. The `MODULE_AWARE_MAVEN` layout wraps the
+  user's assembler to additionally emit a per-project `pom` step.
 
-Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived module repository for `MODULAR`) with any user-provided ones, and pass the merged maps to the factory through `Context`. User entries with the same key override the layout default.
+Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived
+module repository for `MODULAR`) with any user-provided ones, and pass the merged maps through `Context`. User
+entries with the same key override the layout default.
 
 | Layout               | Pipeline                                                                                  | Mirrors                |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
 | `Layout.MAVEN`       | `MavenProject` scan + per-project `JavaModule` + `Relocate` artifacts                     | `build/Maven.java`     |
 | `Layout.MODULAR`     | `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` | `build/Modular.java`   |
-| `Layout.MODULE_AWARE_MAVEN` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output added on top of the factory | `build/ModularByMaven.java` |
+| `Layout.MODULE_AWARE_MAVEN` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output added on top of the assembler | `build/ModularByMaven.java` |
 | `Layout.AUTO` (default) | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
 
-The examples (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularByMaven`, `Modules`) remain alongside `Canonical` to
-illustrate the underlying primitives; only `Project` is part of the library proper.
+The example scripts (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularByMaven`, `Modules`) under `build/`
+illustrate the underlying primitives that `Project` composes; they are not part of the canonical surface.
 
 Architecture
 ------------
@@ -818,7 +821,15 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   is chosen from (in order): the `versions` SPI input passed by `Resolve` (Javadoc pin); the
   `rawCompiledVersion()` recorded on the parent's `requires <X>` directive when first encountered (first parent
   wins); the `ModuleDescriptor.rawVersion()` recorded in the fetched jar's `module-info.class`; or omitted
-  entirely if none of these are present. When a version is chosen *before* the fetch (pin or propagated
+  entirely if none of these are present. "First parent" is concrete and deterministic: the traversal is a
+  single BFS over a queue seeded with the coordinates from `requires.properties` in file order, and each
+  visited module emits its transitive `requires` into the queue sorted by module name. The propagated
+  `rawCompiledVersion` map is updated via `putIfAbsent`, and once a module name has been visited the next pop
+  short-circuits on the `resolved` set, so a *later* requirer that bakes a different version into its own
+  `requires <X>` directive is silently ignored. One practical consequence: re-ordering the lines of
+  `requires.properties` is a semantically meaningful edit that can change which transitive version of a shared
+  module wins (the cache hashes the file faithfully, so the next build re-resolves correctly, but a code
+  review that only diffs content will miss it). When a version is chosen *before* the fetch (pin or propagated
   compiledVersion), the resolver asks the `Repository` for `<module>/<version>` so a Maven-conventional URL
   carrying a registry default can be rewritten by `Repository.ofUris` into the requested version; the resolver
   also falls back to a bare-name fetch when the versioned lookup returns nothing, so repositories that don't
@@ -894,8 +905,7 @@ Future planned development
 
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
-- High-level builder for Project with defaults as default entry point.
 - Fix different TODOs within the project.
-- Consider automatic wrapping of build in Docker.
+- Consider automatic wrapping of build in Docker for better isolation.
 - Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        build: [Manual, Maven, Minimal, Modular, ModularByMaven, Modules]
+        build: [Canonical, Manual, Maven, Minimal, Modular, ModularByMaven, Modules]
     steps:
       - uses: actions/checkout@v6.0.2
 
