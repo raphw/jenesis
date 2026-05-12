@@ -7,6 +7,7 @@ module build.jenesis {
     requires java.xml;
 
     exports build.jenesis;
+    exports build.jenesis.docker;
     exports build.jenesis.maven;
     exports build.jenesis.module;
     exports build.jenesis.project;
