@@ -34,6 +34,14 @@ to declared dependencies *and* to transitives reached through resolution. After 
 step embeds the resolved versions into the produced `module-info.class` via the JDK's `java.lang.classfile` API,
 so the jar that leaves the build path carries the versions that were used to assemble its module path.
 
+For releasing, a single system property `-Djenesis.buildVersion=<V>` stamps the version onto every artifact this
+build produces: the produced `module-info.class` carries it as `Module.version` (so downstream consumers pick it
+up as `compiledVersion` on their `requires` directives), the emitted `pom.xml` carries it as the project's own
+`<version>` element, and the Maven export layout (`MavenRepositoryLayout.toRepository(...)`) reads coordinates
+from that POM — so the export folder path (`<groupId>/<artifactId>/<version>/`), the artifact filenames
+(`<artifactId>-<version>.jar`, `<artifactId>-<version>.pom`) and `maven-metadata-local.xml` follow along
+transparently. Dependency versions are unaffected — only the project's own version is overridden.
+
 For IDE support, a `pom.xml` is kept alongside so the project opens, builds and debugs in any Maven-aware IDE.
 
 Architecture
@@ -599,6 +607,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.rebuild`       | system property     | When `true`, the build script (e.g. `Modules.java`) deletes `target/` before constructing the `BuildExecutor`, forcing a full re-run of every step.                                                                                  |
 | `jenesis.verbose`       | system property     | When `true`, the default `BuildExecutorCallback` prints per-step verbose output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                              |
 | `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
+| `jenesis.buildVersion`  | system property     | When set, stamps the version onto every artifact this build produces. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` replaces the project's own `<version>` element with this value; dependency versions are unaffected. The Maven export layout reads coordinates from the produced `pom.xml`, so the export folder path, artifact filenames and `maven-metadata-local.xml` follow along. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
