@@ -45,6 +45,61 @@ public class MavenPomEmitterTest {
     }
 
     @Test
+    public void can_emit_pom_with_metadata() throws IOException {
+        StringWriter writer = new StringWriter();
+        new MavenPomEmitter().emit("group",
+                "artifact",
+                "version",
+                null,
+                new LinkedHashMap<>(),
+                new MavenPomEmitter.Metadata(
+                        "Project Name",
+                        "Project description.",
+                        "https://example.com/project",
+                        List.of(new MavenPomEmitter.Metadata.License(
+                                "Apache-2.0",
+                                "https://www.apache.org/licenses/LICENSE-2.0.txt")),
+                        List.of(new MavenPomEmitter.Metadata.Developer(
+                                "alice",
+                                "Alice Example",
+                                "alice@example.com")),
+                        new MavenPomEmitter.Metadata.Scm(
+                                "scm:git:https://example.com/project.git",
+                                "scm:git:git@example.com:project.git",
+                                "https://example.com/project"))).accept(writer);
+        assertThat(writer.toString()).isEqualTo("""
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>version</version>
+                    <name>Project Name</name>
+                    <description>Project description.</description>
+                    <url>https://example.com/project</url>
+                    <licenses>
+                        <license>
+                            <name>Apache-2.0</name>
+                            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+                        </license>
+                    </licenses>
+                    <developers>
+                        <developer>
+                            <id>alice</id>
+                            <name>Alice Example</name>
+                            <email>alice@example.com</email>
+                        </developer>
+                    </developers>
+                    <scm>
+                        <connection>scm:git:https://example.com/project.git</connection>
+                        <developerConnection>scm:git:git@example.com:project.git</developerConnection>
+                        <url>https://example.com/project</url>
+                    </scm>
+                </project>
+                """);
+    }
+
+    @Test
     public void can_emit_pom() throws IOException {
         StringWriter writer = new StringWriter();
         new MavenPomEmitter().emit("group",

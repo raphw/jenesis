@@ -19,6 +19,15 @@ public class MavenPomEmitter {
                            String version,
                            String packaging,
                            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) {
+        return emit(groupId, artifactId, version, packaging, dependencies, null);
+    }
+
+    public IOConsumer emit(String groupId,
+                           String artifactId,
+                           String version,
+                           String packaging,
+                           SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
+                           Metadata metadata) {
         Document document;
         try {
             document = documentBuilderFactory.newDocumentBuilder().newDocument();
@@ -35,6 +44,57 @@ public class MavenPomEmitter {
         project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "version")).setTextContent(version);
         if (packaging != null) {
             project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "packaging")).setTextContent(packaging);
+        }
+        if (metadata != null) {
+            if (metadata.name() != null) {
+                project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(metadata.name());
+            }
+            if (metadata.description() != null) {
+                project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "description")).setTextContent(metadata.description());
+            }
+            if (metadata.url() != null) {
+                project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(metadata.url());
+            }
+            if (!metadata.licenses().isEmpty()) {
+                Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "licenses"));
+                for (Metadata.License license : metadata.licenses()) {
+                    Node node = wrapper.appendChild(document.createElementNS(NAMESPACE_4_0_0, "license"));
+                    if (license.name() != null) {
+                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(license.name());
+                    }
+                    if (license.url() != null) {
+                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(license.url());
+                    }
+                }
+            }
+            if (!metadata.developers().isEmpty()) {
+                Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developers"));
+                for (Metadata.Developer developer : metadata.developers()) {
+                    Node node = wrapper.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developer"));
+                    if (developer.id() != null) {
+                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "id")).setTextContent(developer.id());
+                    }
+                    if (developer.name() != null) {
+                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(developer.name());
+                    }
+                    if (developer.email() != null) {
+                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "email")).setTextContent(developer.email());
+                    }
+                }
+            }
+            if (metadata.scm() != null) {
+                Node node = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "scm"));
+                Metadata.Scm scm = metadata.scm();
+                if (scm.connection() != null) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "connection")).setTextContent(scm.connection());
+                }
+                if (scm.developerConnection() != null) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developerConnection")).setTextContent(scm.developerConnection());
+                }
+                if (scm.url() != null) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(scm.url());
+                }
+            }
         }
         if (!dependencies.isEmpty()) {
             Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "dependencies"));
@@ -97,5 +157,29 @@ public class MavenPomEmitter {
     public interface IOConsumer {
 
         void accept(Writer writer) throws IOException;
+    }
+
+    public record Metadata(
+            String name,
+            String description,
+            String url,
+            List<License> licenses,
+            List<Developer> developers,
+            Scm scm
+    ) implements Serializable {
+
+        public Metadata {
+            licenses = licenses == null ? List.of() : List.copyOf(licenses);
+            developers = developers == null ? List.of() : List.copyOf(developers);
+        }
+
+        public record License(String name, String url) implements Serializable {
+        }
+
+        public record Developer(String id, String name, String email) implements Serializable {
+        }
+
+        public record Scm(String connection, String developerConnection, String url) implements Serializable {
+        }
     }
 }

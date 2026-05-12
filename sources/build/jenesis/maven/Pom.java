@@ -12,11 +12,30 @@ public class Pom implements BuildStep {
     public static final String POM = "pom.xml";
 
     private final Function<String, String> resolver;
+    private final MavenPomEmitter.Metadata metadata;
     private final String buildVersion = System.getProperty("jenesis.buildVersion");
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(coordinate -> {
+        this(defaultResolver(), null);
+    }
+
+    public Pom(MavenPomEmitter.Metadata metadata) {
+        this(defaultResolver(), metadata);
+    }
+
+    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
+        this(resolver, null);
+    }
+
+    public <F extends Function<String, String> & Serializable> Pom(F resolver, MavenPomEmitter.Metadata metadata) {
+        this.resolver = resolver;
+        this.metadata = metadata;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <F extends Function<String, String> & Serializable> F defaultResolver() {
+        return (F) (Function<String, String> & Serializable) (coordinate -> {
             int separator = coordinate.indexOf('/');
             if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
                 return coordinate;
@@ -30,10 +49,6 @@ public class Pom implements BuildStep {
             String artifactId = String.join(".", Arrays.asList(elements).subList(1, elements.length));
             return "maven/" + groupId + "/" + artifactId + "/0-SNAPSHOT";
         });
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this.resolver = resolver;
     }
 
     @Override
@@ -116,7 +131,8 @@ public class Pom implements BuildStep {
                     self.key().artifactId(),
                     version,
                     "jar".equals(self.key().type()) ? null : self.key().type(),
-                    deps).accept(writer);
+                    deps,
+                    metadata).accept(writer);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

@@ -55,6 +55,36 @@ public class MavenRepositoryLayoutTest {
     }
 
     @Test
+    public void routes_sources_and_javadoc_jars_with_classifier_suffix() throws IOException {
+        Path module = Files.createDirectory(source.resolve("module-x"));
+        Files.writeString(module.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>com.example</groupId>
+                    <artifactId>foo</artifactId>
+                    <version>1.2.3</version>
+                </project>
+                """);
+        Files.writeString(module.resolve("sources.jar"), "sources bytes");
+        Files.writeString(module.resolve("javadoc.jar"), "javadoc bytes");
+
+        BuildStepResult result = MavenRepositoryLayout.toRepository(target).apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
+                                source,
+                                Map.of(Path.of("module-x/sources.jar"), ChecksumStatus.ADDED,
+                                        Path.of("module-x/javadoc.jar"), ChecksumStatus.ADDED,
+                                        Path.of("module-x/pom.xml"), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(target.resolve("com/example/foo/1.2.3/foo-1.2.3-sources.jar")).hasContent("sources bytes");
+        assertThat(target.resolve("com/example/foo/1.2.3/foo-1.2.3-javadoc.jar")).hasContent("javadoc bytes");
+        assertThat(target.resolve("com/example/foo/1.2.3/foo-1.2.3.pom")).exists();
+    }
+
+    @Test
     public void writes_artifact_metadata_with_release_and_versions() throws IOException {
         Path module = Files.createDirectory(source.resolve("module-x"));
         Files.writeString(module.resolve("pom.xml"), """

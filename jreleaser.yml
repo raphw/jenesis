@@ -1,0 +1,34 @@
+project:
+  name: jenesis
+  description: A build tool for Java projects, written and configured in Java itself.
+  authors: [Rafael Winterhalter]
+  license: Apache-2.0
+  links:
+    homepage: https://github.com/raphw/jenesis
+  java:
+    groupId: build.jenesis
+    artifactId: jenesis
+    version: '25'
+
+signing:
+  active: ALWAYS
+  armored: true
+  mode: MEMORY
+
+release:
+  github:
+    owner: raphw
+    name: jenesis
+    skipRelease: false
+    skipTag: false
+    tagName: 'v{{projectVersion}}'
+
+deploy:
+  maven:
+    mavenCentral:
+      sonatype:
+        active: ALWAYS
+        url: https://central.sonatype.com/api/v1/publisher
+        applyMavenCentralRules: true
+        stagingRepositories:
+          - out/staging-deploy

@@ -27,6 +27,8 @@ public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Se
         }
         String suffix = switch (filename.toString()) {
             case "classes.jar" -> ".jar";
+            case "sources.jar" -> "-sources.jar";
+            case "javadoc.jar" -> "-javadoc.jar";
             case "pom.xml" -> ".pom";
             default -> null;
         };

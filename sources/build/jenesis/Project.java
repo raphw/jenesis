@@ -2,6 +2,7 @@ package build.jenesis;
 
 import module java.base;
 import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenPomEmitter;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.docker.DockerizedJava;
@@ -25,6 +26,8 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
+            boolean pom,
+            MavenPomEmitter.Metadata metadata,
             String hashAlgorithm,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers
@@ -57,6 +60,10 @@ public final class Project {
                     descriptor.checked(), descriptor.runtimeChecked(),
                     descriptor.artifacts(), descriptor.runtimeArtifacts());
                 }
+                if (context.pom()) {
+                    sub.addStep("pom", new Pom(context.metadata()),
+                            descriptor.sources(), descriptor.manifests(), descriptor.checked());
+                }
             };
         }
     }
@@ -79,6 +86,7 @@ public final class Project {
             }
             Context context = new Context(builder.tests(),
                     builder.sources(), builder.javadoc(),
+                    builder.pom(), builder.metadata(),
                     builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
@@ -108,6 +116,7 @@ public final class Project {
                 }
                 Context context = new Context(builder.tests(),
                         builder.sources(), builder.javadoc(),
+                        builder.pom(), builder.metadata(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
@@ -140,20 +149,13 @@ public final class Project {
                 }
                 Context context = new Context(builder.tests(),
                         builder.sources(), builder.javadoc(),
+                        true, builder.metadata(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
-                Assembler wrapped = (innerContext, descriptor) -> {
-                    BuildExecutorModule base = assembler.apply(innerContext, descriptor);
-                    return (inner, inherited) -> {
-                        base.accept(inner, inherited);
-                        inner.addStep("pom", new Pom(),
-                                descriptor.sources(), descriptor.manifests(), descriptor.checked());
-                    };
-                };
                 sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
                         context.repositories(), context.resolvers(),
-                        descriptor -> wrapped.apply(context, descriptor)));
+                        descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -239,6 +241,8 @@ public final class Project {
                 true,
                 false,
                 false,
+                false,
+                null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 Assembler.ofJava(),
                 null,
@@ -255,6 +259,8 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
+            boolean pom,
+            MavenPomEmitter.Metadata metadata,
             SequencedSet<String> defaultTarget,
             Assembler assembler,
             Map<String, Repository> repositories,
@@ -262,35 +268,43 @@ public final class Project {
     ) {
 
         public Builder root(Path root) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder target(Path target) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder cache(Path cache) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder layout(Layout layout) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder hashAlgorithm(String hashAlgorithm) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder tests(boolean tests) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder sources(boolean sources) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder javadoc(boolean javadoc) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+        }
+
+        public Builder pom(boolean pom) {
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
+        }
+
+        public Builder metadata(MavenPomEmitter.Metadata metadata) {
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder defaultTarget(String... defaultTarget) {
@@ -302,6 +316,8 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    pom,
+                    metadata,
                     Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                     assembler,
                     repositories,
@@ -309,15 +325,15 @@ public final class Project {
         }
 
         public Builder assembler(Assembler assembler) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder repositories(Map<String, Repository> repositories) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder resolvers(Map<String, Resolver> resolvers) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, pom, metadata, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder resolveProperties() {
@@ -329,6 +345,7 @@ public final class Project {
             boolean resolvedTests = tests;
             boolean resolvedSources = sources;
             boolean resolvedJavadoc = javadoc;
+            boolean resolvedPom = pom;
             String rootOverride = System.getProperty("jenesis.project.root");
             if (rootOverride != null) {
                 resolvedRoot = Path.of(rootOverride);
@@ -365,6 +382,9 @@ public final class Project {
             if (Boolean.getBoolean("jenesis.project.docs")) {
                 resolvedJavadoc = true;
             }
+            if (Boolean.getBoolean("jenesis.project.pom")) {
+                resolvedPom = true;
+            }
             return new Builder(resolvedRoot,
                     resolvedTarget,
                     resolvedCache,
@@ -373,6 +393,8 @@ public final class Project {
                     resolvedTests,
                     resolvedSources,
                     resolvedJavadoc,
+                    resolvedPom,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
