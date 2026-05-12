@@ -412,4 +412,76 @@ public class ModularJarResolverTest {
                 Map.entry("foo/root/1.0", ""),
                 Map.entry("foo/transitive/9.9", ""));
     }
+
+    @Test
+    public void picks_highest_versioned_module_info_under_runtime() throws IOException {
+        int runtime = Runtime.version().feature();
+        LinkedHashMap<Integer, String> versions = new LinkedHashMap<>();
+        versions.put(runtime + 100, "9.9");
+        versions.put(runtime, "2.0");
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toMultiReleaseJar("root", "1.0", versions);
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
+                true);
+        assertThat(dependencies).containsExactly(Map.entry("foo/root/2.0", ""));
+    }
+
+    @Test
+    public void picks_root_when_only_future_versions_exist() throws IOException {
+        int runtime = Runtime.version().feature();
+        LinkedHashMap<Integer, String> versions = new LinkedHashMap<>();
+        versions.put(runtime + 100, "9.9");
+        SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toMultiReleaseJar("root", "1.0", versions);
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(),
+                true);
+        assertThat(dependencies).containsExactly(Map.entry("foo/root/1.0", ""));
+    }
+
+    private static InputStream toMultiReleaseJar(String module,
+                                                 String rootVersion,
+                                                 Map<Integer, String> versions) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (JarOutputStream jarOutputStream = new JarOutputStream(outputStream)) {
+            jarOutputStream.putNextEntry(new JarEntry("module-info.class"));
+            jarOutputStream.write(buildModuleInfo(module, rootVersion));
+            jarOutputStream.closeEntry();
+            for (Map.Entry<Integer, String> entry : versions.entrySet()) {
+                jarOutputStream.putNextEntry(new JarEntry(
+                        "META-INF/versions/" + entry.getKey() + "/module-info.class"));
+                jarOutputStream.write(buildModuleInfo(module, entry.getValue()));
+                jarOutputStream.closeEntry();
+            }
+        }
+        return new ByteArrayInputStream(outputStream.toByteArray());
+    }
+
+    private static byte[] buildModuleInfo(String module, String version) {
+        return ClassFile.of().buildModule(ModuleAttribute.of(
+                ModuleDesc.of(module),
+                builder -> {
+                    if (version != null) {
+                        builder.moduleVersion(version);
+                    }
+                    builder.requires(ModuleRequireInfo.of(ModuleDesc.of("java.base"), 0, null));
+                }));
+    }
 }

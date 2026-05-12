@@ -81,8 +81,18 @@ public class Javac extends JdkProcessBuildStep {
         }
         boolean module = files.stream().anyMatch(file -> file.endsWith("/module-info.java"));
         if (!path.isEmpty()) {
-            commands.add(module ? "--module-path" : "--class-path"); // TODO: improve
-            commands.add(String.join(File.pathSeparator, path)); // TODO: escape path
+            for (String entry : path) {
+                if (entry.indexOf(File.pathSeparatorChar) != -1) {
+                    throw new IllegalArgumentException(
+                            "Path entry contains separator '" + File.pathSeparator + "': " + entry);
+                }
+            }
+            String joined = String.join(File.pathSeparator, path);
+            String escaped = joined.replace("\\", "\\\\").replace("\"", "\\\"");
+            Path argfile = context.supplement().resolve("javac.args");
+            Files.writeString(argfile,
+                    (module ? "--module-path" : "--class-path") + "\n\"" + escaped + "\"\n");
+            commands.add("@" + argfile);
         }
         if (module && buildVersion != null && !buildVersion.isEmpty()) {
             commands.add("--module-version");

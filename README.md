@@ -924,6 +924,6 @@ Future planned development
 
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
-- Fix different TODOs within the project.
+- Register to Maven Central and release jar.
 - Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
 

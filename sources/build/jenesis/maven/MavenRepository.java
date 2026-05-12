@@ -47,7 +47,13 @@ public interface MavenRepository extends Repository {
                                                           String groupId,
                                                           String artifactId,
                                                           String checksum) throws IOException {
-                return MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum); // TODO: update?
+                Optional<RepositoryItem> candidate = mavenRepository.fetchMetadata(executor,
+                        groupId,
+                        artifactId,
+                        checksum);
+                return candidate.isPresent()
+                        ? candidate
+                        : MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum);
             }
         };
     }

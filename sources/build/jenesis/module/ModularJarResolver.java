@@ -33,7 +33,8 @@ public class ModularJarResolver implements Resolver {
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
         Queue<String> queue = new ArrayDeque<>(coordinates);
-        while (!queue.isEmpty()) { // TODO: consider multi-release-jars better?
+        int runtime = Runtime.version().feature();
+        while (!queue.isEmpty()) {
             String current = queue.remove();
             if (resolved.contains(current) || unresolved.contains(current)) {
                 continue;
@@ -61,19 +62,37 @@ public class ModularJarResolver implements Resolver {
                 Path file = item.getFile().orElse(null);
                 ModuleDescriptor descriptor;
                 if (file == null) {
+                    NavigableMap<Integer, byte[]> candidates = new TreeMap<>();
                     try (ZipInputStream inputStream = new ZipInputStream(item.toInputStream())) {
-                        ModuleDescriptor read = null;
                         ZipEntry entry;
                         while ((entry = inputStream.getNextEntry()) != null) {
-                            if (entry.getName().equals("module-info.class")
-                                    || entry.getName().startsWith("META-INF/versions/")
-                                    && entry.getName().endsWith("module-info.class")) {
-                                read = ModuleDescriptor.read(inputStream);
-                                break;
+                            String name = entry.getName();
+                            int version;
+                            if (name.equals("module-info.class")) {
+                                version = 0;
+                            } else if (name.startsWith("META-INF/versions/")
+                                    && name.endsWith("/module-info.class")) {
+                                String segment = name.substring(
+                                        "META-INF/versions/".length(),
+                                        name.length() - "/module-info.class".length());
+                                try {
+                                    version = Integer.parseInt(segment);
+                                } catch (NumberFormatException _) {
+                                    continue;
+                                }
+                                if (version > runtime) {
+                                    continue;
+                                }
+                            } else {
+                                continue;
                             }
+                            candidates.put(version, inputStream.readAllBytes());
                         }
-                        descriptor = read == null ? ModuleDescriptor.newAutomaticModule(current).build() : read;
                     }
+                    Map.Entry<Integer, byte[]> selected = candidates.lastEntry();
+                    descriptor = selected == null
+                            ? ModuleDescriptor.newAutomaticModule(current).build()
+                            : ModuleDescriptor.read(ByteBuffer.wrap(selected.getValue()));
                 } else {
                     descriptor = ModuleFinder.of(file).findAll().stream()
                             .findFirst()
