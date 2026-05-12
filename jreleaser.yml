@@ -1,6 +1,6 @@
 project:
   name: jenesis
-  description: A build tool for Java projects, written and configured in Java itself.
+  description: A Java-native build tool.
   authors: [Rafael Winterhalter]
   license: Apache-2.0
   links:

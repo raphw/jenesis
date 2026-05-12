@@ -568,6 +568,13 @@ public final class Project {
             if (Boolean.getBoolean("jenesis.project.pom")) {
                 resolvedPom = true;
             }
+            MavenPomEmitter.Metadata resolvedMetadata = metadata;
+            if (resolvedMetadata == null) {
+                Path releaseProperties = resolvedRoot.resolve("release.properties");
+                if (Files.isRegularFile(releaseProperties)) {
+                    resolvedMetadata = readReleaseProperties(releaseProperties);
+                }
+            }
             return new Builder(resolvedRoot,
                     resolvedTarget,
                     resolvedCache,
@@ -577,11 +584,53 @@ public final class Project {
                     resolvedSources,
                     resolvedJavadoc,
                     resolvedPom,
-                    metadata,
+                    resolvedMetadata,
                     defaultTarget,
                     assembler,
                     repositories,
                     resolvers);
+        }
+
+        private static MavenPomEmitter.Metadata readReleaseProperties(Path file) {
+            Properties properties = new Properties();
+            try (InputStream stream = Files.newInputStream(file)) {
+                properties.load(stream);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            List<MavenPomEmitter.Metadata.License> licenses = List.of();
+            String licenseName = properties.getProperty("license.name");
+            String licenseUrl = properties.getProperty("license.url");
+            if (licenseName != null || licenseUrl != null) {
+                licenses = List.of(new MavenPomEmitter.Metadata.License(licenseName, licenseUrl));
+            }
+            List<MavenPomEmitter.Metadata.Developer> developers = List.of();
+            String developerId = properties.getProperty("developer.id");
+            String developerName = properties.getProperty("developer.name");
+            String developerEmail = properties.getProperty("developer.email");
+            if (developerId != null || developerName != null || developerEmail != null) {
+                developers = List.of(new MavenPomEmitter.Metadata.Developer(
+                        developerId,
+                        developerName,
+                        developerEmail));
+            }
+            MavenPomEmitter.Metadata.Scm scm = null;
+            String scmConnection = properties.getProperty("scm.connection");
+            String scmDeveloperConnection = properties.getProperty("scm.developerConnection");
+            String scmUrl = properties.getProperty("scm.url");
+            if (scmConnection != null || scmDeveloperConnection != null || scmUrl != null) {
+                scm = new MavenPomEmitter.Metadata.Scm(
+                        scmConnection,
+                        scmDeveloperConnection,
+                        scmUrl);
+            }
+            return new MavenPomEmitter.Metadata(
+                    properties.getProperty("project.name"),
+                    properties.getProperty("project.description"),
+                    properties.getProperty("project.url"),
+                    licenses,
+                    developers,
+                    scm);
         }
 
         public void build(String... selectors) throws IOException {
