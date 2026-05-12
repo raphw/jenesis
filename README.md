@@ -809,10 +809,8 @@ Future planned development
 
 Jenesis is still a proof of concept. Pieces still on the to-do list:
 
-- Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
-- Extending all build step implementations to expose their full set of standard options. (Evaluate configuration through properties file by previous steps).
 - High-level builder for Project with defaults as default entry point.
-- Add support for external plugin steps via repository.
-- Consider automatic wrapping of build in Docker.
-- Allow for defining explicit version for modules during build (for release).
 - Fix different TODOs within the project.
+- Consider automatic wrapping of build in Docker.
+- Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
+

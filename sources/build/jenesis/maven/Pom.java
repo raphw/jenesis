@@ -12,6 +12,7 @@ public class Pom implements BuildStep {
     public static final String POM = "pom.xml";
 
     private final Function<String, String> resolver;
+    private final String buildVersion = System.getProperty("jenesis.buildVersion");
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
@@ -96,11 +97,12 @@ public class Pom implements BuildStep {
                     null,
                     null));
         }
+        String version = buildVersion != null && !buildVersion.isEmpty() ? buildVersion : self.version();
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(POM))) {
             emitter.emit(
                     self.key().groupId(),
                     self.key().artifactId(),
-                    self.version(),
+                    version,
                     "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps).accept(writer);
         }

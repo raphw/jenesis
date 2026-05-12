@@ -6,6 +6,8 @@ import build.jenesis.BuildStepContext;
 
 public class Javac extends JdkProcessBuildStep {
 
+    private final String buildVersion = System.getProperty("jenesis.buildVersion");
+
     protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
         super("javac", factory);
     }
@@ -65,11 +67,14 @@ public class Javac extends JdkProcessBuildStep {
                 });
             }
         }
+        boolean module = files.stream().anyMatch(file -> file.endsWith("/module-info.java"));
         if (!path.isEmpty()) {
-            commands.add(files.stream().anyMatch(file -> file.endsWith("/module-info.java"))
-                    ? "--module-path"
-                    : "--class-path"); // TODO: improve
+            commands.add(module ? "--module-path" : "--class-path"); // TODO: improve
             commands.add(String.join(File.pathSeparator, path)); // TODO: escape path
+        }
+        if (module && buildVersion != null && !buildVersion.isEmpty()) {
+            commands.add("--module-version");
+            commands.add(buildVersion);
         }
         commands.addAll(files);
         return CompletableFuture.completedStage(commands);
