@@ -119,6 +119,16 @@ entries with the same key override the layout default.
 The example scripts (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularByMaven`, `Modules`) under `build/`
 illustrate the underlying primitives that `Project` composes; they are not part of the canonical surface.
 
+### Running inside Docker
+
+Set `-Djenesis.project.docker=true` to run the entire build inside a throwaway container instead of directly on
+the host JVM:
+
+    java -Djenesis.project.docker=true build/jenesis/Project.java
+
+A minimal image is built on demand the first time and cached for subsequent runs. To target a different image,
+add `-Djenesis.project.docker.image=<reference>`.
+
 Architecture
 ------------
 
