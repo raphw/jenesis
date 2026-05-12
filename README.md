@@ -50,6 +50,58 @@ transparently. Dependency versions are unaffected — only the project's own ver
 
 For IDE support, a `pom.xml` is kept alongside so the project opens, builds and debugs in any Maven-aware IDE.
 
+Canonical entry point
+---------------------
+
+For projects whose build matches one of the supported shapes, the library ships a ready-made entry point so the
+user doesn't have to author a build script at all. `build.jenesis.Project` wires the same `BuildExecutor`/
+`MavenProject`/`ModularProject` pipelines the example scripts in `build/` show, and selects between them based on
+what it finds at the project root. The minimal invocation is therefore:
+
+    java build/jenesis/Project.java
+
+A one-line stub like `build/Canonical.java`, shipped in this repository as an example, delegates to it:
+
+```java
+package build;
+
+import module java.base;
+import build.jenesis.Project;
+
+public class Canonical {
+
+    static void main(String[] args) throws IOException {
+        Project.main(args);
+    }
+}
+```
+
+`Project` exposes a fluent `Builder` so the same defaults can be overridden in code:
+
+```java
+Project.builder()
+       .force(Project.Kind.MODULE_AWARE_MAVEN)
+       .hashAlgorithm("SHA512")
+       .skipTests()
+       .build(args);
+```
+
+The supported `Kind`s map one-to-one onto the example scripts in `build/`:
+
+| Kind                 | Pipeline                                                                                  | Mirrors                |
+| -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
+| `MAVEN`              | `MavenProject` scan + `JavaModule` (`testIfAvailable`) + `Relocate` artifacts             | `build/Maven.java`     |
+| `MODULAR`            | `DownloadModuleUris` + `ModularProject` over a URI-derived repository + `JavaModule`      | `build/Modular.java`   |
+| `MODULE_AWARE_MAVEN` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output | `build/ModularByMaven.java` |
+| `AUTO` (default)     | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws with a message pointing at `force(...)`. | — |
+
+`MODULE_AWARE_MAVEN` is reachable only by `force(...)` (or `-Djenesis.project.kind=module_aware_maven`) because its
+on-disk signature — a `module-info.java` plus a `pom.xml` — is indistinguishable from a pure modular project that
+keeps a `pom.xml` for IDE support, and guessing wrong would silently change dependency resolution.
+
+The examples (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularByMaven`, `Modules`) remain alongside `Canonical` to
+illustrate the underlying primitives; only `Project` is part of the library proper.
+
 Architecture
 ------------
 
@@ -621,6 +673,12 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.verbose`       | system property     | When `true`, the default `BuildExecutorCallback` prints per-step verbose output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                              |
 | `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
 | `jenesis.buildVersion`  | system property     | When set, stamps the version onto every artifact this build produces. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` replaces the project's own `<version>` element with this value; dependency versions are unaffected. The Maven export layout reads coordinates from the produced `pom.xml`, so the export folder path, artifact filenames and `maven-metadata-local.xml` follow along. |
+| `jenesis.project.kind`          | system property | Read by `Project.Builder` (the canonical entry point) to force a `Kind` regardless of auto-detection or any in-code `force(...)`. Accepts `auto`, `maven`, `modular`, `module_aware_maven` (case-insensitive). |
+| `jenesis.project.hashAlgorithm` | system property | Read by `Project.Builder` to override the digest algorithm passed to `MavenProject.make` / `ModularProject.make` (default `SHA256`). Has no effect on builds that don't go through `Project`. |
+| `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` constructs its `JavaModule` without the `testIfAvailable(...)`/`test(...)` decoration, so test sources and test dependencies are not wired into the graph. |
+| `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
+| `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
+| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which `MODULAR` stores its `modules/` URI registry. Ignored by `MAVEN` and `MODULE_AWARE_MAVEN`. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 

@@ -19,7 +19,7 @@ public class MultiProjectModule implements BuildExecutorModule {
     public static final String IDENTIFIER = "identifier";
 
     private static final String GROUP = "group",
-            BUILD = "build",
+            COMPOSE = "compose",
             MODULE = "module";
 
     public static final String IDENTIFIER_PATH = PREVIOUS.repeat(3) + IDENTIFIER + "/";
@@ -59,7 +59,7 @@ public class MultiProjectModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addModule(IDENTIFIER, identifier);
-        buildExecutor.addModule(BUILD, (process, identified) -> {
+        buildExecutor.addModule(COMPOSE, (process, identified) -> {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.sequencedKeySet()) {

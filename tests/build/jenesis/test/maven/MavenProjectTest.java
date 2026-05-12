@@ -421,7 +421,7 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         Properties foo = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
-                .get("maven/build/module/module-foo/assign")
+                .get("maven/compose/module/module-foo/assign")
                 .resolve(BuildStep.IDENTITY))) {
             foo.load(reader);
         }
@@ -432,7 +432,7 @@ public class MavenProjectTest {
                 .isEqualTo("../../../../../identifier/scan/output/pom/foo/pom.xml");
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
-                .get("maven/build/module/module-bar/assign")
+                .get("maven/compose/module/module-bar/assign")
                 .resolve(BuildStep.IDENTITY))) {
             bar.load(reader);
         }
