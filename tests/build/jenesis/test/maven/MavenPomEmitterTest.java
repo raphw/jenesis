@@ -1,13 +1,12 @@
 package build.jenesis.test.maven;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.maven.MavenDependencyKey;
 import build.jenesis.maven.MavenDependencyName;
 import build.jenesis.maven.MavenDependencyScope;
 import build.jenesis.maven.MavenDependencyValue;
 import build.jenesis.maven.MavenPomEmitter;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

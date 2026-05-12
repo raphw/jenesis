@@ -1,5 +1,7 @@
 package build.jenesis.test.step;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -7,9 +9,6 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Versions;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -192,7 +191,6 @@ public class VersionsTest {
     @Test
     public void ignores_multi_segment_coordinates() throws IOException {
         writeModuleInfo("foo", null, false, require("bar"));
-        // Maven-style coord: groupId/artifactId/type/version — should not produce a pin.
         writeRequires(Map.of("maven/group/artifact/jar/5.0", ""));
         runStep();
         ModuleDescriptor descriptor = readModuleInfo();
@@ -206,7 +204,6 @@ public class VersionsTest {
     @Test
     public void ignores_unversioned_coordinates() throws IOException {
         writeModuleInfo("foo", null, false, require("bar"));
-        // module-style coord without version segment — implicit version → no pin.
         writeRequires(Map.of("module/bar", ""));
         runStep();
         ModuleDescriptor descriptor = readModuleInfo();

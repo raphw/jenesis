@@ -1,9 +1,8 @@
 package build.jenesis.test;
 
-import build.jenesis.HashDigestFunction;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.HashDigestFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

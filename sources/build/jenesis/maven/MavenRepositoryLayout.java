@@ -1,10 +1,9 @@
 package build.jenesis.maven;
 
 import module java.base;
+import module java.xml;
 import build.jenesis.BuildStep;
 import build.jenesis.step.Export;
-
-import module java.xml;
 
 public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Serializable {
 

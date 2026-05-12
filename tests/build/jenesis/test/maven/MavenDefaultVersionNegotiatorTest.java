@@ -1,10 +1,9 @@
 package build.jenesis.test.maven;
 
-import build.jenesis.maven.MavenDefaultVersionNegotiator;
-
 import module java.base;
 import module org.junit.jupiter.api;
 import module org.junit.jupiter.params;
+import build.jenesis.maven.MavenDefaultVersionNegotiator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

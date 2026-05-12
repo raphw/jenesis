@@ -243,7 +243,6 @@ public class TestModule implements BuildExecutorModule {
         private final Predicate<String> isTest;
         private final String filter = System.getProperty("jenesis.test");
 
-        // isTest must be Serializable; TestModule's public constructors enforce the bound on input.
         private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
             this.engine = engine;
             this.isTest = isTest;

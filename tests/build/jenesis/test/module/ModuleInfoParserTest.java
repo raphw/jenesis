@@ -1,10 +1,9 @@
 package build.jenesis.test.module;
 
-import build.jenesis.module.ModuleInfo;
-import build.jenesis.module.ModuleInfoParser;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.module.ModuleInfo;
+import build.jenesis.module.ModuleInfoParser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

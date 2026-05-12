@@ -1,5 +1,7 @@
 package build.jenesis.test;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorException;
@@ -11,9 +13,6 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.HashFunction;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

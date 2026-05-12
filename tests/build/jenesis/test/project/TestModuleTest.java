@@ -1,5 +1,7 @@
 package build.jenesis.test.project;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorException;
@@ -11,9 +13,6 @@ import build.jenesis.project.TestModule;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestDefaultEngine;
 import sample.TestSample;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;

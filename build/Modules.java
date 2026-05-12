@@ -1,5 +1,6 @@
 package build;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
@@ -10,8 +11,6 @@ import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.JavaModule;
 import build.jenesis.step.Bind;
 import build.jenesis.step.TestDefaultEngine;
-
-import module java.base;
 
 public class Modules {
 

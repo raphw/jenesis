@@ -1,15 +1,14 @@
 package build.jenesis.test.step;
 
+import module java.base;
+import module org.junit.jupiter.api;
+import module org.junit.jupiter.params;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.step.Javac;
-
-import module java.base;
-import module org.junit.jupiter.api;
-import module org.junit.jupiter.params;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -85,8 +84,6 @@ public class JavacTest {
                         Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
                                 Path.of("process/javac.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        // The class compiled successfully under --release 21; if it had been rejected as a duplicate
-        // --release argument, javac would have errored out.
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
 

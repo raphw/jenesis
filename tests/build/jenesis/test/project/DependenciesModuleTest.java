@@ -1,14 +1,13 @@
 package build.jenesis.test.project;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Resolver;
 import build.jenesis.project.DependenciesModule;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

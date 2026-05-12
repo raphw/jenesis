@@ -1,8 +1,7 @@
 package build.jenesis.test.maven;
 
-import build.jenesis.maven.MavenUriParser;
-
 import module org.junit.jupiter.api;
+import build.jenesis.maven.MavenUriParser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -1,5 +1,7 @@
 package build.jenesis.test.module;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
@@ -9,9 +11,6 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.MultiProjectModule;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;

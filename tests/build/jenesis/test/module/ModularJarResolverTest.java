@@ -1,10 +1,9 @@
 package build.jenesis.test.module;
 
-import build.jenesis.RepositoryItem;
-import build.jenesis.module.ModularJarResolver;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.RepositoryItem;
+import build.jenesis.module.ModularJarResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -76,8 +75,6 @@ public class ModularJarResolverTest {
 
     @Test
     public void emits_transitive_requires_in_sorted_order_independent_of_declaration_order() throws IOException {
-        // ModuleDescriptor.requires() returns a Set.of-style set whose iteration order is
-        // randomised per JVM run; the resolver must still emit dependencies in a stable order.
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
                 "foo",
@@ -314,7 +311,6 @@ public class ModularJarResolverTest {
                 new LinkedHashSet<>(Set.of("root")),
                 new LinkedHashMap<>(),
                 true);
-        // No compiledVersion on the requires → bare-name fetch, output uses the fetched jar's rawVersion.
         assertThat(fetched).containsOnlyKeys("root", "plain");
         assertThat(dependencies).containsExactly(
                 Map.entry("foo/root/1.0", ""),
@@ -380,11 +376,9 @@ public class ModularJarResolverTest {
                 Map.of("foo", (_, coordinate) -> {
                     fetched.put(coordinate, "");
                     RepositoryItem item = switch (coordinate) {
-                        // root requires "shared" at 1.0 and "middle" (also at 1.0)
                         case "root" -> () -> toJar("root", "1.0",
                                 require("middle", 0, "1.0"),
                                 require("shared", 0, "1.0"));
-                        // middle/1.0 requires "shared" at 2.0 — but root already pinned shared to 1.0
                         case "middle/1.0" -> () -> toJar("middle", "1.0", require("shared", 0, "2.0"));
                         case "shared/1.0" -> () -> toJar("shared", "1.0");
                         default -> null;
@@ -394,7 +388,6 @@ public class ModularJarResolverTest {
                 new LinkedHashSet<>(Set.of("root")),
                 new LinkedHashMap<>(),
                 true);
-        // root is processed first; it records "shared -> 1.0" before middle gets a chance to overwrite.
         assertThat(fetched).contains(Map.entry("shared/1.0", ""));
         assertThat(dependencies).containsEntry("foo/shared/1.0", "");
     }

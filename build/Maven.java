@@ -1,11 +1,10 @@
 package build;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.step.Relocate;
-
-import module java.base;
 
 public class Maven {
 

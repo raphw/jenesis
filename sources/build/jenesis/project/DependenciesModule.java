@@ -1,5 +1,6 @@
 package build.jenesis.project;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
@@ -7,8 +8,6 @@ import build.jenesis.Resolver;
 import build.jenesis.step.Checksum;
 import build.jenesis.step.Download;
 import build.jenesis.step.Resolve;
-
-import module java.base;
 
 public class DependenciesModule implements BuildExecutorModule {
 

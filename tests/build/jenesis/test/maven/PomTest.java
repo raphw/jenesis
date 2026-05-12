@@ -1,5 +1,7 @@
 package build.jenesis.test.maven;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -8,9 +10,6 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenRepositoryLayout;
 import build.jenesis.maven.Pom;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -152,7 +151,6 @@ public class PomTest {
             assertThat(result.next()).isTrue();
             String pom = Files.readString(next.resolve(Pom.POM));
             assertThat(pom).contains("<version>2.7.1</version>");
-            // Dependency versions are unaffected — only the project's own version is overridden.
             assertThat(pom).contains("<version>1.2.3</version>");
         } finally {
             if (previousProperty == null) {

@@ -1,10 +1,9 @@
 package build.jenesis.test.maven;
 
-import build.jenesis.maven.MavenDefaultRepository;
-import build.jenesis.maven.MavenRepository;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

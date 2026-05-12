@@ -91,12 +91,6 @@ public interface Repository {
         };
     }
 
-    /**
-     * Replaces the version in a Maven-conventional URI of the form
-     * {@code .../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>}.
-     * Returns empty if the URI does not match that layout, leaving the caller free to fall back to the
-     * original URI.
-     */
     static Optional<URI> substituteMavenVersion(URI uri, String version) {
         String path = uri.getPath();
         if (path == null) {

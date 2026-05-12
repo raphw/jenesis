@@ -1,5 +1,6 @@
 package build.jenesis.module;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -15,8 +16,6 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
-
-import module java.base;
 
 public class ModularProject implements BuildExecutorModule {
 

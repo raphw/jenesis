@@ -1,20 +1,19 @@
 package build;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenRepository;
+import build.jenesis.project.TestModule;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Download;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Resolve;
 import build.jenesis.step.TestDefaultEngine;
-import build.jenesis.project.TestModule;
-
-import module java.base;
 
 public class Minimal {
 

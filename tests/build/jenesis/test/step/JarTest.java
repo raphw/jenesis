@@ -1,5 +1,8 @@
 package build.jenesis.test.step;
 
+import module java.base;
+import module org.junit.jupiter.api;
+import module org.junit.jupiter.params;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -9,10 +12,6 @@ import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import sample.Sample;
-
-import module java.base;
-import module org.junit.jupiter.api;
-import module org.junit.jupiter.params;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;

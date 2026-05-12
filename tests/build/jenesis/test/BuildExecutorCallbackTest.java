@@ -1,9 +1,8 @@
 package build.jenesis.test;
 
-import build.jenesis.BuildExecutorCallback;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.BuildExecutorCallback;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

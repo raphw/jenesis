@@ -1,5 +1,7 @@
 package build.jenesis.test.maven;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenDependencyKey;
@@ -9,9 +11,6 @@ import build.jenesis.maven.MavenDependencyValue;
 import build.jenesis.maven.MavenLocalPom;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenRepository;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -3291,7 +3290,6 @@ public class MavenPomResolverTest {
 
     @Test
     public void spi_external_versions_pin_without_direct_dependency() throws IOException {
-        // Pin a transitive that is reached through a chain — the direct dep doesn't mention it.
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">

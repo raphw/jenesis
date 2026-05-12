@@ -1,5 +1,6 @@
 package build.jenesis.maven;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -10,13 +11,11 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
-import build.jenesis.step.Javac;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
-
-import module java.base;
+import build.jenesis.step.Javac;
 
 import static build.jenesis.BuildStep.IDENTITY;
 

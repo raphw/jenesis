@@ -1,5 +1,6 @@
 package build.jenesis.project;
 
+import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
@@ -8,8 +9,6 @@ import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestEngine;
 import build.jenesis.step.Versions;
-
-import module java.base;
 
 public record JavaModule(boolean process) implements BuildExecutorModule {
 

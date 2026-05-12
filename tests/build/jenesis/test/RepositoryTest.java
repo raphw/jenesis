@@ -1,10 +1,9 @@
 package build.jenesis.test;
 
-import build.jenesis.Repository;
-import build.jenesis.RepositoryItem;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.Repository;
+import build.jenesis.RepositoryItem;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,7 +48,6 @@ public class RepositoryTest {
 
         assertThat(repositories).containsOnlyKeys("module");
         Optional<RepositoryItem> item = repositories.get("module").fetch(Runnable::run, "foo");
-        // The repository for an absolute https URI keeps the original URI in its lazy item.
         assertThat(item).isPresent();
     }
 
@@ -100,7 +98,6 @@ public class RepositoryTest {
 
     @Test
     public void substituteMavenVersion_rejects_non_maven_layout() {
-        // Filename does not match <artifactId>-<version> pattern.
         assertThat(Repository.substituteMavenVersion(
                 URI.create("https://example.test/some/random/path/foo.jar"),
                 "9.9")).isEmpty();
@@ -128,8 +125,6 @@ public class RepositoryTest {
         Repository repository = Repository.ofUris(Map.of("org.assertj.core", registry));
         Optional<RepositoryItem> item = repository.fetch(Runnable::run, "org.assertj.core/3.27.0");
         assertThat(item).isPresent();
-        // The returned RepositoryItem is the lazy URL handle; we can't fetch over network in tests,
-        // but the substitution should have produced a 3.27.0 URI. Reconstruct via the API to verify.
         URI substituted = Repository.substituteMavenVersion(registry, "3.27.0").orElseThrow();
         assertThat(substituted).hasToString(
                 "https://repo.maven.apache.org/maven2/org/assertj/assertj-core/3.27.0/assertj-core-3.27.0.jar");

@@ -1,14 +1,13 @@
 package build.jenesis.test.maven;
 
+import module java.base;
+import module org.junit.jupiter.api;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.maven.MavenRepositoryLayout;
-
-import module java.base;
-import module org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -186,7 +185,6 @@ public class MavenRepositoryLayoutTest {
 
         Path metadata = target.resolve("com/example/multi/maven-metadata-local.xml");
         String content = Files.readString(metadata);
-        // versions sorted ascending by Maven comparator: 1.0 < 1.1 < 1.5 < 2.0-SNAPSHOT
         int positionOneZero = content.indexOf("<version>1.0</version>");
         int positionOneOne = content.indexOf("<version>1.1</version>");
         int positionOneFive = content.indexOf("<version>1.5</version>");
@@ -194,7 +192,6 @@ public class MavenRepositoryLayoutTest {
         assertThat(positionOneZero).isLessThan(positionOneOne);
         assertThat(positionOneOne).isLessThan(positionOneFive);
         assertThat(positionOneFive).isLessThan(positionTwoZero);
-        // release: highest non-SNAPSHOT version (1.5), not last installed
         assertThat(content).contains("<release>1.5</release>");
     }
 

@@ -1,9 +1,8 @@
 package build.jenesis.test;
 
-import build.jenesis.SequencedProperties;
-
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.SequencedProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
