@@ -54,6 +54,15 @@ own `module-info.java` or `pom.xml`:
 On platforms without symlink support, replace the `ln -s` with a one-time copy
 (`cp -r .jenesis/sources/build/jenesis build/jenesis`) and refresh it after each submodule update.
 
+You can also build a project that lives somewhere else without setting up the submodule layout inside it. Use the
+`jenesis.project.root` system property to point at the project root, while keeping the launcher resolved against
+the Jenesis checkout itself:
+
+    java -Djenesis.project.root=/path/to/other/project .jenesis/sources/build/jenesis/Project.java
+
+The same applies to `jenesis.project.target` and `jenesis.project.cache` if you want their on-disk locations
+separated from the project tree as well.
+
 Other distribution methods (a published jar, a wrapper script, a CI-friendly bootstrap) will follow.
 
 ### Selectors
