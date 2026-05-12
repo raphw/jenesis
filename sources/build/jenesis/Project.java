@@ -13,6 +13,8 @@ import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.step.Jar;
+import build.jenesis.step.Javadoc;
 import build.jenesis.step.Relocate;
 
 public final class Project {
@@ -21,6 +23,8 @@ public final class Project {
 
     public record Context(
             boolean tests,
+            boolean sources,
+            boolean javadoc,
             String hashAlgorithm,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers
@@ -33,13 +37,27 @@ public final class Project {
         BuildExecutorModule apply(Context context, ModuleDescriptor descriptor);
 
         static Assembler ofJava() {
-            return (context, descriptor) -> (sub, _) -> sub.addModule("java",
-                    context.tests()
-                            ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
-                            : new JavaModule(),
+            return (context, descriptor) -> (sub, _) -> {
+                sub.addModule("java",
+                        context.tests()
+                                ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
+                                : new JavaModule(),
+                        descriptor.sources(), descriptor.manifests(),
+                        descriptor.checked(), descriptor.runtimeChecked(),
+                        descriptor.artifacts(), descriptor.runtimeArtifacts());
+                if (context.sources()) {
+                    sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
+                }
+                if (context.javadoc()) {
+                    sub.addModule("javadoc", (module, inherited) -> {
+                        module.addStep("classes", Javadoc.tool(), inherited.sequencedKeySet().stream());
+                        module.addStep("artifacts", Jar.tool(Jar.Sort.JAVADOC), "classes");
+                    },
                     descriptor.sources(), descriptor.manifests(),
                     descriptor.checked(), descriptor.runtimeChecked(),
                     descriptor.artifacts(), descriptor.runtimeArtifacts());
+                }
+            };
         }
     }
 
@@ -59,13 +77,15 @@ public final class Project {
             if (builder.resolvers() != null) {
                 resolvers.putAll(builder.resolvers());
             }
-            Context context = new Context(builder.tests(), builder.hashAlgorithm(),
+            Context context = new Context(builder.tests(),
+                    builder.sources(), builder.javadoc(),
+                    builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> assembler.apply(context, descriptor))));
-            executor.addStep("collect", new Relocate(MavenProject.artifactsByModule()), BUILD);
+            executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
@@ -86,14 +106,16 @@ public final class Project {
                 if (builder.resolvers() != null) {
                     resolvers.putAll(builder.resolvers());
                 }
-                Context context = new Context(builder.tests(), builder.hashAlgorithm(),
+                Context context = new Context(builder.tests(),
+                        builder.sources(), builder.javadoc(),
+                        builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
                 sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
                         context.repositories(), context.resolvers(),
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
-            executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);
+            executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
@@ -116,7 +138,9 @@ public final class Project {
                 if (builder.resolvers() != null) {
                     resolvers.putAll(builder.resolvers());
                 }
-                Context context = new Context(builder.tests(), builder.hashAlgorithm(),
+                Context context = new Context(builder.tests(),
+                        builder.sources(), builder.javadoc(),
+                        builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
                 Assembler wrapped = (innerContext, descriptor) -> {
@@ -131,7 +155,7 @@ public final class Project {
                         context.repositories(), context.resolvers(),
                         descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
-            executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);
+            executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
@@ -213,6 +237,8 @@ public final class Project {
                 Layout.AUTO,
                 "SHA256",
                 true,
+                false,
+                false,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 Assembler.ofJava(),
                 null,
@@ -227,6 +253,8 @@ public final class Project {
             Layout layout,
             String hashAlgorithm,
             boolean tests,
+            boolean sources,
+            boolean javadoc,
             SequencedSet<String> defaultTarget,
             Assembler assembler,
             Map<String, Repository> repositories,
@@ -234,27 +262,35 @@ public final class Project {
     ) {
 
         public Builder root(Path root) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder target(Path target) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder cache(Path cache) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder layout(Layout layout) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder hashAlgorithm(String hashAlgorithm) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder tests(boolean tests) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+        }
+
+        public Builder sources(boolean sources) {
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
+        }
+
+        public Builder javadoc(boolean javadoc) {
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder defaultTarget(String... defaultTarget) {
@@ -264,6 +300,8 @@ public final class Project {
                     layout,
                     hashAlgorithm,
                     tests,
+                    sources,
+                    javadoc,
                     Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                     assembler,
                     repositories,
@@ -271,15 +309,15 @@ public final class Project {
         }
 
         public Builder assembler(Assembler assembler) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder repositories(Map<String, Repository> repositories) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder resolvers(Map<String, Resolver> resolvers) {
-            return new Builder(root, target, cache, layout, hashAlgorithm, tests, defaultTarget, assembler, repositories, resolvers);
+            return new Builder(root, target, cache, layout, hashAlgorithm, tests, sources, javadoc, defaultTarget, assembler, repositories, resolvers);
         }
 
         public Builder resolveProperties() {
@@ -289,6 +327,8 @@ public final class Project {
             Layout resolvedLayout = layout;
             String resolvedAlgorithm = hashAlgorithm;
             boolean resolvedTests = tests;
+            boolean resolvedSources = sources;
+            boolean resolvedJavadoc = javadoc;
             String rootOverride = System.getProperty("jenesis.project.root");
             if (rootOverride != null) {
                 resolvedRoot = Path.of(rootOverride);
@@ -319,12 +359,20 @@ public final class Project {
             if (System.getProperty("jenesis.project.skipTests") != null) {
                 resolvedTests = false;
             }
+            if (Boolean.getBoolean("jenesis.project.sources")) {
+                resolvedSources = true;
+            }
+            if (Boolean.getBoolean("jenesis.project.docs")) {
+                resolvedJavadoc = true;
+            }
             return new Builder(resolvedRoot,
                     resolvedTarget,
                     resolvedCache,
                     resolvedLayout,
                     resolvedAlgorithm,
                     resolvedTests,
+                    resolvedSources,
+                    resolvedJavadoc,
                     defaultTarget,
                     assembler,
                     repositories,

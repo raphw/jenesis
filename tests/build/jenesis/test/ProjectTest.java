@@ -172,7 +172,7 @@ public class ProjectTest {
     @Test
     public void default_assembler_returns_a_module() {
         ModuleDescriptor descriptor = new MavenModuleDescriptor("module-sources", new LinkedHashSet<>());
-        Project.Context context = new Project.Context(true, "SHA256", Map.of(), Map.of());
+        Project.Context context = new Project.Context(true, false, false, "SHA256", Map.of(), Map.of());
         assertThat(Project.Assembler.ofJava().apply(context, descriptor)).isNotNull();
     }
 

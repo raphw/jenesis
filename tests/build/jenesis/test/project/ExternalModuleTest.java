@@ -100,6 +100,56 @@ public class ExternalModuleTest {
     }
 
     @Test
+    public void can_add_additional_dependency_coordinates() throws IOException {
+        Path helperJar = buildModuleJar(jars, "helper.Helper", """
+                package helper;
+                public class Helper {
+                    public static String greet() { return "from-helper"; }
+                }
+                """);
+        Path mainJar = buildModuleJar(jars, "gen.UsesHelper", """
+                package gen;
+                import build.jenesis.BuildExecutor;
+                import build.jenesis.BuildExecutorModule;
+                import build.jenesis.BuildStepResult;
+                import java.lang.reflect.Method;
+                import java.nio.file.Files;
+                import java.nio.file.Path;
+                import java.util.SequencedMap;
+                import java.util.concurrent.CompletableFuture;
+                public class UsesHelper implements BuildExecutorModule {
+                    public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
+                        executor.addStep("marker", (e, context, args) -> {
+                            try {
+                                Method method = Class.forName("helper.Helper").getMethod("greet");
+                                String result = (String) method.invoke(null);
+                                Files.writeString(context.next().resolve("out.txt"), result);
+                            } catch (ReflectiveOperationException ex) {
+                                throw new RuntimeException(ex);
+                            }
+                            return CompletableFuture.completedStage(new BuildStepResult(true));
+                        });
+                    }
+                }
+                """);
+
+        buildExecutor.addModule("external", new ExternalModule(
+                "foo/main",
+                Map.of("foo", (executor, coordinate) -> {
+                    Path file = switch (coordinate) {
+                        case "main" -> mainJar;
+                        case "helper" -> helperJar;
+                        default -> null;
+                    };
+                    return file == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(file));
+                }),
+                Map.of("foo", Resolver.identity())).withDependencies("foo/helper"));
+
+        SequencedMap<String, Path> steps = buildExecutor.execute();
+        assertThat(steps.get("external/marker").resolve("out.txt")).content().isEqualTo("from-helper");
+    }
+
+    @Test
     public void fails_when_manifest_lacks_jenesis_module_entry() throws IOException {
         Path jar = jars.resolve("no-attribute.jar");
         Manifest manifest = new Manifest();

@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 
 public class MultiProjectDependencies implements BuildStep {
@@ -29,6 +30,8 @@ public class MultiProjectDependencies implements BuildStep {
         SequencedMap<String, String> coordinates = new LinkedHashMap<>(),
                 dependencies = new LinkedHashMap<>(),
                 versions = new LinkedHashMap<>();
+        Map<String, BuildStepArgument> coordinateOrigin = new HashMap<>();
+        Map<String, Path> coordinateRelative = new HashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
                 Path file = entry.getValue().folder().resolve(scope).resolve(REQUIRES);
@@ -59,15 +62,31 @@ public class MultiProjectDependencies implements BuildStep {
                     try (Reader reader = Files.newBufferedReader(file)) {
                         properties.load(reader);
                     }
+                    Path folder = entry.getValue().folder();
                     for (String property : properties.stringPropertyNames()) {
                         String value = properties.getProperty(property);
                         if (!value.isEmpty()) {
-                            coordinates.put(property, entry.getValue().folder().resolve(value).normalize().toString());
+                            Path resolved = folder.resolve(value).normalize();
+                            coordinates.put(property, resolved.toString());
+                            coordinateOrigin.put(property, entry.getValue());
+                            if (resolved.startsWith(folder)) {
+                                coordinateRelative.put(property, folder.relativize(resolved));
+                            }
                         }
                     }
                 }
             }
         }
+        Properties prior = new SequencedProperties();
+        if (context.previous() != null) {
+            Path priorFile = context.previous().resolve(REQUIRES);
+            if (Files.exists(priorFile)) {
+                try (Reader reader = Files.newBufferedReader(priorFile)) {
+                    prior.load(reader);
+                }
+            }
+        }
+        String reusePrefix = algorithm + "/";
         Properties properties = new SequencedProperties();
         MessageDigest digest;
         try {
@@ -79,11 +98,24 @@ public class MultiProjectDependencies implements BuildStep {
             String candidate = coordinates.get(entry.getKey());
             String value;
             if (candidate != null && !candidate.isEmpty()) {
-                try (FileChannel channel = FileChannel.open(Path.of(candidate))) {
-                    digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
+                BuildStepArgument origin = coordinateOrigin.get(entry.getKey());
+                Path relative = coordinateRelative.get(entry.getKey());
+                String reused = prior.getProperty(entry.getKey());
+                boolean canReuse = origin != null
+                        && relative != null
+                        && origin.files().get(Path.of(IDENTITY)) == ChecksumStatus.RETAINED
+                        && origin.files().get(relative) == ChecksumStatus.RETAINED
+                        && reused != null
+                        && reused.startsWith(reusePrefix);
+                if (canReuse) {
+                    value = reused;
+                } else {
+                    try (FileChannel channel = FileChannel.open(Path.of(candidate))) {
+                        digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
+                    }
+                    value = algorithm + "/" + HexFormat.of().formatHex(digest.digest());
+                    digest.reset();
                 }
-                value = algorithm + "/" + HexFormat.of().formatHex(digest.digest());
-                digest.reset();
             } else {
                 value = entry.getValue();
             }

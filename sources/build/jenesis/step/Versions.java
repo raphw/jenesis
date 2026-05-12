@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 
 public class Versions implements BuildStep {
@@ -38,6 +39,10 @@ public class Versions implements BuildStep {
             }
         }
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
+        boolean requiresChanged = arguments.values().stream().anyMatch(arg -> {
+            ChecksumStatus status = arg.files().get(Path.of(REQUIRES));
+            return status != null && status != ChecksumStatus.RETAINED;
+        });
         for (BuildStepArgument argument : arguments.values()) {
             Path source = argument.folder().resolve(CLASSES);
             if (!Files.exists(source)) {
@@ -54,6 +59,17 @@ public class Versions implements BuildStep {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                     Path destination = target.resolve(source.relativize(file));
                     if (file.getFileName().toString().equals("module-info.class")) {
+                        if (!requiresChanged && context.previous() != null) {
+                            Path argumentRelative = argument.folder().relativize(file);
+                            ChecksumStatus status = argument.files().get(argumentRelative);
+                            if (status == ChecksumStatus.RETAINED) {
+                                Path priorOutput = context.previous().resolve(CLASSES).resolve(source.relativize(file));
+                                if (Files.exists(priorOutput)) {
+                                    Files.createLink(destination, priorOutput);
+                                    return FileVisitResult.CONTINUE;
+                                }
+                            }
+                        }
                         Files.write(destination, stamp(Files.readAllBytes(file), versions));
                     } else {
                         Files.createLink(destination, file);

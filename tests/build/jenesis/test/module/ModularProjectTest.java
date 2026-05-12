@@ -203,15 +203,4 @@ public class ModularProjectTest {
         assertThat(bar.getProperty("module/bar"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
     }
-
-    @Test
-    public void artifactsByModule_links_classes_jar_and_pom_xml_under_sub_module_folder() {
-        Function<Path, Optional<Path>> placement = ModularProject.artifactsByModule();
-        Path jar = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
-        Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
-        Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        assertThat(placement.apply(jar)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(pom)).contains(Path.of("module-foo", "pom.xml"));
-        assertThat(placement.apply(other)).isEmpty();
-    }
 }

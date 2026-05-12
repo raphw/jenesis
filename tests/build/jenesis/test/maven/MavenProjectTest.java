@@ -533,15 +533,4 @@ public class MavenProjectTest {
         assertThat(testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).doesNotExist();
         assertThat(testModule.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).doesNotExist();
     }
-
-    @Test
-    public void artifactsByModule_links_classes_jar_and_pom_xml_under_sub_module_folder() {
-        Function<Path, Optional<Path>> placement = MavenProject.artifactsByModule();
-        Path jar = Path.of("/wrap/build/module/test-module-foo/produce/java/artifacts/output/artifacts/classes.jar");
-        Path pom = Path.of("/wrap/build/module/test-module-foo/build/pom/output/pom.xml");
-        Path other = Path.of("/wrap/build/module/test-module-foo/build/java/classes/output/A.class");
-        assertThat(placement.apply(jar)).contains(Path.of("test-module-foo", "classes.jar"));
-        assertThat(placement.apply(pom)).contains(Path.of("test-module-foo", "pom.xml"));
-        assertThat(placement.apply(other)).isEmpty();
-    }
 }

@@ -27,23 +27,54 @@ public class Javadoc extends JdkProcessBuildStep {
                                                     SequencedMap<String, BuildStepArgument> arguments,
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
-        List<String> commands = new ArrayList<>(List.of("-d", Files
-                .createDirectory(context.next().resolve(JAVADOC))
-                .toString()));
+        List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
+                "-d", Files.createDirectory(context.next().resolve(JAVADOC)).toString(),
+                "-tag", "release:a:Release:",
+                "-tag", "requires:a:Requires:"));
         for (BuildStepArgument argument : arguments.values()) {
-            Path folder = argument.folder().resolve(BuildStep.SOURCES);
-            if (Files.exists(folder)) {
-                Files.walkFileTree(folder, new SimpleFileVisitor<>() {
+            Path sources = argument.folder().resolve(BuildStep.SOURCES),
+                    classes = argument.folder().resolve(BuildStep.CLASSES),
+                    artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.exists(classes)) {
+                path.add(classes.toString());
+            }
+            if (Files.exists(artifacts)) {
+                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        path.add(file.toString());
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+            if (Files.exists(sources)) {
+                Files.walkFileTree(sources, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                         if (file.toString().endsWith(".java")) {
-                            commands.add(file.toString());
+                            files.add(file.toString());
                         }
                         return FileVisitResult.CONTINUE;
                     }
                 });
             }
         }
+        boolean module = files.stream().anyMatch(file -> file.endsWith("/module-info.java"));
+        if (!path.isEmpty()) {
+            for (String entry : path) {
+                if (entry.indexOf(File.pathSeparatorChar) != -1) {
+                    throw new IllegalArgumentException(
+                            "Path entry contains separator '" + File.pathSeparator + "': " + entry);
+                }
+            }
+            String joined = String.join(File.pathSeparator, path);
+            String escaped = joined.replace("\\", "\\\\").replace("\"", "\\\"");
+            Path argfile = context.supplement().resolve("javadoc.args");
+            Files.writeString(argfile,
+                    (module ? "--module-path" : "--class-path") + "\n\"" + escaped + "\"\n");
+            commands.add("@" + argfile);
+        }
+        commands.addAll(files);
         return CompletableFuture.completedStage(commands);
     }
 }

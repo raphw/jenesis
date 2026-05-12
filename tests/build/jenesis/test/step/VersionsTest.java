@@ -223,6 +223,59 @@ public class VersionsTest {
     }
 
     @Test
+    public void reuses_prior_module_info_when_requires_and_module_info_retained() throws IOException {
+        writeModuleInfo("foo", null, false, require("bar"));
+        writeRequires(Map.of("module/bar/1.0", ""));
+        Path priorClasses = Files.createDirectories(previous.resolve(BuildStep.CLASSES));
+        byte[] sentinel = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        Files.write(priorClasses.resolve("module-info.class"), sentinel);
+        BuildStepResult result = new Versions().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of(
+                                "classes", new BuildStepArgument(
+                                        classesInput,
+                                        Map.of(Path.of(BuildStep.CLASSES + "module-info.class"),
+                                                ChecksumStatus.RETAINED)),
+                                "requires", new BuildStepArgument(
+                                        requiresInput,
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.RETAINED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        Path output = next.resolve(BuildStep.CLASSES).resolve("module-info.class");
+        assertThat(output).hasBinaryContent(sentinel);
+        assertThat(Files.getAttribute(output, "unix:nlink")).isEqualTo(2);
+    }
+
+    @Test
+    public void restamps_module_info_when_requires_changed() throws IOException {
+        writeModuleInfo("foo", null, false, require("bar"));
+        writeRequires(Map.of("module/bar/1.0", ""));
+        Path priorClasses = Files.createDirectories(previous.resolve(BuildStep.CLASSES));
+        Files.write(priorClasses.resolve("module-info.class"), new byte[] { 0x01, 0x02 });
+        BuildStepResult result = new Versions().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of(
+                                "classes", new BuildStepArgument(
+                                        classesInput,
+                                        Map.of(Path.of(BuildStep.CLASSES + "module-info.class"),
+                                                ChecksumStatus.RETAINED)),
+                                "requires", new BuildStepArgument(
+                                        requiresInput,
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ALTERED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        Path output = next.resolve(BuildStep.CLASSES).resolve("module-info.class");
+        ModuleDescriptor descriptor = ModuleDescriptor.read(Files.newInputStream(output));
+        assertThat(descriptor.requires())
+                .filteredOn(r -> r.name().equals("bar"))
+                .singleElement()
+                .extracting(r -> r.rawCompiledVersion().orElse(null))
+                .isEqualTo("1.0");
+    }
+
+    @Test
     public void preserves_nested_directory_structure() throws IOException {
         Path classesDir = Files.createDirectory(classesInput.resolve(BuildStep.CLASSES));
         Path nested = Files.createDirectories(classesDir.resolve("a/b/c"));

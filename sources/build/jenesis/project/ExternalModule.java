@@ -22,6 +22,7 @@ public class ExternalModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final List<?> arguments;
     private final String checksum;
+    private final List<String> additionalDependencies;
 
     public ExternalModule(String coordinate,
                           Map<String, Repository> repositories,
@@ -34,23 +35,33 @@ public class ExternalModule implements BuildExecutorModule {
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers,
                           List<?> arguments) {
-        this(coordinate, repositories, resolvers, arguments, null);
+        this(coordinate, repositories, resolvers, arguments, null, List.of());
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            List<?> arguments,
-                           String checksum) {
+                           String checksum,
+                           List<String> additionalDependencies) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.arguments = arguments;
         this.checksum = checksum;
+        this.additionalDependencies = additionalDependencies;
     }
 
     public ExternalModule computeChecksums(String algorithm) {
-        return new ExternalModule(coordinate, repositories, resolvers, arguments, algorithm);
+        return new ExternalModule(coordinate, repositories, resolvers, arguments, algorithm, additionalDependencies);
+    }
+
+    public ExternalModule withDependencies(String... dependencies) {
+        return withDependencies(List.of(dependencies));
+    }
+
+    public ExternalModule withDependencies(List<String> dependencies) {
+        return new ExternalModule(coordinate, repositories, resolvers, arguments, checksum, List.copyOf(dependencies));
     }
 
     @Override
@@ -66,7 +77,10 @@ public class ExternalModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(COORDINATE, new WriteCoordinate(coordinate));
+        List<String> coordinates = new ArrayList<>(additionalDependencies.size() + 1);
+        coordinates.add(coordinate);
+        coordinates.addAll(additionalDependencies);
+        buildExecutor.addStep(COORDINATE, new WriteCoordinates(coordinates));
         DependenciesModule dependencies = new DependenciesModule(repositories, resolvers, false);
         if (checksum != null) {
             dependencies = dependencies.computeChecksums(checksum);
@@ -121,7 +135,7 @@ public class ExternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(EXTERNAL, EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record WriteCoordinate(String coordinate) implements BuildStep {
+    private record WriteCoordinates(List<String> coordinates) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -129,7 +143,9 @@ public class ExternalModule implements BuildExecutorModule {
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
             Properties properties = new SequencedProperties();
-            properties.setProperty(coordinate, "");
+            for (String coordinate : coordinates) {
+                properties.setProperty(coordinate, "");
+            }
             try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 properties.store(writer, null);
             }

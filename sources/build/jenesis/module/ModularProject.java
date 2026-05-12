@@ -114,16 +114,22 @@ public class ModularProject implements BuildExecutorModule {
                                             (a, _) -> a,
                                             LinkedHashMap::new)));
                     buildExecutor.addStep("assign",
-                            new Assign(),
+                            new Assign((BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable) ((coordinates, files) -> {
+                                Path resolved = files.stream()
+                                        .filter(file -> file.getFileName() != null
+                                                && "classes.jar".equals(file.getFileName().toString()))
+                                        .findFirst()
+                                        .orElseThrow(() -> new IllegalArgumentException(
+                                                "Expected a classes.jar artifact: " + files));
+                                return coordinates.stream().collect(Collectors.toMap(
+                                        Function.identity(),
+                                        _ -> resolved));
+                            })),
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier
                                             .startsWith(MultiProjectModule.IDENTIFIER_PATH)),
                                     Stream.of("produce")));
                 });
-    }
-
-    public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
-        return MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
     }
 
     private record Manifests(String prefix) implements BuildStep {

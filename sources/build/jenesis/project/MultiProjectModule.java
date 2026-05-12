@@ -36,6 +36,10 @@ public class MultiProjectModule implements BuildExecutorModule {
         this.factory = factory;
     }
 
+    public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
+        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml");
+    }
+
     @SuppressWarnings("unchecked")
     public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);

@@ -24,6 +24,16 @@ public class Checksum implements DependencyTransformingBuildStep {
                                                  SequencedMap<String, SequencedMap<String, String>> groups,
                                                  SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
+        Properties prior = new SequencedProperties();
+        if (context.previous() != null) {
+            Path priorFile = context.previous().resolve(REQUIRES);
+            if (Files.exists(priorFile)) {
+                try (Reader reader = Files.newBufferedReader(priorFile)) {
+                    prior.load(reader);
+                }
+            }
+        }
+        String reusePrefix = algorithm + "/";
         Properties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
@@ -31,32 +41,37 @@ public class Checksum implements DependencyTransformingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey();
                 if (!entry.getValue().isEmpty()) {
                     properties.setProperty(dependency, entry.getValue());
-                } else {
-                    MessageDigest digest;
-                    try {
-                        digest = MessageDigest.getInstance(algorithm);
-                    } catch (NoSuchAlgorithmException e) {
-                        throw new RuntimeException(e);
-                    }
-                    RepositoryItem item = repository.fetch(executor, entry.getKey()).orElseThrow(
-                            () -> new IllegalStateException("Cannot resolve " + dependency));
-                    Path file = item.getFile().orElse(null);
-                    if (file == null) {
-                        try (InputStream inputStream = item.toInputStream()) {
-                            byte[] buffer = new byte[1024 * 8];
-                            int length;
-                            while ((length = inputStream.read(buffer, 0, buffer.length)) != -1) {
-                                digest.update(buffer, 0, length);
-                            }
-                        }
-                    } else {
-                        try (FileChannel channel = FileChannel.open(file)) {
-                            digest.update(channel.map(
-                                    FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
-                        }
-                    }
-                    properties.setProperty(dependency, algorithm + "/" + HexFormat.of().formatHex(digest.digest()));
+                    continue;
                 }
+                String reused = prior.getProperty(dependency);
+                if (reused != null && reused.startsWith(reusePrefix)) {
+                    properties.setProperty(dependency, reused);
+                    continue;
+                }
+                MessageDigest digest;
+                try {
+                    digest = MessageDigest.getInstance(algorithm);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                }
+                RepositoryItem item = repository.fetch(executor, entry.getKey()).orElseThrow(
+                        () -> new IllegalStateException("Cannot resolve " + dependency));
+                Path file = item.getFile().orElse(null);
+                if (file == null) {
+                    try (InputStream inputStream = item.toInputStream()) {
+                        byte[] buffer = new byte[1024 * 8];
+                        int length;
+                        while ((length = inputStream.read(buffer, 0, buffer.length)) != -1) {
+                            digest.update(buffer, 0, length);
+                        }
+                    }
+                } else {
+                    try (FileChannel channel = FileChannel.open(file)) {
+                        digest.update(channel.map(
+                                FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
+                    }
+                }
+                properties.setProperty(dependency, algorithm + "/" + HexFormat.of().formatHex(digest.digest()));
             }
         }
         return CompletableFuture.completedStage(properties);
