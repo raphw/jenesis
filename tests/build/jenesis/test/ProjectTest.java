@@ -121,6 +121,17 @@ public class ProjectTest {
     }
 
     @Test
+    public void default_target_is_build() {
+        assertThat(Project.builder().defaultTarget()).containsExactly("build");
+    }
+
+    @Test
+    public void default_target_can_be_overridden() {
+        assertThat(Project.builder().defaultTarget("foo", "bar").defaultTarget())
+                .containsExactly("foo", "bar");
+    }
+
+    @Test
     public void system_property_overrides_root() {
         System.setProperty("jenesis.project.root", root.toString());
         assertThat(Project.builder().resolveProperties().root()).isEqualTo(Path.of(root.toString()));
@@ -136,5 +147,43 @@ public class ProjectTest {
     public void system_property_overrides_cache() {
         System.setProperty("jenesis.project.cache", "custom-cache");
         assertThat(Project.builder().resolveProperties().cache()).isEqualTo(Path.of("custom-cache"));
+    }
+
+    @Test
+    public void default_factory_is_set() {
+        assertThat(Project.builder().factory()).isNotNull();
+    }
+
+    @Test
+    public void factory_can_be_overridden() {
+        Project.Factory custom = (_, _) -> (_, _) -> {};
+        assertThat(Project.builder().factory(custom).factory()).isSameAs(custom);
+    }
+
+    @Test
+    public void default_factory_dispatches_per_kind() {
+        Project.Factory factory = Project.Factory.defaults();
+        build.jenesis.project.ModuleDescriptor descriptor = new build.jenesis.maven.MavenModuleDescriptor(
+                "module-sources", new LinkedHashSet<>());
+        for (Project.Kind kind : Project.Kind.values()) {
+            if (kind == Project.Kind.AUTO) {
+                continue;
+            }
+            Project.Context context = new Project.Context(kind, true, "SHA256", Map.of(), Map.of());
+            assertThat(factory.apply(context, descriptor))
+                    .as("kind=%s", kind)
+                    .isNotNull();
+        }
+    }
+
+    @Test
+    public void default_factory_rejects_auto() {
+        Project.Factory factory = Project.Factory.defaults();
+        build.jenesis.project.ModuleDescriptor descriptor = new build.jenesis.maven.MavenModuleDescriptor(
+                "module-sources", new LinkedHashSet<>());
+        Project.Context context = new Project.Context(
+                Project.Kind.AUTO, true, "SHA256", Map.of(), Map.of());
+        assertThatThrownBy(() -> factory.apply(context, descriptor))
+                .isInstanceOf(AssertionError.class);
     }
 }

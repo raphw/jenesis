@@ -82,9 +82,13 @@ public class Canonical {
 Project.builder()
        .force(Project.Kind.MODULE_AWARE_MAVEN)
        .hashAlgorithm("SHA512")
-       .skipTests()
+       .tests(false)
        .build(args);
 ```
+
+When `build(args)` is called with no positional arguments, `Project` substitutes the builder's `defaultTarget` as the selector list (default: `"build"`, which runs the discovered multi-project graph but skips the downstream `collect` step). Pass explicit selectors to override the default, or call `.defaultTarget(...)` to change what an argument-less invocation runs. This is a builder-only property and has no corresponding system property.
+
+The per-project "inner module" wiring — what each discovered module compiles, packages, tests, and (for `MODULE_AWARE_MAVEN`) emits a POM for — is also configurable via `.factory(Project.Factory)`. A factory receives a `Project.Context` (`kind`, `tests`, `hashAlgorithm`, effective `repositories`, effective `resolvers`) plus a `ModuleDescriptor` (giving access to the canonical sub-paths `sources()`, `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`) and returns a `BuildExecutorModule` registered inside the per-project sub-graph. The default — `Project.Factory.defaults()` — dispatches on `context.kind()` and reproduces the wiring shown in `build/Maven.java` / `build/Modular.java` / `build/ModularByMaven.java`, so overriding the factory typically means delegating to `defaults()` for the kinds you don't care about and substituting your own `BuildExecutorModule` for the ones you do. Like `defaultTarget`, this is a builder-only property.
 
 The supported `Kind`s map one-to-one onto the example scripts in `build/`:
 
