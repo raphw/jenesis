@@ -68,17 +68,15 @@ public class MavenProject implements BuildExecutorModule {
                     for (Map.Entry<String, Boolean> entry : List.of(
                             Map.entry(MultiProjectModule.COMPILE, true),
                             Map.entry(MultiProjectModule.RUNTIME, false))) {
-                        String scope = entry.getKey();
-                        boolean compile = entry.getValue();
-                        buildExecutor.addModule(scope, (scopeExec, scopeInherited) -> {
+                        buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             algorithm,
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
-                                            scope),
+                                            entry.getKey()),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, compile).computeChecksums(algorithm),
+                                    new DependenciesModule(mergedRepositories, resolverMap, entry.getValue()).computeChecksums(algorithm),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
