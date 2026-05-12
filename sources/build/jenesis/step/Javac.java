@@ -3,6 +3,7 @@ package build.jenesis.step;
 import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
+import build.jenesis.SequencedProperties;
 
 public class Javac extends JdkProcessBuildStep {
 
@@ -20,6 +21,18 @@ public class Javac extends JdkProcessBuildStep {
         return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"));
     }
 
+    public static void writeRelease(Path folder, String release) throws IOException {
+        if (release == null || release.isEmpty()) {
+            return;
+        }
+        Path target = Files.createDirectories(folder.resolve(ProcessBuildStep.PROCESS));
+        Properties properties = new SequencedProperties();
+        properties.setProperty("--release", release);
+        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve("javac.properties"))) {
+            properties.store(writer, null);
+        }
+    }
+
     @Override
     public CompletionStage<List<String>> process(Executor executor,
                                                  BuildStepContext context,
@@ -28,7 +41,6 @@ public class Javac extends JdkProcessBuildStep {
             throws IOException {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
-                "--release", Integer.toString(Runtime.version().version().getFirst()),
                 "-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(Bind.SOURCES),

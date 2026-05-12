@@ -1,3 +1,6 @@
+/**
+ * @release 25
+ */
 module build.jenesis {
 
     requires jdk.compiler;

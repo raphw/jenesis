@@ -1,4 +1,5 @@
 /**
+ * @release 25
  * @requires org.junit.jupiter 5.11.3
  * @requires org.assertj.core 3.27.0
  */

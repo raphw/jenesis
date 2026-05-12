@@ -46,6 +46,50 @@ public class JavacTest {
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
 
+    @Test
+    public void writeRelease_writes_process_javac_properties_with_release_flag() throws IOException {
+        Path folder = Files.createDirectory(root.resolve("write-release"));
+        Javac.writeRelease(folder, "21");
+        Path file = folder.resolve("process/javac.properties");
+        assertThat(file).exists();
+        Properties properties = new Properties();
+        try (Reader reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        }
+        assertThat(properties).containsEntry("--release", "21");
+    }
+
+    @Test
+    public void writeRelease_null_or_empty_writes_nothing() throws IOException {
+        Path folder = Files.createDirectory(root.resolve("write-release-empty"));
+        Javac.writeRelease(folder, null);
+        Javac.writeRelease(folder, "");
+        assertThat(folder.resolve("process")).doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void release_in_process_javac_properties_is_forwarded_to_javac(boolean process) throws IOException {
+        Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {
+            writer.append("package sample;");
+            writer.newLine();
+            writer.append("public class Sample { }");
+            writer.newLine();
+        }
+        Javac.writeRelease(sources, "21");
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("process/javac.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        // The class compiled successfully under --release 21; if it had been rejected as a duplicate
+        // --release argument, javac would have errored out.
+        assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     public void stamps_module_version_when_jenesis_buildVersion_is_set(boolean process) throws IOException {

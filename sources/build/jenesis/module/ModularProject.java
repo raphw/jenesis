@@ -14,6 +14,7 @@ import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Javac;
 
 import module java.base;
 
@@ -177,6 +178,7 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
+
     private record Manifests(String prefix) implements BuildStep {
 
         @Override
@@ -198,6 +200,7 @@ public class ModularProject implements BuildExecutorModule {
             writeRequires(context.next(), MultiProjectModule.RUNTIME, prefix, info.runtimeRequires());
             writeVersions(context.next(), MultiProjectModule.COMPILE, prefix, info.versions());
             writeVersions(context.next(), MultiProjectModule.RUNTIME, prefix, info.versions());
+            Javac.writeRelease(context.next(), info.release());
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }

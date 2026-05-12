@@ -39,28 +39,38 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
+            String release = null;
             DocCommentTree docComment = docTrees.getDocCommentTree(TreePath.getPath(unit, module));
             if (docComment != null) {
                 for (DocTree tag : docComment.getBlockTags()) {
-                    if (tag instanceof UnknownBlockTagTree unknown && "requires".equals(unknown.getTagName())) {
+                    if (tag instanceof UnknownBlockTagTree unknown) {
                         String content = unknown.getContent().stream()
                                 .map(Object::toString)
                                 .collect(Collectors.joining())
                                 .trim();
-                        int split = content.indexOf(' ');
-                        if (split < 1 || split == content.length() - 1) {
-                            continue;
+                        switch (unknown.getTagName()) {
+                            case "requires" -> {
+                                int split = content.indexOf(' ');
+                                if (split < 1 || split == content.length() - 1) {
+                                    continue;
+                                }
+                                String name = content.substring(0, split).trim();
+                                String version = content.substring(split + 1).trim();
+                                if (name.startsWith("java.") || name.startsWith("jdk.") || name.isEmpty() || version.isEmpty()) {
+                                    continue;
+                                }
+                                versions.put(name, version);
+                            }
+                            case "release" -> {
+                                if (!content.isEmpty()) {
+                                    release = content;
+                                }
+                            }
                         }
-                        String name = content.substring(0, split).trim();
-                        String version = content.substring(split + 1).trim();
-                        if (name.startsWith("java.") || name.startsWith("jdk.") || name.isEmpty() || version.isEmpty()) {
-                            continue;
-                        }
-                        versions.put(name, version);
                     }
                 }
             }
-            return new ModuleInfo(module.getName().toString(), dependencies, runtimeDependencies, versions);
+            return new ModuleInfo(module.getName().toString(), release, dependencies, runtimeDependencies, versions);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
     }

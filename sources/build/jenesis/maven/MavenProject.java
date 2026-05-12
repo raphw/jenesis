@@ -10,6 +10,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
+import build.jenesis.step.Javac;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
@@ -224,6 +225,7 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 writeVersions(context.next(), MultiProjectModule.COMPILE, versions);
                                 writeVersions(context.next(), MultiProjectModule.RUNTIME, versions);
+                                Javac.writeRelease(context.next(), properties.getProperty("release"));
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
                         }
@@ -317,6 +319,9 @@ public class MavenProject implements BuildExecutorModule {
                 module.setProperty("type", entry.getValue().packaging() == null
                         ? "jar"
                         : entry.getValue().packaging());
+                if (entry.getValue().release() != null) {
+                    module.setProperty("release", entry.getValue().release());
+                }
                 module.setProperty("dependencies", toDependencies(
                         prefix,
                         entry.getValue().dependencies(),
@@ -348,6 +353,9 @@ public class MavenProject implements BuildExecutorModule {
                         + "/pom"
                         + "/" + entry.getValue().version());
                 testModule.setProperty("path", entry.getKey().toString());
+                if (entry.getValue().release() != null) {
+                    testModule.setProperty("release", entry.getValue().release());
+                }
                 String dependencies = toDependencies(
                         prefix,
                         entry.getValue().dependencies(),

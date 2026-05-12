@@ -302,6 +302,7 @@ public class MavenPomResolver implements Resolver {
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
                     property(pom.packaging(), pom.properties()),
+                    pom.properties().get("maven.compiler.release"),
                     property(pom.sourceDirectory(), pom.properties()),
                     pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
                             .map(resource -> property(resource, pom.properties()))

@@ -152,6 +152,50 @@ public class ModuleInfoParserTest {
     }
 
     @Test
+    public void release_tag_is_extracted() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @release 25
+                 * @requires bar 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.release()).isEqualTo("25");
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
+    }
+
+    @Test
+    public void empty_release_tag_is_ignored() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @release
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.release()).isNull();
+    }
+
+    @Test
+    public void no_release_tag_yields_null_release() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @requires bar 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.release()).isNull();
+    }
+
+    @Test
     public void open_module_with_javadoc_pins() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
