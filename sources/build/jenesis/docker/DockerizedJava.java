@@ -79,6 +79,13 @@ public class DockerizedJava {
         docker.add("run");
         docker.add("--rm");
         docker.add("-i");
+        try {
+            Object uid = Files.getAttribute(workingDirectory, "unix:uid");
+            Object gid = Files.getAttribute(workingDirectory, "unix:gid");
+            docker.add("--user");
+            docker.add(uid + ":" + gid);
+        } catch (UnsupportedOperationException | IllegalArgumentException _) {
+        }
         docker.add("-w");
         docker.add(workingDirectory.toString());
         docker.add("-v");
