@@ -206,7 +206,7 @@ public class MavenProject implements BuildExecutorModule {
                                 Properties metadata = extractMetadata(pomFile);
                                 String[] coordinateParts = properties.getProperty("coordinate").split("/");
                                 if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
-                                    metadata.setProperty("project.test", "true");
+                                    metadata.setProperty("project.test", coordinateParts[2]);
                                 }
                                 if (!metadata.isEmpty()) {
                                     try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {

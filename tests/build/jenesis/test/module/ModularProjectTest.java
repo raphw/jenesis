@@ -21,6 +21,27 @@ public class ModularProjectTest {
     private Path project, build;
 
     @Test
+    public void at_test_with_argument_not_in_requires_fails_validation() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @test other.module
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> executor.execute(Runnable::run).toCompletableFuture().join())
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasRootCauseMessage("Test module 'foo' declares @test other.module but does not"
+                        + " 'requires other.module;' (declared requires: [bar])");
+    }
+
+    @Test
     public void can_resolve_module() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 module foo {

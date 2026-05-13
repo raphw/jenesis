@@ -260,7 +260,7 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void test_tag_marks_module_as_test_variant() throws IOException {
+    public void bare_test_tag_marks_module_with_empty_parent() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @test
@@ -270,7 +270,21 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.test()).isTrue();
+        assertThat(info.testOf()).isEmpty();
+    }
+
+    @Test
+    public void test_tag_with_argument_marks_parent_module() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @test build.jenesis
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.testOf()).isEqualTo("build.jenesis");
     }
 
     @Test
@@ -284,6 +298,6 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.test()).isFalse();
+        assertThat(info.testOf()).isNull();
     }
 }

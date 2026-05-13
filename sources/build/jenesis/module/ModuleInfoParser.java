@@ -42,7 +42,7 @@ public class ModuleInfoParser {
             String release = null;
             String name = null;
             String description = null;
-            boolean test = false;
+            String testOf = null;
             DocCommentTree docComment = docTrees.getDocCommentTree(TreePath.getPath(unit, module));
             if (docComment != null) {
                 String summary = docComment.getFirstSentence().stream()
@@ -85,7 +85,7 @@ public class ModuleInfoParser {
                                     release = content;
                                 }
                             }
-                            case "test" -> test = true;
+                            case "test" -> testOf = content;
                         }
                     }
                 }
@@ -94,7 +94,7 @@ public class ModuleInfoParser {
                     release,
                     name,
                     description,
-                    test,
+                    testOf,
                     dependencies,
                     runtimeDependencies,
                     versions);

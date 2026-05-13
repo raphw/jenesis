@@ -60,7 +60,7 @@ public class MavenRepositoryStageTest {
         Files.writeString(main.resolve("classes.jar"), "main");
 
         Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test,
+        writeTestModule(test, "foo",
                 "com.example", "foo.test", "1.2.3",
                 List.of(
                         new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3"),
@@ -83,7 +83,7 @@ public class MavenRepositoryStageTest {
         Files.writeString(main.resolve("classes.jar"), "main");
 
         Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test,
+        writeTestModule(test, "foo",
                 "com.example", "foo.test", "1.2.3",
                 List.of(
                         new Dep("com.example", "foo", "1.2.3"),
@@ -105,7 +105,7 @@ public class MavenRepositoryStageTest {
         Files.writeString(main.resolve("classes.jar"), "main");
 
         Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "com.example", "foo.test", "1.2.3", List.of());
+        writeTestModule(test, "foo", "com.example", "foo.test", "1.2.3", List.of());
         Files.writeString(test.resolve("classes.jar"), "test-classes");
         Files.writeString(test.resolve("sources.jar"), "test-sources");
         Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
@@ -124,7 +124,7 @@ public class MavenRepositoryStageTest {
         Files.writeString(main.resolve("classes.jar"), "main");
 
         Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "com.example", "foo.test", "1.2.3", List.of());
+        writeTestModule(test, "foo", "com.example", "foo.test", "1.2.3", List.of());
         Files.writeString(test.resolve("classes.jar"), "test");
 
         run(source, "module-foo", "module-foo-test");
@@ -137,6 +137,92 @@ public class MavenRepositoryStageTest {
                     .toList();
             assertThat(poms).containsExactly("foo-1.2.3.pom");
         }
+    }
+
+    @Test
+    public void test_variants_are_routed_to_their_declared_main() throws IOException {
+        Path mainA = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(mainA, "com.example", "foo", "1.2.3");
+        Files.writeString(mainA.resolve("classes.jar"), "foo-main");
+
+        Path mainB = Files.createDirectory(source.resolve("module-bar"));
+        writeMainModule(mainB, "com.example", "bar", "1.2.3");
+        Files.writeString(mainB.resolve("classes.jar"), "bar-main");
+
+        Path testA = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(testA, "foo", "com.example", "foo.test", "1.2.3",
+                List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+        Files.writeString(testA.resolve("classes.jar"), "foo-test");
+
+        Path testB = Files.createDirectory(source.resolve("module-bar-test"));
+        writeTestModule(testB, "bar", "com.example", "bar.test", "1.2.3",
+                List.of(new Dep("org.assertj", "assertj-core", "3.27.0")));
+        Files.writeString(testB.resolve("classes.jar"), "bar-test");
+
+        run(source, "module-foo", "module-bar", "module-foo-test", "module-bar-test");
+
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-test.jar")).hasContent("foo-test");
+        assertThat(next.resolve("com/example/bar/1.2.3/bar-1.2.3-test.jar")).hasContent("bar-test");
+        String fooPom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
+        assertThat(fooPom).contains("<artifactId>junit-jupiter</artifactId>");
+        assertThat(fooPom).doesNotContain("<artifactId>assertj-core</artifactId>");
+        String barPom = Files.readString(next.resolve("com/example/bar/1.2.3/bar-1.2.3.pom"));
+        assertThat(barPom).contains("<artifactId>assertj-core</artifactId>");
+        assertThat(barPom).doesNotContain("<artifactId>junit-jupiter</artifactId>");
+    }
+
+    @Test
+    public void two_tests_for_the_same_main_fail_loudly() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        Path testA = Files.createDirectory(source.resolve("module-foo-test-a"));
+        writeTestModule(testA, "foo", "com.example", "foo.test.a", "1.2.3", List.of());
+        Files.writeString(testA.resolve("classes.jar"), "test-a");
+
+        Path testB = Files.createDirectory(source.resolve("module-foo-test-b"));
+        writeTestModule(testB, "foo", "com.example", "foo.test.b", "1.2.3", List.of());
+        Files.writeString(testB.resolve("classes.jar"), "test-b");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> run(source, "module-foo", "module-foo-test-a", "module-foo-test-b"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Multiple test modules declare main 'foo'")
+                .hasMessageContaining("module-foo-test-a")
+                .hasMessageContaining("module-foo-test-b");
+    }
+
+    @Test
+    public void test_referencing_unknown_parent_fails_loudly() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        Path test = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(test, "typo", "com.example", "foo.test", "1.2.3", List.of());
+        Files.writeString(test.resolve("classes.jar"), "test");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> run(source, "module-foo", "module-foo-test"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Test module 'module-foo-test'")
+                .hasMessageContaining("references unknown main 'typo'")
+                .hasMessageContaining("[foo]");
+    }
+
+    @Test
+    public void bare_test_with_no_main_present_fails_loudly() throws IOException {
+        Path test = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(test, "", "com.example", "foo.test", "1.2.3", List.of());
+        Files.writeString(test.resolve("classes.jar"), "test");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> run(source, "module-foo-test"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Test module 'module-foo-test'")
+                .hasMessageContaining("declares no parent")
+                .hasMessageContaining("no main module is present");
     }
 
     @Test
@@ -176,11 +262,13 @@ public class MavenRepositoryStageTest {
     }
 
     private static void writeTestModule(Path moduleDir,
+                                        String parentArtifactId,
                                         String groupId,
                                         String artifactId,
                                         String version,
                                         List<Dep> deps) throws IOException {
-        Files.writeString(moduleDir.resolve("metadata.properties"), "project.test=true\n");
+        Files.writeString(moduleDir.resolve("metadata.properties"),
+                "project.test=" + parentArtifactId + "\n");
         Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
     }
 

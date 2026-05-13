@@ -180,8 +180,19 @@ public class ModularProject implements BuildExecutorModule {
             if (info.description() != null) {
                 metadata.setProperty("project.description", info.description());
             }
-            if (info.test()) {
-                metadata.setProperty("project.test", "true");
+            if (info.testOf() != null) {
+                if (!info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
+                    throw new IllegalStateException("Test module '"
+                            + info.coordinate()
+                            + "' declares @test "
+                            + info.testOf()
+                            + " but does not 'requires "
+                            + info.testOf()
+                            + ";' (declared requires: "
+                            + info.requires()
+                            + ")");
+                }
+                metadata.setProperty("project.test", info.testOf());
             }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
                 metadata.store(writer, null);

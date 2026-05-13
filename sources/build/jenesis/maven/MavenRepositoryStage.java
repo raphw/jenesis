@@ -18,7 +18,7 @@ public class MavenRepositoryStage implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         Map<String, Path> mainModules = new LinkedHashMap<>();
-        Map<String, Path> testModules = new LinkedHashMap<>();
+        Map<String, TestModule> testModules = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(argument.folder())) {
                 for (Path moduleDir : stream) {
@@ -33,41 +33,81 @@ public class MavenRepositoryStage implements BuildStep {
                     try (Reader reader = Files.newBufferedReader(metadata)) {
                         properties.load(reader);
                     }
-                    if ("true".equals(properties.getProperty("project.test"))) {
-                        testModules.put(moduleDir.getFileName().toString(), moduleDir);
+                    String testOf = properties.getProperty("project.test");
+                    if (testOf != null) {
+                        testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));
                     } else {
                         mainModules.put(moduleDir.getFileName().toString(), moduleDir);
                     }
                 }
             }
         }
-        Set<String> mainArtifactIds = new LinkedHashSet<>();
-        Map<String, Coordinates> mainCoordinates = new LinkedHashMap<>();
+        Map<String, Coordinates> mainsByArtifactId = new LinkedHashMap<>();
+        Map<String, Coordinates> mainsByDir = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : mainModules.entrySet()) {
             Coordinates coordinates = readCoordinates(entry.getValue().resolve(POM));
             if (coordinates != null) {
-                mainCoordinates.put(entry.getKey(), coordinates);
-                mainArtifactIds.add(coordinates.artifactId());
+                mainsByDir.put(entry.getKey(), coordinates);
+                mainsByArtifactId.put(coordinates.artifactId(), coordinates);
             }
         }
-        List<DependencyEntry> testDeps = new ArrayList<>();
-        for (Path testDir : testModules.values()) {
-            collectDependencies(testDir.resolve(POM), mainArtifactIds, testDeps);
+        Map<String, List<DependencyEntry>> testDepsByMain = new LinkedHashMap<>();
+        Map<String, List<TestModule>> testsByMain = new LinkedHashMap<>();
+        Coordinates fallbackMain = mainsByArtifactId.values().stream().findFirst().orElse(null);
+        Set<String> allMainArtifactIds = mainsByArtifactId.keySet();
+        for (Map.Entry<String, TestModule> entry : testModules.entrySet()) {
+            TestModule test = entry.getValue();
+            Coordinates parent;
+            if (test.testOf().isEmpty()) {
+                if (fallbackMain == null) {
+                    throw new IllegalStateException("Test module '"
+                            + entry.getKey()
+                            + "' declares no parent (bare @test) but no main module is present to attach it to");
+                }
+                parent = fallbackMain;
+            } else {
+                parent = mainsByArtifactId.get(test.testOf());
+                if (parent == null) {
+                    throw new IllegalStateException("Test module '"
+                            + entry.getKey()
+                            + "' references unknown main '"
+                            + test.testOf()
+                            + "' (known mains: "
+                            + mainsByArtifactId.keySet()
+                            + ")");
+                }
+            }
+            testsByMain.computeIfAbsent(parent.artifactId(), _ -> new ArrayList<>()).add(test);
+            collectDependencies(test.dir().resolve(POM),
+                    allMainArtifactIds,
+                    testDepsByMain.computeIfAbsent(parent.artifactId(), _ -> new ArrayList<>()));
+        }
+        for (Map.Entry<String, List<TestModule>> entry : testsByMain.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                List<String> dirs = entry.getValue().stream()
+                        .map(test -> test.dir().getFileName().toString())
+                        .toList();
+                throw new IllegalStateException("Multiple test modules declare main '"
+                        + entry.getKey()
+                        + "' as their parent (would collide on the '-test' classifier): "
+                        + dirs);
+            }
         }
         for (Map.Entry<String, Path> entry : mainModules.entrySet()) {
-            Coordinates coordinates = mainCoordinates.get(entry.getKey());
+            Coordinates coordinates = mainsByDir.get(entry.getKey());
             if (coordinates == null) {
                 continue;
             }
-            stageMainModule(entry.getValue(), coordinates, testDeps, context.next());
-        }
-        Coordinates classifierCoordinates = mainCoordinates.values().stream().findFirst().orElse(null);
-        if (classifierCoordinates != null) {
-            for (Path testDir : testModules.values()) {
-                stageTestModule(testDir, classifierCoordinates, context.next());
+            List<DependencyEntry> deps = testDepsByMain.getOrDefault(coordinates.artifactId(), List.of());
+            stageMainModule(entry.getValue(), coordinates, deps, context.next());
+            for (TestModule test : testsByMain.getOrDefault(coordinates.artifactId(), List.of())) {
+                stageTestModule(test.dir(), coordinates, context.next());
             }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private record TestModule(Path dir, String testOf) {
     }
 
     private static void stageMainModule(Path moduleDir,
