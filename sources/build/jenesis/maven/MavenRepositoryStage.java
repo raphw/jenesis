@@ -98,55 +98,36 @@ public class MavenRepositoryStage implements BuildStep {
             if (coordinates == null) {
                 continue;
             }
-            List<DependencyEntry> deps = testDepsByMain.getOrDefault(coordinates.artifactId(), List.of());
-            stageMainModule(entry.getValue(), coordinates, deps, context.next());
+            Path baseDir = context.next()
+                    .resolve(coordinates.groupId().replace('.', '/'))
+                    .resolve(coordinates.artifactId())
+                    .resolve(coordinates.version());
+            Files.createDirectories(baseDir);
+            String prefix = coordinates.artifactId() + "-" + coordinates.version();
+            Path mainDir = entry.getValue();
+            link(mainDir.resolve("classes.jar"), baseDir.resolve(prefix + ".jar"));
+            link(mainDir.resolve("sources.jar"), baseDir.resolve(prefix + "-sources.jar"));
+            link(mainDir.resolve("javadoc.jar"), baseDir.resolve(prefix + "-javadoc.jar"));
+            Path sourcePom = mainDir.resolve(POM);
+            Path stagedPom = baseDir.resolve(prefix + ".pom");
+            if (Files.isRegularFile(sourcePom) && !Files.exists(stagedPom)) {
+                List<DependencyEntry> deps = testDepsByMain.getOrDefault(coordinates.artifactId(), List.of());
+                if (deps.isEmpty()) {
+                    Files.createLink(stagedPom, sourcePom);
+                } else {
+                    writeMergedPom(sourcePom, deps, stagedPom);
+                }
+            }
             for (TestModule test : testsByMain.getOrDefault(coordinates.artifactId(), List.of())) {
-                stageTestModule(test.dir(), coordinates, context.next());
+                link(test.dir().resolve("classes.jar"), baseDir.resolve(prefix + "-tests.jar"));
+                link(test.dir().resolve("sources.jar"), baseDir.resolve(prefix + "-tests-sources.jar"));
+                link(test.dir().resolve("javadoc.jar"), baseDir.resolve(prefix + "-tests-javadoc.jar"));
             }
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
     private record TestModule(Path dir, String testOf) {
-    }
-
-    private static void stageMainModule(Path moduleDir,
-                                        Coordinates coordinates,
-                                        List<DependencyEntry> testDeps,
-                                        Path stagingRoot) throws IOException {
-        Path baseDir = baseDirFor(stagingRoot, coordinates);
-        Files.createDirectories(baseDir);
-        String prefix = coordinates.artifactId() + "-" + coordinates.version();
-        link(moduleDir.resolve("classes.jar"), baseDir.resolve(prefix + ".jar"));
-        link(moduleDir.resolve("sources.jar"), baseDir.resolve(prefix + "-sources.jar"));
-        link(moduleDir.resolve("javadoc.jar"), baseDir.resolve(prefix + "-javadoc.jar"));
-        Path stagedPom = baseDir.resolve(prefix + ".pom");
-        Path sourcePom = moduleDir.resolve(POM);
-        if (Files.isRegularFile(sourcePom) && !Files.exists(stagedPom)) {
-            if (testDeps.isEmpty()) {
-                Files.createLink(stagedPom, sourcePom);
-            } else {
-                writeMergedPom(sourcePom, testDeps, stagedPom);
-            }
-        }
-    }
-
-    private static void stageTestModule(Path moduleDir,
-                                        Coordinates coordinates,
-                                        Path stagingRoot) throws IOException {
-        Path baseDir = baseDirFor(stagingRoot, coordinates);
-        Files.createDirectories(baseDir);
-        String prefix = coordinates.artifactId() + "-" + coordinates.version();
-        link(moduleDir.resolve("classes.jar"), baseDir.resolve(prefix + "-tests.jar"));
-        link(moduleDir.resolve("sources.jar"), baseDir.resolve(prefix + "-tests-sources.jar"));
-        link(moduleDir.resolve("javadoc.jar"), baseDir.resolve(prefix + "-tests-javadoc.jar"));
-    }
-
-    private static Path baseDirFor(Path stagingRoot, Coordinates coordinates) {
-        return stagingRoot
-                .resolve(coordinates.groupId().replace('.', '/'))
-                .resolve(coordinates.artifactId())
-                .resolve(coordinates.version());
     }
 
     private static void link(Path source, Path target) throws IOException {

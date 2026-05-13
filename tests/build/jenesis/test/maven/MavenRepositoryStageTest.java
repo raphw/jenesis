@@ -9,6 +9,7 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.maven.MavenRepositoryStage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenRepositoryStageTest {
 
@@ -185,7 +186,7 @@ public class MavenRepositoryStageTest {
         writeTestModule(testB, "foo", "com.example", "foo.test.b", "1.2.3", List.of());
         Files.writeString(testB.resolve("classes.jar"), "test-b");
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(
+        assertThatThrownBy(
                         () -> run(source, "module-foo", "module-foo-test-a", "module-foo-test-b"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Multiple test modules declare main 'foo'")
@@ -204,7 +205,7 @@ public class MavenRepositoryStageTest {
         writeTestModule(test, "typo", "com.example", "foo.test", "1.2.3", List.of());
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(
+        assertThatThrownBy(
                         () -> run(source, "module-foo", "module-foo-test"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")
@@ -218,7 +219,7 @@ public class MavenRepositoryStageTest {
         writeTestModule(test, "", "com.example", "foo.test", "1.2.3", List.of());
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(
+        assertThatThrownBy(
                         () -> run(source, "module-foo-test"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")

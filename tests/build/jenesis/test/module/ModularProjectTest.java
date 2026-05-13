@@ -13,6 +13,7 @@ import build.jenesis.project.JavaModule;
 import build.jenesis.project.MultiProjectModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 public class ModularProjectTest {
@@ -34,8 +35,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
-        org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> executor.execute(Runnable::run).toCompletableFuture().join())
+        assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .hasRootCauseMessage("Test module 'foo' declares @tests other.module but does not"
                         + " 'requires other.module;' (declared requires: [bar])");

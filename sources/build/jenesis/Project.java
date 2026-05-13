@@ -1,11 +1,11 @@
 package build.jenesis;
 
 import module java.base;
+import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryStage;
-import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
