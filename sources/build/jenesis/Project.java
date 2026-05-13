@@ -14,7 +14,6 @@ import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.step.Bind;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.Relocate;
@@ -27,7 +26,6 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
-            Path metadata,
             Path root,
             String hashAlgorithm,
             Map<String, Repository> repositories,
@@ -67,18 +65,6 @@ public final class Project {
                     descriptor.artifacts(),
                     descriptor.runtimeArtifacts());
                 }
-                if (context.metadata() != null) {
-                    Path metadata = context.root().resolve(context.metadata());
-                    sub.addSource("properties", metadata);
-                    sub.addStep("metadata",
-                            new Bind(Map.of(Path.of(""), Path.of(BuildStep.METADATA))),
-                            "properties");
-                    sub.addStep("pom", new Pom(),
-                            descriptor.sources(),
-                            descriptor.manifests(),
-                            descriptor.checked(),
-                            "metadata");
-                }
             };
         }
     }
@@ -102,14 +88,14 @@ public final class Project {
             Context context = new Context(builder.tests(),
                     builder.sources(),
                     builder.javadoc(),
-                    builder.metadata(),
                     builder.root(),
                     builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
+            Assembler wrapped = withPom(assembler, builder);
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
-                            descriptor -> assembler.apply(context, descriptor))));
+                            descriptor -> wrapped.apply(context, descriptor))));
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -135,7 +121,6 @@ public final class Project {
                 Context context = new Context(builder.tests(),
                         builder.sources(),
                         builder.javadoc(),
-                        builder.metadata(),
                         builder.root(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
@@ -151,6 +136,7 @@ public final class Project {
         };
 
         Layout MODULAR_POM_AWARE = (executor, builder, assembler) -> {
+            Assembler wrapped = withPom(assembler, builder);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
@@ -171,14 +157,13 @@ public final class Project {
                 Context context = new Context(builder.tests(),
                         builder.sources(),
                         builder.javadoc(),
-                        builder.metadata(),
                         builder.root(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
                 sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
                         context.repositories(), context.resolvers(),
-                        descriptor -> assembler.apply(context, descriptor)));
+                        descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
@@ -187,6 +172,24 @@ public final class Project {
         };
 
         Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);
+
+        private static Assembler withPom(Assembler base, Builder builder) throws IOException {
+            Map<String, String> metadata;
+            if (builder.metadata() == null) {
+                metadata = Map.of();
+            } else {
+                Properties properties = new Properties();
+                try (Reader reader = Files.newBufferedReader(builder.root().resolve(builder.metadata()))) {
+                    properties.load(reader);
+                }
+                metadata = new LinkedHashMap<>();
+                properties.stringPropertyNames().forEach(name -> metadata.put(name, properties.getProperty(name)));
+            }
+            return (context, descriptor) -> new PomModule(
+                    base.apply(context, descriptor),
+                    descriptor,
+                    metadata);
+        }
 
         static Layout of(Path root) throws IOException {
             List<Path> moduleInfos = new ArrayList<>();
@@ -219,6 +222,36 @@ public final class Project {
             throw new IllegalStateException(
                     "No build descriptor found under " + root.toAbsolutePath()
                             + " (expected a module-info.java or a pom.xml)");
+        }
+    }
+
+    private static final class PomModule implements BuildExecutorModule {
+
+        private final BuildExecutorModule wrapped;
+        private final ModuleDescriptor descriptor;
+        private final Pom pom;
+
+        private PomModule(BuildExecutorModule wrapped, ModuleDescriptor descriptor, Map<String, String> metadata) {
+            this.wrapped = wrapped;
+            this.descriptor = descriptor;
+            this.pom = new Pom(metadata);
+        }
+
+        @Override
+        public Optional<String> resolve(String path) {
+            if (path.equals("pom") || path.startsWith("pom/")) {
+                return Optional.of(path);
+            }
+            return wrapped.resolve(path);
+        }
+
+        @Override
+        public void accept(BuildExecutor sub, SequencedMap<String, Path> inherited) throws IOException {
+            wrapped.accept(sub, inherited);
+            sub.addStep("pom", pom,
+                    descriptor.sources(),
+                    descriptor.manifests(),
+                    descriptor.checked());
         }
     }
 

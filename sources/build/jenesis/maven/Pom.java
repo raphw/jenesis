@@ -12,11 +12,29 @@ public class Pom implements BuildStep {
     public static final String POM = "pom.xml";
 
     private final Function<String, String> resolver;
+    private final Map<String, String> shared;
     private final String buildVersion = System.getProperty("jenesis.buildVersion");
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this((Function<String, String> & Serializable) (coordinate -> {
+        this(defaultResolver(), Map.of());
+    }
+
+    public Pom(Map<String, String> shared) {
+        this(defaultResolver(), shared);
+    }
+
+    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
+        this(resolver, Map.of());
+    }
+
+    public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
+        this.resolver = resolver;
+        this.shared = Map.copyOf(shared);
+    }
+
+    private static <F extends Function<String, String> & Serializable> F defaultResolver() {
+        return (F) (Function<String, String> & Serializable) (coordinate -> {
             int separator = coordinate.indexOf('/');
             if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
                 return coordinate;
@@ -28,11 +46,7 @@ public class Pom implements BuildStep {
             }
             String groupId = elements[0] + "." + elements[1];
             return "maven/" + groupId + "/" + name + "/0-SNAPSHOT";
-        }));
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this.resolver = resolver;
+        });
     }
 
     @Override
@@ -63,6 +77,7 @@ public class Pom implements BuildStep {
                 }
             }
         }
+        shared.forEach(metadata::setProperty);
         String prefix = null;
         Parsed self = null;
         for (String coordinate : coordinates.stringPropertyNames()) {
