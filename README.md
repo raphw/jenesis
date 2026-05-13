@@ -920,62 +920,196 @@ resolver mechanics directly - they pass a `Map<String, Resolver>` keyed by prefi
 `JavaModule.testIfAvailable(...)` or `DependenciesModule`, and the generic infrastructure dispatches
 coordinates to the right resolver by prefix.
 
+Project metadata
+----------------
+
+Jenesis carries POM descriptive metadata (name, description, url, license, developer, SCM) through a single
+hash-tracked channel keyed off a properties file named by convention `metadata.properties`. The same channel is
+fed by per-layout defaults extracted from the project's own sources (module-info or pom.xml), and overridden
+key-by-key by the user-supplied file.
+
+### Pointing jenesis at the file
+
+The file path is set in one of two equivalent ways:
+
+- System property: `-Djenesis.project.metadata=metadata.properties` (path resolved relative to the project root).
+- Programmatic API: `Project.builder().metadata(Path.of("metadata.properties"))`.
+
+A `null` (unset) value means no project-level metadata file; jenesis still emits POMs that contain only the
+fields the active layout supplies. When the value is set, the assembler creates a single-file source pointing at
+that path, hard-links it through a `Bind` step, and exposes the result as a predecessor named `metadata` to the
+`Pom` step. Because the file's content participates in the build hash chain, any edit to `metadata.properties`
+invalidates downstream `pom`, `collect`, and `stage` outputs the same way a source change would.
+
+### Recognised keys
+
+```properties
+# Release-target filter (optional). When set, only the module whose Pom-resolver
+# artifactId matches this value emits a pom.xml; other modules are silently
+# skipped, and MavenRepositoryLayout therefore omits them from the staged tree.
+# For MODULAR projects the value is the full Java module name (e.g. build.jenesis);
+# for MAVEN projects it is the artifactId from pom.xml.
+project.module=build.jenesis
+
+# Descriptive metadata - usually supplied by the layout (see below) and only
+# placed here when overriding. Emitted as <name>, <description>, <url>.
+project.name=Jenesis
+project.description=A build tool for Java projects, written and configured in Java itself.
+project.url=https://github.com/raphw/jenesis
+
+# Single <license> entry. Only one license is supported; if a pom.xml declares
+# several, only the first is extracted into the defaults.
+license.name=Apache-2.0
+license.url=https://www.apache.org/licenses/LICENSE-2.0.txt
+
+# Single <developer> entry. Same single-instance rule as license.
+developer.id=raphw
+developer.name=Rafael Winterhalter
+developer.email=rafael.wth@gmail.com
+
+# <scm> block. <developerConnection> is omitted-then-derived: when
+# scm.developerConnection is missing, the emitter writes scm.connection
+# into <developerConnection> as well, so most projects only need the two
+# keys below.
+scm.connection=scm:git:https://github.com/raphw/jenesis.git
+scm.url=https://github.com/raphw/jenesis
+```
+
+The filename string itself lives as the constant `BuildStep.METADATA` ("metadata.properties"), alongside
+`IDENTITY`, `REQUIRES`, and `VERSIONS`, and is the name the `Bind` step writes inside its step output and the
+`Pom` step expects to find on a predecessor folder.
+
+### Per-layout defaults
+
+Each layout's manifests step writes its own `metadata.properties` into the per-module manifests folder, so
+defaults travel through the same predecessor channel as the user-supplied file. The user's file is iterated
+last, so user keys override layout-derived keys on a key-by-key basis.
+
+`MODULAR` extracts `project.name` from the module-info's javadoc first sentence (trailing `.` stripped) and
+`project.description` from the rest of the body. The same parser pass that already reads `@release` and
+`@requires` reads the description, so the cost is essentially free:
+
+```java
+/**
+ * Jenesis.
+ *
+ * A build tool for Java projects, written and configured in Java itself.
+ *
+ * @release 25
+ */
+module build.jenesis { ... }
+```
+
+contributes `project.name=Jenesis` and `project.description=A build tool for Java projects, ...` automatically.
+A javadoc with no body produces neither key. A single sentence with no trailing body produces only
+`project.name`.
+
+`MAVEN` (and `MODULE_AWARE_MAVEN`) parses each module's source `pom.xml` for `<name>`, `<description>`,
+`<url>`, the first `<license>`, the first `<developer>`, and the `<scm>` block, and writes the same property
+keys into `metadata.properties`. The extraction is a direct DOM read - property expansion (`${var}`) and parent
+POM inheritance are deliberately not applied to these specific fields. A project that needs `${project.url}`
+substituted, or a value inherited from a parent POM, must put the resolved value into the project-level
+`metadata.properties` so it overrides the literal default.
+
+### The Pom step's predecessor order
+
+`Pom` is wired with predecessors in the order `sources, manifests, checked, metadata`. Properties are loaded in
+that order, and a key found later in iteration replaces an earlier value. So the override chain is:
+
+1. The layout's manifests-derived `metadata.properties` (from module-info or pom.xml) lands first.
+2. The project-level `metadata.properties` (the file `-Djenesis.project.metadata` points at) lands last and
+   wins on any overlapping key.
+
+The `project.module` key is read after the loop and, when present, suppresses POM emission for any module
+whose resolver-computed artifactId does not match - that's how the test module gets filtered out of a release
+build of jenesis without anyone having to thread an exclusion list through the assembler.
+
 Releasing to Maven Central
 --------------------------
 
-A project releases by pointing `-Djenesis.project.metadata=<path>` (or `Project.Builder.metadata(Path)`) at a
-properties file relative to the project root. When set, the assembler wires a source for that file plus a `Bind`
-step that exposes it as a predecessor named `metadata` to the per-module `Pom` step, so the file's content
-participates in the build hash chain and any change invalidates the emitted POM.
+This section describes the release pipeline that any project using jenesis can adopt. The next section
+documents how this repository wires those mechanisms together for its own releases.
 
-The recognised keys in the file are:
+### The stage step
 
-- `project.module` - selects which module's POM is emitted. The value matches the artifactId the Pom step's
-  resolver computes from a module-info.java (full module name) or from a `pom.xml` (its `<artifactId>`).
-  When set, modules whose computed artifactId does not match are skipped, so MavenRepositoryLayout naturally
-  excludes them at the `stage` step. When unset, every module emits a POM.
-- `project.url` - emitted as `<url>` in the POM.
-- `license.name`, `license.url` - emitted as a single `<license>` entry under `<licenses>`.
-- `developer.id`, `developer.name`, `developer.email` - emitted as a single `<developer>` entry under `<developers>`.
-- `scm.connection`, `scm.url` - emitted under `<scm>`. The emitter falls back `<developerConnection>` to
-  `scm.connection` when no explicit `scm.developerConnection` is provided.
-- `project.name`, `project.description` - emitted as `<name>` and `<description>`. These are usually supplied
-  by the layout itself (see below) and only need to live in the metadata file when overriding.
+Each of the three `Project.Layout` constants wires a `stage` step right after `collect`:
 
-Per-layout defaults flow into the same `metadata.properties` channel via each layout's manifests step:
+```java
+executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+executor.addStep("stage",   new Relocate(new MavenRepositoryLayout()),             "collect");
+```
 
-- `MODULAR` extracts `project.name` from the module-info's javadoc first sentence and `project.description`
-  from the rest of the body. So a module-info like
-  ```java
-  /**
-   * Jenesis.
-   *
-   * A build tool for Java projects, written and configured in Java itself.
-   *
-   * @release 25
-   */
-  module build.jenesis { ... }
-  ```
-  contributes the two fields automatically; the project's metadata file does not need to repeat them.
-- `MAVEN` (and `MODULE_AWARE_MAVEN`) extracts `<name>`, `<description>`, `<url>`, the first `<license>`, the
-  first `<developer>`, and `<scm>` from the source `pom.xml` of each module. (Property expansion and parent
-  inheritance are not applied to these specific fields - if a project needs them resolved, override the value
-  in the project-level metadata file.)
+The stage step writes a Maven repository layout view of the build output under `target/stage/output/` via
+`Relocate`, which `Files.createLink`s rather than copying - the staged tree shares inodes with
+`target/collect/output/`. Like every other jenesis step, its output is content-hashed and skipped on re-runs
+when inputs are unchanged. Modules without a POM (because `project.module` filtered them out, or because no
+layout wrote one) are naturally skipped: `MavenRepositoryLayout.apply()` requires a `pom.xml` next to each jar
+and returns `Optional.empty()` otherwise.
 
-The `Pom` step iterates predecessors in the order `sources, manifests, checked, metadata`, so the user-supplied
-file overrides the layout-derived defaults on a key-by-key basis. The metadata-properties string itself lives as
-`BuildStep.METADATA`.
+A release build is therefore typically:
 
-The `stage` step writes a Maven layout view of the build output under `target/stage/output/` via `Relocate`,
-which hard-links rather than copying so the staged tree shares inodes with `target/collect/output/`. It is wired
-unconditionally into `Project.Builder.build()` so a release pipeline can invoke `java build/jenesis/Project.java
-stage`. Like every other jenesis step, its output is content-hashed and skipped on re-runs when inputs are
-unchanged. Modules without a POM (because `project.module` filtered them out) are naturally skipped by
-`MavenRepositoryLayout`.
+```
+java -Djenesis.buildVersion=<version> \
+     -Djenesis.project.sources=true \
+     -Djenesis.project.docs=true \
+     -Djenesis.project.metadata=metadata.properties \
+     build/jenesis/Project.java stage
+```
 
-[JReleaser](https://jreleaser.org) is a convenient way to consume that directory: a `jreleaser.yml` at the
-project root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `target/stage/output/`,
-plus the standard `JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment
-variables, lets a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2` in CI) sign
-and upload the staged artifacts to Maven Central. The repo's `.github/workflows/release.yml` shows the
-complete pipeline triggered by commit messages prefixed with `[release] <version>`.
+`jenesis.buildVersion` is what `Javac` stamps as `--module-version` and what the `Pom` step writes into
+`<version>`; the staged paths use the same value to form `<artifactId>-<version>[.<classifier>].<ext>`.
+
+### Handing off to JReleaser
+
+[JReleaser](https://jreleaser.org) consumes the staged directory directly. A `jreleaser.yml` at the project
+root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `target/stage/output/`, plus the
+standard `JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment variables, lets
+a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2` in CI) sign and upload the
+staged artifacts to Maven Central. `JRELEASER_PROJECT_VERSION` should be set to the same value passed as
+`jenesis.buildVersion` so JReleaser and the emitted POM agree on the coordinate.
+
+How jenesis itself releases
+---------------------------
+
+The release configuration that this repo actually uses lives in three files: `metadata.properties` at the root,
+`jreleaser.yml` at the root, and `.github/workflows/release.yml`.
+
+`metadata.properties` carries the SCM, license, developer, url, and the `project.module=build.jenesis` filter
+that limits the staged tree to the main artifact (excluding `module-tests`). `project.name` and
+`project.description` are not in this file because the `MODULAR` layout reads them from the module-info's
+javadoc, and `module-info.java` has:
+
+```java
+/**
+ * Jenesis.
+ *
+ * A build tool for Java projects, written and configured in Java itself.
+ *
+ * @release 25
+ */
+module build.jenesis { ... }
+```
+
+`pom.xml` at the root mirrors the same metadata for IDE/Maven consumers and for jenesis itself if anyone forces
+the `MAVEN` layout. The published coordinate is therefore `build.jenesis:build.jenesis:<version>`, and a
+successful release produces:
+
+```
+target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.jar
+target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>-sources.jar
+target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>-javadoc.jar
+target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.pom
+```
+
+`.github/workflows/release.yml` triggers on commits whose first line begins with `[release]`. The release
+version is resolved as follows:
+
+- `[release] 1.2.3` (explicit version after the marker) - use `1.2.3`.
+- `[release]` (marker alone) - take the highest `v?X.Y.Z` git tag, bump its minor by one, reset patch. So
+  `v0.1.0 -> 0.2.0`, `v0.9.0 -> 0.10.0`, `v1.4.0 -> 1.5.0`.
+- `[release]` with no semver tags in the repo - bootstrap at `0.0.1`.
+
+The workflow then runs the release build (the canonical command above, with `jenesis.buildVersion` set to the
+resolved version) and hands off to `jreleaser/release-action@v2` with `full-release`. JReleaser signs, uploads,
+and (because `release.github.skipRelease: false`) cuts a matching `v<version>` git tag, which the next
+`[release]` commit will pick up to compute its own auto-incremented version.
