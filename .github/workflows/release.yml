@@ -1,12 +1,16 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
     branches: [master]
 
 jobs:
   release:
-    if: startsWith(github.event.head_commit.message, '[release]')
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -15,11 +19,12 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Resolve release version
         id: version
         env:
-          MESSAGE: ${{ github.event.head_commit.message }}
+          MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
         run: |
           HEADER="$(printf '%s\n' "$MESSAGE" | head -n1)"
           VERSION="$(echo "$HEADER" | sed -nE 's/^\[release\][[:space:]]+(.+)$/\1/p' | awk '{print $1}')"

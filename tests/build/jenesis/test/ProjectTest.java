@@ -39,11 +39,11 @@ public class ProjectTest {
     }
 
     @Test
-    public void auto_prefers_modular_when_both_are_present() throws IOException {
+    public void auto_prefers_maven_when_both_are_present() throws IOException {
         Files.writeString(root.resolve("pom.xml"), "<project/>");
         Path sources = Files.createDirectory(root.resolve("sources"));
         Files.writeString(sources.resolve("module-info.java"), "module example {}");
-        assertThat(Project.Layout.of(root)).isSameAs(Project.Layout.MODULAR);
+        assertThat(Project.Layout.of(root)).isSameAs(Project.Layout.MAVEN);
     }
 
     @Test
