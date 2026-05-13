@@ -38,4 +38,4 @@ jobs:
           java-version: '25'
 
       - name: Project layout ${{ matrix.layout }}
-        run: java -Djenesis.project.layout=${{ matrix.layout }} build/Project.java stage
+        run: java -Djenesis.project.layout=${{ matrix.layout }} build/jenesis/Project.java stage
