@@ -71,7 +71,7 @@ public class ProjectTest {
 
     @Test
     public void layout_setter_round_trips_each_concrete_layout() {
-        for (Project.Layout layout : List.of(Project.Layout.MAVEN, Project.Layout.MODULAR, Project.Layout.MODULAR_POM_AWARE)) {
+        for (Project.Layout layout : List.of(Project.Layout.MAVEN, Project.Layout.MODULAR, Project.Layout.MODULAR_TO_MAVEN)) {
             assertThat(Project.builder().layout(layout).resolveProperties().layout()).isSameAs(layout);
         }
     }
@@ -81,7 +81,7 @@ public class ProjectTest {
         Map<String, Project.Layout> cases = Map.of(
                 "maven", Project.Layout.MAVEN,
                 "modular", Project.Layout.MODULAR,
-                "modular_pom_aware", Project.Layout.MODULAR_POM_AWARE);
+                "modular_to_maven", Project.Layout.MODULAR_TO_MAVEN);
         cases.forEach((name, layout) -> {
             System.setProperty("jenesis.project.layout", name);
             assertThat(Project.builder().resolveProperties().layout())
@@ -202,10 +202,10 @@ public class ProjectTest {
     }
 
     @Test
-    public void modular_pom_aware_layout_resolver_maps_named_and_unnamed_modules() throws IOException {
+    public void modular_to_maven_layout_resolver_maps_named_and_unnamed_modules() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
         Project.Builder builder = Project.builder().root(root).target(target);
-        Function<String, String> resolver = Project.Layout.MODULAR_POM_AWARE.apply(
+        Function<String, String> resolver = Project.Layout.MODULAR_TO_MAVEN.apply(
                 BuildExecutor.of(target), builder, Project.Assembler.ofJava());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");

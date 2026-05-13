@@ -24,7 +24,7 @@ this repository and run the command above from its root.
 
 ```java
 Project.builder()
-       .layout(Project.Layout.MODULAR_POM_AWARE)
+       .layout(Project.Layout.MODULAR_TO_MAVEN)
        .hashAlgorithm("SHA512")
        .tests(false)
        .build(args);
@@ -76,7 +76,7 @@ Selectors starting with `+` are rewritten into per-project module paths via a na
 layout. The shipped layouts encode names as `module-<URLEncode(name)>` and place them under their per-project
 aggregator:
 
-- `+sources` resolves to `build/modules/compose/module/module-sources` under `MODULAR` and `MODULAR_POM_AWARE`, or
+- `+sources` resolves to `build/modules/compose/module/module-sources` under `MODULAR` and `MODULAR_TO_MAVEN`, or
   to `build/maven/compose/module/module-sources` under `MAVEN`.
 - `+` alone resolves to `module-` (trailing empty segment), the identity Maven's scanner produces for the root
   POM (the "unnamed" project in a multi-module Maven layout). A pure modular project has no such root, so `+`
@@ -93,9 +93,9 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
 - `Project.Layout` (set via `.layout(...)`) wires the top-level pipeline (the `download` step where applicable, the
   `build` multi-project module, the `collect` artifact relocation) and returns the `Function<String, String>` that
   expands `+`-prefixed selectors. The shipped constants `Layout.MAVEN`, `Layout.MODULAR`,
-  `Layout.MODULAR_POM_AWARE` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularPomAware.java`.
+  `Layout.MODULAR_TO_MAVEN` mirror `build/Maven.java`, `build/Modular.java`, and `build/ModularToMaven.java`.
   `Layout.AUTO` (the default) calls `Layout.of(root)` and dispatches to one of the concrete layouts;
-  `MODULAR_POM_AWARE` is reachable only explicitly, because its on-disk signature (`module-info.java` +
+  `MODULAR_TO_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` +
   `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
 - `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph: what each discovered module
   compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, effective
@@ -103,7 +103,7 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a
   `BuildExecutorModule` registered inside the per-project sub-graph. The default, `Assembler.ofJava()`, is
   layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths,
-  using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_POM_AWARE`
+  using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_TO_MAVEN`
   layouts wrap the user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded
   with project-wide metadata read once from `metadata.properties` (when configured); `MODULAR` does not.
 
@@ -115,10 +115,22 @@ entries with the same key override the layout default.
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
 | `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaModule` + per-module `Pom` step + `Relocate` artifacts | `build/Maven.java`     |
 | `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` | `build/Modular.java`   |
-| `Layout.MODULAR_POM_AWARE` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` step on top of the assembler | `build/ModularPomAware.java` |
+| `Layout.MODULAR_TO_MAVEN` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` step on top of the assembler | `build/ModularToMaven.java` |
 | `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
 
-The example scripts (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularPomAware`, `Modules`) under `build/`
+All three concrete layouts share the same `collect` step (groups each module's artifacts by module name)
+and a `stage` step that materializes the staged tree under `target/stage/output/`. The stage placement
+differs by layout:
+
+- `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryLayout`: `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>`
+  (suitable for upload to a Maven repository).
+- `MODULAR` uses `ModularLayout`: `<module>/<module>.jar` (plus `-sources.jar` / `-javadoc.jar` siblings
+  when those flags are set), since there is no `pom.xml` to anchor a Maven coordinate.
+
+Run `java build/jenesis/Project.java stage` to materialize that tree (it's the canonical entry point for
+release publishing - see [The stage step](#the-stage-step) for the full release pipeline).
+
+The example scripts (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularToMaven`, `Modules`) under `build/`
 illustrate the underlying primitives that `Project` composes; they are not part of the canonical surface.
 
 ### Running inside Docker
@@ -386,7 +398,7 @@ on the side, so the user never has to declare it as a compile-time `requires` of
 - `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
   `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers - `TestDefaultEngine.JUNIT5`
   ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
-  so the same engine works across `Modular`, `ModularPomAware`, and `Manual`-style builds. If the runner is already
+  so the same engine works across `Modular`, `ModularToMaven`, and `Manual`-style builds. If the runner is already
   visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
 - `checked` (`Checksum`, optional, only when `.computeChecksums(algorithm)` is set) fetches each unresolved
   coordinate from its `Repository` and rewrites `requires.properties` with `algorithm/<hex>` checksums.
@@ -702,12 +714,12 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.verbose`       | system property     | When `true`, the default `BuildExecutorCallback` prints per-step verbose output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines.                                              |
 | `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
 | `jenesis.buildVersion`  | system property     | When set, stamps the version onto every artifact this build produces. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` replaces the project's own `<version>` element with this value; dependency versions are unaffected. The Maven export layout reads coordinates from the produced `pom.xml`, so the export folder path, artifact filenames and `maven-metadata-local.xml` follow along. |
-| `jenesis.project.layout`        | system property | Read by `Project.Builder` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `modular_pom_aware` (case-insensitive). Unknown values throw on `resolveProperties()`. |
+| `jenesis.project.layout`        | system property | Read by `Project.Builder` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `modular_to_maven` (case-insensitive). Unknown values throw on `resolveProperties()`. |
 | `jenesis.project.hashAlgorithm` | system property | Read by `Project.Builder` to override the digest algorithm passed to `MavenProject.make` / `ModularProject.make` (default `SHA256`). Has no effect on builds that don't go through `Project`. |
 | `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` constructs its `JavaModule` without the `testIfAvailable(...)`/`test(...)` decoration, so test sources and test dependencies are not wired into the graph. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
-| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which `MODULAR` stores its `modules/` URI registry. Ignored by `MAVEN` and `MODULAR_POM_AWARE`. |
+| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which `MODULAR` stores its `modules/` URI registry. Ignored by `MAVEN` and `MODULAR_TO_MAVEN`. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
@@ -1005,7 +1017,7 @@ contributes `project.name=Jenesis` and `project.description=A build tool for Jav
 A javadoc with no body produces neither key. A single sentence with no trailing body produces only
 `project.name`.
 
-`MAVEN` (and `MODULAR_POM_AWARE`) parses each module's source `pom.xml` for `<name>`, `<description>`,
+`MAVEN` (and `MODULAR_TO_MAVEN`) parses each module's source `pom.xml` for `<name>`, `<description>`,
 `<url>`, the first `<license>`, the first `<developer>`, and the `<scm>` block, and writes the same property
 keys into `metadata.properties`. The extraction is a direct DOM read - property expansion (`${var}`) and parent
 POM inheritance are deliberately not applied to these specific fields. A project that needs `${project.url}`
@@ -1033,19 +1045,26 @@ documents how this repository wires those mechanisms together for its own releas
 
 ### The stage step
 
-Each of the three `Project.Layout` constants wires a `stage` step right after `collect`:
+Each of the three `Project.Layout` constants wires a `stage` step right after `collect`. The placement
+function differs by layout: `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryLayout`, `MODULAR` uses
+`ModularLayout`:
 
 ```java
 executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-executor.addStep("stage",   new Relocate(new MavenRepositoryLayout()),             "collect");
+executor.addStep("stage",   new Relocate(new MavenRepositoryLayout()),             "collect"); // MAVEN, MODULAR_TO_MAVEN
+executor.addStep("stage",   new Relocate(new ModularLayout()),                     "collect"); // MODULAR
 ```
 
-The stage step writes a Maven repository layout view of the build output under `target/stage/output/` via
-`Relocate`, which `Files.createLink`s rather than copying - the staged tree shares inodes with
-`target/collect/output/`. Like every other jenesis step, its output is content-hashed and skipped on re-runs
-when inputs are unchanged. Modules without a POM (because `project.module` filtered them out, or because no
-layout wrote one) are naturally skipped: `MavenRepositoryLayout.apply()` requires a `pom.xml` next to each jar
-and returns `Optional.empty()` otherwise.
+The stage step writes its tree under `target/stage/output/` via `Relocate`, which `Files.createLink`s
+rather than copying - the staged tree shares inodes with `target/collect/output/`. Like every other
+jenesis step, its output is content-hashed and skipped on re-runs when inputs are unchanged.
+
+Under the Maven placement (`MAVEN`, `MODULAR_TO_MAVEN`), modules without a POM (because `project.module`
+filtered them out, or because no layout wrote one) are naturally skipped: `MavenRepositoryLayout.apply()`
+requires a `pom.xml` next to each jar and returns `Optional.empty()` otherwise. Under `MODULAR`, the
+placement is anchored on the module-name directory left by `collect` and emits `<module>/<module>.jar`
+plus `<module>/<module>-sources.jar` and `<module>/<module>-javadoc.jar` siblings (when those flags are
+set); no POM is required or written.
 
 A release build is therefore typically:
 

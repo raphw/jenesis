@@ -10,6 +10,7 @@ import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
+import build.jenesis.module.ModularLayout;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
@@ -130,12 +131,12 @@ public final class Project {
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
+            executor.addStep(STAGE, new Relocate(new ModularLayout()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
-        Layout MODULAR_POM_AWARE = (executor, builder, assembler) -> {
+        Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
             Assembler wrapped = new PomAwareAssembler(assembler, builder);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
@@ -558,9 +559,9 @@ public final class Project {
                     case "auto" -> Layout.AUTO;
                     case "maven" -> Layout.MAVEN;
                     case "modular" -> Layout.MODULAR;
-                    case "modular_pom_aware" -> Layout.MODULAR_POM_AWARE;
+                    case "modular_to_maven" -> Layout.MODULAR_TO_MAVEN;
                     default -> throw new IllegalArgumentException(
-                            "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_pom_aware)");
+                            "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
                 };
             }
             String algorithm = System.getProperty("jenesis.project.hashAlgorithm");
