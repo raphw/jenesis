@@ -103,8 +103,9 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a
   `BuildExecutorModule` registered inside the per-project sub-graph. The default, `Assembler.ofJava()`, is
   layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths,
-  using whatever repositories and resolvers the layout has provided. The `MODULAR_POM_AWARE` layout wraps the
-  user's assembler to additionally emit a per-project `pom` step.
+  using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_POM_AWARE`
+  layouts wrap the user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded
+  with project-wide metadata read once from `metadata.properties` (when configured); `MODULAR` does not.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived
 module repository for `MODULAR`) with any user-provided ones, and pass the merged maps through `Context`. User
@@ -112,10 +113,10 @@ entries with the same key override the layout default.
 
 | Layout               | Pipeline                                                                                  | Mirrors                |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
-| `Layout.MAVEN`       | `MavenProject` scan + per-project `JavaModule` + `Relocate` artifacts                     | `build/Maven.java`     |
-| `Layout.MODULAR`     | `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` | `build/Modular.java`   |
-| `Layout.MODULAR_POM_AWARE` | `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` side-output added on top of the assembler | `build/ModularPomAware.java` |
-| `Layout.AUTO` (default) | Detection: any `module-info.java` under the root → `MODULAR`; else a root `pom.xml` → `MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
+| `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaModule` + per-module `Pom` step + `Relocate` artifacts | `build/Maven.java`     |
+| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` | `build/Modular.java`   |
+| `Layout.MODULAR_POM_AWARE` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` step on top of the assembler | `build/ModularPomAware.java` |
+| `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
 
 The example scripts (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularPomAware`, `Modules`) under `build/`
 illustrate the underlying primitives that `Project` composes; they are not part of the canonical surface.

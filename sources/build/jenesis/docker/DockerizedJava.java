@@ -11,6 +11,7 @@ public class DockerizedJava {
     private final String image;
     private final Path workingDirectory;
     private final Map<Path, String> mounts;
+    private final Map<String, String> environment;
 
     public DockerizedJava(Path workingDirectory) throws IOException, InterruptedException {
         String image;
@@ -46,13 +47,17 @@ public class DockerizedJava {
     }
 
     public DockerizedJava(Path workingDirectory, String image) {
-        this(workingDirectory, image, Map.of());
+        this(workingDirectory, image, Map.of(), Map.of());
     }
 
-    private DockerizedJava(Path workingDirectory, String image, Map<Path, String> mounts) {
+    private DockerizedJava(Path workingDirectory,
+                           String image,
+                           Map<Path, String> mounts,
+                           Map<String, String> environment) {
         this.image = image;
         this.workingDirectory = workingDirectory;
         this.mounts = mounts;
+        this.environment = environment;
     }
 
     public String image() {
@@ -62,7 +67,13 @@ public class DockerizedJava {
     public DockerizedJava mount(Path host, String container, boolean readOnly) {
         SequencedMap<Path, String> copy = new LinkedHashMap<>(mounts);
         copy.put(host.toAbsolutePath(), container + (readOnly ? ":ro" : ""));
-        return new DockerizedJava(workingDirectory, image, copy);
+        return new DockerizedJava(workingDirectory, image, copy, environment);
+    }
+
+    public DockerizedJava env(String name, String value) {
+        SequencedMap<String, String> copy = new LinkedHashMap<>(environment);
+        copy.put(name, value);
+        return new DockerizedJava(workingDirectory, image, mounts, copy);
     }
 
     public int execute(String main, Map<String, String> properties, String... args) throws IOException, InterruptedException {
@@ -95,6 +106,10 @@ public class DockerizedJava {
         for (Map.Entry<Path, String> mount : mounts.entrySet()) {
             docker.add("-v");
             docker.add(mount.getKey() + ":" + mount.getValue());
+        }
+        for (Map.Entry<String, String> variable : environment.entrySet()) {
+            docker.add("-e");
+            docker.add(variable.getKey() + "=" + variable.getValue());
         }
         docker.add(image);
         docker.add(JAVA_HOME_MOUNT + "/bin/java");

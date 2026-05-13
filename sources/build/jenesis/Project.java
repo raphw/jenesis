@@ -92,7 +92,7 @@ public final class Project {
                     builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
-            Assembler wrapped = withPom(assembler, builder);
+            Assembler wrapped = new PomAwareAssembler(assembler, builder);
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> wrapped.apply(context, descriptor))));
@@ -136,7 +136,7 @@ public final class Project {
         };
 
         Layout MODULAR_POM_AWARE = (executor, builder, assembler) -> {
-            Assembler wrapped = withPom(assembler, builder);
+            Assembler wrapped = new PomAwareAssembler(assembler, builder);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
@@ -173,24 +173,6 @@ public final class Project {
 
         Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);
 
-        private static Assembler withPom(Assembler base, Builder builder) throws IOException {
-            Map<String, String> metadata;
-            if (builder.metadata() == null) {
-                metadata = Map.of();
-            } else {
-                Properties properties = new Properties();
-                try (Reader reader = Files.newBufferedReader(builder.root().resolve(builder.metadata()))) {
-                    properties.load(reader);
-                }
-                metadata = new LinkedHashMap<>();
-                properties.stringPropertyNames().forEach(name -> metadata.put(name, properties.getProperty(name)));
-            }
-            return (context, descriptor) -> new PomModule(
-                    base.apply(context, descriptor),
-                    descriptor,
-                    metadata);
-        }
-
         static Layout of(Path root) throws IOException {
             List<Path> moduleInfos = new ArrayList<>();
             Files.walkFileTree(root, new SimpleFileVisitor<>() {
@@ -225,33 +207,48 @@ public final class Project {
         }
     }
 
-    private static final class PomModule implements BuildExecutorModule {
+    private static final class PomAwareAssembler implements Assembler { // Revisit this later and resolve as submodules.
 
-        private final BuildExecutorModule wrapped;
-        private final ModuleDescriptor descriptor;
+        private final Assembler base;
         private final Pom pom;
 
-        private PomModule(BuildExecutorModule wrapped, ModuleDescriptor descriptor, Map<String, String> metadata) {
-            this.wrapped = wrapped;
-            this.descriptor = descriptor;
+        private PomAwareAssembler(Assembler base, Builder builder) throws IOException {
+            this.base = base;
+            Map<String, String> metadata;
+            if (builder.metadata() == null) {
+                metadata = Map.of();
+            } else {
+                Properties properties = new Properties();
+                try (Reader reader = Files.newBufferedReader(builder.root().resolve(builder.metadata()))) {
+                    properties.load(reader);
+                }
+                metadata = new LinkedHashMap<>();
+                properties.stringPropertyNames().forEach(name -> metadata.put(name, properties.getProperty(name)));
+            }
             this.pom = new Pom(metadata);
         }
 
         @Override
-        public Optional<String> resolve(String path) {
-            if (path.equals("pom") || path.startsWith("pom/")) {
-                return Optional.of(path);
-            }
-            return wrapped.resolve(path);
-        }
+        public BuildExecutorModule apply(Context context, ModuleDescriptor descriptor) {
+            BuildExecutorModule delegate = base.apply(context, descriptor);
+            return new BuildExecutorModule() {
+                @Override
+                public Optional<String> resolve(String path) {
+                    if (path.equals("pom") || path.startsWith("pom/")) {
+                        return Optional.of(path);
+                    }
+                    return delegate.resolve(path);
+                }
 
-        @Override
-        public void accept(BuildExecutor sub, SequencedMap<String, Path> inherited) throws IOException {
-            wrapped.accept(sub, inherited);
-            sub.addStep("pom", pom,
-                    descriptor.sources(),
-                    descriptor.manifests(),
-                    descriptor.checked());
+                @Override
+                public void accept(BuildExecutor sub, SequencedMap<String, Path> inherited) throws IOException {
+                    delegate.accept(sub, inherited);
+                    sub.addStep("pom", pom,
+                            descriptor.sources(),
+                            descriptor.manifests(),
+                            descriptor.checked());
+                }
+            };
         }
     }
 
@@ -273,6 +270,10 @@ public final class Project {
                     if (!absolute.startsWith(root)) {
                         docker = docker.mount(absolute, absolute.toString(), false);
                     }
+                }
+                String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
+                if (mavenRepositoryUri != null) {
+                    docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
                 }
                 if (Boolean.getBoolean("jenesis.verbose")) {
                     System.out.println("Wrapping build within Docker image: " + docker.image());
