@@ -77,6 +77,7 @@ public class JavaModuleTest {
         buildExecutor.addModule("output", new JavaModule().test(true, null), "input");
         assertThatThrownBy(() -> buildExecutor.execute())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
                 .hasMessageContaining("No test engine could be resolved from inherited dependencies");
     }
 

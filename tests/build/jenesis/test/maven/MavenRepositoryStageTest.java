@@ -272,6 +272,32 @@ public class MavenRepositoryStageTest {
     }
 
     @Test
+    public void test_dependency_already_declared_in_main_pom_is_not_re_added_with_test_scope() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(main, "com.example", "foo", "1.2.3",
+                List.of(new Dep("org.slf4j", "slf4j-api", "2.0.9")));
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        Path test = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(test, "foo",
+                "com.example", "foo.test", "1.2.3",
+                List.of(
+                        new Dep("org.slf4j", "slf4j-api", "2.0.9"),
+                        new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+        Files.writeString(test.resolve("classes.jar"), "test");
+
+        run(source, "module-foo", "module-foo-test");
+
+        String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
+        long slf4jOccurrences = pom.lines().filter(line -> line.trim().equals("<artifactId>slf4j-api</artifactId>")).count();
+        assertThat(slf4jOccurrences).isEqualTo(1);
+        assertThat(pom).doesNotContain("<scope>test</scope>\n            </dependency>\n            <dependency>\n                <groupId>org.slf4j</groupId>");
+        assertThat(pom).contains("<artifactId>junit-jupiter</artifactId>");
+        long testScopes = pom.lines().filter(line -> line.trim().equals("<scope>test</scope>")).count();
+        assertThat(testScopes).isEqualTo(1);
+    }
+
+    @Test
     public void default_does_not_stage_test_artifacts() throws IOException {
         Path main = Files.createDirectory(source.resolve("module-foo"));
         writeMainModule(main, "com.example", "foo", "1.2.3");
@@ -346,8 +372,16 @@ public class MavenRepositoryStageTest {
                                         String groupId,
                                         String artifactId,
                                         String version) throws IOException {
+        writeMainModule(moduleDir, groupId, artifactId, version, List.of());
+    }
+
+    private static void writeMainModule(Path moduleDir,
+                                        String groupId,
+                                        String artifactId,
+                                        String version,
+                                        List<Dep> deps) throws IOException {
         Files.writeString(moduleDir.resolve("metadata.properties"), "");
-        Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, List.of()));
+        Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
     }
 
     private static void writeTestModule(Path moduleDir,

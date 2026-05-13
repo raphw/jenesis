@@ -233,7 +233,20 @@ public class MavenRepositoryStage implements BuildStep {
                     : document.createElementNS(namespace, "dependencies");
             project.appendChild(dependencies);
         }
+        Set<String> existing = new HashSet<>();
+        NodeList existingDeps = dependencies.getChildNodes();
+        for (int index = 0; index < existingDeps.getLength(); index++) {
+            Node node = existingDeps.item(index);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            Element dep = (Element) node;
+            existing.add(childText(dep, "groupId") + ":" + childText(dep, "artifactId"));
+        }
         for (DependencyEntry entry : testDeps) {
+            if (!existing.add(entry.groupId() + ":" + entry.artifactId())) {
+                continue;
+            }
             Element dependency = namespace == null
                     ? document.createElement("dependency")
                     : document.createElementNS(namespace, "dependency");
