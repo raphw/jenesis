@@ -14,16 +14,26 @@ jobs:
       - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
+          fetch-tags: true
 
-      - name: Parse release version from commit message
+      - name: Resolve release version
         id: ver
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          MESSAGE="${{ github.event.head_commit.message }}"
-          VERSION="$(printf '%s\n' "$MESSAGE" | head -n1 | sed -E 's/^\[release\][[:space:]]+//' | awk '{print $1}')"
+          HEADER="$(printf '%s\n' "$MESSAGE" | head -n1)"
+          VERSION="$(echo "$HEADER" | sed -nE 's/^\[release\][[:space:]]+(.+)$/\1/p' | awk '{print $1}')"
           if [ -z "$VERSION" ]; then
-            echo "Commit message must be: [release] <version>" >&2
-            exit 1
+            LATEST="$(git tag --list --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 | sed 's/^v//')"
+            if [ -z "$LATEST" ]; then
+              VERSION="0.0.1"
+            else
+              MAJOR="$(echo "$LATEST" | cut -d. -f1)"
+              MINOR="$(echo "$LATEST" | cut -d. -f2)"
+              VERSION="${MAJOR}.$((MINOR + 1)).0"
+            fi
           fi
+          echo "Resolved release version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 25
