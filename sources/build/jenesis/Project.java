@@ -21,7 +21,7 @@ import build.jenesis.step.Relocate;
 
 public final class Project {
 
-    public static final String BUILD = "build";
+    public static final String BUILD = "build", COLLECT = "collect", STAGE = "stage";
 
     public record Context(
             boolean tests,
@@ -110,8 +110,8 @@ public final class Project {
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> assembler.apply(context, descriptor))));
-            executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
+            executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -144,8 +144,8 @@ public final class Project {
                         context.repositories(), context.resolvers(),
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
-            executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
+            executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -180,8 +180,8 @@ public final class Project {
                         context.repositories(), context.resolvers(),
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
-            executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
+            executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
