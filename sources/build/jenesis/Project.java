@@ -152,6 +152,7 @@ public final class Project {
                 resolvers.put("module", new ModularJarResolver(false,
                         new MavenPomResolver().translated("maven",
                                 (_, coordinate) -> parser.apply(coordinate))));
+                resolvers.put("maven", new MavenPomResolver());
                 if (builder.resolvers() != null) {
                     resolvers.putAll(builder.resolvers());
                 }

@@ -16,17 +16,27 @@ public interface Resolver extends Serializable {
         return (executor, prefix, repositories, coordinates, versions, compile) -> {
             SequencedMap<String, String> translatedVersions = new LinkedHashMap<>();
             versions.forEach((coordinate, version) -> translatedVersions.put(
-                    translator.apply(prefix, coordinate),
+                    pinVersion(translator.apply(prefix, coordinate), version),
                     version));
             return dependencies(executor,
                     translated,
                     repositories,
                     coordinates.stream()
-                            .map(coordinate -> translator.apply(prefix, coordinate))
+                            .map(coordinate -> pinVersion(
+                                    translator.apply(prefix, coordinate),
+                                    versions.get(coordinate)))
                             .collect(Collectors.toCollection(LinkedHashSet::new)),
                     translatedVersions,
                     compile);
         };
+    }
+
+    private static String pinVersion(String coordinate, String version) {
+        if (version == null || version.isEmpty()) {
+            return coordinate;
+        }
+        int lastSlash = coordinate.lastIndexOf('/');
+        return lastSlash > 0 ? coordinate.substring(0, lastSlash + 1) + version : coordinate;
     }
 
     static Resolver identity() {
