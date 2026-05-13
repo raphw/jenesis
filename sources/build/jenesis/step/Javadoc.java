@@ -29,6 +29,7 @@ public class Javadoc extends JdkProcessBuildStep {
             throws IOException {
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
                 "-d", Files.createDirectory(context.next().resolve(JAVADOC)).toString(),
+                "-notimestamp",
                 "-tag", "release:a:Release:",
                 "-tag", "requires:a:Requires:",
                 "-tag", "test:X"));
