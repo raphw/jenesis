@@ -270,7 +270,6 @@ public final class Project {
                 null);
     }
 
-
     public record Builder(
             Path root,
             Path target,

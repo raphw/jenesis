@@ -196,12 +196,11 @@ public class ModularProject implements BuildExecutorModule {
                 if (file.getFileName().toString().equals("module-info.java")) {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
-                        String modulePrefix = prefix;
                         buildExecutor.addModule("module-" + URLEncoder.encode(
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MultiProjectModule.MANIFESTS, new Manifests(modulePrefix), "sources");
+                            module.addStep(MultiProjectModule.MANIFESTS, new Manifests(prefix), "sources");
                         });
                     }
                 }

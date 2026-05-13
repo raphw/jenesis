@@ -72,12 +72,12 @@ public class ModuleInfoParser {
                                 if (split < 1 || split == content.length() - 1) {
                                     continue;
                                 }
-                                String required = content.substring(0, split).trim();
+                                String dependency = content.substring(0, split).trim();
                                 String version = content.substring(split + 1).trim();
-                                if (required.startsWith("java.") || required.startsWith("jdk.") || required.isEmpty() || version.isEmpty()) {
+                                if (dependency.startsWith("java.") || dependency.startsWith("jdk.") || dependency.isEmpty() || version.isEmpty()) {
                                     continue;
                                 }
-                                versions.put(required, version);
+                                versions.put(dependency, version);
                             }
                             case "release" -> {
                                 if (!content.isEmpty()) {
