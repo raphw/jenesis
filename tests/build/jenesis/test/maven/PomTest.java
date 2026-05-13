@@ -256,6 +256,72 @@ public class PomTest {
     }
 
     @Test
+    public void metadata_properties_populate_emitted_pom() throws IOException {
+        Properties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
+            coordinates.store(writer, null);
+        }
+        Properties metadata = new SequencedProperties();
+        metadata.setProperty("project.name", "Jenesis");
+        metadata.setProperty("project.description", "A build tool.");
+        metadata.setProperty("project.url", "https://example.com/jenesis");
+        metadata.setProperty("license.name", "Apache-2.0");
+        metadata.setProperty("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
+        metadata.setProperty("developer.id", "alice");
+        metadata.setProperty("developer.name", "Alice Example");
+        metadata.setProperty("developer.email", "alice@example.com");
+        metadata.setProperty("scm.connection", "scm:git:https://example.com/jenesis.git");
+        metadata.setProperty("scm.url", "https://example.com/jenesis");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+            metadata.store(writer, null);
+        }
+        BuildStepResult result = new Pom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        String pom = Files.readString(next.resolve(Pom.POM));
+        assertThat(pom).contains("<name>Jenesis</name>");
+        assertThat(pom).contains("<description>A build tool.</description>");
+        assertThat(pom).contains("<url>https://example.com/jenesis</url>");
+        assertThat(pom).contains("<name>Apache-2.0</name>");
+        assertThat(pom).contains("<id>alice</id>");
+        assertThat(pom).contains("<email>alice@example.com</email>");
+        assertThat(pom).contains("<connection>scm:git:https://example.com/jenesis.git</connection>");
+    }
+
+    @Test
+    public void project_module_mismatch_skips_emission() throws IOException {
+        Properties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
+            coordinates.store(writer, null);
+        }
+        Properties metadata = new SequencedProperties();
+        metadata.setProperty("project.module", "other.module");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+            metadata.store(writer, null);
+        }
+        BuildStepResult result = new Pom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Pom.POM)).doesNotExist();
+    }
+
+    @Test
     public void fails_when_no_self_coordinate_is_present() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "/already/resolved.jar");

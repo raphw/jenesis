@@ -141,4 +141,37 @@ public class MavenPomEmitterTest {
                 </project>
                 """);
     }
+
+    @Test
+    public void scm_developer_connection_falls_back_to_connection() throws IOException {
+        StringWriter writer = new StringWriter();
+        new MavenPomEmitter().emit("group",
+                "artifact",
+                "version",
+                null,
+                new LinkedHashMap<>(),
+                new MavenPomEmitter.Metadata(
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        List.of(),
+                        new MavenPomEmitter.Metadata.Scm(
+                                "scm:git:https://example.com/project.git",
+                                null,
+                                null))).accept(writer);
+        assertThat(writer.toString()).isEqualTo("""
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>version</version>
+                    <scm>
+                        <connection>scm:git:https://example.com/project.git</connection>
+                        <developerConnection>scm:git:https://example.com/project.git</developerConnection>
+                    </scm>
+                </project>
+                """);
+    }
 }

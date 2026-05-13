@@ -533,4 +533,64 @@ public class MavenProjectTest {
         assertThat(testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.VERSIONS)).doesNotExist();
         assertThat(testModule.resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.VERSIONS)).doesNotExist();
     }
+
+    @Test
+    public void extracts_pom_metadata_into_manifests() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <name>Project Name</name>
+                    <description>Project description.</description>
+                    <url>https://example.com/project</url>
+                    <licenses>
+                        <license>
+                            <name>Apache-2.0</name>
+                            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+                        </license>
+                    </licenses>
+                    <developers>
+                        <developer>
+                            <id>alice</id>
+                            <name>Alice Example</name>
+                            <email>alice@example.com</email>
+                        </developer>
+                    </developers>
+                    <scm>
+                        <connection>scm:git:https://example.com/project.git</connection>
+                        <developerConnection>scm:git:git@example.com:project.git</developerConnection>
+                        <url>https://example.com/project</url>
+                    </scm>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Path module = results.get("maven/module/module-/manifests");
+        Path metadataFile = module.resolve(BuildStep.METADATA);
+        assertThat(metadataFile).exists();
+        Properties metadata = new Properties();
+        try (Reader reader = Files.newBufferedReader(metadataFile)) {
+            metadata.load(reader);
+        }
+        assertThat(metadata).containsOnly(
+                Map.entry("project.name", "Project Name"),
+                Map.entry("project.description", "Project description."),
+                Map.entry("project.url", "https://example.com/project"),
+                Map.entry("license.name", "Apache-2.0"),
+                Map.entry("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt"),
+                Map.entry("developer.id", "alice"),
+                Map.entry("developer.name", "Alice Example"),
+                Map.entry("developer.email", "alice@example.com"),
+                Map.entry("scm.connection", "scm:git:https://example.com/project.git"),
+                Map.entry("scm.developerConnection", "scm:git:git@example.com:project.git"),
+                Map.entry("scm.url", "https://example.com/project"));
+    }
 }

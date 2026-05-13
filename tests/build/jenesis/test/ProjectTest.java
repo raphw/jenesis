@@ -188,7 +188,7 @@ public class ProjectTest {
         Function<String, String> resolver = Project.Layout.MAVEN.apply(
                 BuildExecutor.of(target), builder, Project.Assembler.ofJava());
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
-        assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-.");
+        assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-");
     }
 
     @Test
@@ -198,7 +198,7 @@ public class ProjectTest {
         Function<String, String> resolver = Project.Layout.MODULAR.apply(
                 BuildExecutor.of(target), builder, Project.Assembler.ofJava());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
-        assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-.");
+        assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
 
     @Test
@@ -208,6 +208,6 @@ public class ProjectTest {
         Function<String, String> resolver = Project.Layout.MODULE_AWARE_MAVEN.apply(
                 BuildExecutor.of(target), builder, Project.Assembler.ofJava());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
-        assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-.");
+        assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
 }

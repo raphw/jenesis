@@ -113,7 +113,7 @@ public final class Project {
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
+            return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
         Layout MODULAR = (executor, builder, assembler) -> {
@@ -147,7 +147,7 @@ public final class Project {
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
+            return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
         Layout MODULE_AWARE_MAVEN = (executor, builder, assembler) -> {
@@ -183,7 +183,7 @@ public final class Project {
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
             executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
+            return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
         Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);

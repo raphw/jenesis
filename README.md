@@ -78,8 +78,9 @@ aggregator:
 
 - `+sources` resolves to `build/modules/compose/module/module-sources` under `MODULAR` and `MODULE_AWARE_MAVEN`, or
   to `build/maven/compose/module/module-sources` under `MAVEN`.
-- `+` alone resolves to `module-.`, the identity Maven's scanner produces for the root POM (the "unnamed" project
-  in a multi-module Maven layout). A pure modular project has no such root, so `+` alone won't resolve there.
+- `+` alone resolves to `module-` (trailing empty segment), the identity Maven's scanner produces for the root
+  POM (the "unnamed" project in a multi-module Maven layout). A pure modular project has no such root, so `+`
+  alone won't resolve there.
 
 The resulting path is a literal selector, which avoids the lenient `::/<name>` cascade across sibling modules. Run
 `java build/jenesis/Project.java +sources` to build one module without dragging its siblings in. The full selector

@@ -208,4 +208,54 @@ public class ModuleInfoParserTest {
         assertThat(info.coordinate()).isEqualTo("foo");
         assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
     }
+
+    @Test
+    public void extracts_first_sentence_as_name_and_remainder_as_description() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * Foo Library.
+                 *
+                 * A small library that does foo things.
+                 *
+                 * @release 25
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.name()).isEqualTo("Foo Library");
+        assertThat(info.description()).isEqualTo("A small library that does foo things.");
+        assertThat(info.release()).isEqualTo("25");
+    }
+
+    @Test
+    public void single_sentence_javadoc_extracts_only_name() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * Just a summary.
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.name()).isEqualTo("Just a summary");
+        assertThat(info.description()).isNull();
+    }
+
+    @Test
+    public void block_tag_only_javadoc_yields_null_name_and_description() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @release 25
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.name()).isNull();
+        assertThat(info.description()).isNull();
+    }
 }
