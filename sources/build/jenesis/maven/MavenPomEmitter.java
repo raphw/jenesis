@@ -88,8 +88,11 @@ public class MavenPomEmitter {
                 if (scm.connection() != null) {
                     node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "connection")).setTextContent(scm.connection());
                 }
-                if (scm.developerConnection() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developerConnection")).setTextContent(scm.developerConnection());
+                String developerConnection = scm.developerConnection() != null
+                        ? scm.developerConnection()
+                        : scm.connection();
+                if (developerConnection != null) {
+                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developerConnection")).setTextContent(developerConnection);
                 }
                 if (scm.url() != null) {
                     node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(scm.url());

@@ -28,7 +28,7 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
-            Path release,
+            Path metadata,
             Path root,
             String hashAlgorithm,
             Map<String, Repository> repositories,
@@ -68,17 +68,17 @@ public final class Project {
                     descriptor.artifacts(),
                     descriptor.runtimeArtifacts());
                 }
-                if (context.release() != null) {
-                    Path release = context.root().resolve(context.release());
-                    sub.addSource("release-source", release);
-                    sub.addStep("release",
-                            new Bind(Map.of(Path.of(""), Path.of(Pom.RELEASE))),
-                            "release-source");
+                if (context.metadata() != null) {
+                    Path metadata = context.root().resolve(context.metadata());
+                    sub.addSource("metadata-source", metadata);
+                    sub.addStep("metadata",
+                            new Bind(Map.of(Path.of(""), Path.of(BuildStep.METADATA))),
+                            "metadata-source");
                     sub.addStep("pom", new Pom(),
                             descriptor.sources(),
                             descriptor.manifests(),
                             descriptor.checked(),
-                            "release");
+                            "metadata");
                 }
             };
         }
@@ -103,7 +103,7 @@ public final class Project {
             Context context = new Context(builder.tests(),
                     builder.sources(),
                     builder.javadoc(),
-                    builder.release(),
+                    builder.metadata(),
                     builder.root(),
                     builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
@@ -135,7 +135,7 @@ public final class Project {
                 Context context = new Context(builder.tests(),
                         builder.sources(),
                         builder.javadoc(),
-                        builder.release(),
+                        builder.metadata(),
                         builder.root(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
@@ -170,7 +170,7 @@ public final class Project {
                 Context context = new Context(builder.tests(),
                         builder.sources(),
                         builder.javadoc(),
-                        builder.release(),
+                        builder.metadata(),
                         builder.root(),
                         builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
@@ -280,7 +280,7 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
-            Path release,
+            Path metadata,
             SequencedSet<String> defaultTarget,
             Assembler assembler,
             Map<String, Repository> repositories,
@@ -296,7 +296,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -312,7 +312,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -328,7 +328,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -344,7 +344,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -360,7 +360,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -376,7 +376,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -392,7 +392,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -408,14 +408,14 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
                     resolvers);
         }
 
-        public Builder release(Path release) {
+        public Builder metadata(Path metadata) {
             return new Builder(root,
                     target,
                     cache,
@@ -424,7 +424,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -440,7 +440,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                     assembler,
                     repositories,
@@ -456,7 +456,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -472,7 +472,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -488,7 +488,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
-                    release,
+                    metadata,
                     defaultTarget,
                     assembler,
                     repositories,
@@ -504,7 +504,7 @@ public final class Project {
             boolean resolvedTests = tests;
             boolean resolvedSources = sources;
             boolean resolvedJavadoc = javadoc;
-            Path resolvedRelease = release;
+            Path resolvedMetadata = metadata;
             String rootOverride = System.getProperty("jenesis.project.root");
             if (rootOverride != null) {
                 resolvedRoot = Path.of(rootOverride);
@@ -541,9 +541,9 @@ public final class Project {
             if (Boolean.getBoolean("jenesis.project.docs")) {
                 resolvedJavadoc = true;
             }
-            String releaseOverride = System.getProperty("jenesis.project.release");
-            if (releaseOverride != null) {
-                resolvedRelease = Path.of(releaseOverride);
+            String metadataOverride = System.getProperty("jenesis.project.metadata");
+            if (metadataOverride != null) {
+                resolvedMetadata = Path.of(metadataOverride);
             }
             return new Builder(resolvedRoot,
                     resolvedTarget,
@@ -553,7 +553,7 @@ public final class Project {
                     resolvedTests,
                     resolvedSources,
                     resolvedJavadoc,
-                    resolvedRelease,
+                    resolvedMetadata,
                     defaultTarget,
                     assembler,
                     repositories,

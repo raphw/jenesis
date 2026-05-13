@@ -10,7 +10,6 @@ import build.jenesis.SequencedProperties;
 public class Pom implements BuildStep {
 
     public static final String POM = "pom.xml";
-    public static final String RELEASE = "release.properties";
 
     private final Function<String, String> resolver;
     private final String buildVersion = System.getProperty("jenesis.buildVersion");
@@ -63,9 +62,9 @@ public class Pom implements BuildStep {
                     dependencies.load(reader);
                 }
             }
-            Path releaseFile = argument.folder().resolve(RELEASE);
-            if (Files.exists(releaseFile)) {
-                try (Reader reader = Files.newBufferedReader(releaseFile)) {
+            Path metadataFile = argument.folder().resolve(METADATA);
+            if (Files.exists(metadataFile)) {
+                try (Reader reader = Files.newBufferedReader(metadataFile)) {
                     release.load(reader);
                 }
             }

@@ -919,11 +919,60 @@ resolver mechanics directly - they pass a `Map<String, Resolver>` keyed by prefi
 `JavaModule.testIfAvailable(...)` or `DependenciesModule`, and the generic infrastructure dispatches
 coordinates to the right resolver by prefix.
 
-Future planned development
+Releasing to Maven Central
 --------------------------
 
-Jenesis is still a proof of concept. Pieces still on the to-do list:
+A project releases by pointing `-Djenesis.project.metadata=<path>` (or `Project.Builder.metadata(Path)`) at a
+properties file relative to the project root. When set, the assembler wires a source for that file plus a `Bind`
+step that exposes it as a predecessor named `metadata` to the per-module `Pom` step, so the file's content
+participates in the build hash chain and any change invalidates the emitted POM.
 
-- Register to Maven Central and release jar.
-- Evaluate module to publish to Maven Central. Full deployment might be out of scope for a build tool, from a conceptual point of view. Building and releasing are two different things.
+The recognised keys in the file are:
 
+- `project.module` - selects which module's POM is emitted. The value matches the artifactId the Pom step's
+  resolver computes from a module-info.java (full module name) or from a `pom.xml` (its `<artifactId>`).
+  When set, modules whose computed artifactId does not match are skipped, so MavenRepositoryLayout naturally
+  excludes them at the `stage` step. When unset, every module emits a POM.
+- `project.url` - emitted as `<url>` in the POM.
+- `license.name`, `license.url` - emitted as a single `<license>` entry under `<licenses>`.
+- `developer.id`, `developer.name`, `developer.email` - emitted as a single `<developer>` entry under `<developers>`.
+- `scm.connection`, `scm.url` - emitted under `<scm>`. The emitter falls back `<developerConnection>` to
+  `scm.connection` when no explicit `scm.developerConnection` is provided.
+- `project.name`, `project.description` - emitted as `<name>` and `<description>`. These are usually supplied
+  by the layout itself (see below) and only need to live in the metadata file when overriding.
+
+Per-layout defaults flow into the same `metadata.properties` channel via each layout's manifests step:
+
+- `MODULAR` extracts `project.name` from the module-info's javadoc first sentence and `project.description`
+  from the rest of the body. So a module-info like
+  ```java
+  /**
+   * Jenesis.
+   *
+   * A build tool for Java projects, written and configured in Java itself.
+   *
+   * @release 25
+   */
+  module build.jenesis { ... }
+  ```
+  contributes the two fields automatically; the project's metadata file does not need to repeat them.
+- `MAVEN` (and `MODULE_AWARE_MAVEN`) extracts `<name>`, `<description>`, `<url>`, the first `<license>`, the
+  first `<developer>`, and `<scm>` from the source `pom.xml` of each module. (Property expansion and parent
+  inheritance are not applied to these specific fields - if a project needs them resolved, override the value
+  in the project-level metadata file.)
+
+The `Pom` step iterates predecessors in the order `sources, manifests, checked, metadata`, so the user-supplied
+file overrides the layout-derived defaults on a key-by-key basis. The metadata-properties string itself lives as
+`BuildStep.METADATA`.
+
+The `stage` step writes a Maven layout copy of the build output under `out/staging-deploy/`. It is wired
+unconditionally into `Project.Builder.build()` so a release pipeline can invoke `java build/jenesis/Project.java
+stage`. Modules without a POM (because `project.module` filtered them out) are naturally skipped by
+`MavenRepositoryLayout`.
+
+[JReleaser](https://jreleaser.org) is a convenient way to consume that directory: a `jreleaser.yml` at the
+project root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `out/staging-deploy/`,
+plus the standard `JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment
+variables, lets a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2` in CI) sign
+and upload the staged artifacts to Maven Central. The repo's `.github/workflows/release.yml` shows the
+complete pipeline triggered by commit messages prefixed with `[release] <version>`.

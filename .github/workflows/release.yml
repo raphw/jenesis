@@ -39,7 +39,7 @@ jobs:
           java -Djenesis.buildVersion=${VERSION} \
                -Djenesis.project.sources=true \
                -Djenesis.project.docs=true \
-               -Djenesis.project.release=release.properties \
+               -Djenesis.project.metadata=metadata.properties \
                build/jenesis/Project.java stage
 
       - name: JReleaser deploy
@@ -51,7 +51,7 @@ jobs:
           JRELEASER_PROJECT_VERSION: ${{ steps.ver.outputs.version }}
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          JRELEASER_MAVEN_CENTRAL_SONATYPE_TOKEN:    ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+          JRELEASER_MAVEN_CENTRAL_SONATYPE_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}

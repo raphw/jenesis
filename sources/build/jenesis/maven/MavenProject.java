@@ -1,6 +1,7 @@
 package build.jenesis.maven;
 
 import module java.base;
+import module java.xml;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -202,6 +203,12 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));
+                                Properties metadata = extractMetadata(pomFile);
+                                if (!metadata.isEmpty()) {
+                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
+                                        metadata.store(writer, null);
+                                    }
+                                }
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
                         }
@@ -209,6 +216,76 @@ public class MavenProject implements BuildExecutorModule {
                 }
             }
         }, "scan", "prepare");
+    }
+
+    private static Properties extractMetadata(Path pomFile) throws IOException {
+        Properties result = new SequencedProperties();
+        if (!Files.isRegularFile(pomFile)) {
+            return result;
+        }
+        Document document;
+        try (InputStream stream = Files.newInputStream(pomFile)) {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            document = factory.newDocumentBuilder().parse(stream);
+        } catch (ParserConfigurationException | SAXException e) {
+            throw new IOException(e);
+        }
+        NodeList children = document.getDocumentElement().getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            String name = node.getLocalName() == null ? node.getNodeName() : node.getLocalName();
+            switch (name) {
+                case "name" -> result.setProperty("project.name", node.getTextContent().trim());
+                case "description" -> result.setProperty("project.description", node.getTextContent().trim());
+                case "url" -> result.setProperty("project.url", node.getTextContent().trim());
+                case "licenses" -> {
+                    Element first = firstChild(node, "license");
+                    if (first != null) {
+                        copyChildText(first, "name", result, "license.name");
+                        copyChildText(first, "url", result, "license.url");
+                    }
+                }
+                case "developers" -> {
+                    Element first = firstChild(node, "developer");
+                    if (first != null) {
+                        copyChildText(first, "id", result, "developer.id");
+                        copyChildText(first, "name", result, "developer.name");
+                        copyChildText(first, "email", result, "developer.email");
+                    }
+                }
+                case "scm" -> {
+                    copyChildText(node, "connection", result, "scm.connection");
+                    copyChildText(node, "developerConnection", result, "scm.developerConnection");
+                    copyChildText(node, "url", result, "scm.url");
+                }
+                default -> {
+                }
+            }
+        }
+        return result;
+    }
+
+    private static Element firstChild(Node parent, String localName) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE && localName.equals(node.getLocalName())) {
+                return (Element) node;
+            }
+        }
+        return null;
+    }
+
+    private static void copyChildText(Node parent, String localName, Properties target, String key) {
+        Element child = firstChild(parent, localName);
+        if (child != null) {
+            target.setProperty(key, child.getTextContent().trim());
+        }
     }
 
     private record Scan(Path root) implements BuildStep {

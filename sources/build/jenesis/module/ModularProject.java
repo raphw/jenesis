@@ -172,6 +172,18 @@ public class ModularProject implements BuildExecutorModule {
                 }
             }
             Javac.writeRelease(context.next(), info.release());
+            if (info.name() != null || info.description() != null) {
+                Properties metadata = new SequencedProperties();
+                if (info.name() != null) {
+                    metadata.setProperty("project.name", info.name());
+                }
+                if (info.description() != null) {
+                    metadata.setProperty("project.description", info.description());
+                }
+                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
+                    metadata.store(writer, null);
+                }
+            }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
