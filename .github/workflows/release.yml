@@ -11,13 +11,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Resolve release version
-        id: ver
+        id: version
         env:
           MESSAGE: ${{ github.event.head_commit.message }}
         run: |
@@ -37,14 +37,14 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: temurin
           java-version: '25'
 
       - name: Build and stage artifacts
         env:
-          VERSION: ${{ steps.ver.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           java -Djenesis.buildVersion=${VERSION} \
                -Djenesis.project.sources=true \
@@ -53,12 +53,12 @@ jobs:
                build/jenesis/Project.java stage
 
       - name: JReleaser deploy
-        uses: jreleaser/release-action@v2
+        uses: jreleaser/release-action@90ac653bb9c79d11179e65d81499f3f34527dcd5 # 2.5.0
         with:
           version: latest
           arguments: full-release
         env:
-          JRELEASER_PROJECT_VERSION: ${{ steps.ver.outputs.version }}
+          JRELEASER_PROJECT_VERSION: ${{ steps.version.outputs.version }}
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           JRELEASER_MAVEN_CENTRAL_SONATYPE_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload JReleaser logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: jreleaser-logs
           path: |

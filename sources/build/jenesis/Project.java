@@ -150,7 +150,7 @@ public final class Project {
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
-        Layout MODULE_AWARE_MAVEN = (executor, builder, assembler) -> {
+        Layout MODULAR_POM_AWARE = (executor, builder, assembler) -> {
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
@@ -210,11 +210,11 @@ public final class Project {
                     return FileVisitResult.CONTINUE;
                 }
             });
-            if (!moduleInfos.isEmpty()) {
-                return MODULAR;
-            }
             if (Files.isRegularFile(root.resolve("pom.xml"))) {
                 return MAVEN;
+            }
+            if (!moduleInfos.isEmpty()) {
+                return MODULAR;
             }
             throw new IllegalStateException(
                     "No build descriptor found under " + root.toAbsolutePath()
@@ -524,9 +524,9 @@ public final class Project {
                     case "auto" -> Layout.AUTO;
                     case "maven" -> Layout.MAVEN;
                     case "modular" -> Layout.MODULAR;
-                    case "module_aware_maven" -> Layout.MODULE_AWARE_MAVEN;
+                    case "modular_pom_aware" -> Layout.MODULAR_POM_AWARE;
                     default -> throw new IllegalArgumentException(
-                            "Unknown layout: " + forced + " (expected auto, maven, modular, or module_aware_maven)");
+                            "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_pom_aware)");
                 };
             }
             String algorithm = System.getProperty("jenesis.project.hashAlgorithm");

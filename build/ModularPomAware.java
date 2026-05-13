@@ -15,7 +15,7 @@ import build.jenesis.project.JavaModule;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Relocate;
 
-public class ModularByMaven {
+public class ModularPomAware {
 
     static void main(String[] args) throws IOException {
         Map<String, Repository> repositories = Map.of("maven", new MavenDefaultRepository());
