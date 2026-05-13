@@ -15,7 +15,6 @@ import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Export;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.Relocate;
@@ -112,6 +111,7 @@ public final class Project {
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> assembler.apply(context, descriptor))));
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
@@ -145,6 +145,7 @@ public final class Project {
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
@@ -180,6 +181,7 @@ public final class Project {
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep("stage", new Relocate(new MavenRepositoryLayout()), "collect");
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + (name.isEmpty() ? "." : URLEncoder.encode(name, StandardCharsets.UTF_8));
         };
@@ -562,9 +564,6 @@ public final class Project {
         public void build(String... selectors) throws IOException {
             BuildExecutor executor = BuildExecutor.of(target);
             Function<String, String> resolver = layout.apply(executor, this, assembler);
-            executor.addStep("stage",
-                    new Export(Path.of("out/staging-deploy"), new MavenRepositoryLayout()),
-                    "collect");
             executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
                     .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
                     .toArray(String[]::new));

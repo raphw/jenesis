@@ -965,13 +965,15 @@ The `Pom` step iterates predecessors in the order `sources, manifests, checked, 
 file overrides the layout-derived defaults on a key-by-key basis. The metadata-properties string itself lives as
 `BuildStep.METADATA`.
 
-The `stage` step writes a Maven layout copy of the build output under `out/staging-deploy/`. It is wired
+The `stage` step writes a Maven layout view of the build output under `target/stage/output/` via `Relocate`,
+which hard-links rather than copying so the staged tree shares inodes with `target/collect/output/`. It is wired
 unconditionally into `Project.Builder.build()` so a release pipeline can invoke `java build/jenesis/Project.java
-stage`. Modules without a POM (because `project.module` filtered them out) are naturally skipped by
+stage`. Like every other jenesis step, its output is content-hashed and skipped on re-runs when inputs are
+unchanged. Modules without a POM (because `project.module` filtered them out) are naturally skipped by
 `MavenRepositoryLayout`.
 
 [JReleaser](https://jreleaser.org) is a convenient way to consume that directory: a `jreleaser.yml` at the
-project root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `out/staging-deploy/`,
+project root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `target/stage/output/`,
 plus the standard `JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment
 variables, lets a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2` in CI) sign
 and upload the staged artifacts to Maven Central. The repo's `.github/workflows/release.yml` shows the

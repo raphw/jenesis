@@ -31,4 +31,4 @@ deploy:
         url: https://central.sonatype.com/api/v1/publisher
         applyMavenCentralRules: true
         stagingRepositories:
-          - out/staging-deploy
+          - target/stage/output
