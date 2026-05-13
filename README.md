@@ -125,7 +125,8 @@ differs by layout:
 - `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryLayout`: `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>`
   (suitable for upload to a Maven repository).
 - `MODULAR` uses `ModularLayout`: `<module>/<module>.jar` (plus `-sources.jar` / `-javadoc.jar` siblings
-  when those flags are set), since there is no `pom.xml` to anchor a Maven coordinate.
+  when those flags are set). When `jenesis.buildVersion` is set, the version is inserted as one extra path
+  segment: `<module>/<version>/<module>.jar`. There is no `pom.xml` to anchor a Maven coordinate.
 
 Run `java build/jenesis/Project.java stage` to materialize that tree (it's the canonical entry point for
 release publishing - see [The stage step](#the-stage-step) for the full release pipeline).
@@ -1059,12 +1060,71 @@ The stage step writes its tree under `target/stage/output/` via `Relocate`, whic
 rather than copying - the staged tree shares inodes with `target/collect/output/`. Like every other
 jenesis step, its output is content-hashed and skipped on re-runs when inputs are unchanged.
 
-Under the Maven placement (`MAVEN`, `MODULAR_TO_MAVEN`), modules without a POM (because `project.module`
-filtered them out, or because no layout wrote one) are naturally skipped: `MavenRepositoryLayout.apply()`
-requires a `pom.xml` next to each jar and returns `Optional.empty()` otherwise. Under `MODULAR`, the
-placement is anchored on the module-name directory left by `collect` and emits `<module>/<module>.jar`
-plus `<module>/<module>-sources.jar` and `<module>/<module>-javadoc.jar` siblings (when those flags are
-set); no POM is required or written.
+Under the Maven placement (`MAVEN`, `MODULAR_TO_MAVEN`), modules whose `metadata.properties` carries
+`project.test=true` are staged alongside the main artifacts under the **same** Maven coordinate, with
+the filename gaining a `-test` classifier suffix (`build.jenesis-1.0.0-test.jar`,
+`build.jenesis-1.0.0-test-sources.jar`, `build.jenesis-1.0.0-test-javadoc.jar`). Their POM is dropped
+at staging time so the published `<artifactId>-<version>.pom` remains the main module's. The
+`project.test` marker is set automatically: `MavenProject.Manifests` flags any per-module variant whose
+generated coordinate carries the `tests` classifier, and `ModularProject.Manifests` flags any module
+whose source-folder location contains `test` (case-insensitive), e.g. `tests/`, `src/test/java/`. The
+`Pom` step also lets test variants through its `project.module` filter and overrides the emitted
+`<artifactId>` to match the main one (so the test variant's POM doesn't end up at a different
+coordinate). All other modules without a POM are still naturally skipped: `MavenRepositoryLayout.apply()`
+requires a `pom.xml` next to each jar and returns `Optional.empty()` otherwise.
+
+Under `MODULAR`, the placement reads `project.module` from the per-module `metadata.properties` (written
+by `ModularProject.Manifests` from the JPMS module declaration and carried through `collect`) and uses
+that JPMS module name as the staging directory and jar prefix; no POM is required or written. The
+`project.test` marker is **ignored** by `ModularLayout` - test modules continue to be staged under their
+own JPMS-named directory with no `-test` suffix. When `-Djenesis.buildVersion=<v>` is set, `ModularLayout`
+inserts `<v>` as an additional path segment between the module name and the jar files.
+
+The resulting trees under `target/stage/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
+`-Djenesis.project.sources=true`, `-Djenesis.project.docs=true`):
+
+`MAVEN` and `MODULAR_TO_MAVEN` (Maven repository layout, identical for the jenesis project):
+
+```
+target/stage/output/
+└── build/
+    └── jenesis/
+        └── build.jenesis/
+            └── 1.0.0/
+                ├── build.jenesis-1.0.0.jar
+                ├── build.jenesis-1.0.0-sources.jar
+                ├── build.jenesis-1.0.0-javadoc.jar
+                ├── build.jenesis-1.0.0.pom
+                ├── build.jenesis-1.0.0-test.jar
+                ├── build.jenesis-1.0.0-test-sources.jar
+                └── build.jenesis-1.0.0-test-javadoc.jar
+```
+
+`MODULAR` with `-Djenesis.buildVersion=1.0.0`:
+
+```
+target/stage/output/
+└── build.jenesis/
+    └── 1.0.0/
+        ├── build.jenesis.jar
+        ├── build.jenesis-sources.jar
+        └── build.jenesis-javadoc.jar
+```
+
+`MODULAR` without `jenesis.buildVersion` set (no version segment):
+
+```
+target/stage/output/
+└── build.jenesis/
+    ├── build.jenesis.jar
+    ├── build.jenesis-sources.jar
+    └── build.jenesis-javadoc.jar
+```
+
+(`MAVEN` and `MODULAR_TO_MAVEN` route the test module's jars onto the main artifact's coordinate with a
+`-test` classifier suffix instead of dropping them; the per-module `project.test=true` marker triggers
+this. `MODULAR` ignores that marker and stages every discovered JPMS module under its own JPMS-named
+directory at the same level.)
 
 A release build is therefore typically:
 

@@ -25,18 +25,19 @@ public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Se
         if (filename == null) {
             return Optional.empty();
         }
+        Path parent = file.getParent();
+        if (parent == null) {
+            return Optional.empty();
+        }
+        boolean test = isTest(parent.resolve("metadata.properties"));
         String suffix = switch (filename.toString()) {
-            case "classes.jar" -> ".jar";
-            case "sources.jar" -> "-sources.jar";
-            case "javadoc.jar" -> "-javadoc.jar";
-            case "pom.xml" -> ".pom";
+            case "classes.jar" -> test ? "-test.jar" : ".jar";
+            case "sources.jar" -> test ? "-test-sources.jar" : "-sources.jar";
+            case "javadoc.jar" -> test ? "-test-javadoc.jar" : "-javadoc.jar";
+            case "pom.xml" -> test ? null : ".pom";
             default -> null;
         };
         if (suffix == null) {
-            return Optional.empty();
-        }
-        Path parent = file.getParent();
-        if (parent == null) {
             return Optional.empty();
         }
         Path pom = parent.resolve("pom.xml");
@@ -48,6 +49,19 @@ public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Se
                 coordinates.artifactId(),
                 coordinates.version(),
                 coordinates.artifactId() + "-" + coordinates.version() + suffix));
+    }
+
+    private static boolean isTest(Path metadata) {
+        if (!Files.isRegularFile(metadata)) {
+            return false;
+        }
+        Properties properties = new Properties();
+        try (Reader reader = Files.newBufferedReader(metadata)) {
+            properties.load(reader);
+        } catch (IOException _) {
+            return false;
+        }
+        return "true".equals(properties.getProperty("project.test"));
     }
 
     public static <C extends Consumer<Path> & Serializable> C createMavenLocalMetadata() {

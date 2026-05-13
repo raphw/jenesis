@@ -108,9 +108,11 @@ public class Pom implements BuildStep {
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
         String targetModule = metadata.getProperty("project.module");
-        if (targetModule != null && !targetModule.equals(self.key().artifactId())) {
+        boolean test = "true".equals(metadata.getProperty("project.test"));
+        if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
+        String emittedArtifactId = test && targetModule != null ? targetModule : self.key().artifactId();
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
         for (String name : dependencies.stringPropertyNames()) {
             int separator = name.indexOf('/');
@@ -174,7 +176,7 @@ public class Pom implements BuildStep {
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(POM))) {
             emitter.emit(
                     self.key().groupId(),
-                    self.key().artifactId(),
+                    emittedArtifactId,
                     version,
                     "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps,

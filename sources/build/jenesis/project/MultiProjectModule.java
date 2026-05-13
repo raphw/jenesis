@@ -37,7 +37,7 @@ public class MultiProjectModule implements BuildExecutorModule {
     }
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
-        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml");
+        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml", "metadata.properties");
     }
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {
@@ -49,10 +49,14 @@ public class MultiProjectModule implements BuildExecutorModule {
             }
             for (Path probe = file.getParent(); probe != null; probe = probe.getParent()) {
                 Path parent = probe.getParent();
-                if (parent != null
-                        && parent.getFileName() != null
-                        && MODULE.equals(parent.getFileName().toString())) {
-                    return Optional.of(Path.of(probe.getFileName().toString(), filename.toString()));
+                if (parent == null || parent.getFileName() == null || probe.getFileName() == null) {
+                    continue;
+                }
+                String parentName = parent.getFileName().toString();
+                String probeName = probe.getFileName().toString();
+                if (MODULE.equals(parentName)
+                        || (IDENTIFIER.equals(parentName) && probeName.startsWith(MODULE + "-"))) {
+                    return Optional.of(Path.of(probeName, filename.toString()));
                 }
             }
             return Optional.empty();

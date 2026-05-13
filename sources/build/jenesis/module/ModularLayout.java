@@ -4,6 +4,16 @@ import module java.base;
 
 public class ModularLayout implements Function<Path, Optional<Path>>, Serializable {
 
+    private final String version;
+
+    public ModularLayout() {
+        this(System.getProperty("jenesis.buildVersion"));
+    }
+
+    public ModularLayout(String version) {
+        this.version = version == null || version.isEmpty() ? null : version;
+    }
+
     @Override
     public Optional<Path> apply(Path file) {
         Path filename = file.getFileName();
@@ -23,10 +33,30 @@ public class ModularLayout implements Function<Path, Optional<Path>>, Serializab
         if (parent == null) {
             return Optional.empty();
         }
-        Path moduleName = parent.getFileName();
+        String moduleName = readModuleName(parent.resolve("metadata.properties"));
         if (moduleName == null) {
-            return Optional.empty();
+            Path dir = parent.getFileName();
+            if (dir == null) {
+                return Optional.empty();
+            }
+            moduleName = dir.toString();
         }
-        return Optional.of(Path.of(moduleName.toString(), moduleName + suffix));
+        if (version != null) {
+            return Optional.of(Path.of(moduleName, version, moduleName + suffix));
+        }
+        return Optional.of(Path.of(moduleName, moduleName + suffix));
+    }
+
+    private static String readModuleName(Path metadata) {
+        if (!Files.isRegularFile(metadata)) {
+            return null;
+        }
+        Properties properties = new Properties();
+        try (Reader reader = Files.newBufferedReader(metadata)) {
+            properties.load(reader);
+        } catch (IOException _) {
+            return null;
+        }
+        return properties.getProperty("project.module");
     }
 }

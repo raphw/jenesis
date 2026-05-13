@@ -53,9 +53,62 @@ public class ModularLayoutTest {
     }
 
     @Test
-    public void uses_immediate_parent_as_module_name() {
+    public void falls_back_to_immediate_parent_directory_when_metadata_is_absent() {
         assertThat(layout.apply(Path.of("collect/output/com.example.foo/classes.jar")))
                 .contains(Path.of("com.example.foo/com.example.foo.jar"));
+    }
+
+    @Test
+    public void uses_project_module_from_sibling_metadata_properties() throws IOException {
+        Path module = Files.createDirectory(root.resolve("module-sources"));
+        Files.writeString(module.resolve("metadata.properties"), "project.module=build.jenesis\n");
+        assertThat(layout.apply(module.resolve("classes.jar")))
+                .contains(Path.of("build.jenesis/build.jenesis.jar"));
+        assertThat(layout.apply(module.resolve("sources.jar")))
+                .contains(Path.of("build.jenesis/build.jenesis-sources.jar"));
+        assertThat(layout.apply(module.resolve("javadoc.jar")))
+                .contains(Path.of("build.jenesis/build.jenesis-javadoc.jar"));
+    }
+
+    @Test
+    public void falls_back_when_metadata_properties_lacks_project_module() throws IOException {
+        Path module = Files.createDirectory(root.resolve("module-sources"));
+        Files.writeString(module.resolve("metadata.properties"), "project.name=Sample\n");
+        assertThat(layout.apply(module.resolve("classes.jar")))
+                .contains(Path.of("module-sources/module-sources.jar"));
+    }
+
+    @Test
+    public void filters_out_metadata_properties_itself_so_it_is_not_staged() {
+        assertThat(layout.apply(Path.of("build.jenesis/metadata.properties"))).isEmpty();
+    }
+
+    @Test
+    public void inserts_version_segment_when_version_is_set() {
+        ModularLayout versioned = new ModularLayout("1.0.0");
+        assertThat(versioned.apply(Path.of("build.jenesis/classes.jar")))
+                .contains(Path.of("build.jenesis/1.0.0/build.jenesis.jar"));
+        assertThat(versioned.apply(Path.of("build.jenesis/sources.jar")))
+                .contains(Path.of("build.jenesis/1.0.0/build.jenesis-sources.jar"));
+        assertThat(versioned.apply(Path.of("build.jenesis/javadoc.jar")))
+                .contains(Path.of("build.jenesis/1.0.0/build.jenesis-javadoc.jar"));
+    }
+
+    @Test
+    public void inserts_version_segment_with_module_name_from_metadata() throws IOException {
+        Path module = Files.createDirectory(root.resolve("module-sources"));
+        Files.writeString(module.resolve("metadata.properties"), "project.module=build.jenesis\n");
+        ModularLayout versioned = new ModularLayout("2.5.1");
+        assertThat(versioned.apply(module.resolve("classes.jar")))
+                .contains(Path.of("build.jenesis/2.5.1/build.jenesis.jar"));
+    }
+
+    @Test
+    public void treats_empty_version_as_unset() {
+        assertThat(new ModularLayout("").apply(Path.of("build.jenesis/classes.jar")))
+                .contains(Path.of("build.jenesis/build.jenesis.jar"));
+        assertThat(new ModularLayout(null).apply(Path.of("build.jenesis/classes.jar")))
+                .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
     @Test
