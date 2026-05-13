@@ -69,10 +69,10 @@ public final class Project {
                 }
                 if (context.metadata() != null) {
                     Path metadata = context.root().resolve(context.metadata());
-                    sub.addSource("metadata-source", metadata);
+                    sub.addSource("properties", metadata);
                     sub.addStep("metadata",
                             new Bind(Map.of(Path.of(""), Path.of(BuildStep.METADATA))),
-                            "metadata-source");
+                            "properties");
                     sub.addStep("pom", new Pom(),
                             descriptor.sources(),
                             descriptor.manifests(),

@@ -87,12 +87,12 @@ public class Javac extends JdkProcessBuildStep {
                             "Path entry contains separator '" + File.pathSeparator + "': " + entry);
                 }
             }
-            String joined = String.join(File.pathSeparator, path);
-            String escaped = joined.replace("\\", "\\\\").replace("\"", "\\\"");
-            Path argfile = context.supplement().resolve("javac.args");
-            Files.writeString(argfile,
-                    (module ? "--module-path" : "--class-path") + "\n\"" + escaped + "\"\n");
-            commands.add("@" + argfile);
+            String escaped = String.join(File.pathSeparator, path)
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"");
+            Path file = context.supplement().resolve("javac.args");
+            Files.writeString(file, (module ? "--module-path" : "--class-path") + "\n\"" + escaped + "\"\n");
+            commands.add("@" + file);
         }
         if (module && buildVersion != null && !buildVersion.isEmpty()) {
             commands.add("--module-version");
