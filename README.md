@@ -31,9 +31,9 @@ Project.builder()
 ```
 
 Most builder properties also have a corresponding system property (`jenesis.project.layout`,
-`jenesis.project.hashAlgorithm`, `jenesis.project.skipTests`, `jenesis.project.root` / `.target` / `.cache`),
-applied by `resolveProperties()` which `Project.main(...)` calls before delegating to `build(args)`. See the
-[Configuration](#configuration) section for the complete table.
+`jenesis.project.hashAlgorithm`, `jenesis.project.skipTests`, `jenesis.project.stageTests`,
+`jenesis.project.root` / `.target` / `.cache`), applied by `resolveProperties()` which `Project.main(...)`
+calls before delegating to `build(args)`. See the [Configuration](#configuration) section for the complete table.
 
 ### Building other projects
 
@@ -720,6 +720,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.layout`        | system property | Read by `Project.Builder` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `modular_to_maven` (case-insensitive). Unknown values throw on `resolveProperties()`. |
 | `jenesis.project.hashAlgorithm` | system property | Read by `Project.Builder` to override the digest algorithm passed to `MavenProject.make` / `ModularProject.make` (default `SHA256`). Has no effect on builds that don't go through `Project`. |
 | `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` constructs its `JavaModule` without the `testIfAvailable(...)`/`test(...)` decoration, so test sources and test dependencies are not wired into the graph. |
+| `jenesis.project.stageTests`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which `MODULAR` stores its `modules/` URI registry. Ignored by `MAVEN` and `MODULAR_TO_MAVEN`. |

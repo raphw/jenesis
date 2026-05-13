@@ -98,7 +98,7 @@ public final class Project {
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> wrapped.apply(context, descriptor))));
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new MavenRepositoryStage(), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -131,7 +131,7 @@ public final class Project {
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new ModularPlacement()), COLLECT);
+            executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -168,7 +168,7 @@ public final class Project {
                         descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new MavenRepositoryStage(), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -301,6 +301,7 @@ public final class Project {
                 true,
                 false,
                 false,
+                false,
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 Assembler.ofJava(),
@@ -317,6 +318,7 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
+            boolean stageTests,
             Path metadata,
             SequencedSet<String> defaultTarget,
             Assembler assembler,
@@ -333,6 +335,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -349,6 +352,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -365,6 +369,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -381,6 +386,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -397,6 +403,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -413,6 +420,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -429,6 +437,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -445,6 +454,24 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
+                    metadata,
+                    defaultTarget,
+                    assembler,
+                    repositories,
+                    resolvers);
+        }
+
+        public Builder stageTests(boolean stageTests) {
+            return new Builder(root,
+                    target,
+                    cache,
+                    layout,
+                    hashAlgorithm,
+                    tests,
+                    sources,
+                    javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -461,6 +488,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -477,6 +505,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                     assembler,
@@ -493,6 +522,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -509,6 +539,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -525,6 +556,7 @@ public final class Project {
                     tests,
                     sources,
                     javadoc,
+                    stageTests,
                     metadata,
                     defaultTarget,
                     assembler,
@@ -541,6 +573,7 @@ public final class Project {
             boolean resolvedTests = tests;
             boolean resolvedSources = sources;
             boolean resolvedJavadoc = javadoc;
+            boolean resolvedStageTests = stageTests;
             Path resolvedMetadata = metadata;
             String rootOverride = System.getProperty("jenesis.project.root");
             if (rootOverride != null) {
@@ -578,6 +611,9 @@ public final class Project {
             if (Boolean.getBoolean("jenesis.project.docs")) {
                 resolvedJavadoc = true;
             }
+            if (Boolean.getBoolean("jenesis.project.stageTests")) {
+                resolvedStageTests = true;
+            }
             String metadataOverride = System.getProperty("jenesis.project.metadata");
             if (metadataOverride != null) {
                 resolvedMetadata = Path.of(metadataOverride);
@@ -590,6 +626,7 @@ public final class Project {
                     resolvedTests,
                     resolvedSources,
                     resolvedJavadoc,
+                    resolvedStageTests,
                     resolvedMetadata,
                     defaultTarget,
                     assembler,

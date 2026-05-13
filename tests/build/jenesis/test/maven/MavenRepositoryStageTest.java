@@ -228,6 +228,45 @@ public class MavenRepositoryStageTest {
     }
 
     @Test
+    public void default_does_not_stage_test_artifacts() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        Path test = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(test, "foo", "com.example", "foo.test", "1.2.3", List.of());
+        Files.writeString(test.resolve("classes.jar"), "test-classes");
+        Files.writeString(test.resolve("sources.jar"), "test-sources");
+        Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
+
+        run(false, source, "module-foo", "module-foo-test");
+
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3.jar")).exists();
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests.jar")).doesNotExist();
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests-sources.jar")).doesNotExist();
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests-javadoc.jar")).doesNotExist();
+    }
+
+    @Test
+    public void default_does_not_merge_test_dependencies_into_main_pom() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        Path test = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(test, "foo",
+                "com.example", "foo.test", "1.2.3",
+                List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+        Files.writeString(test.resolve("classes.jar"), "test");
+
+        run(false, source, "module-foo", "module-foo-test");
+
+        String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
+        assertThat(pom).doesNotContain("junit-jupiter");
+        assertThat(pom).doesNotContain("<scope>test</scope>");
+    }
+
+    @Test
     public void modules_without_metadata_are_skipped() throws IOException {
         Path stray = Files.createDirectory(source.resolve("module-stray"));
         Files.writeString(stray.resolve("classes.jar"), "stray");
@@ -240,6 +279,10 @@ public class MavenRepositoryStageTest {
     }
 
     private BuildStepResult run(Path folder, String... moduleDirs) throws IOException {
+        return run(true, folder, moduleDirs);
+    }
+
+    private BuildStepResult run(boolean includeTests, Path folder, String... moduleDirs) throws IOException {
         Map<Path, ChecksumStatus> checksums = new LinkedHashMap<>();
         for (String moduleDir : moduleDirs) {
             try (Stream<Path> stream = Files.list(folder.resolve(moduleDir))) {
@@ -248,7 +291,7 @@ public class MavenRepositoryStageTest {
                         ChecksumStatus.ADDED));
             }
         }
-        return new MavenRepositoryStage().apply(Runnable::run,
+        return new MavenRepositoryStage(includeTests).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(folder, checksums))))
                 .toCompletableFuture()

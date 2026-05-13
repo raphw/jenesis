@@ -112,6 +112,30 @@ public class ModularPlacementTest {
     }
 
     @Test
+    public void default_omits_files_from_test_modules() throws IOException {
+        Path module = Files.createDirectory(root.resolve("module-test"));
+        Files.writeString(module.resolve("metadata.properties"),
+                "project.module=foo.test\nproject.test=foo\n");
+        assertThat(layout.apply(module.resolve("classes.jar"))).isEmpty();
+        assertThat(layout.apply(module.resolve("sources.jar"))).isEmpty();
+        assertThat(layout.apply(module.resolve("javadoc.jar"))).isEmpty();
+    }
+
+    @Test
+    public void include_tests_emits_test_module_files_under_their_module_name() throws IOException {
+        Path module = Files.createDirectory(root.resolve("module-test"));
+        Files.writeString(module.resolve("metadata.properties"),
+                "project.module=foo.test\nproject.test=foo\n");
+        ModularPlacement layoutWithTests = new ModularPlacement(true);
+        assertThat(layoutWithTests.apply(module.resolve("classes.jar")))
+                .contains(Path.of("foo.test/foo.test.jar"));
+        assertThat(layoutWithTests.apply(module.resolve("sources.jar")))
+                .contains(Path.of("foo.test/foo.test-sources.jar"));
+        assertThat(layoutWithTests.apply(module.resolve("javadoc.jar")))
+                .contains(Path.of("foo.test/foo.test-javadoc.jar"));
+    }
+
+    @Test
     public void layout_is_serializable() throws IOException, ClassNotFoundException {
         byte[] bytes;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();

@@ -5,13 +5,23 @@ import module java.base;
 public class ModularPlacement implements Function<Path, Optional<Path>>, Serializable {
 
     private final String version;
+    private final boolean includeTests;
 
     public ModularPlacement() {
-        this(System.getProperty("jenesis.buildVersion"));
+        this(System.getProperty("jenesis.buildVersion"), false);
+    }
+
+    public ModularPlacement(boolean includeTests) {
+        this(System.getProperty("jenesis.buildVersion"), includeTests);
     }
 
     public ModularPlacement(String version) {
+        this(version, false);
+    }
+
+    public ModularPlacement(String version, boolean includeTests) {
         this.version = version == null || version.isEmpty() ? null : version;
+        this.includeTests = includeTests;
     }
 
     @Override
@@ -33,7 +43,11 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         if (parent == null) {
             return Optional.empty();
         }
-        String moduleName = readModuleName(parent.resolve("metadata.properties"));
+        Properties metadata = readMetadata(parent.resolve("metadata.properties"));
+        if (!includeTests && metadata != null && metadata.getProperty("project.test") != null) {
+            return Optional.empty();
+        }
+        String moduleName = metadata == null ? null : metadata.getProperty("project.module");
         if (moduleName == null) {
             Path dir = parent.getFileName();
             if (dir == null) {
@@ -47,7 +61,7 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         return Optional.of(Path.of(moduleName, moduleName + suffix));
     }
 
-    private static String readModuleName(Path metadata) {
+    private static Properties readMetadata(Path metadata) {
         if (!Files.isRegularFile(metadata)) {
             return null;
         }
@@ -57,6 +71,6 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         } catch (IOException _) {
             return null;
         }
-        return properties.getProperty("project.module");
+        return properties;
     }
 }

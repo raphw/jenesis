@@ -12,6 +12,16 @@ public class MavenRepositoryStage implements BuildStep {
     private static final String POM = "pom.xml";
     private static final String METADATA = "metadata.properties";
 
+    private final boolean includeTests;
+
+    public MavenRepositoryStage() {
+        this(false);
+    }
+
+    public MavenRepositoryStage(boolean includeTests) {
+        this.includeTests = includeTests;
+    }
+
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
@@ -35,7 +45,9 @@ public class MavenRepositoryStage implements BuildStep {
                     }
                     String testOf = properties.getProperty("project.test");
                     if (testOf != null) {
-                        testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));
+                        if (includeTests) {
+                            testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));
+                        }
                     } else {
                         mainModules.put(moduleDir.getFileName().toString(), moduleDir);
                     }
