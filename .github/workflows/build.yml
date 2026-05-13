@@ -20,7 +20,7 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Runner (${{ matrix.build }}).java
+      - name: ${{ matrix.build }}.java
         run: java build/${{ matrix.build }}.java
 
   project:
