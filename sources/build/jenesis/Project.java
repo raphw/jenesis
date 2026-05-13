@@ -42,9 +42,24 @@ public final class Project {
         static Assembler ofJava() {
             return (context, descriptor) -> (sub, _) -> {
                 sub.addModule("java",
-                        context.tests()
-                                ? new JavaModule().testIfAvailable(context.repositories(), context.resolvers())
-                                : new JavaModule(),
+                        (executor, inherited) -> {
+                            BuildExecutorModule delegate;
+                            if (context.tests()) {
+                                Properties metadata = new Properties();
+                                Path manifestsDir = inherited.get(BuildExecutorModule.PREVIOUS + descriptor.manifests());
+                                Path metadataFile = manifestsDir.resolve(BuildStep.METADATA);
+                                if (Files.isRegularFile(metadataFile)) {
+                                    try (Reader reader = Files.newBufferedReader(metadataFile)) {
+                                        metadata.load(reader);
+                                    }
+                                }
+                                boolean test = metadata.getProperty("project.test") != null;
+                                delegate = new JavaModule().test(test, null, context.repositories(), context.resolvers());
+                            } else {
+                                delegate = new JavaModule();
+                            }
+                            delegate.accept(executor, inherited);
+                        },
                         descriptor.sources(),
                         descriptor.manifests(),
                         descriptor.checked(),

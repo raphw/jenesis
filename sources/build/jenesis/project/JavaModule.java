@@ -19,12 +19,12 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", VERSIONS = "versions", TEST = "test";
 
     public BuildExecutorModule testIfAvailable() {
-        return test(null, null, null);
+        return test(false, null, null, null);
     }
 
     public BuildExecutorModule testIfAvailable(Map<String, Repository> repositories,
                                                Map<String, Resolver> resolvers) {
-        return test(null, repositories, resolvers);
+        return test(false, null, repositories, resolvers);
     }
 
     public BuildExecutorModule test(TestEngine engine) {
@@ -34,10 +34,26 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     public BuildExecutorModule test(TestEngine engine,
                                     Map<String, Repository> repositories,
                                     Map<String, Resolver> resolvers) {
+        return test(true, engine, repositories, resolvers);
+    }
+
+    public BuildExecutorModule test(boolean requireEngine, TestEngine engine) {
+        return test(requireEngine, engine, null, null);
+    }
+
+    public BuildExecutorModule test(boolean requireEngine,
+                                    TestEngine engine,
+                                    Map<String, Repository> repositories,
+                                    Map<String, Resolver> resolvers) {
         return (buildExecutor, inherited) -> {
             TestEngine candidate = engine;
             if (candidate == null) {
                 candidate = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
+                if (requireEngine && candidate == null) {
+                    throw new IllegalStateException(
+                            "No test engine could be resolved from inherited dependencies: "
+                                    + inherited.sequencedKeySet());
+                }
             }
             accept(buildExecutor, inherited);
             if (candidate != null) {

@@ -11,6 +11,7 @@ import sample.Sample;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class JavaModuleTest {
 
@@ -61,6 +62,38 @@ public class JavaModuleTest {
                     .isEqualTo("other/Sample.class");
             assertThat(inputStream.getNextJarEntry()).isNull();
         }
+    }
+
+    @Test
+    public void test_with_require_engine_throws_when_no_engine_resolves() throws IOException {
+        Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
+        try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("Sample.java"))) {
+            writer.append("package other;");
+            writer.newLine();
+            writer.append("public class Sample { }");
+            writer.newLine();
+        }
+        buildExecutor.addSource("input", input);
+        buildExecutor.addModule("output", new JavaModule().test(true, null), "input");
+        assertThatThrownBy(() -> buildExecutor.execute())
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No test engine could be resolved from inherited dependencies");
+    }
+
+    @Test
+    public void test_without_require_engine_silently_skips_when_no_engine_resolves() throws IOException {
+        Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
+        try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("Sample.java"))) {
+            writer.append("package other;");
+            writer.newLine();
+            writer.append("public class Sample { }");
+            writer.newLine();
+        }
+        buildExecutor.addSource("input", input);
+        buildExecutor.addModule("output", new JavaModule().test(false, null), "input");
+        SequencedMap<String, Path> steps = buildExecutor.execute();
+        assertThat(steps).containsKeys("output/classes", "output/artifacts");
+        assertThat(steps).doesNotContainKey("output/test/executed");
     }
 
     @Test

@@ -228,6 +228,50 @@ public class MavenRepositoryStageTest {
     }
 
     @Test
+    public void bare_test_with_multiple_mains_fails_loudly() throws IOException {
+        Path mainA = Files.createDirectory(source.resolve("module-foo"));
+        writeMainModule(mainA, "com.example", "foo", "1.2.3");
+        Files.writeString(mainA.resolve("classes.jar"), "foo-main");
+
+        Path mainB = Files.createDirectory(source.resolve("module-bar"));
+        writeMainModule(mainB, "com.example", "bar", "1.2.3");
+        Files.writeString(mainB.resolve("classes.jar"), "bar-main");
+
+        Path test = Files.createDirectory(source.resolve("module-foo-test"));
+        writeTestModule(test, "", "com.example", "foo.test", "1.2.3", List.of());
+        Files.writeString(test.resolve("classes.jar"), "test");
+
+        assertThatThrownBy(
+                        () -> run(source, "module-foo", "module-bar", "module-foo-test"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Test module 'module-foo-test'")
+                .hasMessageContaining("declares no parent")
+                .hasMessageContaining("multiple main modules are present")
+                .hasMessageContaining("foo")
+                .hasMessageContaining("bar");
+    }
+
+    @Test
+    public void duplicate_main_artifact_ids_fail_loudly() throws IOException {
+        Path mainA = Files.createDirectory(source.resolve("module-foo-a"));
+        writeMainModule(mainA, "com.example.a", "foo", "1.2.3");
+        Files.writeString(mainA.resolve("classes.jar"), "foo-a");
+
+        Path mainB = Files.createDirectory(source.resolve("module-foo-b"));
+        writeMainModule(mainB, "com.example.b", "foo", "1.2.3");
+        Files.writeString(mainB.resolve("classes.jar"), "foo-b");
+
+        assertThatThrownBy(
+                        () -> run(source, "module-foo-a", "module-foo-b"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Duplicate main artifactId 'foo'")
+                .hasMessageContaining("module-foo-a")
+                .hasMessageContaining("com.example.a:foo:1.2.3")
+                .hasMessageContaining("module-foo-b")
+                .hasMessageContaining("com.example.b:foo:1.2.3");
+    }
+
+    @Test
     public void default_does_not_stage_test_artifacts() throws IOException {
         Path main = Files.createDirectory(source.resolve("module-foo"));
         writeMainModule(main, "com.example", "foo", "1.2.3");

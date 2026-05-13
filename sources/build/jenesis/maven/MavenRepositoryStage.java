@@ -56,27 +56,58 @@ public class MavenRepositoryStage implements BuildStep {
         }
         Map<String, Coordinates> mainsByArtifactId = new LinkedHashMap<>();
         Map<String, Coordinates> mainsByDir = new LinkedHashMap<>();
+        Map<String, String> mainDirByArtifactId = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : mainModules.entrySet()) {
             Coordinates coordinates = readCoordinates(entry.getValue().resolve(POM));
             if (coordinates != null) {
                 mainsByDir.put(entry.getKey(), coordinates);
+                String previousDir = mainDirByArtifactId.putIfAbsent(coordinates.artifactId(), entry.getKey());
+                if (previousDir != null) {
+                    Coordinates previous = mainsByArtifactId.get(coordinates.artifactId());
+                    throw new IllegalStateException("Duplicate main artifactId '"
+                            + coordinates.artifactId()
+                            + "' declared by modules '"
+                            + previousDir
+                            + "' ("
+                            + previous.groupId()
+                            + ":"
+                            + previous.artifactId()
+                            + ":"
+                            + previous.version()
+                            + ") and '"
+                            + entry.getKey()
+                            + "' ("
+                            + coordinates.groupId()
+                            + ":"
+                            + coordinates.artifactId()
+                            + ":"
+                            + coordinates.version()
+                            + ")");
+                }
                 mainsByArtifactId.put(coordinates.artifactId(), coordinates);
             }
         }
         Map<String, List<DependencyEntry>> testDepsByMain = new LinkedHashMap<>();
         Map<String, List<TestModule>> testsByMain = new LinkedHashMap<>();
-        Coordinates fallbackMain = mainsByArtifactId.values().stream().findFirst().orElse(null);
         Set<String> allMainArtifactIds = mainsByArtifactId.keySet();
         for (Map.Entry<String, TestModule> entry : testModules.entrySet()) {
             TestModule test = entry.getValue();
             Coordinates parent;
             if (test.testOf().isEmpty()) {
-                if (fallbackMain == null) {
+                if (mainsByArtifactId.isEmpty()) {
                     throw new IllegalStateException("Test module '"
                             + entry.getKey()
                             + "' declares no parent (bare @tests) but no main module is present to attach it to");
                 }
-                parent = fallbackMain;
+                if (mainsByArtifactId.size() > 1) {
+                    throw new IllegalStateException("Test module '"
+                            + entry.getKey()
+                            + "' declares no parent (bare @tests) but multiple main modules are present; "
+                            + "specify an explicit @tests <artifactId> (known mains: "
+                            + mainsByArtifactId.keySet()
+                            + ")");
+                }
+                parent = mainsByArtifactId.values().iterator().next();
             } else {
                 parent = mainsByArtifactId.get(test.testOf());
                 if (parent == null) {
