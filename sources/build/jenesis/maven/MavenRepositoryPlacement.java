@@ -31,9 +31,9 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         }
         boolean test = isTest(parent.resolve("metadata.properties"));
         String suffix = switch (filename.toString()) {
-            case "classes.jar" -> test ? "-test.jar" : ".jar";
-            case "sources.jar" -> test ? "-test-sources.jar" : "-sources.jar";
-            case "javadoc.jar" -> test ? "-test-javadoc.jar" : "-javadoc.jar";
+            case "classes.jar" -> test ? "-tests.jar" : ".jar";
+            case "sources.jar" -> test ? "-tests-sources.jar" : "-sources.jar";
+            case "javadoc.jar" -> test ? "-tests-javadoc.jar" : "-javadoc.jar";
             case "pom.xml" -> test ? null : ".pom";
             default -> null;
         };

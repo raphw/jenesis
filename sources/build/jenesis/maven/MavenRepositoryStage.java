@@ -62,7 +62,7 @@ public class MavenRepositoryStage implements BuildStep {
                 if (fallbackMain == null) {
                     throw new IllegalStateException("Test module '"
                             + entry.getKey()
-                            + "' declares no parent (bare @test) but no main module is present to attach it to");
+                            + "' declares no parent (bare @tests) but no main module is present to attach it to");
                 }
                 parent = fallbackMain;
             } else {
@@ -89,7 +89,7 @@ public class MavenRepositoryStage implements BuildStep {
                         .toList();
                 throw new IllegalStateException("Multiple test modules declare main '"
                         + entry.getKey()
-                        + "' as their parent (would collide on the '-test' classifier): "
+                        + "' as their parent (would collide on the '-tests' classifier): "
                         + dirs);
             }
         }
@@ -137,9 +137,9 @@ public class MavenRepositoryStage implements BuildStep {
         Path baseDir = baseDirFor(stagingRoot, coordinates);
         Files.createDirectories(baseDir);
         String prefix = coordinates.artifactId() + "-" + coordinates.version();
-        link(moduleDir.resolve("classes.jar"), baseDir.resolve(prefix + "-test.jar"));
-        link(moduleDir.resolve("sources.jar"), baseDir.resolve(prefix + "-test-sources.jar"));
-        link(moduleDir.resolve("javadoc.jar"), baseDir.resolve(prefix + "-test-javadoc.jar"));
+        link(moduleDir.resolve("classes.jar"), baseDir.resolve(prefix + "-tests.jar"));
+        link(moduleDir.resolve("sources.jar"), baseDir.resolve(prefix + "-tests-sources.jar"));
+        link(moduleDir.resolve("javadoc.jar"), baseDir.resolve(prefix + "-tests-javadoc.jar"));
     }
 
     private static Path baseDirFor(Path stagingRoot, Coordinates coordinates) {

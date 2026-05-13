@@ -260,10 +260,10 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void bare_test_tag_marks_module_with_empty_parent() throws IOException {
+    public void bare_tests_tag_marks_module_with_empty_parent() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @test
+                 * @tests
                  */
                 module foo {
                   requires bar;
@@ -274,10 +274,10 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void test_tag_with_argument_marks_parent_module() throws IOException {
+    public void tests_tag_with_argument_marks_parent_module() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @test build.jenesis
+                 * @tests build.jenesis
                  */
                 module foo {
                   requires bar;
@@ -288,7 +288,7 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void absent_test_tag_leaves_module_as_non_test() throws IOException {
+    public void absent_tests_tag_leaves_module_as_non_test() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @release 25

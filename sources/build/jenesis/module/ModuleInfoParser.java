@@ -85,7 +85,7 @@ public class ModuleInfoParser {
                                     release = content;
                                 }
                             }
-                            case "test" -> testOf = content;
+                            case "tests" -> testOf = content;
                         }
                     }
                 }

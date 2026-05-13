@@ -112,9 +112,9 @@ public class MavenRepositoryStageTest {
 
         run(source, "module-foo", "module-foo-test");
 
-        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-test.jar")).hasContent("test-classes");
-        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-test-sources.jar")).hasContent("test-sources");
-        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-test-javadoc.jar")).hasContent("test-javadoc");
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests.jar")).hasContent("test-classes");
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests-sources.jar")).hasContent("test-sources");
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests-javadoc.jar")).hasContent("test-javadoc");
     }
 
     @Test
@@ -161,8 +161,8 @@ public class MavenRepositoryStageTest {
 
         run(source, "module-foo", "module-bar", "module-foo-test", "module-bar-test");
 
-        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-test.jar")).hasContent("foo-test");
-        assertThat(next.resolve("com/example/bar/1.2.3/bar-1.2.3-test.jar")).hasContent("bar-test");
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests.jar")).hasContent("foo-test");
+        assertThat(next.resolve("com/example/bar/1.2.3/bar-1.2.3-tests.jar")).hasContent("bar-test");
         String fooPom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         assertThat(fooPom).contains("<artifactId>junit-jupiter</artifactId>");
         assertThat(fooPom).doesNotContain("<artifactId>assertj-core</artifactId>");
@@ -189,6 +189,7 @@ public class MavenRepositoryStageTest {
                         () -> run(source, "module-foo", "module-foo-test-a", "module-foo-test-b"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Multiple test modules declare main 'foo'")
+                .hasMessageContaining("'-tests' classifier")
                 .hasMessageContaining("module-foo-test-a")
                 .hasMessageContaining("module-foo-test-b");
     }

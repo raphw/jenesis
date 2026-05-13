@@ -125,7 +125,7 @@ differs by layout:
 - `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryStage`, which produces `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>`
   (suitable for upload to a Maven repository) and additionally merges any test-variant dependencies
   into the main POM with `<scope>test</scope>` while routing test JARs onto the main coordinate with a
-  `-test` classifier.
+  `-tests` classifier.
 - `MODULAR` uses `ModularPlacement`: `<module>/<module>.jar` (plus `-sources.jar` / `-javadoc.jar` siblings
   when those flags are set). When `jenesis.buildVersion` is set, the version is inserted as one extra path
   segment: `<module>/<version>/<module>.jar`. There is no `pom.xml` to anchor a Maven coordinate.
@@ -1074,13 +1074,13 @@ Under `MavenRepositoryStage` (used by `MAVEN`, `MODULAR_TO_MAVEN`), each per-mod
   `requires <main>;` becomes a `<dependency>` on `<main>`) are dropped from the merge to avoid
   self-references.
 - **Test variants** (`project.test=true`) have their jars hard-linked under the **main's** Maven
-  coordinate (not their own) with a `-test` classifier suffix: `<main>-<version>-test.jar`,
-  `<main>-<version>-test-sources.jar`, `<main>-<version>-test-javadoc.jar`. No separate POM is staged for
+  coordinate (not their own) with a `-tests` classifier suffix: `<main>-<version>-tests.jar`,
+  `<main>-<version>-tests-sources.jar`, `<main>-<version>-tests-javadoc.jar`. No separate POM is staged for
   the test variant - the merged main POM is the single canonical POM for the coordinate.
 
 The `project.test` marker is set from existing metadata: `MavenProject.Manifests` flags any per-module
 variant whose generated coordinate carries the `tests` classifier, and `ModularProject.Manifests` flags
-any module whose `module-info.java` declares an `@test` javadoc tag (parsed by `ModuleInfoParser` into
+any module whose `module-info.java` declares an `@tests` javadoc tag (parsed by `ModuleInfoParser` into
 `ModuleInfo.test()`). Path-based inference is intentionally not used. The `Pom` step lets test variants
 through its `project.module` filter so that their POMs are still emitted into `collect/output` for
 `MavenRepositoryStage` to harvest dependencies from. Any other module without a POM is naturally absent
@@ -1092,7 +1092,7 @@ reads `project.module` from the per-module `metadata.properties` (written by `Mo
 from the JPMS module declaration and carried through `collect`) and uses that JPMS module name as the
 staging directory and jar prefix; no POM is required or written. The `project.test` marker is **ignored**
 by `ModularPlacement` - test modules continue to be staged under their own JPMS-named directory with no
-`-test` suffix and no merging. When `-Djenesis.buildVersion=<v>` is set, `ModularPlacement` inserts
+`-tests` suffix and no merging. When `-Djenesis.buildVersion=<v>` is set, `ModularPlacement` inserts
 `<v>` as an additional path segment between the module name and the jar files.
 
 The resulting trees under `target/stage/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
@@ -1110,9 +1110,9 @@ target/stage/output/
                 ├── build.jenesis-1.0.0-sources.jar
                 ├── build.jenesis-1.0.0-javadoc.jar
                 ├── build.jenesis-1.0.0.pom
-                ├── build.jenesis-1.0.0-test.jar
-                ├── build.jenesis-1.0.0-test-sources.jar
-                └── build.jenesis-1.0.0-test-javadoc.jar
+                ├── build.jenesis-1.0.0-tests.jar
+                ├── build.jenesis-1.0.0-tests-sources.jar
+                └── build.jenesis-1.0.0-tests-javadoc.jar
 ```
 
 `MODULAR` with `-Djenesis.buildVersion=1.0.0`:
@@ -1137,7 +1137,7 @@ target/stage/output/
 ```
 
 (`MAVEN` and `MODULAR_TO_MAVEN` route the test module's jars onto the main artifact's coordinate with a
-`-test` classifier suffix and merge the test-variant dependencies into the main POM with
+`-tests` classifier suffix and merge the test-variant dependencies into the main POM with
 `<scope>test</scope>`; the per-module `project.test=true` marker triggers this in `MavenRepositoryStage`.
 `MODULAR` ignores that marker and stages every discovered JPMS module under its own JPMS-named directory
 at the same level.)
