@@ -112,7 +112,6 @@ public class Pom implements BuildStep {
         if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
-        String emittedArtifactId = test && targetModule != null ? targetModule : self.key().artifactId();
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
         for (String name : dependencies.stringPropertyNames()) {
             int separator = name.indexOf('/');
@@ -176,7 +175,7 @@ public class Pom implements BuildStep {
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(POM))) {
             emitter.emit(
                     self.key().groupId(),
-                    emittedArtifactId,
+                    self.key().artifactId(),
                     version,
                     "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps,

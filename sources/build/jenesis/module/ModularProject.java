@@ -132,7 +132,7 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
-    private record Manifests(String prefix, boolean test) implements BuildStep {
+    private record Manifests(String prefix) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -180,7 +180,7 @@ public class ModularProject implements BuildExecutorModule {
             if (info.description() != null) {
                 metadata.setProperty("project.description", info.description());
             }
-            if (test) {
+            if (info.test()) {
                 metadata.setProperty("project.test", "true");
             }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
@@ -198,12 +198,11 @@ public class ModularProject implements BuildExecutorModule {
                 if (file.getFileName().toString().equals("module-info.java")) {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
-                        boolean test = location.toString().toLowerCase().contains("test");
                         buildExecutor.addModule("module-" + URLEncoder.encode(
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MultiProjectModule.MANIFESTS, new Manifests(prefix, test), "sources");
+                            module.addStep(MultiProjectModule.MANIFESTS, new Manifests(prefix), "sources");
                         });
                     }
                 }

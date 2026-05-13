@@ -4,13 +4,13 @@ import module java.base;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
-import build.jenesis.maven.MavenRepositoryLayout;
+import build.jenesis.maven.MavenRepositoryStage;
 import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
-import build.jenesis.module.ModularLayout;
+import build.jenesis.module.ModularPlacement;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
@@ -98,7 +98,7 @@ public final class Project {
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> wrapped.apply(context, descriptor))));
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStage(), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -131,7 +131,7 @@ public final class Project {
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new ModularLayout()), COLLECT);
+            executor.addStep(STAGE, new Relocate(new ModularPlacement()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
@@ -167,7 +167,7 @@ public final class Project {
                         descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new MavenRepositoryLayout()), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStage(), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };

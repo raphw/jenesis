@@ -6,17 +6,17 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
-import build.jenesis.module.ModularLayout;
+import build.jenesis.module.ModularPlacement;
 import build.jenesis.step.Relocate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ModularLayoutTest {
+public class ModularPlacementTest {
 
     @TempDir
     private Path root;
 
-    private final ModularLayout layout = new ModularLayout();
+    private final ModularPlacement layout = new ModularPlacement();
 
     @Test
     public void maps_classes_jar_to_module_named_jar() {
@@ -85,7 +85,7 @@ public class ModularLayoutTest {
 
     @Test
     public void inserts_version_segment_when_version_is_set() {
-        ModularLayout versioned = new ModularLayout("1.0.0");
+        ModularPlacement versioned = new ModularPlacement("1.0.0");
         assertThat(versioned.apply(Path.of("build.jenesis/classes.jar")))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis.jar"));
         assertThat(versioned.apply(Path.of("build.jenesis/sources.jar")))
@@ -98,16 +98,16 @@ public class ModularLayoutTest {
     public void inserts_version_segment_with_module_name_from_metadata() throws IOException {
         Path module = Files.createDirectory(root.resolve("module-sources"));
         Files.writeString(module.resolve("metadata.properties"), "project.module=build.jenesis\n");
-        ModularLayout versioned = new ModularLayout("2.5.1");
+        ModularPlacement versioned = new ModularPlacement("2.5.1");
         assertThat(versioned.apply(module.resolve("classes.jar")))
                 .contains(Path.of("build.jenesis/2.5.1/build.jenesis.jar"));
     }
 
     @Test
     public void treats_empty_version_as_unset() {
-        assertThat(new ModularLayout("").apply(Path.of("build.jenesis/classes.jar")))
+        assertThat(new ModularPlacement("").apply(Path.of("build.jenesis/classes.jar")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
-        assertThat(new ModularLayout(null).apply(Path.of("build.jenesis/classes.jar")))
+        assertThat(new ModularPlacement(null).apply(Path.of("build.jenesis/classes.jar")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
@@ -123,8 +123,8 @@ public class ModularLayoutTest {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
             restored = ois.readObject();
         }
-        assertThat(restored).isInstanceOf(ModularLayout.class);
-        assertThat(((ModularLayout) restored).apply(Path.of("build.jenesis/classes.jar")))
+        assertThat(restored).isInstanceOf(ModularPlacement.class);
+        assertThat(((ModularPlacement) restored).apply(Path.of("build.jenesis/classes.jar")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 

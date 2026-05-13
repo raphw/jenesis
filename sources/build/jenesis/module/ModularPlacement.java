@@ -2,15 +2,15 @@ package build.jenesis.module;
 
 import module java.base;
 
-public class ModularLayout implements Function<Path, Optional<Path>>, Serializable {
+public class ModularPlacement implements Function<Path, Optional<Path>>, Serializable {
 
     private final String version;
 
-    public ModularLayout() {
+    public ModularPlacement() {
         this(System.getProperty("jenesis.buildVersion"));
     }
 
-    public ModularLayout(String version) {
+    public ModularPlacement(String version) {
         this.version = version == null || version.isEmpty() ? null : version;
     }
 

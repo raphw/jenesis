@@ -122,9 +122,11 @@ All three concrete layouts share the same `collect` step (groups each module's a
 and a `stage` step that materializes the staged tree under `target/stage/output/`. The stage placement
 differs by layout:
 
-- `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryLayout`: `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>`
-  (suitable for upload to a Maven repository).
-- `MODULAR` uses `ModularLayout`: `<module>/<module>.jar` (plus `-sources.jar` / `-javadoc.jar` siblings
+- `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryStage`, which produces `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>`
+  (suitable for upload to a Maven repository) and additionally merges any test-variant dependencies
+  into the main POM with `<scope>test</scope>` while routing test JARs onto the main coordinate with a
+  `-test` classifier.
+- `MODULAR` uses `ModularPlacement`: `<module>/<module>.jar` (plus `-sources.jar` / `-javadoc.jar` siblings
   when those flags are set). When `jenesis.buildVersion` is set, the version is inserted as one extra path
   segment: `<module>/<version>/<module>.jar`. There is no `pom.xml` to anchor a Maven coordinate.
 
@@ -285,7 +287,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
 | `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`, with checksums for resolved local artifacts       |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
-| `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); after copying it invokes an optional `Consumer<Path>` finalizer against the target. `MavenRepositoryLayout.toLocalRepository()` / `toRepository(Path)` ship a Maven-layout placement that writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}` plus a finalizer that mirrors `mvn install` (writes `maven-metadata-local.xml` per artifact, `_remote.repositories` markers per version dir, and per-version snapshot metadata for `-SNAPSHOT` versions). | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
+| `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); after copying it invokes an optional `Consumer<Path>` finalizer against the target. `MavenRepositoryPlacement.toLocalRepository()` / `toRepository(Path)` ship a Maven-layout placement that writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}` plus a finalizer that mirrors `mvn install` (writes `maven-metadata-local.xml` per artifact, `_remote.repositories` markers per version dir, and per-version snapshot metadata for `-SNAPSHOT` versions). | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and the inner `executed`
 step that `TestModule` registers); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
@@ -326,8 +328,8 @@ output folder" invariant that drives incremental builds:
   results just shorten the diff status the placement function sees, not whether it runs.
 
 The placement is the same `Function<Path, Optional<Path>>` shape `Relocate` uses: each visited file is mapped to
-an `Optional<Path>` relative to the configured target, or skipped. `MavenRepositoryLayout.toLocalRepository()` and
-`MavenRepositoryLayout.toRepository(Path)` ship a placement that consumes the canonical per-module output produced
+an `Optional<Path>` relative to the configured target, or skipped. `MavenRepositoryPlacement.toLocalRepository()` and
+`MavenRepositoryPlacement.toRepository(Path)` ship a placement that consumes the canonical per-module output produced
 by `Relocate(ModularProject.artifactsByModule())` (i.e. each sub-module folder contains both `classes.jar` and
 `pom.xml`): for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of
 it, and routes the file to the standard Maven layout:
@@ -916,7 +918,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
 - **`MavenVersionNegotiator` / `MavenDefaultVersionNegotiator`** handle Maven's version-range syntax
   (`[1.0,2.0)`, `LATEST`, `RELEASE`, etc.) - picking a concrete version from a candidate list per the rules
   described in the Maven version comparison spec.
-- **`MavenRepositoryLayout`** is a `Function<Path, Optional<Path>>` that maps a coordinate-named file (e.g.
+- **`MavenRepositoryPlacement`** is a `Function<Path, Optional<Path>>` that maps a coordinate-named file (e.g.
   `maven-org.junit.jupiter-junit-jupiter-5.10.0.jar`) into the Maven local-repo layout
   (`org/junit/jupiter/junit-jupiter/5.10.0/junit-jupiter-5.10.0.jar`). It plugs into `Relocate` to materialize
   a local Maven repository alongside the build's normal artifact folder.
@@ -960,7 +962,7 @@ invalidates downstream `pom`, `collect`, and `stage` outputs the same way a sour
 ```properties
 # Release-target filter (optional). When set, only the module whose Pom-resolver
 # artifactId matches this value emits a pom.xml; other modules are silently
-# skipped, and MavenRepositoryLayout therefore omits them from the staged tree.
+# skipped, and MavenRepositoryPlacement therefore omits them from the staged tree.
 # For MODULAR projects the value is the full Java module name (e.g. build.jenesis);
 # for MAVEN projects it is the artifactId from pom.xml.
 project.module=build.jenesis
@@ -1046,39 +1048,52 @@ documents how this repository wires those mechanisms together for its own releas
 
 ### The stage step
 
-Each of the three `Project.Layout` constants wires a `stage` step right after `collect`. The placement
-function differs by layout: `MAVEN` and `MODULAR_TO_MAVEN` use `MavenRepositoryLayout`, `MODULAR` uses
-`ModularLayout`:
+Each of the three `Project.Layout` constants wires a `stage` step right after `collect`. The Maven-side
+layouts use a dedicated `MavenRepositoryStage` build step that combines Maven repository placement with
+test-aware POM merging in one pass. `MODULAR` uses a plain `Relocate` parameterized with the simpler
+`ModularPlacement` function:
 
 ```java
 executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-executor.addStep("stage",   new Relocate(new MavenRepositoryLayout()),             "collect"); // MAVEN, MODULAR_TO_MAVEN
-executor.addStep("stage",   new Relocate(new ModularLayout()),                     "collect"); // MODULAR
+executor.addStep("stage",   new MavenRepositoryStage(),                          "collect"); // MAVEN, MODULAR_TO_MAVEN
+executor.addStep("stage",   new Relocate(new ModularPlacement()),                "collect"); // MODULAR
 ```
 
-The stage step writes its tree under `target/stage/output/` via `Relocate`, which `Files.createLink`s
-rather than copying - the staged tree shares inodes with `target/collect/output/`. Like every other
-jenesis step, its output is content-hashed and skipped on re-runs when inputs are unchanged.
+The stage step writes its tree under `target/stage/output/`. Files are hard-linked rather than copied -
+the staged tree shares inodes with `target/collect/output/`. Like every other jenesis step, its output is
+content-hashed and skipped on re-runs when inputs are unchanged.
 
-Under the Maven placement (`MAVEN`, `MODULAR_TO_MAVEN`), modules whose `metadata.properties` carries
-`project.test=true` are staged alongside the main artifacts under the **same** Maven coordinate, with
-the filename gaining a `-test` classifier suffix (`build.jenesis-1.0.0-test.jar`,
-`build.jenesis-1.0.0-test-sources.jar`, `build.jenesis-1.0.0-test-javadoc.jar`). Their POM is dropped
-at staging time so the published `<artifactId>-<version>.pom` remains the main module's. The
-`project.test` marker is set automatically: `MavenProject.Manifests` flags any per-module variant whose
-generated coordinate carries the `tests` classifier, and `ModularProject.Manifests` flags any module
-whose source-folder location contains `test` (case-insensitive), e.g. `tests/`, `src/test/java/`. The
-`Pom` step also lets test variants through its `project.module` filter and overrides the emitted
-`<artifactId>` to match the main one (so the test variant's POM doesn't end up at a different
-coordinate). All other modules without a POM are still naturally skipped: `MavenRepositoryLayout.apply()`
-requires a `pom.xml` next to each jar and returns `Optional.empty()` otherwise.
+Under `MavenRepositoryStage` (used by `MAVEN`, `MODULAR_TO_MAVEN`), each per-module directory from
+`collect` is classified by its `metadata.properties` `project.test` flag, then staged differently:
 
-Under `MODULAR`, the placement reads `project.module` from the per-module `metadata.properties` (written
-by `ModularProject.Manifests` from the JPMS module declaration and carried through `collect`) and uses
-that JPMS module name as the staging directory and jar prefix; no POM is required or written. The
-`project.test` marker is **ignored** by `ModularLayout` - test modules continue to be staged under their
-own JPMS-named directory with no `-test` suffix. When `-Djenesis.buildVersion=<v>` is set, `ModularLayout`
-inserts `<v>` as an additional path segment between the module name and the jar files.
+- **Main modules** (no `project.test=true`) have their jars hard-linked at the standard Maven repository
+  path `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`. The POM is
+  either hard-linked as-is, or - when at least one test variant exists - written out via DOM merge: the
+  main POM's `<dependencies>` gains one `<dependency>` per test-variant dep, each carrying
+  `<scope>test</scope>`. Test deps that point back at any main artifact (a JPMS test module's
+  `requires <main>;` becomes a `<dependency>` on `<main>`) are dropped from the merge to avoid
+  self-references.
+- **Test variants** (`project.test=true`) have their jars hard-linked under the **main's** Maven
+  coordinate (not their own) with a `-test` classifier suffix: `<main>-<version>-test.jar`,
+  `<main>-<version>-test-sources.jar`, `<main>-<version>-test-javadoc.jar`. No separate POM is staged for
+  the test variant - the merged main POM is the single canonical POM for the coordinate.
+
+The `project.test` marker is set from existing metadata: `MavenProject.Manifests` flags any per-module
+variant whose generated coordinate carries the `tests` classifier, and `ModularProject.Manifests` flags
+any module whose `module-info.java` declares an `@test` javadoc tag (parsed by `ModuleInfoParser` into
+`ModuleInfo.test()`). Path-based inference is intentionally not used. The `Pom` step lets test variants
+through its `project.module` filter so that their POMs are still emitted into `collect/output` for
+`MavenRepositoryStage` to harvest dependencies from. Any other module without a POM is naturally absent
+from the staged tree (`MavenRepositoryStage` skips it because there are no main coordinates to anchor it
+to).
+
+Under `MODULAR`, the `Relocate(new ModularPlacement())` step is unchanged from before: the placement
+reads `project.module` from the per-module `metadata.properties` (written by `ModularProject.Manifests`
+from the JPMS module declaration and carried through `collect`) and uses that JPMS module name as the
+staging directory and jar prefix; no POM is required or written. The `project.test` marker is **ignored**
+by `ModularPlacement` - test modules continue to be staged under their own JPMS-named directory with no
+`-test` suffix and no merging. When `-Djenesis.buildVersion=<v>` is set, `ModularPlacement` inserts
+`<v>` as an additional path segment between the module name and the jar files.
 
 The resulting trees under `target/stage/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
 `-Djenesis.project.sources=true`, `-Djenesis.project.docs=true`):
@@ -1122,9 +1137,10 @@ target/stage/output/
 ```
 
 (`MAVEN` and `MODULAR_TO_MAVEN` route the test module's jars onto the main artifact's coordinate with a
-`-test` classifier suffix instead of dropping them; the per-module `project.test=true` marker triggers
-this. `MODULAR` ignores that marker and stages every discovered JPMS module under its own JPMS-named
-directory at the same level.)
+`-test` classifier suffix and merge the test-variant dependencies into the main POM with
+`<scope>test</scope>`; the per-module `project.test=true` marker triggers this in `MavenRepositoryStage`.
+`MODULAR` ignores that marker and stages every discovered JPMS module under its own JPMS-named directory
+at the same level.)
 
 A release build is therefore typically:
 

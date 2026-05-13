@@ -7,11 +7,11 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
-import build.jenesis.maven.MavenRepositoryLayout;
+import build.jenesis.maven.MavenRepositoryPlacement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class MavenRepositoryLayoutTest {
+public class MavenRepositoryPlacementTest {
 
     @TempDir
     private Path root;
@@ -40,7 +40,7 @@ public class MavenRepositoryLayoutTest {
                 """);
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
-        BuildStep export = MavenRepositoryLayout.toRepository(target);
+        BuildStep export = MavenRepositoryPlacement.toRepository(target);
         BuildStepResult result = export.apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
@@ -69,7 +69,7 @@ public class MavenRepositoryLayoutTest {
         Files.writeString(module.resolve("sources.jar"), "sources bytes");
         Files.writeString(module.resolve("javadoc.jar"), "javadoc bytes");
 
-        BuildStepResult result = MavenRepositoryLayout.toRepository(target).apply(Runnable::run,
+        BuildStepResult result = MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
@@ -98,7 +98,7 @@ public class MavenRepositoryLayoutTest {
                 """);
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
-        MavenRepositoryLayout.toRepository(target).apply(Runnable::run,
+        MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
@@ -131,7 +131,7 @@ public class MavenRepositoryLayoutTest {
                 """);
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
-        MavenRepositoryLayout.toRepository(target).apply(Runnable::run,
+        MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
@@ -161,7 +161,7 @@ public class MavenRepositoryLayoutTest {
                 """);
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
-        MavenRepositoryLayout.toRepository(target).apply(Runnable::run,
+        MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
@@ -207,7 +207,7 @@ public class MavenRepositoryLayoutTest {
             sources.put(Path.of("module-" + version + "/classes.jar"), ChecksumStatus.ADDED);
             sources.put(Path.of("module-" + version + "/pom.xml"), ChecksumStatus.ADDED);
         }
-        MavenRepositoryLayout.toRepository(target).apply(Runnable::run,
+        MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(source, sources))))
                 .toCompletableFuture()
@@ -242,7 +242,7 @@ public class MavenRepositoryLayoutTest {
                 source,
                 Map.of(Path.of("module-x/classes.jar"), ChecksumStatus.ADDED,
                         Path.of("module-x/pom.xml"), ChecksumStatus.ADDED))));
-        BuildStep step = MavenRepositoryLayout.toRepository(target);
+        BuildStep step = MavenRepositoryPlacement.toRepository(target);
         step.apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments).toCompletableFuture().join();
         step.apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments).toCompletableFuture().join();
 
@@ -256,7 +256,7 @@ public class MavenRepositoryLayoutTest {
     public void skips_files_without_sibling_pom() throws IOException {
         Files.writeString(source.resolve("classes.jar"), "ignored");
 
-        BuildStep export = MavenRepositoryLayout.toRepository(target);
+        BuildStep export = MavenRepositoryPlacement.toRepository(target);
         export.apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(

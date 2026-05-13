@@ -258,4 +258,32 @@ public class ModuleInfoParserTest {
         assertThat(info.name()).isNull();
         assertThat(info.description()).isNull();
     }
+
+    @Test
+    public void test_tag_marks_module_as_test_variant() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @test
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.test()).isTrue();
+    }
+
+    @Test
+    public void absent_test_tag_leaves_module_as_non_test() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @release 25
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.test()).isFalse();
+    }
 }

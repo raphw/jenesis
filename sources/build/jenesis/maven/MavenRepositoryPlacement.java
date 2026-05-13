@@ -5,7 +5,7 @@ import module java.xml;
 import build.jenesis.BuildStep;
 import build.jenesis.step.Export;
 
-public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Serializable {
+public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>, Serializable {
 
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter
             .ofPattern("yyyyMMddHHmmss")
@@ -16,7 +16,7 @@ public class MavenRepositoryLayout implements Function<Path, Optional<Path>>, Se
     }
 
     public static BuildStep toRepository(Path target) {
-        return new Export(target, new MavenRepositoryLayout(), createMavenLocalMetadata());
+        return new Export(target, new MavenRepositoryPlacement(), createMavenLocalMetadata());
     }
 
     @Override

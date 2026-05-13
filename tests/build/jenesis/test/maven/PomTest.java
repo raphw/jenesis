@@ -8,7 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
-import build.jenesis.maven.MavenRepositoryLayout;
+import build.jenesis.maven.MavenRepositoryPlacement;
 import build.jenesis.maven.Pom;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -236,7 +236,7 @@ public class PomTest {
                     .toCompletableFuture()
                     .join();
             Files.writeString(next.resolve("classes.jar"), "jar bytes");
-            MavenRepositoryLayout.toRepository(exported).apply(Runnable::run,
+            MavenRepositoryPlacement.toRepository(exported).apply(Runnable::run,
                             new BuildStepContext(previous, Files.createDirectory(root.resolve("next2")), supplement),
                             new LinkedHashMap<>(Map.of("pom-and-jar", new BuildStepArgument(
                                     next,
