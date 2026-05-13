@@ -13,24 +13,36 @@ public class Pom implements BuildStep {
 
     private final Function<String, String> resolver;
     private final Map<String, String> shared;
+    private final Predicate<String> runtimeArguments;
     private final String buildVersion = System.getProperty("jenesis.buildVersion");
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(defaultResolver(), Map.of());
+        this(defaultResolver(), Map.of(), defaultRuntimeArguments());
     }
 
     public Pom(Map<String, String> shared) {
-        this(defaultResolver(), shared);
+        this(defaultResolver(), shared, defaultRuntimeArguments());
     }
 
     public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this(resolver, Map.of());
+        this(resolver, Map.of(), defaultRuntimeArguments());
     }
 
     public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
+        this(resolver, shared, defaultRuntimeArguments());
+    }
+
+    public <P extends Predicate<String> & Serializable> Pom(Map<String, String> shared, P runtimeArguments) {
+        this(defaultResolver(), shared, runtimeArguments);
+    }
+
+    public <F extends Function<String, String> & Serializable, P extends Predicate<String> & Serializable> Pom(F resolver,
+                                                                                                               Map<String, String> shared,
+                                                                                                               P runtimeArguments) {
         this.resolver = resolver;
         this.shared = Map.copyOf(shared);
+        this.runtimeArguments = runtimeArguments;
     }
 
     private static <F extends Function<String, String> & Serializable> F defaultResolver() {
@@ -49,15 +61,22 @@ public class Pom implements BuildStep {
         });
     }
 
+    private static <P extends Predicate<String> & Serializable> P defaultRuntimeArguments() {
+        return (P) (Predicate<String> & Serializable) (_ -> false);
+    }
+
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         Properties coordinates = new SequencedProperties();
-        Properties dependencies = new SequencedProperties();
+        Properties compileRequires = new SequencedProperties();
+        SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
+        boolean runtimeProvided = false;
         Properties metadata = new SequencedProperties();
-        for (BuildStepArgument argument : arguments.values()) {
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+            BuildStepArgument argument = entry.getValue();
             Path coordinatesFile = argument.folder().resolve(IDENTITY);
             if (Files.exists(coordinatesFile)) {
                 try (Reader reader = Files.newBufferedReader(coordinatesFile)) {
@@ -66,8 +85,16 @@ public class Pom implements BuildStep {
             }
             Path dependenciesFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(dependenciesFile)) {
+                Properties loaded = new SequencedProperties();
                 try (Reader reader = Files.newBufferedReader(dependenciesFile)) {
-                    dependencies.load(reader);
+                    loaded.load(reader);
+                }
+                if (runtimeArguments.test(entry.getKey())) {
+                    runtimeRequires.addAll(loaded.stringPropertyNames());
+                    runtimeProvided = true;
+                } else {
+                    loaded.stringPropertyNames().forEach(name ->
+                            compileRequires.setProperty(name, loaded.getProperty(name)));
                 }
             }
             Path metadataFile = argument.folder().resolve(METADATA);
@@ -113,7 +140,7 @@ public class Pom implements BuildStep {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
-        for (String name : dependencies.stringPropertyNames()) {
+        for (String name : compileRequires.stringPropertyNames()) {
             int separator = name.indexOf('/');
             if (separator == -1 || !prefix.equals(name.substring(0, separator))) {
                 continue;
@@ -130,7 +157,9 @@ public class Pom implements BuildStep {
             }
             deps.putIfAbsent(parsed.key(), new MavenDependencyValue(
                     parsed.version(),
-                    MavenDependencyScope.COMPILE,
+                    runtimeProvided && !runtimeRequires.contains(name)
+                            ? MavenDependencyScope.PROVIDED
+                            : MavenDependencyScope.COMPILE,
                     null,
                     null,
                     null));
