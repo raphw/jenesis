@@ -242,7 +242,7 @@ public final class Project {
                 metadata = new LinkedHashMap<>();
                 properties.stringPropertyNames().forEach(name -> metadata.put(name, properties.getProperty(name)));
             }
-            this.pom = new Pom(metadata, (key -> key.contains("/" + MultiProjectModule.RUNTIME + "/")));
+            this.pom = new Pom(metadata);
         }
 
         @Override
@@ -262,9 +262,7 @@ public final class Project {
                     delegate.accept(sub, inherited);
                     sub.addStep("pom", pom,
                             descriptor.sources(),
-                            descriptor.manifests(),
-                            descriptor.checked(),
-                            descriptor.runtimeChecked());
+                            descriptor.manifests());
                 }
             };
         }

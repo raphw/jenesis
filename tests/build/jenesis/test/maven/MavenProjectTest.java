@@ -98,6 +98,80 @@ public class MavenProjectTest {
     }
 
     @Test
+    public void scopes_are_routed_to_correct_requires_files() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>scope</groupId>
+                            <artifactId>compile-dep</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>scope</groupId>
+                            <artifactId>provided-dep</artifactId>
+                            <version>1</version>
+                            <scope>provided</scope>
+                        </dependency>
+                        <dependency>
+                            <groupId>scope</groupId>
+                            <artifactId>runtime-dep</artifactId>
+                            <version>1</version>
+                            <scope>runtime</scope>
+                        </dependency>
+                        <dependency>
+                            <groupId>scope</groupId>
+                            <artifactId>test-dep</artifactId>
+                            <version>1</version>
+                            <scope>test</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+
+        Path mainCompile = results.get("maven/module/module-/manifests")
+                .resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
+        Path mainRuntime = results.get("maven/module/module-/manifests")
+                .resolve(MultiProjectModule.RUNTIME).resolve(BuildStep.REQUIRES);
+        Properties mainCompileProps = new Properties();
+        try (Reader reader = Files.newBufferedReader(mainCompile)) {
+            mainCompileProps.load(reader);
+        }
+        Properties mainRuntimeProps = new Properties();
+        try (Reader reader = Files.newBufferedReader(mainRuntime)) {
+            mainRuntimeProps.load(reader);
+        }
+        assertThat(mainCompileProps.stringPropertyNames()).containsExactlyInAnyOrder(
+                "maven/scope/compile-dep/jar/1",
+                "maven/scope/provided-dep/jar/1");
+        assertThat(mainRuntimeProps.stringPropertyNames()).containsExactlyInAnyOrder(
+                "maven/scope/compile-dep/jar/1",
+                "maven/scope/runtime-dep/jar/1");
+
+        Path testCompile = results.get("maven/module/test-module-/manifests")
+                .resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
+        Properties testCompileProps = new Properties();
+        try (Reader reader = Files.newBufferedReader(testCompile)) {
+            testCompileProps.load(reader);
+        }
+        assertThat(testCompileProps.stringPropertyNames()).containsExactlyInAnyOrder(
+                "maven/scope/test-dep/jar/1",
+                "maven/group/artifact/jar/1");
+    }
+
+    @Test
     public void can_resolve_multi_pom() throws IOException {
         Files.writeString(project.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>

@@ -174,17 +174,33 @@ public class MavenProject implements BuildExecutorModule {
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
                                     coordinates.store(writer, null);
                                 }
-                                Properties dependencies = new SequencedProperties();
-                                if (!properties.getProperty("dependencies").isEmpty()) {
-                                    for (String dependency : properties.getProperty("dependencies").split(",")) {
-                                        dependencies.setProperty(dependency, "");
-                                    }
+                                Properties compileDependencies = new SequencedProperties();
+                                Properties runtimeDependencies = new SequencedProperties();
+                                String compile = properties.getProperty("dependencies.compile", "");
+                                String provided = properties.getProperty("dependencies.provided", "");
+                                String runtime = properties.getProperty("dependencies.runtime", "");
+                                String test = properties.getProperty("dependencies.test", "");
+                                for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
+                                    compileDependencies.setProperty(dependency, "");
+                                    runtimeDependencies.setProperty(dependency, "");
                                 }
-                                for (String scope : List.of(MultiProjectModule.COMPILE, MultiProjectModule.RUNTIME)) {
-                                    Path target = Files.createDirectories(context.next().resolve(scope));
-                                    try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.REQUIRES))) {
-                                        dependencies.store(writer, null);
-                                    }
+                                for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
+                                    compileDependencies.setProperty(dependency, "");
+                                }
+                                for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
+                                    runtimeDependencies.setProperty(dependency, "");
+                                }
+                                for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
+                                    compileDependencies.setProperty(dependency, "");
+                                    runtimeDependencies.setProperty(dependency, "");
+                                }
+                                Path compileTarget = Files.createDirectories(context.next().resolve(MultiProjectModule.COMPILE));
+                                try (BufferedWriter writer = Files.newBufferedWriter(compileTarget.resolve(BuildStep.REQUIRES))) {
+                                    compileDependencies.store(writer, null);
+                                }
+                                Path runtimeTarget = Files.createDirectories(context.next().resolve(MultiProjectModule.RUNTIME));
+                                try (BufferedWriter writer = Files.newBufferedWriter(runtimeTarget.resolve(BuildStep.REQUIRES))) {
+                                    runtimeDependencies.store(writer, null);
                                 }
                                 Properties versions = new SequencedProperties();
                                 String managed = properties.getProperty("managedDependencies", "");
@@ -379,15 +395,21 @@ public class MavenProject implements BuildExecutorModule {
                 if (entry.getValue().release() != null) {
                     module.setProperty("release", entry.getValue().release());
                 }
-                module.setProperty("dependencies", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                        .filter(dep -> Set.of(MavenDependencyScope.COMPILE, MavenDependencyScope.PROVIDED).contains(dep.getValue().scope()))
-                        .map(dep -> prefix
-                                + "/" + dep.getKey().groupId()
-                                + "/" + dep.getKey().artifactId()
-                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                + "/" + dep.getValue().version())
-                        .collect(Collectors.joining(",")));
+                for (MavenDependencyScope scope : List.of(
+                        MavenDependencyScope.COMPILE,
+                        MavenDependencyScope.PROVIDED,
+                        MavenDependencyScope.RUNTIME)) {
+                    module.setProperty("dependencies." + scope.name().toLowerCase(Locale.ROOT),
+                            entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                                    .filter(dep -> dep.getValue().scope() == scope)
+                                    .map(dep -> prefix
+                                            + "/" + dep.getKey().groupId()
+                                            + "/" + dep.getKey().artifactId()
+                                            + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                            + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
+                                            + "/" + dep.getValue().version())
+                                    .collect(Collectors.joining(",")));
+                }
                 module.setProperty("managedDependencies", entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
@@ -423,8 +445,8 @@ public class MavenProject implements BuildExecutorModule {
                 if (entry.getValue().release() != null) {
                     testModule.setProperty("release", entry.getValue().release());
                 }
-                String dependencies = entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                        .filter(dep -> Set.of(MavenDependencyScope.TEST, MavenDependencyScope.RUNTIME).contains(dep.getValue().scope()))
+                String testDependencies = entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                        .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
                                 + "/" + dep.getKey().artifactId()
@@ -432,9 +454,9 @@ public class MavenProject implements BuildExecutorModule {
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "/" + dep.getValue().version())
                         .collect(Collectors.joining(","));
-                testModule.setProperty("dependencies", dependencies.isEmpty()
+                testModule.setProperty("dependencies.test", testDependencies.isEmpty()
                         ? coordinate
-                        : dependencies + "," + coordinate);
+                        : testDependencies + "," + coordinate);
                 testModule.setProperty("managedDependencies", entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()

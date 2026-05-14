@@ -93,34 +93,29 @@ public class PomTest {
         Properties compile = new SequencedProperties();
         compile.setProperty("maven/org.example/lib/1.2.3", "");
         compile.setProperty("maven/org.example/static-lib/4.5.6", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
+        Path compileDir = Files.createDirectory(argument.resolve(Pom.COMPILE));
+        try (Writer writer = Files.newBufferedWriter(compileDir.resolve(BuildStep.REQUIRES))) {
             compile.store(writer, null);
         }
-        Path runtimeArg = Files.createDirectory(root.resolve("runtime"));
         Properties runtime = new SequencedProperties();
         runtime.setProperty("maven/org.example/lib/1.2.3", "");
-        try (Writer writer = Files.newBufferedWriter(runtimeArg.resolve(BuildStep.REQUIRES))) {
+        Path runtimeDir = Files.createDirectory(argument.resolve(Pom.RUNTIME));
+        try (Writer writer = Files.newBufferedWriter(runtimeDir.resolve(BuildStep.REQUIRES))) {
             runtime.store(writer, null);
         }
-        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
-        arguments.put("compile", new BuildStepArgument(
-                argument,
-                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)));
-        arguments.put("runtime", new BuildStepArgument(
-                runtimeArg,
-                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)));
-        BuildStepResult result = new Pom(Map.of(),
-                (Predicate<String> & Serializable) (key -> key.equals("runtime"))).apply(Runnable::run,
+        BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
-                        arguments)
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(Pom.COMPILE, BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(Pom.RUNTIME, BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
         String pom = Files.readString(next.resolve(Pom.POM));
         assertThat(pom).contains("<artifactId>lib</artifactId>");
         assertThat(pom).contains("<artifactId>static-lib</artifactId>");
-        assertThat(pom).contains("<scope>provided</scope>");
         long providedScopes = pom.lines().filter(line -> line.trim().equals("<scope>provided</scope>")).count();
         assertThat(providedScopes).isEqualTo(1);
         int libIndex = pom.indexOf("<artifactId>lib</artifactId>");
@@ -128,6 +123,47 @@ public class PomTest {
         int providedIndex = pom.indexOf("<scope>provided</scope>");
         assertThat(providedIndex).isGreaterThan(staticLibIndex);
         assertThat(libIndex).isLessThan(staticLibIndex);
+    }
+
+    @Test
+    public void runtime_only_dependency_is_emitted_with_runtime_scope() throws IOException {
+        Properties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
+            coordinates.store(writer, null);
+        }
+        Properties compile = new SequencedProperties();
+        compile.setProperty("maven/org.example/lib/1.2.3", "");
+        Path compileDir = Files.createDirectory(argument.resolve(Pom.COMPILE));
+        try (Writer writer = Files.newBufferedWriter(compileDir.resolve(BuildStep.REQUIRES))) {
+            compile.store(writer, null);
+        }
+        Properties runtime = new SequencedProperties();
+        runtime.setProperty("maven/org.example/lib/1.2.3", "");
+        runtime.setProperty("maven/org.example/runtime-only/4.5.6", "");
+        Path runtimeDir = Files.createDirectory(argument.resolve(Pom.RUNTIME));
+        try (Writer writer = Files.newBufferedWriter(runtimeDir.resolve(BuildStep.REQUIRES))) {
+            runtime.store(writer, null);
+        }
+        new Pom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(Pom.COMPILE, BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(Pom.RUNTIME, BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        String pom = Files.readString(next.resolve(Pom.POM));
+        assertThat(pom).contains("<artifactId>lib</artifactId>");
+        assertThat(pom).contains("<artifactId>runtime-only</artifactId>");
+        long runtimeScopes = pom.lines().filter(line -> line.trim().equals("<scope>runtime</scope>")).count();
+        assertThat(runtimeScopes).isEqualTo(1);
+        int libIndex = pom.indexOf("<artifactId>lib</artifactId>");
+        int runtimeOnlyIndex = pom.indexOf("<artifactId>runtime-only</artifactId>");
+        int runtimeScopeIndex = pom.indexOf("<scope>runtime</scope>");
+        assertThat(runtimeScopeIndex).isGreaterThan(runtimeOnlyIndex);
+        assertThat(libIndex).isLessThan(runtimeOnlyIndex);
     }
 
     @Test
