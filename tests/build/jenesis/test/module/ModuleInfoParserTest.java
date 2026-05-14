@@ -260,7 +260,7 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void bare_tests_tag_marks_module_with_empty_parent() throws IOException {
+    public void bare_tests_tag_marks_module_with_empty_main_name() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @tests
@@ -274,7 +274,7 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void tests_tag_with_argument_marks_parent_module() throws IOException {
+    public void tests_tag_with_argument_marks_main_module() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @tests build.jenesis

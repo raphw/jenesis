@@ -28,6 +28,59 @@ public class MavenDefaultRepository implements MavenRepository {
         this.validations = validations;
     }
 
+    public static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> F versionResolver() {
+        return (F) (BiFunction<URI, String, Optional<URI>> & Serializable) (uri, version) -> {
+            String path = uri.getPath();
+            if (path == null) {
+                return Optional.empty();
+            }
+            int last = path.lastIndexOf('/');
+            if (last <= 0) {
+                return Optional.empty();
+            }
+            int versionStart = path.lastIndexOf('/', last - 1);
+            if (versionStart <= 0) {
+                return Optional.empty();
+            }
+            int artifactStart = path.lastIndexOf('/', versionStart - 1);
+            if (artifactStart < 0) {
+                return Optional.empty();
+            }
+            String artifactId = path.substring(artifactStart + 1, versionStart);
+            String existingVersion = path.substring(versionStart + 1, last);
+            String filename = path.substring(last + 1);
+            String prefix = artifactId + "-" + existingVersion;
+            if (!filename.startsWith(prefix)) {
+                return Optional.empty();
+            }
+            String tail = filename.substring(prefix.length());
+            int dot = tail.lastIndexOf('.');
+            if (dot < 0) {
+                return Optional.empty();
+            }
+            String classifier = tail.substring(0, dot);
+            if (!classifier.isEmpty() && !classifier.startsWith("-")) {
+                return Optional.empty();
+            }
+            String extension = tail.substring(dot);
+            String newPath = path.substring(0, versionStart + 1)
+                    + version
+                    + "/" + artifactId + "-" + version + classifier + extension;
+            try {
+                return Optional.of(new URI(
+                        uri.getScheme(),
+                        uri.getUserInfo(),
+                        uri.getHost(),
+                        uri.getPort(),
+                        newPath,
+                        uri.getQuery(),
+                        uri.getFragment()));
+            } catch (URISyntaxException e) {
+                return Optional.empty();
+            }
+        };
+    }
+
     @Override
     public Optional<RepositoryItem> fetch(Executor executor,
                                           String groupId,

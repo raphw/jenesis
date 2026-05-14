@@ -144,6 +144,20 @@ public class ModularProject implements BuildExecutorModule {
                     .resolve("module-info.java"));
             Properties coordinates = new SequencedProperties();
             coordinates.setProperty(prefix + "/" + info.coordinate(), "");
+            if (info.testOf() != null) {
+                if (!info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
+                    throw new IllegalStateException("Test module '"
+                            + info.coordinate()
+                            + "' declares @tests "
+                            + info.testOf()
+                            + " but does not 'requires "
+                            + info.testOf()
+                            + ";' (declared requires: "
+                            + info.requires()
+                            + ")");
+                }
+                coordinates.setProperty(BuildStep.TESTS, info.testOf());
+            }
             try (BufferedWriter writer = Files.newBufferedWriter(context
                     .next()
                     .resolve(BuildStep.IDENTITY))) {
@@ -179,20 +193,6 @@ public class ModularProject implements BuildExecutorModule {
             }
             if (info.description() != null) {
                 metadata.setProperty("project.description", info.description());
-            }
-            if (info.testOf() != null) {
-                if (!info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
-                    throw new IllegalStateException("Test module '"
-                            + info.coordinate()
-                            + "' declares @tests "
-                            + info.testOf()
-                            + " but does not 'requires "
-                            + info.testOf()
-                            + ";' (declared requires: "
-                            + info.requires()
-                            + ")");
-                }
-                metadata.setProperty("project.test", info.testOf());
             }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
                 metadata.store(writer, null);

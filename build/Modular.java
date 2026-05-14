@@ -4,6 +4,7 @@ import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
@@ -22,6 +23,7 @@ public class Modular {
             Map<String, Repository> repositories = Repository.ofProperties(DownloadModuleUris.URIS,
                     downloaded.values(),
                     (_, value) -> URI.create(value),
+                    MavenDefaultRepository.versionResolver(),
                     Files.createDirectories(Path.of("cache/modules")));
             Map<String, Resolver> resolvers = Map.of("module", new ModularJarResolver(true));
             build.addModule("modules", ModularProject.make(

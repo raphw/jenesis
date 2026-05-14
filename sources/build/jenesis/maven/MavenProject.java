@@ -171,6 +171,10 @@ public class MavenProject implements BuildExecutorModule {
                                         .resolve("pom.xml");
                                 coordinates.setProperty(properties.getProperty("pom"),
                                         context.next().relativize(pomFile).toString());
+                                String[] coordinateParts = properties.getProperty("coordinate").split("/");
+                                if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
+                                    coordinates.setProperty(BuildStep.TESTS, coordinateParts[2]);
+                                }
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
                                     coordinates.store(writer, null);
                                 }
@@ -220,10 +224,6 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));
                                 Properties metadata = extractMetadata(pomFile);
-                                String[] coordinateParts = properties.getProperty("coordinate").split("/");
-                                if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
-                                    metadata.setProperty("project.test", coordinateParts[2]);
-                                }
                                 if (!metadata.isEmpty()) {
                                     try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
                                         metadata.store(writer, null);

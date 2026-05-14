@@ -2,6 +2,7 @@ package build.jenesis.test.maven;
 
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
@@ -189,14 +190,14 @@ public class MavenRepositoryStageTest {
         assertThatThrownBy(
                         () -> run(source, "module-foo", "module-foo-test-a", "module-foo-test-b"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Multiple test modules declare main 'foo'")
+                .hasMessageContaining("Multiple test modules name main 'foo'")
                 .hasMessageContaining("'-tests' classifier")
                 .hasMessageContaining("module-foo-test-a")
                 .hasMessageContaining("module-foo-test-b");
     }
 
     @Test
-    public void test_referencing_unknown_parent_fails_loudly() throws IOException {
+    public void test_referencing_unknown_main_fails_loudly() throws IOException {
         Path main = Files.createDirectory(source.resolve("module-foo"));
         writeMainModule(main, "com.example", "foo", "1.2.3");
         Files.writeString(main.resolve("classes.jar"), "main");
@@ -223,7 +224,7 @@ public class MavenRepositoryStageTest {
                         () -> run(source, "module-foo-test"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")
-                .hasMessageContaining("declares no parent")
+                .hasMessageContaining("does not name the main module it tests")
                 .hasMessageContaining("no main module is present");
     }
 
@@ -245,7 +246,7 @@ public class MavenRepositoryStageTest {
                         () -> run(source, "module-foo", "module-bar", "module-foo-test"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")
-                .hasMessageContaining("declares no parent")
+                .hasMessageContaining("does not name the main module it tests")
                 .hasMessageContaining("multiple main modules are present")
                 .hasMessageContaining("foo")
                 .hasMessageContaining("bar");
@@ -380,18 +381,18 @@ public class MavenRepositoryStageTest {
                                         String artifactId,
                                         String version,
                                         List<Dep> deps) throws IOException {
-        Files.writeString(moduleDir.resolve("metadata.properties"), "");
+        Files.writeString(moduleDir.resolve(BuildStep.IDENTITY), "");
         Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
     }
 
     private static void writeTestModule(Path moduleDir,
-                                        String parentArtifactId,
+                                        String mainArtifactId,
                                         String groupId,
                                         String artifactId,
                                         String version,
                                         List<Dep> deps) throws IOException {
-        Files.writeString(moduleDir.resolve("metadata.properties"),
-                "project.test=" + parentArtifactId + "\n");
+        Files.writeString(moduleDir.resolve(BuildStep.IDENTITY),
+                BuildStep.TESTS + "=" + mainArtifactId + "\n");
         Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
     }
 

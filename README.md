@@ -1065,24 +1065,28 @@ the staged tree shares inodes with `target/collect/output/`. Like every other je
 content-hashed and skipped on re-runs when inputs are unchanged.
 
 Under `MavenRepositoryStage` (used by `MAVEN`, `MODULAR_TO_MAVEN`), each per-module directory from
-`collect` is classified by its `metadata.properties` `project.test` flag, then staged differently:
+`collect` is classified by reading the `tests` key from its `identity.properties`, then staged differently:
 
-- **Main modules** (no `project.test=true`) have their jars hard-linked at the standard Maven repository
-  path `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`. The POM is
+- **Main modules** (no `tests` key in `identity.properties`) have their jars hard-linked at the standard
+  Maven repository path
+  `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`. The POM is
   either hard-linked as-is, or - when at least one test variant exists - written out via DOM merge: the
   main POM's `<dependencies>` gains one `<dependency>` per test-variant dep, each carrying
-  `<scope>test</scope>`. Test deps that point back at any main artifact (a JPMS test module's
+  `<scope>test</scope>`. Test deps that point back at any main artifact (a Java module system test module's
   `requires <main>;` becomes a `<dependency>` on `<main>`) are dropped from the merge to avoid
   self-references.
-- **Test variants** (`project.test=true`) have their jars hard-linked under the **main's** Maven
-  coordinate (not their own) with a `-tests` classifier suffix: `<main>-<version>-tests.jar`,
-  `<main>-<version>-tests-sources.jar`, `<main>-<version>-tests-javadoc.jar`. No separate POM is staged for
-  the test variant - the merged main POM is the single canonical POM for the coordinate.
+- **Test variants** (`tests=<main-artifactId>` in `identity.properties`) have their jars hard-linked
+  under the **main's** Maven coordinate (not their own) with a `-tests` classifier suffix:
+  `<main>-<version>-tests.jar`, `<main>-<version>-tests-sources.jar`,
+  `<main>-<version>-tests-javadoc.jar`. No separate POM is staged for the test variant - the merged main
+  POM is the single canonical POM for the coordinate.
 
-The `project.test` marker is set from existing metadata: `MavenProject.Manifests` flags any per-module
-variant whose generated coordinate carries the `tests` classifier, and `ModularProject.Manifests` flags
-any module whose `module-info.java` declares an `@tests` javadoc tag (parsed by `ModuleInfoParser` into
-`ModuleInfo.test()`). Path-based inference is intentionally not used. The `Pom` step lets test variants
+The `tests` key (defined as `BuildStep.TESTS`) is set from existing metadata: `MavenProject.Manifests`
+flags any per-module variant whose generated coordinate carries the `tests` classifier, and
+`ModularProject.Manifests` flags any module whose `module-info.java` declares an `@tests` javadoc tag
+(parsed by `ModuleInfoParser` into `ModuleInfo.testOf()`). Its value is the `artifactId` of the main
+module the tests cover (or empty for the deprecated bare `@tests` form, which only resolves when exactly
+one main module is present). It does not refer to a Maven `<parent>` POM relationship. Path-based inference is intentionally not used. The `Pom` step lets test variants
 through its `project.module` filter so that their POMs are still emitted into `collect/output` for
 `MavenRepositoryStage` to harvest dependencies from. Any other module without a POM is naturally absent
 from the staged tree (`MavenRepositoryStage` skips it because there are no main coordinates to anchor it
@@ -1090,11 +1094,13 @@ to).
 
 Under `MODULAR`, the `Relocate(new ModularPlacement())` step is unchanged from before: the placement
 reads `project.module` from the per-module `metadata.properties` (written by `ModularProject.Manifests`
-from the JPMS module declaration and carried through `collect`) and uses that JPMS module name as the
-staging directory and jar prefix; no POM is required or written. The `project.test` marker is **ignored**
-by `ModularPlacement` - test modules continue to be staged under their own JPMS-named directory with no
-`-tests` suffix and no merging. When `-Djenesis.buildVersion=<v>` is set, `ModularPlacement` inserts
-`<v>` as an additional path segment between the module name and the jar files.
+from the Java module system module declaration and carried through `collect`) and uses that Java module name as the
+staging directory and jar prefix; no POM is required or written. The `tests` marker in
+`identity.properties` is **ignored** by `ModularPlacement` when `-Djenesis.project.stageTests=true` -
+test modules are staged under their own Java-module-named directory with no `-tests` suffix and no merging.
+When the flag is unset (default), test modules are simply omitted from the staging tree. When
+`-Djenesis.buildVersion=<v>` is set, `ModularPlacement` inserts `<v>` as an additional path segment
+between the module name and the jar files.
 
 The resulting trees under `target/stage/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
 `-Djenesis.project.sources=true`, `-Djenesis.project.docs=true`):
@@ -1139,9 +1145,9 @@ target/stage/output/
 
 (`MAVEN` and `MODULAR_TO_MAVEN` route the test module's jars onto the main artifact's coordinate with a
 `-tests` classifier suffix and merge the test-variant dependencies into the main POM with
-`<scope>test</scope>`; the per-module `project.test=true` marker triggers this in `MavenRepositoryStage`.
-`MODULAR` ignores that marker and stages every discovered JPMS module under its own JPMS-named directory
-at the same level.)
+`<scope>test</scope>`; the per-module `tests=<main-artifactId>` marker in `identity.properties` triggers
+this in `MavenRepositoryStage`. `MODULAR` ignores that marker and stages every discovered Java module
+under its own Java-module-named directory at the same level when `-Djenesis.project.stageTests=true`.)
 
 A release build is therefore typically:
 

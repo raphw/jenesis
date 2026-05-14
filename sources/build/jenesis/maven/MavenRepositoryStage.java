@@ -10,7 +10,6 @@ import build.jenesis.BuildStepResult;
 public class MavenRepositoryStage implements BuildStep {
 
     private static final String POM = "pom.xml";
-    private static final String METADATA = "metadata.properties";
 
     private final boolean includeTests;
 
@@ -35,15 +34,15 @@ public class MavenRepositoryStage implements BuildStep {
                     if (!Files.isDirectory(moduleDir)) {
                         continue;
                     }
-                    Path metadata = moduleDir.resolve(METADATA);
-                    if (!Files.isRegularFile(metadata)) {
+                    Path identity = moduleDir.resolve(BuildStep.IDENTITY);
+                    if (!Files.isRegularFile(identity)) {
                         continue;
                     }
                     Properties properties = new Properties();
-                    try (Reader reader = Files.newBufferedReader(metadata)) {
+                    try (Reader reader = Files.newBufferedReader(identity)) {
                         properties.load(reader);
                     }
-                    String testOf = properties.getProperty("project.test");
+                    String testOf = properties.getProperty(BuildStep.TESTS);
                     if (testOf != null) {
                         if (includeTests) {
                             testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));
@@ -92,25 +91,27 @@ public class MavenRepositoryStage implements BuildStep {
         Set<String> allMainArtifactIds = mainsByArtifactId.keySet();
         for (Map.Entry<String, TestModule> entry : testModules.entrySet()) {
             TestModule test = entry.getValue();
-            Coordinates parent;
+            Coordinates main;
             if (test.testOf().isEmpty()) {
                 if (mainsByArtifactId.isEmpty()) {
                     throw new IllegalStateException("Test module '"
                             + entry.getKey()
-                            + "' declares no parent (bare @tests) but no main module is present to attach it to");
+                            + "' does not name the main module it tests (bare @tests) "
+                            + "but no main module is present to attach it to");
                 }
                 if (mainsByArtifactId.size() > 1) {
                     throw new IllegalStateException("Test module '"
                             + entry.getKey()
-                            + "' declares no parent (bare @tests) but multiple main modules are present; "
+                            + "' does not name the main module it tests (bare @tests) "
+                            + "but multiple main modules are present; "
                             + "specify an explicit @tests <artifactId> (known mains: "
                             + mainsByArtifactId.keySet()
                             + ")");
                 }
-                parent = mainsByArtifactId.values().iterator().next();
+                main = mainsByArtifactId.values().iterator().next();
             } else {
-                parent = mainsByArtifactId.get(test.testOf());
-                if (parent == null) {
+                main = mainsByArtifactId.get(test.testOf());
+                if (main == null) {
                     throw new IllegalStateException("Test module '"
                             + entry.getKey()
                             + "' references unknown main '"
@@ -120,19 +121,19 @@ public class MavenRepositoryStage implements BuildStep {
                             + ")");
                 }
             }
-            testsByMain.computeIfAbsent(parent.artifactId(), _ -> new ArrayList<>()).add(test);
+            testsByMain.computeIfAbsent(main.artifactId(), _ -> new ArrayList<>()).add(test);
             collectDependencies(test.dir().resolve(POM),
                     allMainArtifactIds,
-                    testDepsByMain.computeIfAbsent(parent.artifactId(), _ -> new ArrayList<>()));
+                    testDepsByMain.computeIfAbsent(main.artifactId(), _ -> new ArrayList<>()));
         }
         for (Map.Entry<String, List<TestModule>> entry : testsByMain.entrySet()) {
             if (entry.getValue().size() > 1) {
                 List<String> dirs = entry.getValue().stream()
                         .map(test -> test.dir().getFileName().toString())
                         .toList();
-                throw new IllegalStateException("Multiple test modules declare main '"
+                throw new IllegalStateException("Multiple test modules name main '"
                         + entry.getKey()
-                        + "' as their parent (would collide on the '-tests' classifier): "
+                        + "' as the module they test (would collide on the '-tests' classifier): "
                         + dirs);
             }
         }

@@ -1,6 +1,7 @@
 package build.jenesis.module;
 
 import module java.base;
+import build.jenesis.BuildStep;
 
 public class ModularPlacement implements Function<Path, Optional<Path>>, Serializable {
 
@@ -43,10 +44,13 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         if (parent == null) {
             return Optional.empty();
         }
-        Properties metadata = readMetadata(parent.resolve("metadata.properties"));
-        if (!includeTests && metadata != null && metadata.getProperty("project.test") != null) {
-            return Optional.empty();
+        if (!includeTests) {
+            Properties identity = readProperties(parent.resolve(BuildStep.IDENTITY));
+            if (identity != null && identity.getProperty(BuildStep.TESTS) != null) {
+                return Optional.empty();
+            }
         }
+        Properties metadata = readProperties(parent.resolve(BuildStep.METADATA));
         String moduleName = metadata == null ? null : metadata.getProperty("project.module");
         if (moduleName == null) {
             Path dir = parent.getFileName();
@@ -61,12 +65,12 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         return Optional.of(Path.of(moduleName, moduleName + suffix));
     }
 
-    private static Properties readMetadata(Path metadata) {
-        if (!Files.isRegularFile(metadata)) {
+    private static Properties readProperties(Path file) {
+        if (!Files.isRegularFile(file)) {
             return null;
         }
         Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(metadata)) {
+        try (Reader reader = Files.newBufferedReader(file)) {
             properties.load(reader);
         } catch (IOException _) {
             return null;

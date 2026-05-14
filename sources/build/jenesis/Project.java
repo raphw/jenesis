@@ -45,15 +45,15 @@ public final class Project {
                         (executor, inherited) -> {
                             BuildExecutorModule delegate;
                             if (context.tests()) {
-                                Properties metadata = new Properties();
+                                Properties identity = new Properties();
                                 Path manifestsDir = inherited.get(BuildExecutorModule.PREVIOUS + descriptor.manifests());
-                                Path metadataFile = manifestsDir.resolve(BuildStep.METADATA);
-                                if (Files.isRegularFile(metadataFile)) {
-                                    try (Reader reader = Files.newBufferedReader(metadataFile)) {
-                                        metadata.load(reader);
+                                Path identityFile = manifestsDir.resolve(BuildStep.IDENTITY);
+                                if (Files.isRegularFile(identityFile)) {
+                                    try (Reader reader = Files.newBufferedReader(identityFile)) {
+                                        identity.load(reader);
                                     }
                                 }
-                                boolean test = metadata.getProperty("project.test") != null;
+                                boolean test = identity.getProperty(BuildStep.TESTS) != null;
                                 delegate = new JavaModule().test(test, null, context.repositories(), context.resolvers());
                             } else {
                                 delegate = new JavaModule();
@@ -125,6 +125,7 @@ public final class Project {
                         DownloadModuleUris.URIS,
                         downloaded.values(),
                         (_, value) -> URI.create(value),
+                        MavenDefaultRepository.versionResolver(),
                         Files.createDirectories(builder.cache().resolve("modules"))));
                 if (builder.repositories() != null) {
                     repositories.putAll(builder.repositories());

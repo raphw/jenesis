@@ -29,7 +29,7 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         if (parent == null) {
             return Optional.empty();
         }
-        boolean test = isTest(parent.resolve("metadata.properties"));
+        boolean test = isTest(parent.resolve(BuildStep.IDENTITY));
         String suffix = switch (filename.toString()) {
             case "classes.jar" -> test ? "-tests.jar" : ".jar";
             case "sources.jar" -> test ? "-tests-sources.jar" : "-sources.jar";
@@ -51,17 +51,17 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
                 coordinates.artifactId() + "-" + coordinates.version() + suffix));
     }
 
-    private static boolean isTest(Path metadata) {
-        if (!Files.isRegularFile(metadata)) {
+    private static boolean isTest(Path identity) {
+        if (!Files.isRegularFile(identity)) {
             return false;
         }
         Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(metadata)) {
+        try (Reader reader = Files.newBufferedReader(identity)) {
             properties.load(reader);
         } catch (IOException _) {
             return false;
         }
-        return properties.getProperty("project.test") != null;
+        return properties.getProperty(BuildStep.TESTS) != null;
     }
 
     public static <C extends Consumer<Path> & Serializable> C createMavenLocalMetadata() {

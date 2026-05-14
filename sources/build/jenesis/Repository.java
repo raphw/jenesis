@@ -63,15 +63,21 @@ public interface Repository {
     }
 
     static Repository ofUris(Map<String, URI> uris) {
+        return ofUris(uris, null);
+    }
+
+    static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> Repository ofUris(
+            Map<String, URI> uris,
+            F versionResolver) {
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
         return (_, coordinate) -> {
             URI candidate = uris.get(coordinate);
-            if (candidate == null) {
+            if (candidate == null && versionResolver != null) {
                 int slash = coordinate.lastIndexOf('/');
                 if (slash > 0) {
                     URI base = uris.get(coordinate.substring(0, slash));
                     if (base != null) {
-                        candidate = substituteMavenVersion(base, coordinate.substring(slash + 1)).orElse(base);
+                        candidate = versionResolver.apply(base, coordinate.substring(slash + 1)).orElse(base);
                     }
                 }
             }
@@ -89,57 +95,6 @@ public interface Repository {
                 return Optional.of(() -> uri.toURL().openStream());
             }
         };
-    }
-
-    static Optional<URI> substituteMavenVersion(URI uri, String version) {
-        String path = uri.getPath();
-        if (path == null) {
-            return Optional.empty();
-        }
-        int last = path.lastIndexOf('/');
-        if (last <= 0) {
-            return Optional.empty();
-        }
-        int versionStart = path.lastIndexOf('/', last - 1);
-        if (versionStart <= 0) {
-            return Optional.empty();
-        }
-        int artifactStart = path.lastIndexOf('/', versionStart - 1);
-        if (artifactStart < 0) {
-            return Optional.empty();
-        }
-        String artifactId = path.substring(artifactStart + 1, versionStart);
-        String existingVersion = path.substring(versionStart + 1, last);
-        String filename = path.substring(last + 1);
-        String prefix = artifactId + "-" + existingVersion;
-        if (!filename.startsWith(prefix)) {
-            return Optional.empty();
-        }
-        String tail = filename.substring(prefix.length());
-        int dot = tail.lastIndexOf('.');
-        if (dot < 0) {
-            return Optional.empty();
-        }
-        String classifier = tail.substring(0, dot);
-        if (!classifier.isEmpty() && !classifier.startsWith("-")) {
-            return Optional.empty();
-        }
-        String extension = tail.substring(dot);
-        String newPath = path.substring(0, versionStart + 1)
-                + version
-                + "/" + artifactId + "-" + version + classifier + extension;
-        try {
-            return Optional.of(new URI(
-                    uri.getScheme(),
-                    uri.getUserInfo(),
-                    uri.getHost(),
-                    uri.getPort(),
-                    newPath,
-                    uri.getQuery(),
-                    uri.getFragment()));
-        } catch (URISyntaxException e) {
-            return Optional.empty();
-        }
     }
 
     static Repository ofFiles(Map<String, Path> files) {
@@ -160,6 +115,15 @@ public interface Repository {
                                                 Iterable<Path> folders,
                                                 BiFunction<Path, String, URI> resolver,
                                                 Path cache) throws IOException {
+        return ofProperties(suffix, folders, resolver, null, cache);
+    }
+
+    static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> Map<String, Repository> ofProperties(
+            String suffix,
+            Iterable<Path> folders,
+            BiFunction<Path, String, URI> resolver,
+            F versionResolver,
+            Path cache) throws IOException {
         Map<String, Map<String, URI>> artifacts = new HashMap<>();
         for (Path folder : folders) {
             Path file = folder.resolve(suffix);
@@ -180,7 +144,7 @@ public interface Repository {
             }
         }
         return artifacts.entrySet().stream()
-                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue()).cached(cache)))
+                .map(entry -> Map.entry(entry.getKey(), Repository.ofUris(entry.getValue(), versionResolver).cached(cache)))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
