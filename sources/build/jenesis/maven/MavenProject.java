@@ -171,12 +171,16 @@ public class MavenProject implements BuildExecutorModule {
                                         .resolve("pom.xml");
                                 coordinates.setProperty(properties.getProperty("pom"),
                                         context.next().relativize(pomFile).toString());
-                                String[] coordinateParts = properties.getProperty("coordinate").split("/");
-                                if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
-                                    coordinates.setProperty(BuildStep.TESTS, coordinateParts[2]);
-                                }
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
                                     coordinates.store(writer, null);
+                                }
+                                String[] coordinateParts = properties.getProperty("coordinate").split("/");
+                                if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
+                                    Properties moduleProperties = new SequencedProperties();
+                                    moduleProperties.setProperty(BuildStep.TESTS, coordinateParts[2]);
+                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
+                                        moduleProperties.store(writer, null);
+                                    }
                                 }
                                 Properties compileDependencies = new SequencedProperties();
                                 Properties runtimeDependencies = new SequencedProperties();

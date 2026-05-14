@@ -45,15 +45,15 @@ public final class Project {
                         (executor, inherited) -> {
                             BuildExecutorModule delegate;
                             if (context.tests()) {
-                                Properties identity = new Properties();
+                                Properties module = new Properties();
                                 Path manifestsDir = inherited.get(BuildExecutorModule.PREVIOUS + descriptor.manifests());
-                                Path identityFile = manifestsDir.resolve(BuildStep.IDENTITY);
-                                if (Files.isRegularFile(identityFile)) {
-                                    try (Reader reader = Files.newBufferedReader(identityFile)) {
-                                        identity.load(reader);
+                                Path moduleFile = manifestsDir.resolve(BuildStep.MODULE);
+                                if (Files.isRegularFile(moduleFile)) {
+                                    try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                                        module.load(reader);
                                     }
                                 }
-                                boolean test = identity.getProperty(BuildStep.TESTS) != null;
+                                boolean test = module.getProperty(BuildStep.TESTS) != null;
                                 delegate = new JavaModule().test(test, null, context.repositories(), context.resolvers());
                             } else {
                                 delegate = new JavaModule();

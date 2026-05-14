@@ -144,6 +144,11 @@ public class ModularProject implements BuildExecutorModule {
                     .resolve("module-info.java"));
             Properties coordinates = new SequencedProperties();
             coordinates.setProperty(prefix + "/" + info.coordinate(), "");
+            try (BufferedWriter writer = Files.newBufferedWriter(context
+                    .next()
+                    .resolve(BuildStep.IDENTITY))) {
+                coordinates.store(writer, null);
+            }
             if (info.testOf() != null) {
                 if (!info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
                     throw new IllegalStateException("Test module '"
@@ -156,12 +161,13 @@ public class ModularProject implements BuildExecutorModule {
                             + info.requires()
                             + ")");
                 }
-                coordinates.setProperty(BuildStep.TESTS, info.testOf());
-            }
-            try (BufferedWriter writer = Files.newBufferedWriter(context
-                    .next()
-                    .resolve(BuildStep.IDENTITY))) {
-                coordinates.store(writer, null);
+                Properties module = new SequencedProperties();
+                module.setProperty(BuildStep.TESTS, info.testOf());
+                try (BufferedWriter writer = Files.newBufferedWriter(context
+                        .next()
+                        .resolve(BuildStep.MODULE))) {
+                    module.store(writer, null);
+                }
             }
             for (Map.Entry<String, SequencedSet<String>> entry : List.of(
                     Map.entry(MultiProjectModule.COMPILE, info.requires()),

@@ -37,7 +37,7 @@ public class MultiProjectModule implements BuildExecutorModule {
     }
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
-        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml", BuildStep.METADATA, BuildStep.IDENTITY);
+        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml", BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
     }
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {

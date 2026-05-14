@@ -38,11 +38,15 @@ public class MavenRepositoryStage implements BuildStep {
                     if (!Files.isRegularFile(identity)) {
                         continue;
                     }
-                    Properties properties = new Properties();
-                    try (Reader reader = Files.newBufferedReader(identity)) {
-                        properties.load(reader);
+                    Path module = moduleDir.resolve(BuildStep.MODULE);
+                    String testOf = null;
+                    if (Files.isRegularFile(module)) {
+                        Properties properties = new Properties();
+                        try (Reader reader = Files.newBufferedReader(module)) {
+                            properties.load(reader);
+                        }
+                        testOf = properties.getProperty(BuildStep.TESTS);
                     }
-                    String testOf = properties.getProperty(BuildStep.TESTS);
                     if (testOf != null) {
                         if (includeTests) {
                             testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));

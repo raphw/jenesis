@@ -29,7 +29,7 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         if (parent == null) {
             return Optional.empty();
         }
-        boolean test = isTest(parent.resolve(BuildStep.IDENTITY));
+        boolean test = isTest(parent.resolve(BuildStep.MODULE));
         String suffix = switch (filename.toString()) {
             case "classes.jar" -> test ? "-tests.jar" : ".jar";
             case "sources.jar" -> test ? "-tests-sources.jar" : "-sources.jar";
@@ -51,12 +51,12 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
                 coordinates.artifactId() + "-" + coordinates.version() + suffix));
     }
 
-    private static boolean isTest(Path identity) {
-        if (!Files.isRegularFile(identity)) {
+    private static boolean isTest(Path module) {
+        if (!Files.isRegularFile(module)) {
             return false;
         }
         Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(identity)) {
+        try (Reader reader = Files.newBufferedReader(module)) {
             properties.load(reader);
         } catch (IOException _) {
             return false;

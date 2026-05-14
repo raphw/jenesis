@@ -85,10 +85,13 @@ public class MavenProjectTest {
         }
         assertThat(testCoordinates).containsOnlyKeys(
                 "maven/group/artifact/jar/tests/1",
-                "maven/group/artifact/pom/1",
-                BuildStep.TESTS);
+                "maven/group/artifact/pom/1");
         assertThat(testCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
-        assertThat(testCoordinates.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
+        Properties testModuleProperties = new Properties();
+        try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.MODULE))) {
+            testModuleProperties.load(reader);
+        }
+        assertThat(testModuleProperties.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
         Path testModuleRequires = testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
         assertThat(testModuleRequires).exists();
         Properties testDependencies = new Properties();
@@ -231,10 +234,13 @@ public class MavenProjectTest {
         }
         assertThat(parentTestCoordinates).containsOnlyKeys(
                 "maven/parent/artifact/jar/tests/1",
-                "maven/parent/artifact/pom/1",
-                BuildStep.TESTS);
+                "maven/parent/artifact/pom/1");
         assertThat(parentTestCoordinates.getProperty("maven/parent/artifact/jar/tests/1")).isEmpty();
-        assertThat(parentTestCoordinates.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
+        Properties parentTestModule = new Properties();
+        try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.MODULE))) {
+            parentTestModule.load(reader);
+        }
+        assertThat(parentTestModule.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
         Properties parentTestDependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES))) {
             parentTestDependencies.load(reader);
@@ -260,10 +266,13 @@ public class MavenProjectTest {
         }
         assertThat(childTestCoordinates).containsOnlyKeys(
                 "maven/group/artifact/jar/tests/1",
-                "maven/group/artifact/pom/1",
-                BuildStep.TESTS);
+                "maven/group/artifact/pom/1");
         assertThat(childTestCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
-        assertThat(childTestCoordinates.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
+        Properties childTestModule = new Properties();
+        try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.MODULE))) {
+            childTestModule.load(reader);
+        }
+        assertThat(childTestModule.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
         Properties childTestDependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(childTests.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES))) {
             childTestDependencies.load(reader);
