@@ -91,7 +91,7 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.MODULE))) {
             testModuleProperties.load(reader);
         }
-        assertThat(testModuleProperties.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
+        assertThat(testModuleProperties.getProperty("tests")).isEqualTo("artifact");
         Path testModuleRequires = testModule.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES);
         assertThat(testModuleRequires).exists();
         Properties testDependencies = new Properties();
@@ -240,7 +240,7 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.MODULE))) {
             parentTestModule.load(reader);
         }
-        assertThat(parentTestModule.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
+        assertThat(parentTestModule.getProperty("tests")).isEqualTo("artifact");
         Properties parentTestDependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES))) {
             parentTestDependencies.load(reader);
@@ -272,7 +272,7 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.MODULE))) {
             childTestModule.load(reader);
         }
-        assertThat(childTestModule.getProperty(BuildStep.TESTS)).isEqualTo("artifact");
+        assertThat(childTestModule.getProperty("tests")).isEqualTo("artifact");
         Properties childTestDependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(childTests.resolve(MultiProjectModule.COMPILE).resolve(BuildStep.REQUIRES))) {
             childTestDependencies.load(reader);

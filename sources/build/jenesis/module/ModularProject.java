@@ -162,7 +162,7 @@ public class ModularProject implements BuildExecutorModule {
                             + ")");
                 }
                 Properties module = new SequencedProperties();
-                module.setProperty(BuildStep.TESTS, info.testOf());
+                module.setProperty("tests", info.testOf());
                 try (BufferedWriter writer = Files.newBufferedWriter(context
                         .next()
                         .resolve(BuildStep.MODULE))) {

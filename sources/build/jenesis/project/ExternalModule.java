@@ -14,8 +14,9 @@ import build.jenesis.SequencedProperties;
 public class ExternalModule implements BuildExecutorModule {
 
     public static final String COORDINATE = "coordinate", DEPENDENCIES = "dependencies", EXTERNAL = "external", DELEGATE = "delegate";
+    public static final String JENESIS_MODULE = "Jenesis-Module";
     private static final String EXTERNAL_ARTIFACTS = DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-    private static final String EXTERNAL_PROPERTIES = "external.properties", JENESIS_MODULE = "Jenesis-Module";
+    private static final String EXTERNAL_PROPERTIES = "external.properties";
 
     private final String coordinate;
     private final Map<String, Repository> repositories;

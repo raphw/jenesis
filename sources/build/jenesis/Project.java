@@ -53,7 +53,7 @@ public final class Project {
                                         module.load(reader);
                                     }
                                 }
-                                boolean test = module.getProperty(BuildStep.TESTS) != null;
+                                boolean test = module.getProperty("tests") != null;
                                 delegate = new JavaModule().test(test, null, context.repositories(), context.resolvers());
                             } else {
                                 delegate = new JavaModule();

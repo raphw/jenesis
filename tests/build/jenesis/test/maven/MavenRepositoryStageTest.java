@@ -393,7 +393,7 @@ public class MavenRepositoryStageTest {
                                         List<Dep> deps) throws IOException {
         Files.writeString(moduleDir.resolve(BuildStep.IDENTITY), "");
         Files.writeString(moduleDir.resolve(BuildStep.MODULE),
-                BuildStep.TESTS + "=" + mainArtifactId + "\n");
+                "tests=" + mainArtifactId + "\n");
         Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
     }
 

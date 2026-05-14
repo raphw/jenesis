@@ -7,7 +7,6 @@ public interface BuildStep extends Serializable {
 
     String SOURCES = "sources/", RESOURCES = "resources/", CLASSES = "classes/", ARTIFACTS = "artifacts/";
     String IDENTITY = "identity.properties", REQUIRES = "requires.properties", VERSIONS = "versions.properties", METADATA = "metadata.properties", MODULE = "module.properties";
-    String TESTS = "tests";
 
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);

@@ -143,7 +143,7 @@ public class Pom implements BuildStep {
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
         String targetModule = metadata.getProperty("project.module");
-        boolean test = module.getProperty(TESTS) != null;
+        boolean test = module.getProperty("tests") != null;
         if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

@@ -177,7 +177,7 @@ public class MavenProject implements BuildExecutorModule {
                                 String[] coordinateParts = properties.getProperty("coordinate").split("/");
                                 if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
                                     Properties moduleProperties = new SequencedProperties();
-                                    moduleProperties.setProperty(BuildStep.TESTS, coordinateParts[2]);
+                                    moduleProperties.setProperty("tests", coordinateParts[2]);
                                     try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
                                         moduleProperties.store(writer, null);
                                     }

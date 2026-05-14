@@ -45,7 +45,7 @@ public class MavenRepositoryStage implements BuildStep {
                         try (Reader reader = Files.newBufferedReader(module)) {
                             properties.load(reader);
                         }
-                        testOf = properties.getProperty(BuildStep.TESTS);
+                        testOf = properties.getProperty("tests");
                     }
                     if (testOf != null) {
                         if (includeTests) {

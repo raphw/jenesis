@@ -46,7 +46,7 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         }
         if (!includeTests) {
             Properties module = readProperties(parent.resolve(BuildStep.MODULE));
-            if (module != null && module.getProperty(BuildStep.TESTS) != null) {
+            if (module != null && module.getProperty("tests") != null) {
                 return Optional.empty();
             }
         }

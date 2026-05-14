@@ -61,7 +61,7 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         } catch (IOException _) {
             return false;
         }
-        return properties.getProperty(BuildStep.TESTS) != null;
+        return properties.getProperty("tests") != null;
     }
 
     public static <C extends Consumer<Path> & Serializable> C createMavenLocalMetadata() {
