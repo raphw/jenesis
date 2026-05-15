@@ -13,7 +13,7 @@ public enum TestDefaultEngine implements TestEngine {
     JUNIT5("org.junit.platform.console",
             new LinkedHashSet<>(List.of(
                     "maven/org.junit.platform/junit-platform-console/1.11.4",
-                    "module/org.junit.platform.console")),
+                    "module/org.junit.platform.console/1.11.4")),
             "org.junit.jupiter.api.Test",
             "org.junit.platform.console.ConsoleLauncher",
             "-select-class=",
