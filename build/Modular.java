@@ -9,7 +9,7 @@ import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.project.Scope;
+import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Relocate;
 
 public class Modular {
@@ -34,10 +34,10 @@ public class Modular {
                             new JavaModule().testIfAvailable(repositories, resolvers),
                             descriptor.sources(),
                             descriptor.manifests(),
-                            descriptor.resolved(Scope.COMPILE),
-                            descriptor.resolved(Scope.RUNTIME),
-                            descriptor.artifacts(Scope.COMPILE),
-                            descriptor.artifacts(Scope.RUNTIME))));
+                            descriptor.resolved(DependencyScope.COMPILE),
+                            descriptor.resolved(DependencyScope.RUNTIME),
+                            descriptor.artifacts(DependencyScope.COMPILE),
+                            descriptor.artifacts(DependencyScope.RUNTIME))));
         }, "download");
 
         root.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");

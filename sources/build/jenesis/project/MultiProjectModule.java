@@ -9,11 +9,6 @@ import build.jenesis.step.Group;
 
 public class MultiProjectModule implements BuildExecutorModule {
 
-    public static final String SOURCES = "sources",
-            MANIFESTS = "manifests",
-            COMPILE = "compile",
-            RUNTIME = "runtime";
-
     public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
             MODULE = "module";

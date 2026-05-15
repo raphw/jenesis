@@ -14,7 +14,7 @@ import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.project.Scope;
+import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
@@ -22,6 +22,7 @@ import build.jenesis.step.Javac;
 public class ModularProject implements BuildExecutorModule {
 
     private static final String DEPENDENCIES = "dependencies", PREPARE = "prepare";
+    private static final String SOURCES = "sources", MANIFESTS = "manifests";
 
     private final String prefix;
     private final Path root;
@@ -78,7 +79,7 @@ public class ModularProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
-                    for (Scope scope : Scope.values()) {
+                    for (DependencyScope scope : DependencyScope.values()) {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
@@ -86,7 +87,7 @@ public class ModularProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == Scope.COMPILE),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -95,19 +96,19 @@ public class ModularProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
+                                                    DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
+                                                    DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
+                                                    DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
+                                                    DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
                                                         + name + "/"
-                                                        + MultiProjectModule.SOURCES) -> MultiProjectModule.SOURCES;
+                                                        + SOURCES) -> SOURCES;
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
                                                         + name + "/"
-                                                        + MultiProjectModule.MANIFESTS) -> MultiProjectModule.MANIFESTS;
+                                                        + MANIFESTS) -> MANIFESTS;
                                                 default -> key;
                                             },
                                             (a, _) -> a,
@@ -174,8 +175,8 @@ public class ModularProject implements BuildExecutorModule {
                 String key = prefix + "/" + dependency;
                 requires.setProperty(key, "");
                 scopes.setProperty(key, info.runtimeRequires().contains(dependency)
-                        ? Scope.COMPILE.name() + "," + Scope.RUNTIME.name()
-                        : Scope.COMPILE.name());
+                        ? DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name()
+                        : DependencyScope.COMPILE.name());
             }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 requires.store(writer, null);
@@ -218,7 +219,7 @@ public class ModularProject implements BuildExecutorModule {
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MultiProjectModule.MANIFESTS, new Manifests(prefix), "sources");
+                            module.addStep(MANIFESTS, new Manifests(prefix), "sources");
                         });
                     }
                 }
@@ -239,21 +240,21 @@ public class ModularProject implements BuildExecutorModule {
 
         @Override
         public String sources() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.SOURCES;
+            return BuildExecutorModule.PREVIOUS + SOURCES;
         }
 
         @Override
         public String manifests() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.MANIFESTS;
+            return BuildExecutorModule.PREVIOUS + MANIFESTS;
         }
 
         @Override
-        public String artifacts(Scope scope) {
+        public String artifacts(DependencyScope scope) {
             return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
         }
 
         @Override
-        public String resolved(Scope scope) {
+        public String resolved(DependencyScope scope) {
             return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
     }

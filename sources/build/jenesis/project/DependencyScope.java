@@ -2,7 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 
-public enum Scope {
+public enum DependencyScope {
 
     COMPILE, RUNTIME;
 

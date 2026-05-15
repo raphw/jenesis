@@ -10,9 +10,9 @@ import build.jenesis.SequencedProperties;
 public class MultiProjectDependencies implements BuildStep {
 
     private final Predicate<String> isModule;
-    private final Scope scope;
+    private final DependencyScope scope;
 
-    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule, Scope scope) {
+    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule, DependencyScope scope) {
         this.isModule = isModule;
         this.scope = scope;
     }

@@ -13,7 +13,7 @@ import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.project.Scope;
+import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Relocate;
 
 public class ModularToMaven {
@@ -38,9 +38,9 @@ public class ModularToMaven {
                     resolvers,
                     descriptor -> (buildExecutor, _) -> {
                         buildExecutor.addModule("java", new JavaModule().testIfAvailable(repositories, resolvers),
-                                descriptor.sources(), descriptor.manifests(), descriptor.artifacts(Scope.COMPILE), descriptor.artifacts(Scope.RUNTIME));
+                                descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
                         buildExecutor.addStep("pom", new Pom(),
-                                descriptor.sources(), descriptor.manifests(), descriptor.resolved(Scope.COMPILE));
+                                descriptor.sources(), descriptor.manifests(), descriptor.resolved(DependencyScope.COMPILE));
                     }));
         }, "download");
 

@@ -10,7 +10,7 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenRepositoryPlacement;
 import build.jenesis.maven.Pom;
-import build.jenesis.project.Scope;
+import build.jenesis.project.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -98,8 +98,8 @@ public class PomTest {
             requires.store(writer, null);
         }
         Properties scopes = new SequencedProperties();
-        scopes.setProperty("maven/org.example/lib/1.2.3", Scope.COMPILE.name() + "," + Scope.RUNTIME.name());
-        scopes.setProperty("maven/org.example/static-lib/4.5.6", Scope.COMPILE.name());
+        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
+        scopes.setProperty("maven/org.example/static-lib/4.5.6", DependencyScope.COMPILE.name());
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.SCOPES))) {
             scopes.store(writer, null);
         }
@@ -139,8 +139,8 @@ public class PomTest {
             requires.store(writer, null);
         }
         Properties scopes = new SequencedProperties();
-        scopes.setProperty("maven/org.example/lib/1.2.3", Scope.COMPILE.name() + "," + Scope.RUNTIME.name());
-        scopes.setProperty("maven/org.example/runtime-only/4.5.6", Scope.RUNTIME.name());
+        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
+        scopes.setProperty("maven/org.example/runtime-only/4.5.6", DependencyScope.RUNTIME.name());
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.SCOPES))) {
             scopes.store(writer, null);
         }

@@ -8,7 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.project.MultiProjectDependencies;
-import build.jenesis.project.Scope;
+import build.jenesis.project.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,7 +41,7 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, Scope.COMPILE).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -68,7 +68,7 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, Scope.COMPILE).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
