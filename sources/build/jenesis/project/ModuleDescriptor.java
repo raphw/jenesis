@@ -12,11 +12,7 @@ public interface ModuleDescriptor {
 
     String manifests();
 
-    String artifacts();
+    String artifacts(Scope scope);
 
-    String runtimeArtifacts();
-
-    String resolved();
-
-    String runtimeResolved();
+    String resolved(Scope scope);
 }

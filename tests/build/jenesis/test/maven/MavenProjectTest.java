@@ -13,7 +13,7 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
 import build.jenesis.project.JavaModule;
-import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.Scope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -163,11 +163,11 @@ public class MavenProjectTest {
                 "maven/scope/provided-dep/jar/1",
                 "maven/scope/runtime-dep/jar/1");
         assertThat(mainScopesProps.getProperty("maven/scope/compile-dep/jar/1"))
-                .isEqualTo(MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME);
+                .isEqualTo(Scope.COMPILE.name() + "," + Scope.RUNTIME.name());
         assertThat(mainScopesProps.getProperty("maven/scope/provided-dep/jar/1"))
-                .isEqualTo(MultiProjectModule.COMPILE);
+                .isEqualTo(Scope.COMPILE.name());
         assertThat(mainScopesProps.getProperty("maven/scope/runtime-dep/jar/1"))
-                .isEqualTo(MultiProjectModule.RUNTIME);
+                .isEqualTo(Scope.RUNTIME.name());
 
         Path testRequires = results.get("maven/module/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES);

@@ -10,9 +10,9 @@ import build.jenesis.SequencedProperties;
 public class MultiProjectDependencies implements BuildStep {
 
     private final Predicate<String> isModule;
-    private final String scope;
+    private final Scope scope;
 
-    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule, String scope) {
+    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule, Scope scope) {
         this.isModule = isModule;
         this.scope = scope;
     }
@@ -35,7 +35,7 @@ public class MultiProjectDependencies implements BuildStep {
                         scopesProperties.load(reader);
                     }
                     for (String property : scopesProperties.stringPropertyNames()) {
-                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope)) {
+                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope.name())) {
                             filtered.add(property);
                         }
                     }

@@ -15,6 +15,7 @@ import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.Scope;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.Relocate;
@@ -57,10 +58,10 @@ public final class Project {
                 sub.addModule("java", java,
                         descriptor.sources(),
                         descriptor.manifests(),
-                        descriptor.resolved(),
-                        descriptor.runtimeResolved(),
-                        descriptor.artifacts(),
-                        descriptor.runtimeArtifacts());
+                        descriptor.resolved(Scope.COMPILE),
+                        descriptor.resolved(Scope.RUNTIME),
+                        descriptor.artifacts(Scope.COMPILE),
+                        descriptor.artifacts(Scope.RUNTIME));
                 if (context.sources()) {
                     sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
                 }
@@ -71,10 +72,10 @@ public final class Project {
                     },
                     descriptor.sources(),
                     descriptor.manifests(),
-                    descriptor.resolved(),
-                    descriptor.runtimeResolved(),
-                    descriptor.artifacts(),
-                    descriptor.runtimeArtifacts());
+                    descriptor.resolved(Scope.COMPILE),
+                    descriptor.resolved(Scope.RUNTIME),
+                    descriptor.artifacts(Scope.COMPILE),
+                    descriptor.artifacts(Scope.RUNTIME));
                 }
             };
         }

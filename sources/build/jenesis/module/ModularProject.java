@@ -14,6 +14,7 @@ import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.Scope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
@@ -77,17 +78,15 @@ public class ModularProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
-                    for (Map.Entry<String, Boolean> entry : List.of(
-                            Map.entry(MultiProjectModule.COMPILE, true),
-                            Map.entry(MultiProjectModule.RUNTIME, false))) {
-                        buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
+                    for (Scope scope : Scope.values()) {
+                        buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            entry.getKey()),
+                                            scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, entry.getValue()),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == Scope.COMPILE),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -175,8 +174,8 @@ public class ModularProject implements BuildExecutorModule {
                 String key = prefix + "/" + dependency;
                 requires.setProperty(key, "");
                 scopes.setProperty(key, info.runtimeRequires().contains(dependency)
-                        ? MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME
-                        : MultiProjectModule.COMPILE);
+                        ? Scope.COMPILE.name() + "," + Scope.RUNTIME.name()
+                        : Scope.COMPILE.name());
             }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 requires.store(writer, null);
@@ -249,23 +248,13 @@ public class ModularProject implements BuildExecutorModule {
         }
 
         @Override
-        public String artifacts() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+        public String artifacts(Scope scope) {
+            return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
         }
 
         @Override
-        public String runtimeArtifacts() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-        }
-
-        @Override
-        public String resolved() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
-        }
-
-        @Override
-        public String runtimeResolved() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
+        public String resolved(Scope scope) {
+            return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
     }
 }

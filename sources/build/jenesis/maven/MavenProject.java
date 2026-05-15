@@ -15,6 +15,7 @@ import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.Scope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
@@ -70,17 +71,15 @@ public class MavenProject implements BuildExecutorModule {
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
-                    for (Map.Entry<String, Boolean> entry : List.of(
-                            Map.entry(MultiProjectModule.COMPILE, true),
-                            Map.entry(MultiProjectModule.RUNTIME, false))) {
-                        buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
+                    for (Scope scope : Scope.values()) {
+                        buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
-                                            entry.getKey()),
+                                            scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, entry.getValue()),
+                                    new DependenciesModule(mergedRepositories, resolverMap, scope == Scope.COMPILE),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -199,18 +198,18 @@ public class MavenProject implements BuildExecutorModule {
                                         checksumByCoordinate.put(entry.substring(0, split), entry.substring(split + 1));
                                     }
                                 }
-                                String compileAndRuntime = MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME;
+                                String compileAndRuntime = Scope.COMPILE.name() + "," + Scope.RUNTIME.name();
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, compileAndRuntime);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, MultiProjectModule.COMPILE);
+                                    scopes.setProperty(dependency, Scope.COMPILE.name());
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, MultiProjectModule.RUNTIME);
+                                    scopes.setProperty(dependency, Scope.RUNTIME.name());
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
@@ -531,23 +530,13 @@ public class MavenProject implements BuildExecutorModule {
         }
 
         @Override
-        public String artifacts() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+        public String artifacts(Scope scope) {
+            return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
         }
 
         @Override
-        public String runtimeArtifacts() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-        }
-
-        @Override
-        public String resolved() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
-        }
-
-        @Override
-        public String runtimeResolved() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
+        public String resolved(Scope scope) {
+            return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
     }
 }

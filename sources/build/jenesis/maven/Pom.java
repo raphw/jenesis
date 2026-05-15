@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
+import build.jenesis.project.Scope;
 
 public class Pom implements BuildStep {
 
@@ -90,10 +91,10 @@ public class Pom implements BuildStep {
                         compileRequires.setProperty(name, requiresLoaded.getProperty(name));
                     } else {
                         List<String> parts = List.of(scope.split(","));
-                        if (parts.contains("compile")) {
+                        if (parts.contains(Scope.COMPILE.name())) {
                             compileRequires.setProperty(name, requiresLoaded.getProperty(name));
                         }
-                        if (parts.contains("runtime")) {
+                        if (parts.contains(Scope.RUNTIME.name())) {
                             runtimeRequires.add(name);
                         }
                     }
