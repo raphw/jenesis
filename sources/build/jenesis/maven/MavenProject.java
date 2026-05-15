@@ -386,10 +386,11 @@ public class MavenProject implements BuildExecutorModule {
                 if (Objects.equals("pom", entry.getValue().packaging())) {
                     continue;
                 }
+                String packaging = entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging();
                 String coordinate = prefix
                         + "/" + entry.getValue().groupId()
                         + "/" + entry.getValue().artifactId()
-                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
+                        + ("jar".equals(packaging) ? "" : "/" + packaging)
                         + "/" + entry.getValue().version();
                 Properties module = new SequencedProperties();
                 module.setProperty("coordinate", coordinate);
@@ -418,7 +419,8 @@ public class MavenProject implements BuildExecutorModule {
                                     .map(dep -> prefix
                                             + "/" + dep.getKey().groupId()
                                             + "/" + dep.getKey().artifactId()
-                                            + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                            + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                                    ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
                                             + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                             + "/" + dep.getValue().version())
                                     .collect(Collectors.joining(",")));
@@ -427,7 +429,8 @@ public class MavenProject implements BuildExecutorModule {
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
                                 + "/" + dep.getKey().artifactId()
-                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "=" + dep.getValue().version()
                                 + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
@@ -438,7 +441,8 @@ public class MavenProject implements BuildExecutorModule {
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
                                 + "/" + dep.getKey().artifactId()
-                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "/" + dep.getValue().version()
                                 + "=" + dep.getValue().checksum())
@@ -475,7 +479,8 @@ public class MavenProject implements BuildExecutorModule {
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
                                 + "/" + dep.getKey().artifactId()
-                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "/" + dep.getValue().version())
                         .collect(Collectors.joining(","));
@@ -486,7 +491,8 @@ public class MavenProject implements BuildExecutorModule {
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
                                 + "/" + dep.getKey().artifactId()
-                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "=" + dep.getValue().version()
                                 + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
@@ -497,7 +503,8 @@ public class MavenProject implements BuildExecutorModule {
                         .map(dep -> prefix
                                 + "/" + dep.getKey().groupId()
                                 + "/" + dep.getKey().artifactId()
-                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "/" + dep.getValue().version()
                                 + "=" + dep.getValue().checksum())

@@ -66,17 +66,17 @@ public class MavenProjectTest {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsOnlyKeys(
-                "maven/group/artifact/jar/1",
+                "maven/group/artifact/1",
                 "maven/group/artifact/pom/1");
-        assertThat(coordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
+        assertThat(coordinates.getProperty("maven/group/artifact/1")).isEmpty();
         Path moduleRequires = module.resolve(BuildStep.REQUIRES);
         assertThat(moduleRequires).exists();
         Properties dependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(moduleRequires)) {
             dependencies.load(reader);
         }
-        assertThat(dependencies).containsOnlyKeys("maven/other/artifact/jar/1");
-        assertThat(dependencies.getProperty("maven/other/artifact/jar/1")).isEmpty();
+        assertThat(dependencies).containsOnlyKeys("maven/other/artifact/1");
+        assertThat(dependencies.getProperty("maven/other/artifact/1")).isEmpty();
         Path testModule = results.get("maven/module/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.IDENTITY)).exists();
         Properties testCoordinates = new Properties();
@@ -98,8 +98,8 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(testModuleRequires)) {
             testDependencies.load(reader);
         }
-        assertThat(testDependencies).containsOnlyKeys("maven/group/artifact/jar/1");
-        assertThat(testDependencies.getProperty("maven/group/artifact/jar/1")).isEmpty();
+        assertThat(testDependencies).containsOnlyKeys("maven/group/artifact/1");
+        assertThat(testDependencies.getProperty("maven/group/artifact/1")).isEmpty();
     }
 
     @Test
@@ -159,14 +159,14 @@ public class MavenProjectTest {
             mainScopesProps.load(reader);
         }
         assertThat(mainRequiresProps.stringPropertyNames()).containsExactlyInAnyOrder(
-                "maven/scope/compile-dep/jar/1",
-                "maven/scope/provided-dep/jar/1",
-                "maven/scope/runtime-dep/jar/1");
-        assertThat(mainScopesProps.getProperty("maven/scope/compile-dep/jar/1"))
+                "maven/scope/compile-dep/1",
+                "maven/scope/provided-dep/1",
+                "maven/scope/runtime-dep/1");
+        assertThat(mainScopesProps.getProperty("maven/scope/compile-dep/1"))
                 .isEqualTo(DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
-        assertThat(mainScopesProps.getProperty("maven/scope/provided-dep/jar/1"))
+        assertThat(mainScopesProps.getProperty("maven/scope/provided-dep/1"))
                 .isEqualTo(DependencyScope.COMPILE.name());
-        assertThat(mainScopesProps.getProperty("maven/scope/runtime-dep/jar/1"))
+        assertThat(mainScopesProps.getProperty("maven/scope/runtime-dep/1"))
                 .isEqualTo(DependencyScope.RUNTIME.name());
 
         Path testRequires = results.get("maven/module/test-module-/manifests")
@@ -176,8 +176,8 @@ public class MavenProjectTest {
             testRequiresProps.load(reader);
         }
         assertThat(testRequiresProps.stringPropertyNames()).containsExactlyInAnyOrder(
-                "maven/scope/test-dep/jar/1",
-                "maven/group/artifact/jar/1");
+                "maven/scope/test-dep/1",
+                "maven/group/artifact/1");
     }
 
     @Test
@@ -226,9 +226,9 @@ public class MavenProjectTest {
             parentCoordinates.load(reader);
         }
         assertThat(parentCoordinates).containsOnlyKeys(
-                "maven/parent/artifact/jar/1",
+                "maven/parent/artifact/1",
                 "maven/parent/artifact/pom/1");
-        assertThat(parentCoordinates.getProperty("maven/parent/artifact/jar/1")).isEmpty();
+        assertThat(parentCoordinates.getProperty("maven/parent/artifact/1")).isEmpty();
         assertThat(parent.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
         Path parentTests = results.get("maven/module/test-module-/manifests");
         assertThat(parentTests.resolve(BuildStep.IDENTITY)).exists();
@@ -249,8 +249,8 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.REQUIRES))) {
             parentTestDependencies.load(reader);
         }
-        assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/jar/1");
-        assertThat(parentTestDependencies.getProperty("maven/parent/artifact/jar/1")).isEmpty();
+        assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/1");
+        assertThat(parentTestDependencies.getProperty("maven/parent/artifact/1")).isEmpty();
         Path child = results.get("maven/module/module-subproject/manifests");
         assertThat(child.resolve(BuildStep.IDENTITY)).exists();
         Properties childCoordinates = new Properties();
@@ -258,9 +258,9 @@ public class MavenProjectTest {
             childCoordinates.load(reader);
         }
         assertThat(childCoordinates).containsOnlyKeys(
-                "maven/group/artifact/jar/1",
+                "maven/group/artifact/1",
                 "maven/group/artifact/pom/1");
-        assertThat(childCoordinates.getProperty("maven/group/artifact/jar/1")).isEmpty();
+        assertThat(childCoordinates.getProperty("maven/group/artifact/1")).isEmpty();
         assertThat(child.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
         Path childTests = results.get("maven/module/test-module-subproject/manifests");
         assertThat(childTests.resolve(BuildStep.IDENTITY)).exists();
@@ -281,8 +281,8 @@ public class MavenProjectTest {
         try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.REQUIRES))) {
             childTestDependencies.load(reader);
         }
-        assertThat(childTestDependencies).containsOnlyKeys("maven/group/artifact/jar/1");
-        assertThat(childTestDependencies.getProperty("maven/group/artifact/jar/1")).isEmpty();
+        assertThat(childTestDependencies).containsOnlyKeys("maven/group/artifact/1");
+        assertThat(childTestDependencies.getProperty("maven/group/artifact/1")).isEmpty();
     }
 
     @Test
@@ -517,8 +517,8 @@ public class MavenProjectTest {
                 .resolve(BuildStep.IDENTITY))) {
             foo.load(reader);
         }
-        assertThat(foo.stringPropertyNames()).containsExactly("maven/group/foo/jar/1", "maven/group/foo/pom/1");
-        assertThat(foo.getProperty("maven/group/foo/jar/1"))
+        assertThat(foo.stringPropertyNames()).containsExactly("maven/group/foo/1", "maven/group/foo/pom/1");
+        assertThat(foo.getProperty("maven/group/foo/1"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         assertThat(foo.getProperty("maven/group/foo/pom/1"))
                 .isEqualTo("../../../../../identifier/scan/output/pom/foo/pom.xml");
@@ -528,8 +528,8 @@ public class MavenProjectTest {
                 .resolve(BuildStep.IDENTITY))) {
             bar.load(reader);
         }
-        assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/jar/1", "maven/group/bar/pom/1");
-        assertThat(bar.getProperty("maven/group/bar/jar/1"))
+        assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/1", "maven/group/bar/pom/1");
+        assertThat(bar.getProperty("maven/group/bar/1"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         assertThat(bar.getProperty("maven/group/bar/pom/1"))
                 .isEqualTo("../../../../../identifier/scan/output/pom/bar/pom.xml");
@@ -582,7 +582,7 @@ public class MavenProjectTest {
             versions.load(reader);
         }
         assertThat(versions).containsOnly(
-                Map.entry("maven/pinned/simple/jar", "2.0"),
+                Map.entry("maven/pinned/simple", "2.0"),
                 Map.entry("maven/pinned/typed/war", "3.0"),
                 Map.entry("maven/pinned/classified/jar/sources", "4.0"));
         Path runtimeVersions = module.resolve(BuildStep.VERSIONS);
@@ -592,7 +592,7 @@ public class MavenProjectTest {
             runtime.load(reader);
         }
         assertThat(runtime).containsOnly(
-                Map.entry("maven/pinned/simple/jar", "2.0"),
+                Map.entry("maven/pinned/simple", "2.0"),
                 Map.entry("maven/pinned/typed/war", "3.0"),
                 Map.entry("maven/pinned/classified/jar/sources", "4.0"));
         Path testModule = results.get("maven/module/test-module-/manifests");
@@ -718,7 +718,7 @@ public class MavenProjectTest {
                 .resolve(BuildStep.VERSIONS))) {
             versions.load(reader);
         }
-        assertThat(versions.getProperty("maven/com.example/pinned/jar")).isEqualTo("2.0.0 SHA256/cafebabe");
+        assertThat(versions.getProperty("maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
     }
 
     @Test
@@ -759,7 +759,7 @@ public class MavenProjectTest {
                 .resolve(BuildStep.REQUIRES))) {
             testRequires.load(reader);
         }
-        assertThat(testRequires.getProperty("maven/org.junit.jupiter/junit-jupiter/jar/5.11.3"))
+        assertThat(testRequires.getProperty("maven/org.junit.jupiter/junit-jupiter/5.11.3"))
                 .isEqualTo("SHA256/cafebabe");
 
         Properties mainRequires = new Properties();
@@ -767,7 +767,7 @@ public class MavenProjectTest {
                 .resolve(BuildStep.REQUIRES))) {
             mainRequires.load(reader);
         }
-        assertThat(mainRequires.getProperty("maven/com.example/no-pin/jar/1.0.0")).isEmpty();
+        assertThat(mainRequires.getProperty("maven/com.example/no-pin/1.0.0")).isEmpty();
     }
 
     @Test

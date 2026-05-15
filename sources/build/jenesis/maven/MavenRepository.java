@@ -84,16 +84,29 @@ public interface MavenRepository extends Repository {
             if (checksum != null) {
                 return Optional.empty();
             }
-            Optional<RepositoryItem> candidate = repository.fetch(executor, groupId
-                    + "/" + artifactId
-                    + (type == null ? "/jar" : "/" + type)
-                    + "/" + version
-                    + (classifier == null ? "" : "/" + classifier));
-            if (type == null && candidate.isEmpty()) {
+            String classifierSegment = classifier == null ? "" : "/" + classifier;
+            Optional<RepositoryItem> candidate;
+            if ((type == null || "jar".equals(type)) && classifier == null) {
                 candidate = repository.fetch(executor, groupId
                         + "/" + artifactId
+                        + "/" + version);
+                if (candidate.isEmpty()) {
+                    candidate = repository.fetch(executor, groupId
+                            + "/" + artifactId
+                            + "/jar/" + version);
+                }
+            } else {
+                candidate = repository.fetch(executor, groupId
+                        + "/" + artifactId
+                        + (type == null ? "/jar" : "/" + type)
                         + "/" + version
-                        + (classifier == null ? "" : "/" + classifier));
+                        + classifierSegment);
+                if (type == null && candidate.isEmpty()) {
+                    candidate = repository.fetch(executor, groupId
+                            + "/" + artifactId
+                            + "/" + version
+                            + classifierSegment);
+                }
             }
             return candidate;
         };
