@@ -50,31 +50,4 @@ public class DependenciesModuleTest {
                 .resolve("foo-bar.jar")).content().isEqualTo("bar");
     }
 
-    @Test
-    public void can_resolve_dependencies_with_checksums() throws IOException, NoSuchAlgorithmException {
-        Properties dependencies = new Properties();
-        dependencies.setProperty("foo/bar", "");
-        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
-        buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new DependenciesModule(
-                Map.of("foo", (_, coordinate) -> Optional.of(() -> new ByteArrayInputStream(
-                        coordinate.getBytes(StandardCharsets.UTF_8)))),
-                Map.of("foo", Resolver.identity()),
-                true).computeChecksums("SHA256"), "input");
-        SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps).containsKeys("output/resolved", "output/checked", "output/artifacts");
-        Properties checked = new Properties();
-        try (Reader reader = Files.newBufferedReader(steps.get("output/checked").resolve(BuildStep.REQUIRES))) {
-            checked.load(reader);
-        }
-        assertThat(checked.stringPropertyNames()).containsExactly("foo/bar");
-        assertThat(checked.getProperty("foo/bar")).isEqualTo("SHA256/" + HexFormat.of().formatHex(MessageDigest
-                .getInstance("SHA256")
-                .digest("bar".getBytes(StandardCharsets.UTF_8))));
-        assertThat(steps.get("output/artifacts")
-                .resolve(BuildStep.ARTIFACTS)
-                .resolve("foo-bar.jar")).content().isEqualTo("bar");
-    }
 }

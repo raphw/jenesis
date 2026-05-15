@@ -35,8 +35,10 @@ public interface Resolver extends Serializable {
         if (version == null || version.isEmpty()) {
             return coordinate;
         }
+        int space = version.indexOf(' ');
+        String trimmed = space < 0 ? version : version.substring(0, space);
         int lastSlash = coordinate.lastIndexOf('/');
-        return lastSlash > 0 ? coordinate.substring(0, lastSlash + 1) + version : coordinate;
+        return lastSlash > 0 ? coordinate.substring(0, lastSlash + 1) + trimmed : coordinate;
     }
 
     static Resolver identity() {

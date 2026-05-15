@@ -28,7 +28,6 @@ public final class Project {
             boolean sources,
             boolean javadoc,
             Path root,
-            String hashAlgorithm,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers
     ) {
@@ -58,8 +57,8 @@ public final class Project {
                 sub.addModule("java", java,
                         descriptor.sources(),
                         descriptor.manifests(),
-                        descriptor.checked(),
-                        descriptor.runtimeChecked(),
+                        descriptor.resolved(),
+                        descriptor.runtimeResolved(),
                         descriptor.artifacts(),
                         descriptor.runtimeArtifacts());
                 if (context.sources()) {
@@ -72,8 +71,8 @@ public final class Project {
                     },
                     descriptor.sources(),
                     descriptor.manifests(),
-                    descriptor.checked(),
-                    descriptor.runtimeChecked(),
+                    descriptor.resolved(),
+                    descriptor.runtimeResolved(),
                     descriptor.artifacts(),
                     descriptor.runtimeArtifacts());
                 }
@@ -101,12 +100,11 @@ public final class Project {
                     builder.sources(),
                     builder.javadoc(),
                     builder.root(),
-                    builder.hashAlgorithm(),
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
             Assembler wrapped = new PomAwareAssembler(assembler, builder);
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
-                    MavenProject.make(builder.root(), builder.hashAlgorithm(),
+                    MavenProject.make(builder.root(),
                             descriptor -> wrapped.apply(context, descriptor))));
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
@@ -135,10 +133,9 @@ public final class Project {
                         builder.sources(),
                         builder.javadoc(),
                         builder.root(),
-                        builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
-                sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
+                sub.addModule("modules", ModularProject.make(builder.root(),
                         context.repositories(), context.resolvers(),
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
@@ -172,10 +169,9 @@ public final class Project {
                         builder.sources(),
                         builder.javadoc(),
                         builder.root(),
-                        builder.hashAlgorithm(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
-                sub.addModule("modules", ModularProject.make(builder.root(), builder.hashAlgorithm(),
+                sub.addModule("modules", ModularProject.make(builder.root(),
                         context.repositories(), context.resolvers(),
                         descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
@@ -308,7 +304,6 @@ public final class Project {
                 Path.of("target"),
                 Path.of("cache"),
                 Layout.AUTO,
-                "SHA256",
                 true,
                 false,
                 false,
@@ -325,7 +320,6 @@ public final class Project {
             Path target,
             Path cache,
             Layout layout,
-            String hashAlgorithm,
             boolean tests,
             boolean sources,
             boolean javadoc,
@@ -342,7 +336,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -359,7 +352,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -376,7 +368,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -393,24 +384,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
-        }
-
-        public Builder hashAlgorithm(String hashAlgorithm) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -427,7 +400,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -444,7 +416,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -461,7 +432,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -478,7 +448,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -495,7 +464,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -512,7 +480,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -529,7 +496,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -546,7 +512,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -563,7 +528,6 @@ public final class Project {
                     target,
                     cache,
                     layout,
-                    hashAlgorithm,
                     tests,
                     sources,
                     javadoc,
@@ -580,7 +544,6 @@ public final class Project {
             Path resolvedTarget = target;
             Path resolvedCache = cache;
             Layout resolvedLayout = layout;
-            String resolvedAlgorithm = hashAlgorithm;
             boolean resolvedTests = tests;
             boolean resolvedSources = sources;
             boolean resolvedJavadoc = javadoc;
@@ -609,10 +572,6 @@ public final class Project {
                             "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
                 };
             }
-            String algorithm = System.getProperty("jenesis.project.hashAlgorithm");
-            if (algorithm != null) {
-                resolvedAlgorithm = algorithm;
-            }
             if (System.getProperty("jenesis.project.skipTests") != null) {
                 resolvedTests = false;
             }
@@ -633,7 +592,6 @@ public final class Project {
                     resolvedTarget,
                     resolvedCache,
                     resolvedLayout,
-                    resolvedAlgorithm,
                     resolvedTests,
                     resolvedSources,
                     resolvedJavadoc,

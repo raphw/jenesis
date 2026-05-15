@@ -67,6 +67,20 @@ public class ModuleInfoParserTest {
     }
 
     @Test
+    public void requires_tag_carries_optional_checksum_after_version() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @requires bar 1.2.3 SHA256/cafebabe
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.2.3 SHA256/cafebabe"));
+    }
+
+    @Test
     public void multiple_requires_tags_preserve_order() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**

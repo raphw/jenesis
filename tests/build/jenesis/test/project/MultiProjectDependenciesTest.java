@@ -28,7 +28,7 @@ public class MultiProjectDependenciesTest {
     }
 
     @Test
-    public void can_assign_coordinate_target_dependencies() throws IOException, NoSuchAlgorithmException {
+    public void sibling_artifact_dependency_writes_empty_value() throws IOException {
         Properties dependencies = new Properties();
         dependencies.setProperty("baz", "");
         try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
@@ -41,7 +41,7 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, MultiProjectModule.COMPILE).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, MultiProjectModule.COMPILE).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -58,43 +58,23 @@ public class MultiProjectDependenciesTest {
             properties.load(reader);
         }
         assertThat(properties.stringPropertyNames()).containsExactly("baz");
-        assertThat(properties.getProperty("baz")).isEqualTo("SHA256/" + HexFormat.of().formatHex(MessageDigest
-                .getInstance("SHA256")
-                .digest("qux".getBytes())));
+        assertThat(properties.getProperty("baz")).isEmpty();
     }
 
     @Test
-    public void reuses_prior_digest_when_identity_and_referenced_file_are_retained() throws IOException {
+    public void preserves_pinned_checksum_for_external_dep() throws IOException {
         Properties dependencies = new Properties();
-        dependencies.setProperty("baz", "");
+        dependencies.setProperty("baz", "SHA256/cafebabe");
         try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
-        Path file = dependency.resolve("artifact");
-        Files.writeString(file, "ignored-because-reused");
-        Properties coordinates = new Properties();
-        coordinates.setProperty("baz", "artifact");
-        try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Path priorFolder = Files.createDirectory(root.resolve("prior"));
-        Properties priorRequires = new Properties();
-        priorRequires.setProperty("baz", "SHA256/cafebabe");
-        try (Writer writer = Files.newBufferedWriter(priorFolder.resolve(BuildStep.REQUIRES))) {
-            priorRequires.store(writer, null);
-        }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, MultiProjectModule.COMPILE).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, MultiProjectModule.COMPILE).apply(
                         Runnable::run,
-                        new BuildStepContext(priorFolder, next, supplement),
+                        new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.RETAINED)),
-                                "bar", new BuildStepArgument(
-                                        dependency,
-                                        Map.of(
-                                                Path.of(BuildStep.IDENTITY), ChecksumStatus.RETAINED,
-                                                Path.of("artifact"), ChecksumStatus.RETAINED)))))
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Properties properties = new Properties();
@@ -102,48 +82,5 @@ public class MultiProjectDependenciesTest {
             properties.load(reader);
         }
         assertThat(properties.getProperty("baz")).isEqualTo("SHA256/cafebabe");
-    }
-
-    @Test
-    public void recomputes_when_referenced_file_changed() throws IOException, NoSuchAlgorithmException {
-        Properties dependencies = new Properties();
-        dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
-        Path file = dependency.resolve("artifact");
-        Files.writeString(file, "qux");
-        Properties coordinates = new Properties();
-        coordinates.setProperty("baz", "artifact");
-        try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Path priorFolder = Files.createDirectory(root.resolve("prior"));
-        Properties priorRequires = new Properties();
-        priorRequires.setProperty("baz", "SHA256/staledigest");
-        try (Writer writer = Files.newBufferedWriter(priorFolder.resolve(BuildStep.REQUIRES))) {
-            priorRequires.store(writer, null);
-        }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, MultiProjectModule.COMPILE).apply(
-                        Runnable::run,
-                        new BuildStepContext(priorFolder, next, supplement),
-                        new LinkedHashMap<>(Map.of(
-                                "foo", new BuildStepArgument(
-                                        module,
-                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.RETAINED)),
-                                "bar", new BuildStepArgument(
-                                        dependency,
-                                        Map.of(
-                                                Path.of(BuildStep.IDENTITY), ChecksumStatus.RETAINED,
-                                                Path.of("artifact"), ChecksumStatus.ALTERED)))))
-                .toCompletableFuture().join();
-        assertThat(result.next()).isTrue();
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            properties.load(reader);
-        }
-        assertThat(properties.getProperty("baz")).isEqualTo("SHA256/" + HexFormat.of().formatHex(MessageDigest
-                .getInstance("SHA256")
-                .digest("qux".getBytes())));
     }
 }

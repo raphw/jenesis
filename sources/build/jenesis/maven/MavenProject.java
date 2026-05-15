@@ -45,14 +45,12 @@ public class MavenProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root,
-                                           String algorithm,
                                            Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {
-        return make(root, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), builder);
+        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), builder);
     }
 
     public static BuildExecutorModule make(Path root,
                                            String prefix,
-                                           String algorithm,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
                                            Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {
@@ -78,12 +76,11 @@ public class MavenProject implements BuildExecutorModule {
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
-                                            algorithm,
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
                                             entry.getKey()),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, entry.getValue()).computeChecksums(algorithm),
+                                    new DependenciesModule(mergedRepositories, resolverMap, entry.getValue()),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -92,9 +89,9 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
                                                     MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
                                                     MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
@@ -229,7 +226,7 @@ public class MavenProject implements BuildExecutorModule {
                                 String managed = properties.getProperty("managedDependencies", "");
                                 if (!managed.isEmpty()) {
                                     for (String entry : managed.split(",")) {
-                                        int split = entry.lastIndexOf('/');
+                                        int split = entry.indexOf('=');
                                         versions.setProperty(entry.substring(0, split), entry.substring(split + 1));
                                     }
                                 }
@@ -432,7 +429,8 @@ public class MavenProject implements BuildExecutorModule {
                                 + "/" + dep.getKey().artifactId()
                                 + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                + "/" + dep.getValue().version())
+                                + "=" + dep.getValue().version()
+                                + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
                         .collect(Collectors.joining(",")));
                 module.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
                         .filter(dep -> dep.getValue().checksum() != null
@@ -490,7 +488,8 @@ public class MavenProject implements BuildExecutorModule {
                                 + "/" + dep.getKey().artifactId()
                                 + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                + "/" + dep.getValue().version())
+                                + "=" + dep.getValue().version()
+                                + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
                         .collect(Collectors.joining(",")));
                 testModule.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
                         .filter(dep -> dep.getValue().checksum() != null
@@ -542,13 +541,13 @@ public class MavenProject implements BuildExecutorModule {
         }
 
         @Override
-        public String checked() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+        public String resolved() {
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
 
         @Override
-        public String runtimeChecked() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+        public String runtimeResolved() {
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
     }
 }

@@ -466,7 +466,6 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         root.addModule("maven", MavenProject.make(project,
                 "maven",
-                "SHA256",
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 new MavenPomResolver(),
                 descriptor -> {
@@ -480,24 +479,24 @@ public class MavenProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
-                                    "../compile/dependencies/checked",
+                                    "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",
-                                    "../runtime/dependencies/checked",
+                                    "../runtime/dependencies/resolved",
                                     "../runtime/dependencies/artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
-                                    "../compile/dependencies/checked",
+                                    "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",
-                                    "../runtime/dependencies/checked",
+                                    "../runtime/dependencies/resolved",
                                     "../runtime/dependencies/artifacts",
                                     "../../module-foo/compile/prepare",
                                     "../../module-foo/compile/dependencies/resolved",
-                                    "../../module-foo/compile/dependencies/checked",
+                                    "../../module-foo/compile/dependencies/resolved",
                                     "../../module-foo/compile/dependencies/artifacts",
                                     "../../module-foo/runtime/prepare",
                                     "../../module-foo/runtime/dependencies/resolved",
-                                    "../../module-foo/runtime/dependencies/checked",
+                                    "../../module-foo/runtime/dependencies/resolved",
                                     "../../module-foo/runtime/dependencies/artifacts",
                                     "../../module-foo/produce/java/classes",
                                     "../../module-foo/produce/java/versions",
@@ -685,6 +684,41 @@ public class MavenProjectTest {
                 Map.entry("scm.connection", "scm:git:https://example.com/project.git"),
                 Map.entry("scm.developerConnection", "scm:git:git@example.com:project.git"),
                 Map.entry("scm.url", "https://example.com/project"));
+    }
+
+    @Test
+    public void checksum_comment_in_dependency_management_lands_in_versions_properties() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.example</groupId>
+                                <artifactId>pinned</artifactId>
+                                <version>2.0.0</version>
+                                <!--Checksum/SHA256/cafebabe-->
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Properties versions = new Properties();
+        try (Reader reader = Files.newBufferedReader(results.get("maven/module/module-/manifests")
+                .resolve(BuildStep.VERSIONS))) {
+            versions.load(reader);
+        }
+        assertThat(versions.getProperty("maven/com.example/pinned/jar")).isEqualTo("2.0.0 SHA256/cafebabe");
     }
 
     @Test

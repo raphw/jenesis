@@ -16,7 +16,7 @@ public interface ModuleDescriptor {
 
     String runtimeArtifacts();
 
-    String checked();
+    String resolved();
 
-    String runtimeChecked();
+    String runtimeResolved();
 }

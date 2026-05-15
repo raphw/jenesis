@@ -18,7 +18,6 @@ public class ProjectTest {
     @AfterEach
     public void clearProperties() {
         System.clearProperty("jenesis.project.layout");
-        System.clearProperty("jenesis.project.hashAlgorithm");
         System.clearProperty("jenesis.project.skipTests");
         System.clearProperty("jenesis.project.root");
         System.clearProperty("jenesis.project.target");
@@ -106,12 +105,6 @@ public class ProjectTest {
     }
 
     @Test
-    public void system_property_overrides_hash_algorithm() {
-        System.setProperty("jenesis.project.hashAlgorithm", "SHA512");
-        assertThat(Project.builder().resolveProperties().hashAlgorithm()).isEqualTo("SHA512");
-    }
-
-    @Test
     public void system_property_disables_tests() {
         System.setProperty("jenesis.project.skipTests", "");
         assertThat(Project.builder().resolveProperties().tests()).isFalse();
@@ -123,10 +116,9 @@ public class ProjectTest {
     }
 
     @Test
-    public void defaults_keep_tests_enabled_and_use_sha256() {
+    public void defaults_keep_tests_enabled() {
         Project.Builder builder = Project.builder();
         assertThat(builder.tests()).isTrue();
-        assertThat(builder.hashAlgorithm()).isEqualTo("SHA256");
     }
 
     @Test
@@ -172,7 +164,7 @@ public class ProjectTest {
     @Test
     public void default_assembler_returns_a_module() {
         ModuleDescriptor descriptor = new MavenModuleDescriptor("module-sources", new LinkedHashSet<>());
-        Project.Context context = new Project.Context(true, false, false, null, "SHA256", Map.of(), Map.of());
+        Project.Context context = new Project.Context(true, false, false, null, Map.of(), Map.of());
         assertThat(Project.Assembler.ofJava().apply(context, descriptor)).isNotNull();
     }
 

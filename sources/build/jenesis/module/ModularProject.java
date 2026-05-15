@@ -38,25 +38,21 @@ public class ModularProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root,
-                                           String algorithm,
                                            Map<String, Repository> repositories,
                                            Function<? super ModularModuleDescriptor, BuildExecutorModule> builder) {
         return make(root,
-                algorithm,
                 repositories,
                 Map.of("module", new ModularJarResolver(true)),
                 builder);
     }
 
     public static BuildExecutorModule make(Path root,
-                                           String algorithm,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Function<? super ModularModuleDescriptor, BuildExecutorModule> builder) {
         return make(root,
                 "module",
                 _ -> true,
-                algorithm,
                 repositories,
                 resolvers,
                 builder);
@@ -65,7 +61,6 @@ public class ModularProject implements BuildExecutorModule {
     public static BuildExecutorModule make(Path root,
                                            String prefix,
                                            Predicate<Path> filter,
-                                           String algorithm,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Function<? super ModularModuleDescriptor, BuildExecutorModule> builder) {
@@ -88,12 +83,11 @@ public class ModularProject implements BuildExecutorModule {
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
-                                            algorithm,
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
                                             entry.getKey()),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, entry.getValue()).computeChecksums(algorithm),
+                                    new DependenciesModule(mergedRepositories, resolvers, entry.getValue()),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -102,9 +96,9 @@ public class ModularProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
                                                     MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
                                                     MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
@@ -265,13 +259,13 @@ public class ModularProject implements BuildExecutorModule {
         }
 
         @Override
-        public String checked() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+        public String resolved() {
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
 
         @Override
-        public String runtimeChecked() {
-            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+        public String runtimeResolved() {
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
         }
     }
 }

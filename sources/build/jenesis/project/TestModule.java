@@ -11,7 +11,6 @@ import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
-import build.jenesis.step.Checksum;
 import build.jenesis.step.Java;
 import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
@@ -20,7 +19,7 @@ import build.jenesis.step.TestEngine;
 
 public class TestModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", CHECKED = "checked", REQUIRED = "required", PREPARED = "prepared", EXECUTED = "executed";
+    public static final String RESOLVED = "resolved", REQUIRED = "required", PREPARED = "prepared", EXECUTED = "executed";
 
     private static final String RUNNER = "runner/";
 
@@ -29,27 +28,26 @@ public class TestModule implements BuildExecutorModule {
     private final Function<List<String>, ProcessHandler.OfProcess> factory;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final String checksum;
     private final boolean jarsOnly;
     private final boolean modular;
 
     public TestModule() {
-        this(null, defaultIsTest(), null, null, null, null, true, true);
+        this(null, defaultIsTest(), null, null, null, true, true);
     }
 
     public TestModule(TestEngine engine) {
-        this(engine, defaultIsTest(), null, null, null, null, true, true);
+        this(engine, defaultIsTest(), null, null, null, true, true);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine, P isTest) {
-        this(engine, isTest, null, null, null, null, true, true);
+        this(engine, isTest, null, null, null, true, true);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
             Function<List<String>, ProcessHandler.OfProcess> factory,
             TestEngine engine,
             P isTest) {
-        this(engine, isTest, factory, null, null, null, true, true);
+        this(engine, isTest, factory, null, null, true, true);
     }
 
     private TestModule(TestEngine engine,
@@ -57,7 +55,6 @@ public class TestModule implements BuildExecutorModule {
                        Function<List<String>, ProcessHandler.OfProcess> factory,
                        Map<String, Repository> repositories,
                        Map<String, Resolver> resolvers,
-                       String checksum,
                        boolean jarsOnly,
                        boolean modular) {
         this.engine = engine;
@@ -65,7 +62,6 @@ public class TestModule implements BuildExecutorModule {
         this.factory = factory;
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.checksum = checksum;
         this.jarsOnly = jarsOnly;
         this.modular = modular;
     }
@@ -79,19 +75,15 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
     }
 
     public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
     }
 
     public TestModule withResolvers(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
-    }
-
-    public TestModule computeChecksums(String checksum) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, checksum, jarsOnly, modular);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
     }
 
     @Override
@@ -100,12 +92,7 @@ public class TestModule implements BuildExecutorModule {
         Stream<String> dependencies;
         if (repositories != null && resolvers != null) {
             buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
-            if (checksum != null) {
-                buildExecutor.addStep(CHECKED, new Checksum(checksum, repositories), RESOLVED);
-                buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), CHECKED);
-            } else {
-                buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), RESOLVED);
-            }
+            buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), RESOLVED);
             buildExecutor.addStep(PREPARED, new Prepare(repositories), REQUIRED);
             dependencies = Stream.concat(
                     upstream.stream(),

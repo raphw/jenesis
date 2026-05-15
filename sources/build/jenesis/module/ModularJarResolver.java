@@ -39,7 +39,16 @@ public class ModularJarResolver implements Resolver {
             if (resolved.contains(current) || unresolved.contains(current)) {
                 continue;
             }
-            String pin = versions.get(current);
+            String pinValue = versions.get(current);
+            String pin, checksum;
+            if (pinValue == null) {
+                pin = null;
+                checksum = null;
+            } else {
+                int split = pinValue.indexOf(' ');
+                pin = split < 0 ? pinValue : pinValue.substring(0, split);
+                checksum = split < 0 ? null : pinValue.substring(split + 1).trim();
+            }
             String hint = propagated.get(current);
             String requested = pin != null ? pin : hint;
             Repository repository = repositories.getOrDefault(prefix, Repository.empty());
@@ -106,7 +115,8 @@ public class ModularJarResolver implements Resolver {
                     throw new IllegalArgumentException("No module-info.class found for " + current);
                 }
                 String version = requested != null ? requested : descriptor.rawVersion().orElse(null);
-                dependencies.put(prefix + "/" + current + (version == null ? "" : "/" + version), "");
+                dependencies.put(prefix + "/" + current + (version == null ? "" : "/" + version),
+                        checksum == null ? "" : checksum);
                 resolved.add(current);
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)

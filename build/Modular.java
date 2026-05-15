@@ -27,15 +27,14 @@ public class Modular {
             Map<String, Resolver> resolvers = Map.of("module", new ModularJarResolver(true));
             build.addModule("modules", ModularProject.make(
                     Path.of("."),
-                    "SHA256",
                     repositories,
                     resolvers,
                     descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
                             new JavaModule().testIfAvailable(repositories, resolvers),
                             descriptor.sources(),
                             descriptor.manifests(),
-                            descriptor.checked(),
-                            descriptor.runtimeChecked(),
+                            descriptor.resolved(),
+                            descriptor.runtimeResolved(),
                             descriptor.artifacts(),
                             descriptor.runtimeArtifacts())));
         }, "download");

@@ -33,14 +33,13 @@ public class ModularToMaven {
                     new MavenPomResolver().translated("maven", (_, coordinate) -> parser.apply(coordinate))));
             build.addModule("modules", ModularProject.make(
                     Path.of("."),
-                    "SHA256",
                     repositories,
                     resolvers,
                     descriptor -> (buildExecutor, _) -> {
                         buildExecutor.addModule("java", new JavaModule().testIfAvailable(repositories, resolvers),
                                 descriptor.sources(), descriptor.manifests(), descriptor.artifacts(), descriptor.runtimeArtifacts());
                         buildExecutor.addStep("pom", new Pom(),
-                                descriptor.sources(), descriptor.manifests(), descriptor.checked());
+                                descriptor.sources(), descriptor.manifests(), descriptor.resolved());
                     }));
         }, "download");
 

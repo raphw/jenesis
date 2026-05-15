@@ -48,7 +48,7 @@ public class MavenPomResolver implements Resolver {
             }
         });
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
-        versions.forEach((coordinate, version) -> {
+        versions.forEach((coordinate, value) -> {
             String[] elements = coordinate.split("/");
             MavenDependencyKey key = switch (elements.length) {
                 case 2 -> new MavenDependencyKey(elements[0], elements[1], "jar", null);
@@ -56,18 +56,25 @@ public class MavenPomResolver implements Resolver {
                 case 4 -> new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]);
                 default -> throw new IllegalArgumentException("Insufficient Maven managed coordinate: " + coordinate);
             };
-            managedDependencies.put(key, new MavenDependencyValue(version, MavenDependencyScope.COMPILE, null, null, null));
+            int split = value.indexOf(' ');
+            String version = split < 0 ? value : value.substring(0, split);
+            String checksum = split < 0 ? null : value.substring(split + 1).trim();
+            managedDependencies.put(key, new MavenDependencyValue(
+                    version, MavenDependencyScope.COMPILE, null, null, null, checksum));
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
                 managedDependencies,
-                dependencies).entrySet().stream().map(dependency -> prefix
-                + "/" + dependency.getKey().groupId()
-                + "/" + dependency.getKey().artifactId()
-                + (Objects.equals(dependency.getKey().type(), "jar") ? "" : "/" + dependency.getKey().type())
-                + (dependency.getKey().classifier() == null ? "" : "/" + dependency.getKey().classifier())
-                + "/" + dependency.getValue().version()).forEach(coordinate -> resolved.put(coordinate, ""));
+                dependencies).forEach((key, value) -> {
+            String coordinate = prefix
+                    + "/" + key.groupId()
+                    + "/" + key.artifactId()
+                    + (Objects.equals(key.type(), "jar") ? "" : "/" + key.type())
+                    + (key.classifier() == null ? "" : "/" + key.classifier())
+                    + "/" + value.version();
+            resolved.put(coordinate, value.checksum() == null ? "" : value.checksum());
+        });
         return resolved;
     }
 

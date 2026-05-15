@@ -25,13 +25,12 @@ this repository and run the command above from its root.
 ```java
 Project.builder()
        .layout(Project.Layout.MODULAR_TO_MAVEN)
-       .hashAlgorithm("SHA512")
        .tests(false)
        .build(args);
 ```
 
 Most builder properties also have a corresponding system property (`jenesis.project.layout`,
-`jenesis.project.hashAlgorithm`, `jenesis.project.skipTests`, `jenesis.project.stageTests`,
+`jenesis.project.skipTests`, `jenesis.project.stageTests`,
 `jenesis.project.root` / `.target` / `.cache`), applied by `resolveProperties()` which `Project.main(...)`
 calls before delegating to `build(args)`. See the [Configuration](#configuration) section for the complete table.
 
@@ -98,9 +97,9 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `MODULAR_TO_MAVEN` is reachable only explicitly, because its on-disk signature (`module-info.java` +
   `pom.xml`) is indistinguishable from a pure modular project that keeps a `pom.xml` for IDE support.
 - `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph: what each discovered module
-  compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, `hashAlgorithm`, effective
+  compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, effective
   `repositories`, effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`,
-  `manifests()`, `artifacts()`, `runtimeArtifacts()`, `checked()`, `runtimeChecked()`), and returns a
+  `manifests()`, `artifacts()`, `runtimeArtifacts()`, `resolved()`, `runtimeResolved()`), and returns a
   `BuildExecutorModule` registered inside the per-project sub-graph. The default, `Assembler.ofJava()`, is
   layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths,
   using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_TO_MAVEN`
@@ -299,8 +298,8 @@ others are declared next to the step that emits them.
 | `pom/`                     | `MavenProject.POM`               | A mirror of the directory layout of a Maven multi-module project, with each `pom.xml` hard-linked from its original location to give downstream tooling a stable, sandboxed snapshot of the project's POM tree.                                      |
 | `maven/`                   | `MavenProject.MAVEN`             | One properties file per discovered Maven module (`module-<encoded-path>.properties` for the main artifact, `test-module-<encoded-path>.properties` for the test artifact), holding the parsed coordinate, source/resource directories, packaging and dependency list extracted from a single `pom.xml`. |
 | `identity.properties`      | `BuildStep.IDENTITY`             | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<java-module-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
-| `requires.properties`      | `BuildStep.REQUIRES`             | Same `<prefix>/<coordinate>` keys as `identity.properties`, mapped to either an empty value (still to be resolved or hashed) or an `<algorithm>/<hex>` content checksum that downstream consumers verify against the downloaded artifact. After `Resolve` runs, module-style coordinates carry an optional trailing `/<version>` segment (`module/org.junit.jupiter/5.11.3`) reflecting the version a resolver chose for that module.                                                                                                                                                            |
-| `versions.properties`      | `BuildStep.VERSIONS`             | `<prefix>/<version-less-coordinate>=<version>` entries that act as a *bill of materials* for the resolution that follows: every resolver receives this map alongside `requires.properties` and uses it to pin the version of any (declared or transitive) dependency that matches. For Maven the key is `groupId/artifactId[/type[/classifier]]`; for modules it is the bare Java module name. The file is written next to `requires.properties` by producers that have version data to contribute (`ModularProject` from Javadoc tags, `MavenProject` from `<dependencyManagement>`); only `Resolve` consumes it, so it does not need to be propagated through `Checksum`/`Download`. |
+| `requires.properties`      | `BuildStep.REQUIRES`             | Same `<prefix>/<coordinate>` keys as `identity.properties`, mapped to either an empty value (no integrity validation requested) or an `<algorithm>/<hex>` content checksum that `Download` verifies against the downloaded artifact (mismatch fails the build). Checksums are pinned in source by the user: a `<!--Checksum/<algorithm>/<hex>-->` comment inside a POM `<dependency>` element, or a `<!--Checksum/...-->` inside `<dependencyManagement>` (which propagates to whichever transitive resolves to that coord), or an `@requires <module> <version> <algorithm>/<hex>` Javadoc tag in `module-info.java`. There is no on-the-fly hash computation in the build; coordinates without a pinned checksum are downloaded without integrity validation. After `Resolve` runs, module-style coordinates carry an optional trailing `/<version>` segment (`module/org.junit.jupiter/5.11.3`) reflecting the version a resolver chose for that module. |
+| `versions.properties`      | `BuildStep.VERSIONS`             | `<prefix>/<version-less-coordinate>=<version>[ <algorithm>/<hex>]` entries that act as a *bill of materials* for the resolution that follows: every resolver receives this map alongside `requires.properties` and uses the version part to pin any (declared or transitive) dependency that matches the bare coordinate. The optional space-separated `<algorithm>/<hex>` suffix is the pre-pinned content checksum for that coordinate; resolvers carry it through into the resolved `requires.properties` value so `Download` validates the bytes against it. For Maven the key is `groupId/artifactId[/type[/classifier]]`; for modules it is the bare Java module name. The file is written next to `requires.properties` by producers that have version data to contribute (`ModularProject` from `@requires` Javadoc tags, `MavenProject` from `<dependencyManagement>`). |
 | `scopes.properties`        | `BuildStep.SCOPES`               | Sibling of `requires.properties` produced by the `Manifests` steps in `ModularProject` and `MavenProject`. Each key is a `<prefix>/<coordinate>` from `requires.properties`; the value is a comma-separated list of scope tokens describing in which scopes the dependency is visible. The token set is open-ended (matched as literal strings, not via a shared enum) so additional steps can introduce their own scope tokens later. The currently recognized tokens are `compile` and `runtime`: compile-only entries (Maven `provided`, Java `requires static`) carry just `compile`; runtime-only entries (Maven `runtime`) carry just `runtime`; entries visible in both carry `compile,runtime`. `MultiProjectDependencies` filters `requires.properties` against the scope it is bound to; `Pom` reads it to decide whether each dependency is emitted as `compile`, `provided`, or `runtime`. The strings written by today's producers happen to equal `MultiProjectModule.COMPILE` / `RUNTIME` because those are the sub-module names the per-scope wiring uses, but consumers match the documented tokens directly. |
 | `module.properties`        | `BuildStep.MODULE`               | Carries derived classification keys about a built module that affect downstream build/staging decisions (as opposed to the descriptive `metadata.properties`). Currently the only key is `tests`, whose value is the `artifactId` of the main module the test variant covers (or the empty string for the deprecated bare `@tests`); the file is omitted entirely on main modules. Written by `ModularProject.Manifests` (from `@tests <name>` in `module-info.java`) and `MavenProject.Manifests` (when the resolved coordinate carries the `tests` classifier). Read by `Pom`, `Project.Assembler.ofJava`, `MavenRepositoryStage`, `MavenRepositoryPlacement`, and `ModularPlacement` to identify test variants. |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<java-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a Java module name into a download URL. When a versioned coordinate is requested (e.g. `org.assertj.core/3.27.0`) and the bare name is mapped to a URL whose final path segments follow the Maven repository layout (`.../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`), an opt-in version-resolver function (`MavenDefaultRepository.versionResolver()`) supplied by the caller rewrites the path's version segment and the filename's version segment to the pinned value, so a single-URL registry still satisfies version pins. Without that function, `Repository.ofUris` performs strict literal lookup only; URLs not matching the Maven layout always fall back to the bare-name URL. The `MODULAR` layout passes this resolver explicitly when wiring `Repository.ofProperties`, since the dominant Java module URL registries (sormuras/modules and most internal mirrors) point at Maven Central -- making the Maven layout assumption visible at the use site rather than baked into the generic `Repository` infrastructure. |
@@ -323,22 +322,21 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar under `artifacts/`.                                                                                               | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`         | `artifacts/classes.jar`, `artifacts/sources.jar`, or `artifacts/javadoc.jar` (depending on `Jar.Sort`) |
 | `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
 | `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
-| `Resolve`                  | Reads `requires.properties` and (when present) `versions.properties`, asks each prefixed group's `Resolver` for the transitive closure with the version map as a pin set, and writes the resolved coordinates to a fresh `requires.properties` (module-style coordinates pick up a trailing `/<version>` segment when a version is known). | `requires.properties`, `versions.properties`                                                                                          | `requires.properties` (transitively resolved, per-prefix `Resolver`)             |
-| `Checksum`                 | Reads `requires.properties`, fetches each unresolved coordinate from its `Repository`, and writes a new `requires.properties` where each empty value is replaced by `algorithm/<hex>`.        | `requires.properties`                                                                                                                 | `requires.properties` (with computed checksums)                                  |
-| `Download`                 | Reads `requires.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present and reusing a previous run's file when valid.  | `requires.properties`                                                                                                                 | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `requires.properties`       |
+| `Resolve`                  | Reads `requires.properties` and (when present) `versions.properties`, asks each prefixed group's `Resolver` for the transitive closure with the version map as a pin set, and writes the resolved coordinates to a fresh `requires.properties` (module-style coordinates pick up a trailing `/<version>` segment when a version is known). Checksums supplied via the `versions.properties` `version checksum` suffix - or via comments in transitive POMs the resolver visits - are propagated as the value for matching resolved coordinates, so the downstream `Download` step can validate them. | `requires.properties`, `versions.properties`                                                                                          | `requires.properties` (transitively resolved, per-prefix `Resolver`)             |
+| `Download`                 | Reads `requires.properties` and downloads each coordinate's artifact into `artifacts/`, validating against the recorded checksum where present (mismatch fails the build) and reusing a previous run's file when valid. Coordinates with empty values are downloaded without integrity validation.  | `requires.properties`                                                                                                                 | `artifacts/<prefix>-<coordinate>.jar`, plus an empty `requires.properties`       |
 | `Translate`                | Rewrites the keys of `requires.properties` (and `versions.properties` when present, with the same translator) through user-supplied per-prefix translator functions (e.g. Java module name → Maven coordinate).                                                  | `requires.properties`, `versions.properties`                                                                                          | `requires.properties`, `versions.properties` (keys remapped per-prefix)                                 |
 | `Versions`                 | Walks each predecessor's `classes/`, hard-links every non-`module-info.class` file under `context.next()/classes/`, and rewrites every `module-info.class` so each `requires <X>` directive gets a `compiledVersion` set from the matching entry in the resolved `requires.properties` (module-style `<prefix>/<name>/<version>` coordinates). Uses the JDK's `java.lang.classfile` API; module flags (`OPEN`), the module's own version, `exports`, `opens`, `uses` and `provides` round-trip unchanged. | `classes/`, `requires.properties`                                                                                                     | `classes/` (non-`module-info` hard-linked, `module-info.class` rewritten in-place) |
 | `Group`                    | Reads each predecessor's `identity.properties` and `requires.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `identity.properties`, `requires.properties`                                                                                          | `groups/<encoded-name>.properties`                                               |
 | `Assign`                   | Fills the empty values of `identity.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                           | `identity.properties`, `artifacts/`                                                                                                   | `identity.properties` (empty values filled with artifact paths)                  |
 | `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
-| `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`, computing local-artifact checksums for any coordinates already built. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`, with checksums for resolved local artifacts       |
+| `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`. Sibling-built coordinates are written with empty values (no integrity validation; trust is implicit within the same build); externally-pinned coordinates pass through with their declared checksums intact. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`                                                    |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
 | `Export`                   | Copies (and overwrites) files from each predecessor into an external target path through a `Function<Path, Optional<Path>>` placement, always re-runs (`shouldRun = true`); after copying it invokes an optional `Consumer<Path>` finalizer against the target. `MavenRepositoryPlacement.toLocalRepository()` / `toRepository(Path)` ship a Maven-layout placement that writes `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.{jar,pom}` plus a finalizer that mirrors `mvn install` (writes `maven-metadata-local.xml` per artifact, `_remote.repositories` markers per version dir, and per-version snapshot metadata for `-SNAPSHOT` versions). | every file in the predecessors (only `classes.jar` / `pom.xml` for the Maven layout)                                                  | files copied under the configured target path; nothing is written under `context.next()` |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and the inner `executed`
-step that `TestModule` registers); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep` is the shared base for `Resolve`, `Checksum`,
-`Download`, and `Translate`; they all parse `requires.properties` into `(prefix, coordinate)` groups, transform
-them, and write `requires.properties` back.
+step that `TestModule` registers); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep`
+is the shared base for `Resolve`, `Download`, and `Translate`; they all parse `requires.properties` into
+`(prefix, coordinate)` groups, transform them, and write `requires.properties` back.
 
 Before launching its tool, every `ProcessBuildStep` walks each input folder for `process/<command>.properties`
 (where `<command>` is the tool name supplied to the constructor - `java`, `javac`, `jar`, `javadoc`), loads each
@@ -461,8 +459,6 @@ on the side, so the user never has to declare it as a compile-time `requires` of
   ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
   so the same engine works across `Modular`, `ModularToMaven`, and `Manual`-style builds. If the runner is already
   visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
-- `checked` (`Checksum`, optional, only when `.computeChecksums(algorithm)` is set) fetches each unresolved
-  coordinate from its `Repository` and rewrites `requires.properties` with `algorithm/<hex>` checksums.
 - `required` (`Resolve`) expands that single coordinate into its transitive closure via the matching
   `Resolver`.
 - `prepared` (`TestModule.Prepare`) fetches each resolved coordinate via its `Repository` into a `runner/` subfolder of
@@ -487,14 +483,11 @@ flowchart LR
   classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   arts(["inherited classes/<br/>+ artifacts/"]):::input
   resolved["resolved<br/>(Requires)"]:::optional
-  checked["checked<br/>(Checksum)"]:::optional
   required["required<br/>(Resolve)"]:::optional
   prepared["prepared<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::optional
   executed["executed<br/>(Java/Run)"]:::step
   arts --> executed
   arts -.->|".withResolvers(repositories, resolvers)"| resolved
-  resolved -.->|".computeChecksums(algorithm)"| checked
-  checked -.-> required
   resolved -.-> required
   required -.-> prepared
   prepared -.-> executed
@@ -502,24 +495,21 @@ flowchart LR
 
 ### `DependenciesModule`
 
-Used for resolving and downloading external dependencies declared in `requires.properties`. The pipeline runs
-`Resolve` (transitive closure) → `Checksum` (content hashes; only when `.computeChecksums(algorithm)` is set)
-→ `Download` (jars). Without checksums the `checked` step is skipped and `Download` reads directly from
-`resolved`.
+Used for resolving and downloading external dependencies declared in `requires.properties`. The pipeline is
+`Resolve` (transitive closure) → `Download` (jars). `Download` validates each downloaded jar against the
+checksum recorded in `requires.properties` when one is present (sourced from POM/`module-info` pins, see
+the [`requires.properties`](#conventional-folders-and-files) row); coordinates without a pinned checksum
+are downloaded without integrity validation.
 
 ```mermaid
 flowchart LR
   classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
-  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   deps(["requires.properties"]):::input
   resolved["resolved<br/>(Resolve)"]:::step
-  checked["checked<br/>(Checksum)"]:::optional
   artifacts["artifacts<br/>(Download)"]:::step
   deps --> resolved
-  resolved -.->|".computeChecksums(algorithm)"| checked
   resolved --> artifacts
-  checked -.-> artifacts
 ```
 
 ### `MultiProjectModule`
@@ -529,7 +519,7 @@ source tree and writes their coordinates and dependencies; a `Group` step partit
 dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
 between them. Each per-project closure receives a `ModuleDescriptor` exposing `name()` and `dependencies()`; the
 concrete subtype (`ModularModuleDescriptor` or `MavenModuleDescriptor`) also exposes the standardised inherited
-keys as helpers (`sources()`, `manifests()`, `artifacts()`, `checked()`), so a closure doesn't need to know how
+keys as helpers (`sources()`, `manifests()`, `artifacts()`, `resolved()`), so a closure doesn't need to know how
 the identifier laid out its outputs. The example below shows two projects `A` and `B` where `A` requires `B`,
 so `B` is built first and its output flows into `A`.
 
@@ -576,13 +566,16 @@ see them if they had been declared in a top-level POM under resolution - pinning
 dependencies and to transitives that aren't directly required. A `<properties><maven.compiler.release>` element
 in the POM is captured by the same manifests step into a `process/javac.properties` sidecar with `--release=<V>`,
 which `ProcessBuildStep` forwards to `javac`. A `<!--Checksum/<algorithm>/<hex>-->` comment placed inside any
-`<dependency>` element is parsed as an optional pre-computed content checksum for that artifact and lands in
-`requires.properties` as the dependency's value (instead of empty); the downstream `Checksum` step passes any
-non-empty value through unchanged, so a hash supplied this way replaces the on-the-fly fetch+digest pass for
-that coordinate while `Download` still validates the bytes against it. `MavenProject.make(...)` returns the
-full wrapped `MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies`
-(`DependenciesModule.computeChecksums`), `build` (caller-supplied, typically `JavaModule`), and `assign`
-(`Assign`) for each project.
+`<dependency>` element is parsed as an optional pre-pinned content checksum for that artifact and lands in
+`requires.properties` as the dependency's value (instead of empty); the same comment placed inside a
+`<dependencyManagement>` `<dependency>` lands as the optional `version checksum` suffix in
+`versions.properties` and is propagated by the resolver to whichever transitive resolves to that coordinate.
+`Download` validates non-empty `requires.properties` values against the downloaded bytes and fails the build on
+mismatch; coordinates without a pinned checksum are downloaded without integrity validation. There is no
+on-the-fly hash computation in the build - validation is opt-in by declaring hashes in source.
+`MavenProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs
+`prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
+`build` (caller-supplied, typically `JavaModule`), and `assign` (`Assign`) for each project.
 
 ```xml
 <dependency>
@@ -658,9 +651,15 @@ An `@release <V>` tag on the module declaration (independent of the BOM pins abo
 manifests step into a `process/javac.properties` sidecar containing `--release=<V>`, which `ProcessBuildStep`
 forwards to `javac` when compiling the module.
 
+An optional space-separated `<algorithm>/<hex>` after the version on a `@requires` Javadoc tag
+(e.g. `@requires org.junit.jupiter 5.11.3 SHA256/abcdef0123...`) is captured into the same
+`versions.properties` value (as `version checksum`); the resolver propagates it to whichever transitive
+resolves to that bare module name, so `Download` validates the bytes against it. There is no on-the-fly
+hash computation in the build - validation is opt-in by declaring hashes in source.
+
 `ModularProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs `prepare`
-(`MultiProjectDependencies`), `dependencies` (`DependenciesModule.computeChecksums`), `build` (caller-supplied,
-typically `JavaModule`), and `assign` (`Assign`) for each project.
+(`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
+`build` (caller-supplied, typically `JavaModule`), and `assign` (`Assign`) for each project.
 
 ```mermaid
 flowchart LR
@@ -790,7 +789,6 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
 | `jenesis.buildVersion`  | system property     | When set, stamps the version onto every artifact this build produces. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` replaces the project's own `<version>` element with this value; dependency versions are unaffected. The Maven export layout reads coordinates from the produced `pom.xml`, so the export folder path, artifact filenames and `maven-metadata-local.xml` follow along. |
 | `jenesis.project.layout`        | system property | Read by `Project.Builder` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `modular_to_maven` (case-insensitive). Unknown values throw on `resolveProperties()`. |
-| `jenesis.project.hashAlgorithm` | system property | Read by `Project.Builder` to override the digest algorithm passed to `MavenProject.make` / `ModularProject.make` (default `SHA256`). Has no effect on builds that don't go through `Project`. |
 | `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` constructs its `JavaModule` without the `testIfAvailable(...)`/`test(...)` decoration, so test sources and test dependencies are not wired into the graph. |
 | `jenesis.project.stageTests`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
@@ -981,7 +979,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   internal `managedDependencies` map as if they had been declared in a virtual outermost `<dependencyManagement>`
   block, so an external pin (e.g. a `<dependencyManagement>` entry from the local POM emitted by `MavenProject`)
   overrides what each visited POM would have selected on its own. The output is a flat list of resolved
-  coordinates that downstream steps (`Checksum`, `Download`) consume.
+  coordinates that the downstream `Download` step consumes.
 - **`MavenDependencyKey` / `MavenDependencyName` / `MavenDependencyValue` / `MavenDependencyScope`** are the
   data records the resolver operates on. `Key` is the conflict-resolution identity (groupId+artifactId+type
   +classifier, version excluded so the resolver can pick one); `Name` is `groupId+artifactId` for BOM/parent

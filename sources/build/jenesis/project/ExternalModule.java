@@ -22,7 +22,6 @@ public class ExternalModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final List<?> arguments;
-    private final String checksum;
     private final List<String> additionalDependencies;
 
     public ExternalModule(String coordinate,
@@ -36,25 +35,19 @@ public class ExternalModule implements BuildExecutorModule {
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers,
                           List<?> arguments) {
-        this(coordinate, repositories, resolvers, arguments, null, List.of());
+        this(coordinate, repositories, resolvers, arguments, List.of());
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            List<?> arguments,
-                           String checksum,
                            List<String> additionalDependencies) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.arguments = arguments;
-        this.checksum = checksum;
         this.additionalDependencies = additionalDependencies;
-    }
-
-    public ExternalModule computeChecksums(String algorithm) {
-        return new ExternalModule(coordinate, repositories, resolvers, arguments, algorithm, additionalDependencies);
     }
 
     public ExternalModule withDependencies(String... dependencies) {
@@ -62,7 +55,7 @@ public class ExternalModule implements BuildExecutorModule {
     }
 
     public ExternalModule withDependencies(List<String> dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, arguments, checksum, List.copyOf(dependencies));
+        return new ExternalModule(coordinate, repositories, resolvers, arguments, List.copyOf(dependencies));
     }
 
     @Override
@@ -82,11 +75,9 @@ public class ExternalModule implements BuildExecutorModule {
         coordinates.add(coordinate);
         coordinates.addAll(additionalDependencies);
         buildExecutor.addStep(COORDINATE, new WriteCoordinates(coordinates));
-        DependenciesModule dependencies = new DependenciesModule(repositories, resolvers, false);
-        if (checksum != null) {
-            dependencies = dependencies.computeChecksums(checksum);
-        }
-        buildExecutor.addModule(DEPENDENCIES, dependencies, COORDINATE);
+        buildExecutor.addModule(DEPENDENCIES,
+                new DependenciesModule(repositories, resolvers, false),
+                COORDINATE);
         buildExecutor.addStep(EXTERNAL, new ExtractExternal(coordinate), EXTERNAL_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
