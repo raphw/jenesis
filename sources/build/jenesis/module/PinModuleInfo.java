@@ -14,11 +14,15 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern REQUIRES_TAG = Pattern.compile("^\\s*\\*\\s*@requires\\s+\\S+.*$");
 
     private final String prefix;
-    private final Path moduleInfoFile;
+    private final List<Path> moduleInfoFiles;
 
     public PinModuleInfo(String prefix, Path moduleInfoFile) {
+        this(prefix, List.of(moduleInfoFile));
+    }
+
+    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles) {
         this.prefix = prefix;
-        this.moduleInfoFile = moduleInfoFile;
+        this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
     }
 
     @Override
@@ -31,28 +35,18 @@ public class PinModuleInfo implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path file = argument.folder().resolve(VERSIONS);
-            if (!Files.exists(file)) {
-                continue;
-            }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(file)) {
-                properties.load(reader);
-            }
-            for (String key : properties.stringPropertyNames()) {
-                int slash = key.indexOf('/');
-                if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
-                    continue;
-                }
-                entries.putIfAbsent(key.substring(slash + 1), properties.getProperty(key));
-            }
+        SequencedMap<String, String> entries = collectEntries(arguments, prefix);
+        for (Path file : moduleInfoFiles) {
+            updateModuleInfo(file, entries);
         }
-        String existing = Files.readString(moduleInfoFile);
+        return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static void updateModuleInfo(Path file, SequencedMap<String, String> entries) throws IOException {
+        String existing = Files.readString(file);
         Matcher moduleMatch = MODULE_DECLARATION.matcher(existing);
         if (!moduleMatch.find()) {
-            throw new IllegalStateException("No module declaration found in " + moduleInfoFile);
+            throw new IllegalStateException("No module declaration found in " + file);
         }
         int moduleStart = moduleMatch.start();
         String prelude = existing.substring(0, moduleStart);
@@ -60,9 +54,52 @@ public class PinModuleInfo implements BuildStep {
         String updatedPrelude = updateJavadoc(prelude, entries);
         String updated = updatedPrelude + body;
         if (!updated.equals(existing)) {
-            Files.writeString(moduleInfoFile, updated);
+            Files.writeString(file, updated);
         }
-        return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments, String prefix) throws IOException {
+        SequencedMap<String, String> entries = new TreeMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path versionsFile = argument.folder().resolve(VERSIONS);
+            if (Files.exists(versionsFile)) {
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(versionsFile)) {
+                    properties.load(reader);
+                }
+                for (String key : properties.stringPropertyNames()) {
+                    int slash = key.indexOf('/');
+                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+                        continue;
+                    }
+                    entries.putIfAbsent(key.substring(slash + 1), properties.getProperty(key));
+                }
+            }
+            Path requiresFile = argument.folder().resolve(REQUIRES);
+            if (Files.exists(requiresFile)) {
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(requiresFile)) {
+                    properties.load(reader);
+                }
+                for (String key : properties.stringPropertyNames()) {
+                    int slash = key.indexOf('/');
+                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+                        continue;
+                    }
+                    String suffix = key.substring(slash + 1);
+                    int lastSlash = suffix.lastIndexOf('/');
+                    if (lastSlash <= 0) {
+                        continue;
+                    }
+                    String bomKey = suffix.substring(0, lastSlash);
+                    String version = suffix.substring(lastSlash + 1);
+                    String checksum = properties.getProperty(key);
+                    String bomValue = checksum.isEmpty() ? version : version + " " + checksum;
+                    entries.putIfAbsent(bomKey, bomValue);
+                }
+            }
+        }
+        return entries;
     }
 
     private static String updateJavadoc(String prelude, SequencedMap<String, String> entries) {

@@ -116,6 +116,7 @@ public class TestModule implements BuildExecutorModule {
             List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
             TestEngine resolved = engine != null ? engine : TestEngine.of(folders).orElse(null);
             Properties properties = new SequencedProperties();
+            String selectedPrefix = null;
             if (resolved != null
                     && !resolved.coordinates().isEmpty()
                     && !TestEngine.hasRunner(resolved, folders)) {
@@ -124,12 +125,29 @@ public class TestModule implements BuildExecutorModule {
                     String prefix = index > 0 ? coordinate.substring(0, index) : "";
                     if (prefixes.contains(prefix)) {
                         properties.setProperty(coordinate, "");
+                        selectedPrefix = prefix;
                         break;
                     }
                 }
             }
             try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 properties.store(writer, null);
+            }
+            if (resolved != null && selectedPrefix != null && !resolved.versions().isEmpty()) {
+                Properties versions = new SequencedProperties();
+                for (Map.Entry<String, String> entry : resolved.versions().entrySet()) {
+                    String coordinate = entry.getKey();
+                    int index = coordinate.indexOf('/');
+                    String prefix = index > 0 ? coordinate.substring(0, index) : "";
+                    if (selectedPrefix.equals(prefix)) {
+                        versions.setProperty(coordinate, entry.getValue());
+                    }
+                }
+                if (!versions.isEmpty()) {
+                    try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
+                        versions.store(writer, null);
+                    }
+                }
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

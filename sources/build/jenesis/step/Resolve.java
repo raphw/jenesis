@@ -41,9 +41,8 @@ public class Resolve implements DependencyTransformingBuildStep {
                     compile).entrySet()) {
                 String value;
                 if (Objects.equals(group.getKey(), entry.getKey().substring(0, entry.getKey().indexOf('/')))) {
-                    value = group.getValue().getOrDefault(
-                            entry.getKey().substring(entry.getKey().indexOf('/') + 1),
-                            entry.getValue());
+                    String declared = group.getValue().get(entry.getKey().substring(entry.getKey().indexOf('/') + 1));
+                    value = declared == null || declared.isEmpty() ? entry.getValue() : declared;
                 } else {
                     value = entry.getValue();
                 }

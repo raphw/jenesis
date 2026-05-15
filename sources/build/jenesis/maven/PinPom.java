@@ -16,11 +16,15 @@ public class PinPom implements BuildStep {
     private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--Checksum/[^>]*-->\\s*\\n");
 
     private final String prefix;
-    private final Path pomFile;
+    private final List<Path> pomFiles;
 
     public PinPom(String prefix, Path pomFile) {
+        this(prefix, List.of(pomFile));
+    }
+
+    public PinPom(String prefix, List<Path> pomFiles) {
         this.prefix = prefix;
-        this.pomFile = pomFile;
+        this.pomFiles = List.copyOf(pomFiles);
     }
 
     @Override
@@ -33,24 +37,14 @@ public class PinPom implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path file = argument.folder().resolve(VERSIONS);
-            if (!Files.exists(file)) {
-                continue;
-            }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(file)) {
-                properties.load(reader);
-            }
-            for (String key : properties.stringPropertyNames()) {
-                int slash = key.indexOf('/');
-                if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
-                    continue;
-                }
-                entries.putIfAbsent(key.substring(slash + 1), properties.getProperty(key));
-            }
+        SequencedMap<String, String> entries = collectEntries(arguments, prefix);
+        for (Path pomFile : pomFiles) {
+            updatePom(pomFile, entries);
         }
+        return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private void updatePom(Path pomFile, SequencedMap<String, String> entries) throws IOException {
         String existing = Files.readString(pomFile);
         Matcher dmMatch = DEPENDENCY_MANAGEMENT.matcher(existing);
         String indent = dmMatch.find() ? dmMatch.group(1) : detectIndent(existing);
@@ -76,7 +70,50 @@ public class PinPom implements BuildStep {
         if (!updated.equals(existing)) {
             Files.writeString(pomFile, updated);
         }
-        return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments, String prefix) throws IOException {
+        SequencedMap<String, String> entries = new TreeMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path versionsFile = argument.folder().resolve(VERSIONS);
+            if (Files.exists(versionsFile)) {
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(versionsFile)) {
+                    properties.load(reader);
+                }
+                for (String key : properties.stringPropertyNames()) {
+                    int slash = key.indexOf('/');
+                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+                        continue;
+                    }
+                    entries.putIfAbsent(key.substring(slash + 1), properties.getProperty(key));
+                }
+            }
+            Path requiresFile = argument.folder().resolve(REQUIRES);
+            if (Files.exists(requiresFile)) {
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(requiresFile)) {
+                    properties.load(reader);
+                }
+                for (String key : properties.stringPropertyNames()) {
+                    int slash = key.indexOf('/');
+                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+                        continue;
+                    }
+                    String suffix = key.substring(slash + 1);
+                    int lastSlash = suffix.lastIndexOf('/');
+                    if (lastSlash <= 0) {
+                        continue;
+                    }
+                    String bomKey = suffix.substring(0, lastSlash);
+                    String version = suffix.substring(lastSlash + 1);
+                    String checksum = properties.getProperty(key);
+                    String bomValue = checksum.isEmpty() ? version : version + " " + checksum;
+                    entries.putIfAbsent(bomKey, bomValue);
+                }
+            }
+        }
+        return entries;
     }
 
     private static String stripDirectDependencyChecksums(String content) {

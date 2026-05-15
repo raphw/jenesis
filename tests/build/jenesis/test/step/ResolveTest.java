@@ -135,7 +135,7 @@ public class ResolveTest {
                 "foo/transitive/baz");
         assertThat(dependencies.getProperty("foo/qux")).isEqualTo("bar");
         assertThat(dependencies.getProperty("foo/transitive/qux")).isEqualTo("baz/qux");
-        assertThat(dependencies.getProperty("foo/baz")).isEmpty();
+        assertThat(dependencies.getProperty("foo/baz")).isEqualTo("qux/baz");
         assertThat(dependencies.getProperty("foo/transitive/baz")).isEqualTo("baz/baz");
     }
 }

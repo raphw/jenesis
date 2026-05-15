@@ -19,6 +19,10 @@ public interface TestEngine extends Serializable {
         return null;
     }
 
+    default Map<String, String> versions() {
+        return Map.of();
+    }
+
     List<String> arguments();
 
     static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {

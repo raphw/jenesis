@@ -7,11 +7,13 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryStage;
 import build.jenesis.maven.MavenUriParser;
+import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularPlacement;
 import build.jenesis.module.ModularProject;
+import build.jenesis.module.PinModuleInfo;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
@@ -22,7 +24,10 @@ import build.jenesis.step.Relocate;
 
 public final class Project {
 
-    public static final String BUILD = "build", COLLECT = "collect", STAGE = "stage";
+    public static final String BUILD = "build",
+            COLLECT = "collect",
+            STAGE = "stage",
+            PIN = "pin";
 
     public record Context(
             boolean tests,
@@ -104,9 +109,10 @@ public final class Project {
                     Collections.unmodifiableMap(repositories),
                     Collections.unmodifiableMap(resolvers));
             Assembler wrapped = new PomAwareAssembler(assembler, builder);
+            Assembler decorated = new PomPinningAssembler(wrapped, builder.root());
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(),
-                            descriptor -> wrapped.apply(context, descriptor))));
+                            descriptor -> decorated.apply(context, descriptor))));
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -136,9 +142,10 @@ public final class Project {
                         builder.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
+                Assembler decorated = new ModuleInfoPinningAssembler(assembler, builder.root());
                 sub.addModule("modules", ModularProject.make(builder.root(),
                         context.repositories(), context.resolvers(),
-                        descriptor -> assembler.apply(context, descriptor)));
+                        descriptor -> decorated.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
@@ -172,9 +179,10 @@ public final class Project {
                         builder.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers));
+                Assembler decorated = new ModuleInfoPinningAssembler(wrapped, builder.root());
                 sub.addModule("modules", ModularProject.make(builder.root(),
                         context.repositories(), context.resolvers(),
-                        descriptor -> wrapped.apply(context, descriptor)));
+                        descriptor -> decorated.apply(context, descriptor)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
@@ -260,6 +268,64 @@ public final class Project {
                 }
             };
         }
+    }
+
+    private static final class PomPinningAssembler implements Assembler {
+
+        private final Assembler base;
+        private final Path root;
+
+        private PomPinningAssembler(Assembler base, Path root) {
+            this.base = base;
+            this.root = root;
+        }
+
+        @Override
+        public BuildExecutorModule apply(Context context, ModuleDescriptor descriptor) {
+            BuildExecutorModule delegate = base.apply(context, descriptor);
+            return (sub, inherited) -> {
+                delegate.accept(sub, inherited);
+                Path pom = root.resolve(decodeRelativePath(descriptor.name())).resolve("pom.xml");
+                sub.addStep(PIN, new PinPom("maven", pom),
+                        descriptor.resolved(DependencyScope.COMPILE),
+                        descriptor.resolved(DependencyScope.RUNTIME));
+            };
+        }
+    }
+
+    private static final class ModuleInfoPinningAssembler implements Assembler {
+
+        private final Assembler base;
+        private final Path root;
+
+        private ModuleInfoPinningAssembler(Assembler base, Path root) {
+            this.base = base;
+            this.root = root;
+        }
+
+        @Override
+        public BuildExecutorModule apply(Context context, ModuleDescriptor descriptor) {
+            BuildExecutorModule delegate = base.apply(context, descriptor);
+            return (sub, inherited) -> {
+                delegate.accept(sub, inherited);
+                Path moduleInfo = root.resolve(decodeRelativePath(descriptor.name())).resolve("module-info.java");
+                sub.addStep(PIN, new PinModuleInfo("module", moduleInfo),
+                        descriptor.resolved(DependencyScope.COMPILE),
+                        descriptor.resolved(DependencyScope.RUNTIME));
+            };
+        }
+    }
+
+    private static String decodeRelativePath(String moduleName) {
+        String suffix;
+        if (moduleName.startsWith("test-module-")) {
+            suffix = moduleName.substring("test-module-".length());
+        } else if (moduleName.startsWith("module-")) {
+            suffix = moduleName.substring("module-".length());
+        } else {
+            suffix = moduleName;
+        }
+        return URLDecoder.decode(suffix, StandardCharsets.UTF_8);
     }
 
     public static void main(String... selectors) {
