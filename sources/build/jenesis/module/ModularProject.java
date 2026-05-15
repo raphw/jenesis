@@ -79,6 +79,8 @@ public class ModularProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
+                    String relativePath = name.startsWith("module-") ? name.substring("module-".length()) : name;
+                    Path moduleInfoFile = root.resolve(URLDecoder.decode(relativePath, StandardCharsets.UTF_8)).resolve("module-info.java");
                     for (DependencyScope scope : DependencyScope.values()) {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
@@ -87,7 +89,8 @@ public class ModularProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE)
+                                            .withPin(new PinModuleInfo(prefix, moduleInfoFile)),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

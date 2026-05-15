@@ -13,7 +13,6 @@ import build.jenesis.step.Download;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Resolve;
-import build.jenesis.step.TestDefaultEngine;
 
 public class Minimal {
 
@@ -34,7 +33,7 @@ public class Minimal {
 
         root.addSource("test", Bind.asSources(), Path.of("tests"));
         root.addStep("test-javac", Javac.tool(), "main-jar", "test-dependencies-downloaded", "test");
-        root.addModule("tests", new TestModule(TestDefaultEngine.JUNIT5).jarsOnly(false), "main-jar", "test-dependencies-downloaded", "test-javac");
+        root.addModule("tests", new TestModule().jarsOnly(false), "main-jar", "test-dependencies-downloaded", "test-javac");
 
         root.execute(args);
     }

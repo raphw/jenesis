@@ -105,13 +105,13 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_TO_MAVEN`
   layouts wrap the user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded
   with project-wide metadata read once from `metadata.properties` (when configured); `MODULAR` does not.
-  All three layouts then wrap once more with a pinning decorator (`PomPinningAssembler` for `MAVEN` /
-  `MODULAR_TO_MAVEN`, `ModuleInfoPinningAssembler` for `MODULAR`) that emits a per-project `pin` step with
-  the project's own `pom.xml` / `module-info.java` as the target and the per-scope resolved dependencies
-  (`descriptor.resolved(DependencyScope.COMPILE)`, `descriptor.resolved(DependencyScope.RUNTIME)`) as
-  predecessors. The pin step rewrites the source file's `<dependencyManagement>` block / Javadoc `@requires`
-  block so that all resolved coordinates and their checksums are pinned, turning a project with declared
-  direct dependencies into one with the full transitive closure pinned (with hashes) at the source level.
+  Each layout's `MavenProject.make` / `ModularProject.make` opts in to source-level pinning by passing the
+  per-project source file (`<root>/<sub>/pom.xml` for Maven, `<root>/<sub>/module-info.java` for Modular)
+  to `DependenciesModule.withPin(BuildStep)`, which adds a per-scope per-project `pin` sub-step at
+  `<scope>/dependencies/pin`. The pin step depends on the scope's resolved coords and rewrites the source
+  file so the full transitive closure (with checksums) is pinned at source level. Pin runs as part of
+  every build; it's idempotent, so a no-op when the source file is already in sync. To skip pinning, a
+  layout can construct `DependenciesModule` without the `.withPin(...)` opt-in.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived
 module repository for `MODULAR`) with any user-provided ones, and pass the merged maps through `Context`. User
@@ -472,8 +472,8 @@ the inherited class- or module-path. Calling `withResolvers(repositories, resolv
 on the side, so the user never has to declare it as a compile-time `requires` of their test module:
 
 - `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
-  `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers - `TestDefaultEngine.JUNIT5`
-  ships both `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<version>`,
+  `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers - `JUnit5` ships both
+  `module/org.junit.platform.console` and `maven/org.junit.platform/junit-platform-console/<platformVersion>`,
   so the same engine works across `Modular`, `ModularToMaven`, and `Manual`-style builds. If the runner is already
   visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
 - `required` (`Resolve`) expands that single coordinate into its transitive closure via the matching
@@ -931,10 +931,12 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
 - **`Javac`, `Jar`, `Javadoc`, `Java`** are the concrete tool drivers. They consume the conventional folders
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.
-- **`TestModule`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` and `TestDefaultEngine`
-  encode per-framework metadata (main class, command-line prefix for selecting classes/methods, marker class
-  used to detect the framework on the classpath, optional Maven coordinates of the runner). New frameworks slot
-  in by implementing `TestEngine`.
+- **`TestModule`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` plus the built-in
+  `JUnit4` and `JUnit5` records encode per-framework metadata (main class, command-line prefix for selecting
+  classes/methods, marker class used to detect the framework on the classpath, optional Maven coordinates of the
+  runner). `JUnit5` takes an explicit `jupiterVersion` and `platformVersion`; when no engine is passed,
+  `TestEngine.of(...)` infers both from the `Implementation-Version` manifest entries of the Jupiter API and
+  Platform Commons jars discovered on the inherited paths. New frameworks slot in by implementing `TestEngine`.
 - **`JavaModule`** is the canonical `BuildExecutorModule` for "compile sources, package as a jar, optionally run
   tests". It delegates to `Javac`, `Jar`, and `TestModule`. Build scripts that don't have multi-project structure
   (`Minimal.java`, `Manual.java`) wire it directly.

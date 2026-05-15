@@ -72,6 +72,10 @@ public class MavenProject implements BuildExecutorModule {
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
+                    String relativePath = name.startsWith("test-module-")
+                            ? name.substring("test-module-".length())
+                            : name.startsWith("module-") ? name.substring("module-".length()) : name;
+                    Path pomFile = root.resolve(URLDecoder.decode(relativePath, StandardCharsets.UTF_8)).resolve("pom.xml");
                     for (DependencyScope scope : DependencyScope.values()) {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
@@ -80,7 +84,8 @@ public class MavenProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE),
+                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE)
+                                            .withPin(new PinPom(prefix, pomFile)),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

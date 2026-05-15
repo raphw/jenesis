@@ -10,8 +10,9 @@ import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.project.TestModule;
+import build.jenesis.step.JUnit4;
+import build.jenesis.step.JUnit5;
 import build.jenesis.step.Javac;
-import build.jenesis.step.TestDefaultEngine;
 import sample.TestSample;
 
 import static java.util.Objects.requireNonNull;
@@ -90,7 +91,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -106,7 +107,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT5).jarsOnly(false),
+                new TestModule(new JUnit5("5.11.3", "1.11.4")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -139,7 +140,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.of("maven", noResolver()))
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -157,7 +158,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.of("module", noResolver()))
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -175,7 +176,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -192,7 +193,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT5, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -209,7 +210,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(TestDefaultEngine.JUNIT4, candidate -> candidate.endsWith("TestSample"))
+                new TestModule(new JUnit4(), candidate -> candidate.endsWith("TestSample"))
                         .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
                         .jarsOnly(false),
                 "dependencies", "classes");
