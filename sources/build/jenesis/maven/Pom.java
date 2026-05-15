@@ -19,24 +19,11 @@ public class Pom implements BuildStep {
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(defaultResolver(), Map.of());
+        this(Map.of());
     }
 
     public Pom(Map<String, String> shared) {
-        this(defaultResolver(), shared);
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this(resolver, Map.of());
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
-        this.resolver = resolver;
-        this.shared = Map.copyOf(shared);
-    }
-
-    private static <F extends Function<String, String> & Serializable> F defaultResolver() {
-        return (F) (Function<String, String> & Serializable) (coordinate -> {
+        this.resolver = (Function<String, String> & Serializable) (coordinate -> {
             int separator = coordinate.indexOf('/');
             if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
                 return coordinate;
@@ -49,6 +36,16 @@ public class Pom implements BuildStep {
             String groupId = elements[0] + "." + elements[1];
             return "maven/" + groupId + "/" + name + "/0-SNAPSHOT";
         });
+        this.shared = Map.copyOf(shared);
+    }
+
+    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
+        this(resolver, Map.of());
+    }
+
+    public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
+        this.resolver = resolver;
+        this.shared = Map.copyOf(shared);
     }
 
     @Override
