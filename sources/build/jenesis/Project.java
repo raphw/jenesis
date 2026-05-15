@@ -149,6 +149,7 @@ public final class Project {
         };
 
         Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
+            MavenPomResolver resolver = new MavenPomResolver();
             Assembler wrapped = new PomAwareAssembler(assembler, builder);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
@@ -162,9 +163,9 @@ public final class Project {
                 }
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(false,
-                        new MavenPomResolver().translated("maven",
+                        resolver.translated("maven",
                                 (_, coordinate) -> parser.apply(coordinate))));
-                resolvers.put("maven", new MavenPomResolver());
+                resolvers.put("maven", resolver);
                 if (builder.resolvers() != null) {
                     resolvers.putAll(builder.resolvers());
                 }
