@@ -99,7 +99,7 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
 - `Project.Assembler` (set via `.assembler(...)`) wires the per-project sub-graph: what each discovered module
   compiles, packages, and tests. An assembler receives a `Project.Context` (`tests`, effective
   `repositories`, effective `resolvers`) and a `ModuleDescriptor` (with canonical sub-paths `sources()`,
-  `manifests()`, `artifacts(Scope)`, `resolved(Scope)`, where `Scope` is `COMPILE` or `RUNTIME`), and returns a
+  `manifests()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`, where `DependencyScope` is `COMPILE` or `RUNTIME`), and returns a
   `BuildExecutorModule` registered inside the per-project sub-graph. The default, `Assembler.ofJava()`, is
   layout-independent: it wires a single `JavaModule.testIfAvailable(...)` against all six descriptor paths,
   using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_TO_MAVEN`
@@ -255,10 +255,10 @@ Concretely:
   the descriptor's path strings apply directly (typically the outer assembler lambda) and capture the result for
   any inner sub-module that needs it.
 - **Define each step-name constant once, at the class that adds the step**, and have all consumers reference
-  that constant. `MultiProjectModule.SOURCES` / `.MANIFESTS` belong on `MultiProjectModule` because that's the
-  framework that wires those steps in the per-module sub-graph; `DependenciesModule.CHECKED` / `.ARTIFACTS`
-  belong on `DependenciesModule` because that's where the steps are added; `MultiProjectModule.COMPILE` /
-  `.RUNTIME` live on `MultiProjectModule` because that's where the per-scope sub-modules are wired. A class that
+  that constant. `MultiProjectModule.IDENTIFIER` / `.COMPOSE` / `.MODULE` belong on `MultiProjectModule`
+  because that's the framework that wires those sub-modules; `DependenciesModule.RESOLVED` / `.ARTIFACTS`
+  belong on `DependenciesModule` because that's where the steps are added. The per-scope sub-module folder
+  names are derived from `DependencyScope.label()` rather than living as separate constants. A class that
   wants to point at a predecessor's leaf step uses the owner's constant - no separate "same string" duplicate.
 - **`*.properties` files exchanged between steps in different files should have a documented schema.** The
   conventional files (`identity.properties`, `module.properties`, `metadata.properties`, `requires.properties`,
@@ -267,18 +267,19 @@ Concretely:
   the README rather than as a magic string scattered across writer and reader sites.
 - **Schema-level vocabulary in those properties files is matched as literal strings.** The values written to
   `scopes.properties` (e.g. `COMPILE`, `RUNTIME`) are an open-ended token set documented in the table below;
-  new steps and producers are free to introduce additional tokens without touching the shared `Scope` enum.
-  Today's producers and consumers happen to use `Scope.COMPILE.name()` / `Scope.RUNTIME.name()` to derive the
-  string, which keeps writer and reader spellings in sync without forcing every participant to depend on the
-  enum (the wire format is the string, not the enum value). Property-file tokens are written in upper case
-  (`COMPILE`, `RUNTIME`) to keep them visually distinct from the lower-case sub-module folder names
-  (`compile/`, `runtime/`) that share the same root word and to reduce the chance of a typo silently matching.
-  The general infrastructure (`BuildExecutor`, `BuildStep`, the `scopes.properties` file format) does not
-  enforce a closed token set: only the bundled `MavenProject.make` / `ModularProject.make` wiring and its
-  helpers (`MultiProjectDependencies`, `Pom`) reference `Scope`, and they only consume the tokens they know
-  about. A custom project type or layout that supplies its own `Manifests` step, its own per-scope prepare
-  step, and its own consumer (or skips `Pom` entirely) can introduce additional scope tokens with no
-  framework-level changes; the `Scope` enum is a convenience for the bundled flow, not a global registry.
+  new steps and producers are free to introduce additional tokens without touching the shared `DependencyScope`
+  enum. Today's producers and consumers happen to use `DependencyScope.COMPILE.name()` /
+  `DependencyScope.RUNTIME.name()` to derive the string, which keeps writer and reader spellings in sync
+  without forcing every participant to depend on the enum (the wire format is the string, not the enum value).
+  Property-file tokens are written in upper case (`COMPILE`, `RUNTIME`) to keep them visually distinct from
+  the lower-case sub-module folder names (`compile/`, `runtime/`) that share the same root word and to reduce
+  the chance of a typo silently matching. The general infrastructure (`BuildExecutor`, `BuildStep`, the
+  `scopes.properties` file format) does not enforce a closed token set: only the bundled `MavenProject.make` /
+  `ModularProject.make` wiring and its helpers (`MultiProjectDependencies`, `Pom`) reference
+  `DependencyScope`, and they only consume the tokens they know about. A custom project type or layout that
+  supplies its own `Manifests` step, its own per-scope prepare step, and its own consumer (or skips `Pom`
+  entirely) can introduce additional scope tokens with no framework-level changes; the `DependencyScope` enum
+  is a convenience for the bundled flow, not a global registry.
 
 The exception is **inline sub-modules of the same enclosing module**: a class that adds several sub-modules and
 steps in its own `accept(...)` may reference its own sub-module/step names by their (private) constants, since
@@ -307,7 +308,7 @@ others are declared next to the step that emits them.
 | `identity.properties`      | `BuildStep.IDENTITY`             | `<prefix>/<coordinate>` keys (e.g. `maven/groupId/artifactId/[type/[classifier/]]version` or `module/<java-module-name>`) mapped to either an empty value (artifact not yet built; identifies the project's own coordinate) or the absolute filesystem path of an already-built jar.                          |
 | `requires.properties`      | `BuildStep.REQUIRES`             | Same `<prefix>/<coordinate>` keys as `identity.properties`, mapped to either an empty value (no integrity validation requested) or an `<algorithm>/<hex>` content checksum that `Download` verifies against the downloaded artifact (mismatch fails the build). Checksums are pinned in source by the user: a `<!--Checksum/<algorithm>/<hex>-->` comment inside a POM `<dependency>` element, or a `<!--Checksum/...-->` inside `<dependencyManagement>` (which propagates to whichever transitive resolves to that coord), or an `@requires <module> <version> <algorithm>/<hex>` Javadoc tag in `module-info.java`. There is no on-the-fly hash computation in the build; coordinates without a pinned checksum are downloaded without integrity validation. After `Resolve` runs, module-style coordinates carry an optional trailing `/<version>` segment (`module/org.junit.jupiter/5.11.3`) reflecting the version a resolver chose for that module. |
 | `versions.properties`      | `BuildStep.VERSIONS`             | `<prefix>/<version-less-coordinate>=<version>[ <algorithm>/<hex>]` entries that act as a *bill of materials* for the resolution that follows: every resolver receives this map alongside `requires.properties` and uses the version part to pin any (declared or transitive) dependency that matches the bare coordinate. The optional space-separated `<algorithm>/<hex>` suffix is the pre-pinned content checksum for that coordinate; resolvers carry it through into the resolved `requires.properties` value so `Download` validates the bytes against it. For Maven the key is `groupId/artifactId[/type[/classifier]]`; for modules it is the bare Java module name. The file is written next to `requires.properties` by producers that have version data to contribute (`ModularProject` from `@requires` Javadoc tags, `MavenProject` from `<dependencyManagement>`). |
-| `scopes.properties`        | `BuildStep.SCOPES`               | Sibling of `requires.properties` produced by the `Manifests` steps in `ModularProject` and `MavenProject`. Each key is a `<prefix>/<coordinate>` from `requires.properties`; the value is a comma-separated list of scope tokens describing in which scopes the dependency is visible. The token set is open-ended (matched as literal strings) so additional steps can introduce their own scope tokens later. The currently recognized tokens are the upper-case `Scope` enum names `COMPILE` and `RUNTIME`: compile-only entries (Maven `provided`, Java `requires static`) carry just `COMPILE`; runtime-only entries (Maven `runtime`) carry just `RUNTIME`; entries visible in both carry `COMPILE,RUNTIME`. `MultiProjectDependencies` filters `requires.properties` against the `Scope` it is bound to; `Pom` reads it to decide whether each dependency is emitted as `compile`, `provided`, or `runtime`. The upper-case spelling distinguishes property-file content from the lower-case sub-module folder names (`compile/`, `runtime/`) that share the same root word. |
+| `scopes.properties`        | `BuildStep.SCOPES`               | Sibling of `requires.properties` produced by the `Manifests` steps in `ModularProject` and `MavenProject`. Each key is a `<prefix>/<coordinate>` from `requires.properties`; the value is a comma-separated list of scope tokens describing in which scopes the dependency is visible. The token set is open-ended (matched as literal strings) so additional steps can introduce their own scope tokens later. The currently recognized tokens are the upper-case `DependencyScope` enum names `COMPILE` and `RUNTIME`: compile-only entries (Maven `provided`, Java `requires static`) carry just `COMPILE`; runtime-only entries (Maven `runtime`) carry just `RUNTIME`; entries visible in both carry `COMPILE,RUNTIME`. `MultiProjectDependencies` filters `requires.properties` against the `DependencyScope` it is bound to; `Pom` reads it to decide whether each dependency is emitted as `compile`, `provided`, or `runtime`. The upper-case spelling distinguishes property-file content from the lower-case sub-module folder names (`compile/`, `runtime/`) that share the same root word. |
 | `module.properties`        | `BuildStep.MODULE`               | Carries derived classification keys about a built module that affect downstream build/staging decisions (as opposed to the descriptive `metadata.properties`). Currently the only key is `tests`, whose value is the `artifactId` of the main module the test variant covers (or the empty string for the deprecated bare `@tests`); the file is omitted entirely on main modules. Written by `ModularProject.Manifests` (from `@tests <name>` in `module-info.java`) and `MavenProject.Manifests` (when the resolved coordinate carries the `tests` classifier). Read by `Pom`, `Project.Assembler.ofJava`, `MavenRepositoryStage`, `MavenRepositoryPlacement`, and `ModularPlacement` to identify test variants. |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<java-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a Java module name into a download URL. When a versioned coordinate is requested (e.g. `org.assertj.core/3.27.0`) and the bare name is mapped to a URL whose final path segments follow the Maven repository layout (`.../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`), an opt-in version-resolver function (`MavenDefaultRepository.versionResolver()`) supplied by the caller rewrites the path's version segment and the filename's version segment to the pinned value, so a single-URL registry still satisfies version pins. Without that function, `Repository.ofUris` performs strict literal lookup only; URLs not matching the Maven layout always fall back to the bare-name URL. The `MODULAR` layout passes this resolver explicitly when wiring `Repository.ofProperties`, since the dominant Java module URL registries (sormuras/modules and most internal mirrors) point at Maven Central -- making the Maven layout assumption visible at the use site rather than baked into the generic `Repository` infrastructure. |
 | `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value emitting the same flag once per piece. Each input folder's file is processed independently and its entries are appended to the command line in folder order, so the same key in two folders becomes two flag instances. Values that name filesystem paths are written relative to the file's containing folder (paths are not resolved until the consumer step needs them), which keeps the on-disk content position-independent so build outputs can be relocated or shared between caches without rewriting.                                                                                          |
@@ -526,7 +527,7 @@ source tree and writes their coordinates and dependencies; a `Group` step partit
 dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
 between them. Each per-project closure receives a `ModuleDescriptor` exposing `name()` and `dependencies()`; the
 concrete subtype (`ModularModuleDescriptor` or `MavenModuleDescriptor`) also exposes the standardised inherited
-keys as helpers (`sources()`, `manifests()`, `artifacts(Scope)`, `resolved(Scope)`), so a closure doesn't need to know how
+keys as helpers (`sources()`, `manifests()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`), so a closure doesn't need to know how
 the identifier laid out its outputs. The example below shows two projects `A` and `B` where `A` requires `B`,
 so `B` is built first and its output flows into `A`.
 
