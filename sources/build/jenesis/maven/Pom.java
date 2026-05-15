@@ -11,8 +11,6 @@ public class Pom implements BuildStep {
 
     public static final String POM = "pom.xml";
 
-    public static final String COMPILE = "compile", RUNTIME = "runtime";
-
     private final Function<String, String> resolver;
     private final Map<String, String> shared;
     private final String buildVersion = System.getProperty("jenesis.buildVersion");

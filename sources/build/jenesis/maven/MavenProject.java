@@ -67,8 +67,8 @@ public class MavenProject implements BuildExecutorModule {
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
                     for (Map.Entry<String, Boolean> entry : List.of(
-                            Map.entry(MultiProjectModule.COMPILE, true),
-                            Map.entry(MultiProjectModule.RUNTIME, false))) {
+                            Map.entry(BuildStep.COMPILE, true),
+                            Map.entry(BuildStep.RUNTIME, false))) {
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
@@ -86,10 +86,10 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
+                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
+                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS,
+                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
+                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -202,11 +202,11 @@ public class MavenProject implements BuildExecutorModule {
                                     compileDependencies.setProperty(dependency, "");
                                     runtimeDependencies.setProperty(dependency, "");
                                 }
-                                Path compileTarget = Files.createDirectories(context.next().resolve(MultiProjectModule.COMPILE));
+                                Path compileTarget = Files.createDirectories(context.next().resolve(BuildStep.COMPILE));
                                 try (BufferedWriter writer = Files.newBufferedWriter(compileTarget.resolve(BuildStep.REQUIRES))) {
                                     compileDependencies.store(writer, null);
                                 }
-                                Path runtimeTarget = Files.createDirectories(context.next().resolve(MultiProjectModule.RUNTIME));
+                                Path runtimeTarget = Files.createDirectories(context.next().resolve(BuildStep.RUNTIME));
                                 try (BufferedWriter writer = Files.newBufferedWriter(runtimeTarget.resolve(BuildStep.REQUIRES))) {
                                     runtimeDependencies.store(writer, null);
                                 }
@@ -219,7 +219,7 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 if (!versions.isEmpty()) {
-                                    for (String scope : List.of(MultiProjectModule.COMPILE, MultiProjectModule.RUNTIME)) {
+                                    for (String scope : List.of(BuildStep.COMPILE, BuildStep.RUNTIME)) {
                                         Path target = Files.createDirectories(context.next().resolve(scope));
                                         try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.VERSIONS))) {
                                             versions.store(writer, null);

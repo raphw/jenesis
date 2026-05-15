@@ -93,13 +93,13 @@ public class PomTest {
         Properties compile = new SequencedProperties();
         compile.setProperty("maven/org.example/lib/1.2.3", "");
         compile.setProperty("maven/org.example/static-lib/4.5.6", "");
-        Path compileDir = Files.createDirectory(argument.resolve(Pom.COMPILE));
+        Path compileDir = Files.createDirectory(argument.resolve(BuildStep.COMPILE));
         try (Writer writer = Files.newBufferedWriter(compileDir.resolve(BuildStep.REQUIRES))) {
             compile.store(writer, null);
         }
         Properties runtime = new SequencedProperties();
         runtime.setProperty("maven/org.example/lib/1.2.3", "");
-        Path runtimeDir = Files.createDirectory(argument.resolve(Pom.RUNTIME));
+        Path runtimeDir = Files.createDirectory(argument.resolve(BuildStep.RUNTIME));
         try (Writer writer = Files.newBufferedWriter(runtimeDir.resolve(BuildStep.REQUIRES))) {
             runtime.store(writer, null);
         }
@@ -108,8 +108,8 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(Pom.COMPILE, BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(Pom.RUNTIME, BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.COMPILE, BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.RUNTIME, BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -134,14 +134,14 @@ public class PomTest {
         }
         Properties compile = new SequencedProperties();
         compile.setProperty("maven/org.example/lib/1.2.3", "");
-        Path compileDir = Files.createDirectory(argument.resolve(Pom.COMPILE));
+        Path compileDir = Files.createDirectory(argument.resolve(BuildStep.COMPILE));
         try (Writer writer = Files.newBufferedWriter(compileDir.resolve(BuildStep.REQUIRES))) {
             compile.store(writer, null);
         }
         Properties runtime = new SequencedProperties();
         runtime.setProperty("maven/org.example/lib/1.2.3", "");
         runtime.setProperty("maven/org.example/runtime-only/4.5.6", "");
-        Path runtimeDir = Files.createDirectory(argument.resolve(Pom.RUNTIME));
+        Path runtimeDir = Files.createDirectory(argument.resolve(BuildStep.RUNTIME));
         try (Writer writer = Files.newBufferedWriter(runtimeDir.resolve(BuildStep.REQUIRES))) {
             runtime.store(writer, null);
         }
@@ -150,8 +150,8 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(Pom.COMPILE, BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(Pom.RUNTIME, BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.COMPILE, BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.RUNTIME, BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         String pom = Files.readString(next.resolve(Pom.POM));

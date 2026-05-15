@@ -12,9 +12,7 @@ public class MultiProjectModule implements BuildExecutorModule {
     public static final String SOURCES = "sources",
             MANIFESTS = "manifests",
             CHECKED = "checked",
-            ARTIFACTS = "artifacts",
-            COMPILE = "compile",
-            RUNTIME = "runtime";
+            ARTIFACTS = "artifacts";
 
     public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
@@ -83,7 +81,7 @@ public class MultiProjectModule implements BuildExecutorModule {
             }
             process.addStep(GROUP,
                     new Group(identifier -> Optional.of(modules.get(identifier)),
-                            COMPILE + "/" + BuildStep.REQUIRES),
+                            BuildStep.COMPILE + "/" + BuildStep.REQUIRES),
                     modules.sequencedKeySet());
             process.addModule(MODULE, (build, paths) -> {
                 SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();

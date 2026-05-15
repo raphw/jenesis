@@ -77,8 +77,8 @@ public class ModularProject implements BuildExecutorModule {
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
                     for (Map.Entry<String, Boolean> entry : List.of(
-                            Map.entry(MultiProjectModule.COMPILE, true),
-                            Map.entry(MultiProjectModule.RUNTIME, false))) {
+                            Map.entry(BuildStep.COMPILE, true),
+                            Map.entry(BuildStep.RUNTIME, false))) {
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
@@ -96,10 +96,10 @@ public class ModularProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
+                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
+                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS,
+                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
+                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -170,8 +170,8 @@ public class ModularProject implements BuildExecutorModule {
                 }
             }
             for (Map.Entry<String, SequencedSet<String>> entry : List.of(
-                    Map.entry(MultiProjectModule.COMPILE, info.requires()),
-                    Map.entry(MultiProjectModule.RUNTIME, info.runtimeRequires()))) {
+                    Map.entry(BuildStep.COMPILE, info.requires()),
+                    Map.entry(BuildStep.RUNTIME, info.runtimeRequires()))) {
                 Path target = Files.createDirectories(context.next().resolve(entry.getKey()));
                 Properties properties = new SequencedProperties();
                 for (String dependency : entry.getValue()) {
@@ -182,7 +182,7 @@ public class ModularProject implements BuildExecutorModule {
                 }
             }
             if (!info.versions().isEmpty()) {
-                for (String scope : List.of(MultiProjectModule.COMPILE, MultiProjectModule.RUNTIME)) {
+                for (String scope : List.of(BuildStep.COMPILE, BuildStep.RUNTIME)) {
                     Path target = Files.createDirectories(context.next().resolve(scope));
                     Properties properties = new SequencedProperties();
                     info.versions().forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));

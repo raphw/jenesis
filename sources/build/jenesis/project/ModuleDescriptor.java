@@ -2,6 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildStep;
 
 public interface ModuleDescriptor {
 
@@ -18,18 +19,18 @@ public interface ModuleDescriptor {
     }
 
     default String artifacts() {
-        return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/dependencies/" + MultiProjectModule.ARTIFACTS;
+        return BuildExecutorModule.PREVIOUS + BuildStep.COMPILE + "/dependencies/" + MultiProjectModule.ARTIFACTS;
     }
 
     default String runtimeArtifacts() {
-        return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/dependencies/" + MultiProjectModule.ARTIFACTS;
+        return BuildExecutorModule.PREVIOUS + BuildStep.RUNTIME + "/dependencies/" + MultiProjectModule.ARTIFACTS;
     }
 
     default String checked() {
-        return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/dependencies/" + MultiProjectModule.CHECKED;
+        return BuildExecutorModule.PREVIOUS + BuildStep.COMPILE + "/dependencies/" + MultiProjectModule.CHECKED;
     }
 
     default String runtimeChecked() {
-        return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/dependencies/" + MultiProjectModule.CHECKED;
+        return BuildExecutorModule.PREVIOUS + BuildStep.RUNTIME + "/dependencies/" + MultiProjectModule.CHECKED;
     }
 }

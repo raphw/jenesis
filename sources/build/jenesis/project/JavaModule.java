@@ -3,6 +3,7 @@ package build.jenesis.project;
 import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildStep;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.step.Jar;
@@ -63,7 +64,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                 }
                 buildExecutor.addModule(TEST, tests, Stream.concat(
                         Stream.of(CLASSES, ARTIFACTS),
-                        inherited.sequencedKeySet().stream().filter(key -> !List.of(key.split("/")).contains(MultiProjectModule.COMPILE))));
+                        inherited.sequencedKeySet().stream().filter(key -> !List.of(key.split("/")).contains(BuildStep.COMPILE))));
             }
         };
     }
@@ -71,7 +72,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> compileScope = inherited.sequencedKeySet().stream()
-                .filter(key -> !List.of(key.split("/")).contains(MultiProjectModule.RUNTIME))
+                .filter(key -> !List.of(key.split("/")).contains(BuildStep.RUNTIME))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), compileScope);
         buildExecutor.addStep(VERSIONS, new Versions(), Stream.concat(
