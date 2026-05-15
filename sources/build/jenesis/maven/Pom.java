@@ -70,8 +70,8 @@ public class Pom implements BuildStep {
                     module.load(reader);
                 }
             }
-            Path compileRequiresFile = argument.folder().resolve(COMPILE).resolve(REQUIRES);
-            Path runtimeRequiresFile = argument.folder().resolve(RUNTIME).resolve(REQUIRES);
+            Path compileRequiresFile = argument.folder().resolve(COMPILE_REQUIRES);
+            Path runtimeRequiresFile = argument.folder().resolve(RUNTIME_REQUIRES);
             if (Files.exists(compileRequiresFile) || Files.exists(runtimeRequiresFile)) {
                 scoped = true;
                 if (Files.exists(compileRequiresFile)) {

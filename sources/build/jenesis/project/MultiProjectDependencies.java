@@ -12,14 +12,17 @@ public class MultiProjectDependencies implements BuildStep {
 
     private final String algorithm;
     private final Predicate<String> isModule;
-    private final String scope;
+    private final String requiresFile;
+    private final String versionsFile;
 
     public <P extends Predicate<String> & Serializable> MultiProjectDependencies(String algorithm,
                                                                                  P isModule,
-                                                                                 String scope) {
+                                                                                 String requiresFile,
+                                                                                 String versionsFile) {
         this.algorithm = algorithm;
         this.isModule = isModule;
-        this.scope = scope;
+        this.requiresFile = requiresFile;
+        this.versionsFile = versionsFile;
     }
 
     @Override
@@ -34,7 +37,7 @@ public class MultiProjectDependencies implements BuildStep {
         Map<String, Path> coordinateRelative = new HashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
-                Path file = entry.getValue().folder().resolve(scope).resolve(REQUIRES);
+                Path file = entry.getValue().folder().resolve(requiresFile);
                 if (Files.exists(file)) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(file)) {
@@ -45,10 +48,10 @@ public class MultiProjectDependencies implements BuildStep {
                         dependencies.put(property, value);
                     });
                 }
-                Path versionsFile = entry.getValue().folder().resolve(scope).resolve(VERSIONS);
-                if (Files.exists(versionsFile)) {
+                Path versionsPath = entry.getValue().folder().resolve(versionsFile);
+                if (Files.exists(versionsPath)) {
                     Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(versionsFile)) {
+                    try (Reader reader = Files.newBufferedReader(versionsPath)) {
                         properties.load(reader);
                     }
                     properties.stringPropertyNames().forEach(property -> versions.putIfAbsent(

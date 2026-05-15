@@ -69,12 +69,15 @@ public class MavenProject implements BuildExecutorModule {
                     for (Map.Entry<String, Boolean> entry : List.of(
                             Map.entry(BuildStep.COMPILE, true),
                             Map.entry(BuildStep.RUNTIME, false))) {
+                        String requires = entry.getValue() ? BuildStep.COMPILE_REQUIRES : BuildStep.RUNTIME_REQUIRES;
+                        String versions = entry.getValue() ? BuildStep.COMPILE_VERSIONS : BuildStep.RUNTIME_VERSIONS;
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             algorithm,
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
-                                            entry.getKey()),
+                                            requires,
+                                            versions),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
                                     new DependenciesModule(mergedRepositories, resolverMap, entry.getValue()).computeChecksums(algorithm),
@@ -202,12 +205,10 @@ public class MavenProject implements BuildExecutorModule {
                                     compileDependencies.setProperty(dependency, "");
                                     runtimeDependencies.setProperty(dependency, "");
                                 }
-                                Path compileTarget = Files.createDirectories(context.next().resolve(BuildStep.COMPILE));
-                                try (BufferedWriter writer = Files.newBufferedWriter(compileTarget.resolve(BuildStep.REQUIRES))) {
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.COMPILE_REQUIRES))) {
                                     compileDependencies.store(writer, null);
                                 }
-                                Path runtimeTarget = Files.createDirectories(context.next().resolve(BuildStep.RUNTIME));
-                                try (BufferedWriter writer = Files.newBufferedWriter(runtimeTarget.resolve(BuildStep.REQUIRES))) {
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.RUNTIME_REQUIRES))) {
                                     runtimeDependencies.store(writer, null);
                                 }
                                 Properties versions = new SequencedProperties();
@@ -219,9 +220,8 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 if (!versions.isEmpty()) {
-                                    for (String scope : List.of(BuildStep.COMPILE, BuildStep.RUNTIME)) {
-                                        Path target = Files.createDirectories(context.next().resolve(scope));
-                                        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve(BuildStep.VERSIONS))) {
+                                    for (String filename : List.of(BuildStep.COMPILE_VERSIONS, BuildStep.RUNTIME_VERSIONS)) {
+                                        try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(filename))) {
                                             versions.store(writer, null);
                                         }
                                     }
