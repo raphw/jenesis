@@ -331,14 +331,26 @@ output folder" invariant that drives incremental builds:
 The placement is the same `Function<Path, Optional<Path>>` shape `Relocate` uses: each visited file is mapped to
 an `Optional<Path>` relative to the configured target, or skipped. `MavenRepositoryPlacement.toLocalRepository()` and
 `MavenRepositoryPlacement.toRepository(Path)` ship a placement that consumes the canonical per-module output produced
-by `Relocate(ModularProject.artifactsByModule())` (i.e. each sub-module folder contains both `classes.jar` and
-`pom.xml`): for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of
-it, and routes the file to the standard Maven layout:
+by `Relocate(MultiProjectModule.artifactsByModule())` (i.e. each sub-module folder contains `classes.jar`, `sources.jar`,
+`javadoc.jar`, `pom.xml`, `identity.properties`, `metadata.properties` and - for test variants - `module.properties`):
+for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of it, checks the
+sibling `module.properties` for the `tests` key (which marks the directory as a test variant), and routes the file
+to the standard Maven layout. Main-module files use the bare coordinate; test-variant files use a `-tests` classifier
+suffix and route to the **main** module's coordinate. The test variant's `pom.xml` is never staged - the merged main POM is the canonical POM for the coordinate:
 
-| File          | Maven destination                                       |
-| ------------- | ------------------------------------------------------- |
-| `classes.jar` | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.jar` |
-| `pom.xml`     | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.pom` |
+| File (main module)   | Maven destination                                       |
+| -------------------- | ------------------------------------------------------- |
+| `classes.jar`        | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.jar`              |
+| `sources.jar`        | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>-sources.jar`      |
+| `javadoc.jar`        | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>-javadoc.jar`      |
+| `pom.xml`            | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.pom`              |
+
+| File (test variant)  | Maven destination                                       |
+| -------------------- | ------------------------------------------------------- |
+| `classes.jar`        | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>-tests.jar`         |
+| `sources.jar`        | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>-tests-sources.jar` |
+| `javadoc.jar`        | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>-tests-javadoc.jar` |
+| `pom.xml`            | (skipped - the merged main POM is the canonical POM)                                |
 
 Files without a sibling `pom.xml` are skipped, so the same step can be pointed at a tree that mixes
 multi-module output and arbitrary other content without false hits. After copying, the bundled finalizer
@@ -346,9 +358,9 @@ walks the target and writes the `mvn install`-equivalent metadata: a `maven-meta
 (`<release>` set to the highest non-SNAPSHOT version by Maven semantics, `<versions>` sorted ascending,
 `<lastUpdated>` timestamp), an `_remote.repositories` marker per version directory, and a `modelVersion="1.1.0"`
 `maven-metadata-local.xml` inside each `-SNAPSHOT` version directory listing per-extension/classifier
-`<snapshotVersions>`. Unhandled today: checksum sidecars (`.sha1`/`.md5`), GPG signatures, classifier'd
-artifacts (sources, javadoc, tests jars), and `<parent>` version inheritance - the `Pom` step always emits
-an explicit `<version>`, so the last is fine in practice for artifacts produced by this build.
+`<snapshotVersions>`. Unhandled today: checksum sidecars (`.sha1`/`.md5`), GPG signatures, and `<parent>` version
+inheritance - the `Pom` step always emits an explicit `<version>`, so the last is fine in practice for artifacts
+produced by this build.
 
 Build executor modules
 ----------------------
@@ -1031,16 +1043,19 @@ substituted, or a value inherited from a parent POM, must put the resolved value
 
 ### The Pom step's predecessor order
 
-`Pom` is wired with predecessors in the order `sources, manifests, checked, metadata`. Properties are loaded in
-that order, and a key found later in iteration replaces an earlier value. So the override chain is:
+`Pom` is wired with predecessors in the order `sources, manifests` (the project-level `metadata.properties`
+wraps in via the `Pom(Map<String, String> shared)` constructor, not as a step argument). Each manifests
+folder is iterated and contributes `identity.properties`, `module.properties`, `metadata.properties`,
+`compile/requires.properties` and `runtime/requires.properties`. The override chain is:
 
 1. The layout's manifests-derived `metadata.properties` (from module-info or pom.xml) lands first.
-2. The project-level `metadata.properties` (the file `-Djenesis.project.metadata` points at) lands last and
-   wins on any overlapping key.
+2. The project-level `metadata.properties` (the file `-Djenesis.project.metadata` points at) is applied
+   last via `shared.forEach(metadata::setProperty)`, winning on any overlapping key.
 
-The `project.module` key is read after the loop and, when present, suppresses POM emission for any module
-whose resolver-computed artifactId does not match - that's how the test module gets filtered out of a release
-build of jenesis without anyone having to thread an exclusion list through the assembler.
+The `project.module` key (read from `metadata.properties`) and the `tests` key (read from `module.properties`)
+together suppress POM emission for any module whose resolver-computed `artifactId` does not match -
+that's how the test module gets filtered out of a release build of jenesis without anyone having to thread
+an exclusion list through the assembler.
 
 Releasing to Maven Central
 --------------------------
