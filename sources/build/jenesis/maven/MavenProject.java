@@ -68,8 +68,8 @@ public class MavenProject implements BuildExecutorModule {
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
                     for (Map.Entry<String, Boolean> entry : List.of(
-                            Map.entry(BuildStep.COMPILE, true),
-                            Map.entry(BuildStep.RUNTIME, false))) {
+                            Map.entry(MultiProjectModule.COMPILE, true),
+                            Map.entry(MultiProjectModule.RUNTIME, false))) {
                         String requires = entry.getValue() ? BuildStep.COMPILE_REQUIRES : BuildStep.RUNTIME_REQUIRES;
                         String versions = entry.getValue() ? BuildStep.COMPILE_VERSIONS : BuildStep.RUNTIME_VERSIONS;
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
@@ -90,10 +90,10 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
-                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
-                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
+                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
+                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -500,22 +500,22 @@ public class MavenProject implements BuildExecutorModule {
 
         @Override
         public String artifacts() {
-            return BuildExecutorModule.PREVIOUS + BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
         }
 
         @Override
         public String runtimeArtifacts() {
-            return BuildExecutorModule.PREVIOUS + BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
         }
 
         @Override
         public String checked() {
-            return BuildExecutorModule.PREVIOUS + BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
         }
 
         @Override
         public String runtimeChecked() {
-            return BuildExecutorModule.PREVIOUS + BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
         }
     }
 }
