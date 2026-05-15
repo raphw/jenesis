@@ -13,6 +13,7 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenPomResolverTest {
@@ -3167,6 +3168,205 @@ public class MavenPomResolverTest {
         Files.writeString(Files
                 .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
                 .resolve(artifactId + "-" + version + ".pom"), pom);
+    }
+
+    private static String sha256Hex(String text) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    public void managed_dep_checksum_propagates_to_resolved_value() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <!--Checksum/SHA256/cafebabe-->
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null);
+        assertThat(deps).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null, "SHA256/cafebabe")));
+    }
+
+    @Test
+    public void parent_pom_checksum_validates_downloaded_bytes() throws Exception {
+        String parentPom = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """;
+        addToRepository("parent", "artifact", "1", parentPom);
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                        <!--Checksum/SHA-256/%s-->
+                    </parent>
+                    <artifactId>artifact</artifactId>
+                </project>
+                """.formatted(sha256Hex(parentPom)));
+        assertThatCode(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null)).doesNotThrowAnyException();
+    }
+
+    @Test
+    public void parent_pom_checksum_mismatch_fails_resolution() throws IOException {
+        addToRepository("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                        <!--Checksum/SHA-256/deadbeef-->
+                    </parent>
+                    <artifactId>artifact</artifactId>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasStackTraceContaining("Mismatched POM checksum")
+                .hasStackTraceContaining("parent:artifact:1");
+    }
+
+    @Test
+    public void bom_import_checksum_validates_downloaded_bytes() throws Exception {
+        String bomPom = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>bom</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <packaging>pom</packaging>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """;
+        addToRepository("bom", "artifact", "1", bomPom);
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>bom</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                                <!--Checksum/SHA-256/%s-->
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """.formatted(sha256Hex(bomPom)));
+        addToRepository("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        assertThatCode(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null)).doesNotThrowAnyException();
+    }
+
+    @Test
+    public void bom_import_checksum_mismatch_fails_resolution() throws IOException {
+        addToRepository("bom", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>bom</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <packaging>pom</packaging>
+                </project>
+                """);
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>bom</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                                <!--Checksum/SHA-256/cafebabe-->
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasStackTraceContaining("Mismatched POM checksum")
+                .hasStackTraceContaining("bom:artifact:1");
     }
 
     @Test

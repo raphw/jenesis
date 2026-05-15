@@ -580,7 +580,11 @@ which `ProcessBuildStep` forwards to `javac`. A `<!--Checksum/<algorithm>/<hex>-
 `versions.properties` and is propagated by the resolver to whichever transitive resolves to that coordinate.
 `Download` validates non-empty `requires.properties` values against the downloaded bytes and fails the build on
 mismatch; coordinates without a pinned checksum are downloaded without integrity validation. There is no
-on-the-fly hash computation in the build - validation is opt-in by declaring hashes in source.
+on-the-fly hash computation in the build - validation is opt-in by declaring hashes in source. The same
+comment may also be placed inside a `<parent>` element or a `<dependencyManagement>` `<dependency>` with
+`<scope>import</scope>` (a BOM import); when the resolver downloads that referenced POM during resolution,
+it streams the bytes through a digest and fails the build if they do not match the pinned hash, so the
+integrity story extends to POMs the build pulls in for reference, not just to artifact jars.
 `MavenProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs
 `prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
 `build` (caller-supplied, typically `JavaModule`), and `assign` (`Assign`) for each project.

@@ -235,7 +235,7 @@ public class MavenPomResolver implements Resolver {
                     resolution.systemPath = entry.getValue().systemPath();
                     resolution.exclusions = entry.getValue().exclusions();
                     resolution.optional = entry.getValue().optional();
-                    resolution.checksum = entry.getValue().checksum();
+                    resolution.checksum = value.checksum();
                 } else {
                     version = resolution.currentVersion;
                     if (resolution.observedVersions.add(value.version()) || resolution.widestScope.reduces(scope)) {
@@ -349,7 +349,8 @@ public class MavenPomResolver implements Resolver {
                                 toTextChild400(node, "version").orElseThrow(missing("parent.version")),
                                 path != null ? toTextChild400(node, "relativePath").map(value -> value.endsWith("/pom.xml")
                                         ? value.substring(0, value.length() - 7)
-                                        : value).orElse("../") : null))
+                                        : value).orElse("../") : null,
+                                toCommentChecksum(node).orElse(null)))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
@@ -396,6 +397,7 @@ public class MavenPomResolver implements Resolver {
                                 parent.groupId(),
                                 parent.artifactId(),
                                 parent.version(),
+                                parent.checksum(),
                                 children,
                                 unresolved);
                         groupId = property(resolution.groupId(), resolution.properties());
@@ -476,6 +478,7 @@ public class MavenPomResolver implements Resolver {
                                            String groupId,
                                            String artifactId,
                                            String version,
+                                           String checksum,
                                            Set<DependencyCoordinate> children,
                                            Map<DependencyCoordinate, UnresolvedPom> poms) throws IOException {
         DependencyCoordinate coordinates = new DependencyCoordinate(groupId, artifactId, version);
@@ -503,7 +506,28 @@ public class MavenPomResolver implements Resolver {
                             Map.of(),
                             Collections.emptyNavigableMap());
                 } else {
-                    pom = assemble(executor, repository, candidate.toInputStream(), false, null, null, children, poms);
+                    InputStream stream = candidate.toInputStream();
+                    if (checksum != null) {
+                        int separator = checksum.indexOf('/');
+                        if (separator < 0) {
+                            throw new IllegalArgumentException(
+                                    "Malformed POM checksum for " + groupId + ":" + artifactId + ":" + version
+                                            + " (expected <algorithm>/<hex>): " + checksum);
+                        }
+                        String algorithm = checksum.substring(0, separator);
+                        String expected = checksum.substring(separator + 1);
+                        MessageDigest digest;
+                        try {
+                            digest = MessageDigest.getInstance(algorithm);
+                        } catch (NoSuchAlgorithmException e) {
+                            throw new IllegalStateException(e);
+                        }
+                        DigestInputStream digestStream = new DigestInputStream(stream, digest);
+                        pom = assemble(executor, repository, drainAndValidate(digestStream, digest, expected,
+                                groupId, artifactId, version), false, null, null, children, poms);
+                    } else {
+                        pom = assemble(executor, repository, stream, false, null, null, children, poms);
+                    }
                 }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to resolve " + groupId + ":" + artifactId + ":" + version, e);
@@ -511,6 +535,25 @@ public class MavenPomResolver implements Resolver {
             poms.put(coordinates, pom);
         }
         return pom;
+    }
+
+    private static InputStream drainAndValidate(DigestInputStream stream,
+                                                MessageDigest digest,
+                                                String expectedHex,
+                                                String groupId,
+                                                String artifactId,
+                                                String version) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try (stream) {
+            stream.transferTo(buffer);
+        }
+        String actual = HexFormat.of().formatHex(digest.digest());
+        if (!actual.equalsIgnoreCase(expectedHex)) {
+            throw new IllegalStateException("Mismatched POM checksum for "
+                    + groupId + ":" + artifactId + ":" + version
+                    + " (expected " + expectedHex + ", got " + actual + ")");
+        }
+        return new ByteArrayInputStream(buffer.toByteArray());
     }
 
     private ResolvedPom resolve(Executor executor,
@@ -528,6 +571,7 @@ public class MavenPomResolver implements Resolver {
                         key.groupId(),
                         key.artifactId(),
                         value.version(),
+                        value.checksum(),
                         new HashSet<>(),
                         unresolved);
                 imported.managedDependencies().forEach((importKey, importValue) -> {
@@ -562,6 +606,7 @@ public class MavenPomResolver implements Resolver {
                         groupId,
                         artifactId,
                         version,
+                        null,
                         new HashSet<>(),
                         unresolved), unresolved);
             } catch (RuntimeException e) {
@@ -708,7 +753,7 @@ public class MavenPomResolver implements Resolver {
     private record DependencyCoordinate(String groupId, String artifactId, String version) {
     }
 
-    private record ParentCoordinate(String groupId, String artifactId, String version, String relativePath) {
+    private record ParentCoordinate(String groupId, String artifactId, String version, String relativePath, String checksum) {
     }
 
     private record UnresolvedPom(String groupId,
