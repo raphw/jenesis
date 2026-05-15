@@ -80,15 +80,12 @@ public class ModularProject implements BuildExecutorModule {
                     for (Map.Entry<String, Boolean> entry : List.of(
                             Map.entry(MultiProjectModule.COMPILE, true),
                             Map.entry(MultiProjectModule.RUNTIME, false))) {
-                        String requires = entry.getValue() ? BuildStep.COMPILE_REQUIRES : BuildStep.RUNTIME_REQUIRES;
-                        String versions = entry.getValue() ? BuildStep.COMPILE_VERSIONS : BuildStep.RUNTIME_VERSIONS;
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             algorithm,
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            requires,
-                                            versions),
+                                            entry.getKey()),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
                                     new DependenciesModule(mergedRepositories, resolvers, entry.getValue()).computeChecksums(algorithm),
@@ -173,24 +170,26 @@ public class ModularProject implements BuildExecutorModule {
                     module.store(writer, null);
                 }
             }
-            for (Map.Entry<String, SequencedSet<String>> entry : List.of(
-                    Map.entry(BuildStep.COMPILE_REQUIRES, info.requires()),
-                    Map.entry(BuildStep.RUNTIME_REQUIRES, info.runtimeRequires()))) {
-                Properties properties = new SequencedProperties();
-                for (String dependency : entry.getValue()) {
-                    properties.setProperty(prefix + "/" + dependency, "");
-                }
-                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(entry.getKey()))) {
-                    properties.store(writer, null);
-                }
+            Properties requires = new SequencedProperties();
+            Properties scopes = new SequencedProperties();
+            for (String dependency : info.requires()) {
+                String key = prefix + "/" + dependency;
+                requires.setProperty(key, "");
+                scopes.setProperty(key, info.runtimeRequires().contains(dependency)
+                        ? MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME
+                        : MultiProjectModule.COMPILE);
+            }
+            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
+                requires.store(writer, null);
+            }
+            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.SCOPES))) {
+                scopes.store(writer, null);
             }
             if (!info.versions().isEmpty()) {
-                for (String filename : List.of(BuildStep.COMPILE_VERSIONS, BuildStep.RUNTIME_VERSIONS)) {
-                    Properties properties = new SequencedProperties();
-                    info.versions().forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
-                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(filename))) {
-                        properties.store(writer, null);
-                    }
+                Properties properties = new SequencedProperties();
+                info.versions().forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
+                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
+                    properties.store(writer, null);
                 }
             }
             Javac.writeRelease(context.next(), info.release());

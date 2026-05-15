@@ -70,15 +70,12 @@ public class MavenProject implements BuildExecutorModule {
                     for (Map.Entry<String, Boolean> entry : List.of(
                             Map.entry(MultiProjectModule.COMPILE, true),
                             Map.entry(MultiProjectModule.RUNTIME, false))) {
-                        String requires = entry.getValue() ? BuildStep.COMPILE_REQUIRES : BuildStep.RUNTIME_REQUIRES;
-                        String versions = entry.getValue() ? BuildStep.COMPILE_VERSIONS : BuildStep.RUNTIME_VERSIONS;
                         buildExecutor.addModule(entry.getKey(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             algorithm,
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
-                                            requires,
-                                            versions),
+                                            entry.getKey()),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
                                     new DependenciesModule(mergedRepositories, resolverMap, entry.getValue()).computeChecksums(algorithm),
@@ -186,31 +183,34 @@ public class MavenProject implements BuildExecutorModule {
                                         moduleProperties.store(writer, null);
                                     }
                                 }
-                                Properties compileDependencies = new SequencedProperties();
-                                Properties runtimeDependencies = new SequencedProperties();
+                                Properties requires = new SequencedProperties();
+                                Properties scopes = new SequencedProperties();
                                 String compile = properties.getProperty("dependencies.compile", "");
                                 String provided = properties.getProperty("dependencies.provided", "");
                                 String runtime = properties.getProperty("dependencies.runtime", "");
                                 String test = properties.getProperty("dependencies.test", "");
+                                String compileAndRuntime = MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME;
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
-                                    compileDependencies.setProperty(dependency, "");
-                                    runtimeDependencies.setProperty(dependency, "");
+                                    requires.setProperty(dependency, "");
+                                    scopes.setProperty(dependency, compileAndRuntime);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
-                                    compileDependencies.setProperty(dependency, "");
+                                    requires.setProperty(dependency, "");
+                                    scopes.setProperty(dependency, MultiProjectModule.COMPILE);
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
-                                    runtimeDependencies.setProperty(dependency, "");
+                                    requires.setProperty(dependency, "");
+                                    scopes.setProperty(dependency, MultiProjectModule.RUNTIME);
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
-                                    compileDependencies.setProperty(dependency, "");
-                                    runtimeDependencies.setProperty(dependency, "");
+                                    requires.setProperty(dependency, "");
+                                    scopes.setProperty(dependency, compileAndRuntime);
                                 }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.COMPILE_REQUIRES))) {
-                                    compileDependencies.store(writer, null);
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
+                                    requires.store(writer, null);
                                 }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.RUNTIME_REQUIRES))) {
-                                    runtimeDependencies.store(writer, null);
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.SCOPES))) {
+                                    scopes.store(writer, null);
                                 }
                                 Properties versions = new SequencedProperties();
                                 String managed = properties.getProperty("managedDependencies", "");
@@ -221,10 +221,8 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 if (!versions.isEmpty()) {
-                                    for (String filename : List.of(BuildStep.COMPILE_VERSIONS, BuildStep.RUNTIME_VERSIONS)) {
-                                        try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(filename))) {
-                                            versions.store(writer, null);
-                                        }
+                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
+                                        versions.store(writer, null);
                                     }
                                 }
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));

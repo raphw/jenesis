@@ -12,17 +12,14 @@ public class MultiProjectDependencies implements BuildStep {
 
     private final String algorithm;
     private final Predicate<String> isModule;
-    private final String requiresFile;
-    private final String versionsFile;
+    private final String scope;
 
     public <P extends Predicate<String> & Serializable> MultiProjectDependencies(String algorithm,
                                                                                  P isModule,
-                                                                                 String requiresFile,
-                                                                                 String versionsFile) {
+                                                                                 String scope) {
         this.algorithm = algorithm;
         this.isModule = isModule;
-        this.requiresFile = requiresFile;
-        this.versionsFile = versionsFile;
+        this.scope = scope;
     }
 
     @Override
@@ -37,18 +34,32 @@ public class MultiProjectDependencies implements BuildStep {
         Map<String, Path> coordinateRelative = new HashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
-                Path file = entry.getValue().folder().resolve(requiresFile);
-                if (Files.exists(file)) {
+                Path scopesFile = entry.getValue().folder().resolve(SCOPES);
+                Set<String> filtered = new LinkedHashSet<>();
+                if (Files.exists(scopesFile)) {
+                    Properties scopesProperties = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(scopesFile)) {
+                        scopesProperties.load(reader);
+                    }
+                    for (String property : scopesProperties.stringPropertyNames()) {
+                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope)) {
+                            filtered.add(property);
+                        }
+                    }
+                }
+                Path requiresPath = entry.getValue().folder().resolve(REQUIRES);
+                if (Files.exists(requiresPath)) {
                     Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(file)) {
+                    try (Reader reader = Files.newBufferedReader(requiresPath)) {
                         properties.load(reader);
                     }
                     properties.stringPropertyNames().forEach(property -> {
-                        String value = properties.getProperty(property);
-                        dependencies.put(property, value);
+                        if (filtered.isEmpty() || filtered.contains(property)) {
+                            dependencies.put(property, properties.getProperty(property));
+                        }
                     });
                 }
-                Path versionsPath = entry.getValue().folder().resolve(versionsFile);
+                Path versionsPath = entry.getValue().folder().resolve(VERSIONS);
                 if (Files.exists(versionsPath)) {
                     Properties properties = new SequencedProperties();
                     try (Reader reader = Files.newBufferedReader(versionsPath)) {

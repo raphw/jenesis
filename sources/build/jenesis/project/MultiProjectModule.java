@@ -35,7 +35,7 @@ public class MultiProjectModule implements BuildExecutorModule {
     }
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
-        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml", BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
+        return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml", BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE, BuildStep.SCOPES);
     }
 
     @SuppressWarnings("unchecked")
@@ -82,7 +82,7 @@ public class MultiProjectModule implements BuildExecutorModule {
             }
             process.addStep(GROUP,
                     new Group(identifier -> Optional.of(modules.get(identifier)),
-                            BuildStep.COMPILE_REQUIRES),
+                            BuildStep.REQUIRES),
                     modules.sequencedKeySet());
             process.addModule(MODULE, (build, paths) -> {
                 SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();

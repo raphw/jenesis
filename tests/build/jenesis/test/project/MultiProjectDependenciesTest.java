@@ -8,6 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.project.MultiProjectDependencies;
+import build.jenesis.project.MultiProjectModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,7 +31,7 @@ public class MultiProjectDependenciesTest {
     public void can_assign_coordinate_target_dependencies() throws IOException, NoSuchAlgorithmException {
         Properties dependencies = new Properties();
         dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.COMPILE_REQUIRES))) {
+        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         Path file = target.resolve("file");
@@ -40,13 +41,13 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, BuildStep.COMPILE_REQUIRES, BuildStep.COMPILE_VERSIONS).apply(
+        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, MultiProjectModule.COMPILE).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.COMPILE_REQUIRES), ChecksumStatus.ADDED)),
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
                                 "bar", new BuildStepArgument(
                                         dependency,
                                         Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
@@ -66,7 +67,7 @@ public class MultiProjectDependenciesTest {
     public void reuses_prior_digest_when_identity_and_referenced_file_are_retained() throws IOException {
         Properties dependencies = new Properties();
         dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.COMPILE_REQUIRES))) {
+        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         Path file = dependency.resolve("artifact");
@@ -82,13 +83,13 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(priorFolder.resolve(BuildStep.REQUIRES))) {
             priorRequires.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, BuildStep.COMPILE_REQUIRES, BuildStep.COMPILE_VERSIONS).apply(
+        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, MultiProjectModule.COMPILE).apply(
                         Runnable::run,
                         new BuildStepContext(priorFolder, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.COMPILE_REQUIRES), ChecksumStatus.RETAINED)),
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.RETAINED)),
                                 "bar", new BuildStepArgument(
                                         dependency,
                                         Map.of(
@@ -107,7 +108,7 @@ public class MultiProjectDependenciesTest {
     public void recomputes_when_referenced_file_changed() throws IOException, NoSuchAlgorithmException {
         Properties dependencies = new Properties();
         dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.COMPILE_REQUIRES))) {
+        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
         Path file = dependency.resolve("artifact");
@@ -123,13 +124,13 @@ public class MultiProjectDependenciesTest {
         try (Writer writer = Files.newBufferedWriter(priorFolder.resolve(BuildStep.REQUIRES))) {
             priorRequires.store(writer, null);
         }
-        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, BuildStep.COMPILE_REQUIRES, BuildStep.COMPILE_VERSIONS).apply(
+        BuildStepResult result = new MultiProjectDependencies("SHA256", "foo"::equals, MultiProjectModule.COMPILE).apply(
                         Runnable::run,
                         new BuildStepContext(priorFolder, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.COMPILE_REQUIRES), ChecksumStatus.RETAINED)),
+                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.RETAINED)),
                                 "bar", new BuildStepArgument(
                                         dependency,
                                         Map.of(

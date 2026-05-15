@@ -42,7 +42,7 @@ public class MultiProjectModuleTest {
             }
             Properties dependencies2 = new Properties();
             dependencies2.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.COMPILE_REQUIRES))) {
+            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.REQUIRES))) {
                 dependencies2.store(writer, null);
             }
             buildExecutor.addSource("2-module", module2);
@@ -112,7 +112,7 @@ public class MultiProjectModuleTest {
             }
             Properties dependencies2 = new Properties();
             dependencies2.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.COMPILE_REQUIRES))) {
+            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.REQUIRES))) {
                 dependencies2.store(writer, null);
             }
             buildExecutor.addSource("2-module", module2);
@@ -125,7 +125,7 @@ public class MultiProjectModuleTest {
             }
             Properties dependencies3 = new Properties();
             dependencies3.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.COMPILE_REQUIRES))) {
+            try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.REQUIRES))) {
                 dependencies3.store(writer, null);
             }
             buildExecutor.addSource("3-module", module3);

@@ -63,7 +63,7 @@ public class ModularProjectTest {
         }
         assertThat(coordinates).containsOnlyKeys("module/foo");
         assertThat(coordinates.getProperty("module/foo")).isEmpty();
-        Path moduleRequires = module.resolve(BuildStep.COMPILE_REQUIRES);
+        Path moduleRequires = module.resolve(BuildStep.REQUIRES);
         assertThat(moduleRequires).exists();
         Properties dependencies = new Properties();
         try (Reader reader = Files.newBufferedReader(moduleRequires)) {
@@ -71,8 +71,8 @@ public class ModularProjectTest {
         }
         assertThat(dependencies).containsOnlyKeys("module/bar");
         assertThat(dependencies.getProperty("module/bar")).isEmpty();
-        assertThat(module.resolve(BuildStep.COMPILE_VERSIONS)).doesNotExist();
-        assertThat(module.resolve(BuildStep.RUNTIME_VERSIONS)).doesNotExist();
+        assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
     @Test
@@ -93,7 +93,7 @@ public class ModularProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
         Properties compileVersions = new Properties();
-        Path compileVersionsFile = module.resolve(BuildStep.COMPILE_VERSIONS);
+        Path compileVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(compileVersionsFile).exists();
         try (Reader reader = Files.newBufferedReader(compileVersionsFile)) {
             compileVersions.load(reader);
@@ -102,7 +102,7 @@ public class ModularProjectTest {
                 Map.entry("module/bar", "1.2.3"),
                 Map.entry("module/transitive.pin", "9.9.9"));
         Properties runtimeVersions = new Properties();
-        Path runtimeVersionsFile = module.resolve(BuildStep.RUNTIME_VERSIONS);
+        Path runtimeVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(runtimeVersionsFile).exists();
         try (Reader reader = Files.newBufferedReader(runtimeVersionsFile)) {
             runtimeVersions.load(reader);
@@ -128,8 +128,8 @@ public class ModularProjectTest {
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
-        assertThat(module.resolve(BuildStep.COMPILE_VERSIONS)).doesNotExist();
-        assertThat(module.resolve(BuildStep.RUNTIME_VERSIONS)).doesNotExist();
+        assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
     @Test

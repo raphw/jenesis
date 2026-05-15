@@ -10,6 +10,7 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenRepositoryPlacement;
 import build.jenesis.maven.Pom;
+import build.jenesis.project.MultiProjectModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -90,24 +91,25 @@ public class PomTest {
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        Properties compile = new SequencedProperties();
-        compile.setProperty("maven/org.example/lib/1.2.3", "");
-        compile.setProperty("maven/org.example/static-lib/4.5.6", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COMPILE_REQUIRES))) {
-            compile.store(writer, null);
+        Properties requires = new SequencedProperties();
+        requires.setProperty("maven/org.example/lib/1.2.3", "");
+        requires.setProperty("maven/org.example/static-lib/4.5.6", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
+            requires.store(writer, null);
         }
-        Properties runtime = new SequencedProperties();
-        runtime.setProperty("maven/org.example/lib/1.2.3", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.RUNTIME_REQUIRES))) {
-            runtime.store(writer, null);
+        Properties scopes = new SequencedProperties();
+        scopes.setProperty("maven/org.example/lib/1.2.3", MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME);
+        scopes.setProperty("maven/org.example/static-lib/4.5.6", MultiProjectModule.COMPILE);
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.SCOPES))) {
+            scopes.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.COMPILE_REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.RUNTIME_REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -130,24 +132,25 @@ public class PomTest {
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        Properties compile = new SequencedProperties();
-        compile.setProperty("maven/org.example/lib/1.2.3", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.COMPILE_REQUIRES))) {
-            compile.store(writer, null);
+        Properties requires = new SequencedProperties();
+        requires.setProperty("maven/org.example/lib/1.2.3", "");
+        requires.setProperty("maven/org.example/runtime-only/4.5.6", "");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
+            requires.store(writer, null);
         }
-        Properties runtime = new SequencedProperties();
-        runtime.setProperty("maven/org.example/lib/1.2.3", "");
-        runtime.setProperty("maven/org.example/runtime-only/4.5.6", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.RUNTIME_REQUIRES))) {
-            runtime.store(writer, null);
+        Properties scopes = new SequencedProperties();
+        scopes.setProperty("maven/org.example/lib/1.2.3", MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME);
+        scopes.setProperty("maven/org.example/runtime-only/4.5.6", MultiProjectModule.RUNTIME);
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.SCOPES))) {
+            scopes.store(writer, null);
         }
         new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.COMPILE_REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.RUNTIME_REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         String pom = Files.readString(next.resolve(Pom.POM));

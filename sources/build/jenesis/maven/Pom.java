@@ -70,34 +70,33 @@ public class Pom implements BuildStep {
                     module.load(reader);
                 }
             }
-            Path compileRequiresFile = argument.folder().resolve(COMPILE_REQUIRES);
-            Path runtimeRequiresFile = argument.folder().resolve(RUNTIME_REQUIRES);
-            if (Files.exists(compileRequiresFile) || Files.exists(runtimeRequiresFile)) {
-                scoped = true;
-                if (Files.exists(compileRequiresFile)) {
-                    Properties loaded = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(compileRequiresFile)) {
-                        loaded.load(reader);
-                    }
-                    loaded.stringPropertyNames().forEach(name ->
-                            compileRequires.setProperty(name, loaded.getProperty(name)));
+            Path requiresFile = argument.folder().resolve(REQUIRES);
+            Path scopesFile = argument.folder().resolve(SCOPES);
+            if (Files.exists(requiresFile)) {
+                Properties requiresLoaded = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(requiresFile)) {
+                    requiresLoaded.load(reader);
                 }
-                if (Files.exists(runtimeRequiresFile)) {
-                    Properties loaded = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(runtimeRequiresFile)) {
-                        loaded.load(reader);
+                Properties scopesLoaded = new SequencedProperties();
+                if (Files.exists(scopesFile)) {
+                    scoped = true;
+                    try (Reader reader = Files.newBufferedReader(scopesFile)) {
+                        scopesLoaded.load(reader);
                     }
-                    runtimeRequires.addAll(loaded.stringPropertyNames());
                 }
-            } else {
-                Path dependenciesFile = argument.folder().resolve(REQUIRES);
-                if (Files.exists(dependenciesFile)) {
-                    Properties loaded = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(dependenciesFile)) {
-                        loaded.load(reader);
+                for (String name : requiresLoaded.stringPropertyNames()) {
+                    String scope = scopesLoaded.getProperty(name);
+                    if (scope == null) {
+                        compileRequires.setProperty(name, requiresLoaded.getProperty(name));
+                    } else {
+                        List<String> parts = List.of(scope.split(","));
+                        if (parts.contains("compile")) {
+                            compileRequires.setProperty(name, requiresLoaded.getProperty(name));
+                        }
+                        if (parts.contains("runtime")) {
+                            runtimeRequires.add(name);
+                        }
                     }
-                    loaded.stringPropertyNames().forEach(name ->
-                            compileRequires.setProperty(name, loaded.getProperty(name)));
                 }
             }
             Path metadataFile = argument.folder().resolve(METADATA);
