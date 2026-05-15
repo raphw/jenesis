@@ -5,6 +5,7 @@ import build.jenesis.SequencedProperties;
 
 public class MavenUriParser implements Function<String, String>, Serializable {
 
+    @SuppressWarnings("unchecked")
     public static <F extends Function<String, String> & Serializable> F ofUris(MavenUriParser parser,
                                                                                String location,
                                                                                Iterable<Path> folders)

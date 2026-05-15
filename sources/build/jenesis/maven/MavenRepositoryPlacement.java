@@ -64,6 +64,7 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         return properties.getProperty("tests") != null;
     }
 
+    @SuppressWarnings("unchecked")
     public static <C extends Consumer<Path> & Serializable> C createMavenLocalMetadata() {
         return (C) (Consumer<Path> & Serializable) (target -> {
             try {
