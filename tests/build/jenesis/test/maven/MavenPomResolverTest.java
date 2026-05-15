@@ -3504,7 +3504,7 @@ public class MavenPomResolverTest {
                 true);
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
-                "maven/pinned/artifact/sources/3");
+                "maven/pinned/artifact/jar/sources/3");
     }
 
     @Test

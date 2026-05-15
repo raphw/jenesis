@@ -33,29 +33,13 @@ public class MavenPomResolver implements Resolver {
                                                      boolean compile) throws IOException {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> {
-            String[] elements = coordinate.split("/");
-            switch (elements.length) {
-                case 3 -> dependencies.put(
-                        new MavenDependencyKey(elements[0], elements[1], "jar", null),
-                        new MavenDependencyValue(elements[2], MavenDependencyScope.COMPILE, null, null, null));
-                case 4 -> dependencies.put(
-                        new MavenDependencyKey(elements[0], elements[1], elements[2], null),
-                        new MavenDependencyValue(elements[3], MavenDependencyScope.COMPILE, null, null, null));
-                case 5 -> dependencies.put(
-                        new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]),
-                        new MavenDependencyValue(elements[4], MavenDependencyScope.COMPILE, null, null, null));
-                default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
-            }
+            MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(coordinate);
+            dependencies.put(parsed.key(),
+                    new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, null, null));
         });
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         versions.forEach((coordinate, value) -> {
-            String[] elements = coordinate.split("/");
-            MavenDependencyKey key = switch (elements.length) {
-                case 2 -> new MavenDependencyKey(elements[0], elements[1], "jar", null);
-                case 3 -> new MavenDependencyKey(elements[0], elements[1], elements[2], null);
-                case 4 -> new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]);
-                default -> throw new IllegalArgumentException("Insufficient Maven managed coordinate: " + coordinate);
-            };
+            MavenDependencyKey key = MavenDependencyKey.parseKey(coordinate);
             int split = value.indexOf(' ');
             String version = split < 0 ? value : value.substring(0, split);
             String checksum = split < 0 ? null : value.substring(split + 1).trim();
@@ -66,15 +50,9 @@ public class MavenPomResolver implements Resolver {
         dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
                 managedDependencies,
-                dependencies).forEach((key, value) -> {
-            String coordinate = prefix
-                    + "/" + key.groupId()
-                    + "/" + key.artifactId()
-                    + (Objects.equals(key.type(), "jar") ? "" : "/" + key.type())
-                    + (key.classifier() == null ? "" : "/" + key.classifier())
-                    + "/" + value.version();
-            resolved.put(coordinate, value.checksum() == null ? "" : value.checksum());
-        });
+                dependencies).forEach((key, value) -> resolved.put(
+                        key.coordinate(prefix, value.version()),
+                        value.checksum() == null ? "" : value.checksum()));
         return resolved;
     }
 

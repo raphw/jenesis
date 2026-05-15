@@ -387,25 +387,19 @@ public class MavenProject implements BuildExecutorModule {
                     continue;
                 }
                 String packaging = entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging();
-                String coordinate = prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + ("jar".equals(packaging) ? "" : "/" + packaging)
-                        + "/" + entry.getValue().version();
+                MavenDependencyKey selfKey = new MavenDependencyKey(
+                        entry.getValue().groupId(), entry.getValue().artifactId(), packaging, null);
+                String coordinate = selfKey.coordinate(prefix, entry.getValue().version());
+                MavenDependencyKey selfPom = new MavenDependencyKey(
+                        entry.getValue().groupId(), entry.getValue().artifactId(), "pom", null);
                 Properties module = new SequencedProperties();
                 module.setProperty("coordinate", coordinate);
-                module.setProperty("pom", prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/pom"
-                        + "/" + entry.getValue().version());
+                module.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
                 module.setProperty("path", entry.getKey().toString());
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
                 module.setProperty("version", entry.getValue().version());
-                module.setProperty("type", entry.getValue().packaging() == null
-                        ? "jar"
-                        : entry.getValue().packaging());
+                module.setProperty("type", packaging);
                 if (entry.getValue().release() != null) {
                     module.setProperty("release", entry.getValue().release());
                 }
@@ -416,35 +410,18 @@ public class MavenProject implements BuildExecutorModule {
                     module.setProperty("dependencies." + scope.name().toLowerCase(Locale.ROOT),
                             entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
                                     .filter(dep -> dep.getValue().scope() == scope)
-                                    .map(dep -> prefix
-                                            + "/" + dep.getKey().groupId()
-                                            + "/" + dep.getKey().artifactId()
-                                            + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                                    ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
-                                            + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                            + "/" + dep.getValue().version())
+                                    .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
                                     .collect(Collectors.joining(",")));
                 }
                 module.setProperty("managedDependencies", entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
-                        .map(dep -> prefix
-                                + "/" + dep.getKey().groupId()
-                                + "/" + dep.getKey().artifactId()
-                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
-                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
+                        .map(dep -> dep.getKey().coordinate(prefix, null)
                                 + "=" + dep.getValue().version()
                                 + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
                         .collect(Collectors.joining(",")));
                 module.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
                         .filter(dep -> dep.getValue().checksum() != null
                                 && dep.getValue().scope() != MavenDependencyScope.TEST)
-                        .map(dep -> prefix
-                                + "/" + dep.getKey().groupId()
-                                + "/" + dep.getKey().artifactId()
-                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
-                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                + "/" + dep.getValue().version()
+                        .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
                                 + "=" + dep.getValue().checksum())
                         .collect(Collectors.joining(",")));
                 module.setProperty("sources", entry.getValue().sourceDirectory() == null
@@ -459,54 +436,30 @@ public class MavenProject implements BuildExecutorModule {
                     module.store(writer, null);
                 }
                 Properties testModule = new SequencedProperties();
-                testModule.setProperty("coordinate", prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/" + (entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging())
-                        + "/tests"
-                        + "/" + entry.getValue().version());
-                testModule.setProperty("pom", prefix
-                        + "/" + entry.getValue().groupId()
-                        + "/" + entry.getValue().artifactId()
-                        + "/pom"
-                        + "/" + entry.getValue().version());
+                MavenDependencyKey testSelfKey = new MavenDependencyKey(
+                        entry.getValue().groupId(), entry.getValue().artifactId(), packaging, "tests");
+                testModule.setProperty("coordinate", testSelfKey.coordinate(prefix, entry.getValue().version()));
+                testModule.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
                 testModule.setProperty("path", entry.getKey().toString());
                 if (entry.getValue().release() != null) {
                     testModule.setProperty("release", entry.getValue().release());
                 }
                 String testDependencies = entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
                         .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
-                        .map(dep -> prefix
-                                + "/" + dep.getKey().groupId()
-                                + "/" + dep.getKey().artifactId()
-                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
-                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                + "/" + dep.getValue().version())
+                        .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
                         .collect(Collectors.joining(","));
                 testModule.setProperty("dependencies.test", testDependencies.isEmpty()
                         ? coordinate
                         : testDependencies + "," + coordinate);
                 testModule.setProperty("managedDependencies", entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
-                        .map(dep -> prefix
-                                + "/" + dep.getKey().groupId()
-                                + "/" + dep.getKey().artifactId()
-                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
-                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
+                        .map(dep -> dep.getKey().coordinate(prefix, null)
                                 + "=" + dep.getValue().version()
                                 + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
                         .collect(Collectors.joining(",")));
                 testModule.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
                         .filter(dep -> dep.getValue().checksum() != null
                                 && dep.getValue().scope() == MavenDependencyScope.TEST)
-                        .map(dep -> prefix
-                                + "/" + dep.getKey().groupId()
-                                + "/" + dep.getKey().artifactId()
-                                + (dep.getKey().classifier() == null && "jar".equals(dep.getKey().type() == null ? "jar" : dep.getKey().type())
-                                        ? "" : "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type()))
-                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
-                                + "/" + dep.getValue().version()
+                        .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
                                 + "=" + dep.getValue().checksum())
                         .collect(Collectors.joining(",")));
                 testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null

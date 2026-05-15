@@ -109,7 +109,7 @@ public class Pom implements BuildStep {
         }
         shared.forEach(metadata::setProperty);
         String prefix = null;
-        Parsed self = null;
+        MavenDependencyKey.Versioned self = null;
         for (String coordinate : coordinates.stringPropertyNames()) {
             if (!coordinates.getProperty(coordinate).isEmpty()) {
                 continue;
@@ -119,14 +119,13 @@ public class Pom implements BuildStep {
             if (separator == -1) {
                 continue;
             }
-            String[] elements = resolved.substring(separator + 1).split("/");
-            Parsed parsed = switch (elements.length) {
-                case 3 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], "jar", null), elements[2]);
-                case 4 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], null), elements[3]);
-                case 5 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]), elements[4]);
-                default -> null;
-            };
-            if (parsed == null || "pom".equals(parsed.key().type())) {
+            MavenDependencyKey.Versioned parsed;
+            try {
+                parsed = MavenDependencyKey.parse(resolved.substring(separator + 1));
+            } catch (IllegalArgumentException _) {
+                continue;
+            }
+            if ("pom".equals(parsed.key().type())) {
                 continue;
             }
             prefix = resolved.substring(0, separator);
@@ -152,16 +151,7 @@ public class Pom implements BuildStep {
             if (separator == -1 || !prefix.equals(name.substring(0, separator))) {
                 continue;
             }
-            String[] elements = name.substring(separator + 1).split("/");
-            Parsed parsed = switch (elements.length) {
-                case 3 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], "jar", null), elements[2]);
-                case 4 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], null), elements[3]);
-                case 5 -> new Parsed(new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]), elements[4]);
-                default -> null;
-            };
-            if (parsed == null) {
-                throw new IllegalArgumentException("Insufficient Maven coordinate: " + name);
-            }
+            MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(name.substring(separator + 1));
             MavenDependencyScope scope;
             if (!scoped) {
                 scope = MavenDependencyScope.COMPILE;
@@ -232,6 +222,4 @@ public class Pom implements BuildStep {
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private record Parsed(MavenDependencyKey key, String version) {
-    }
 }

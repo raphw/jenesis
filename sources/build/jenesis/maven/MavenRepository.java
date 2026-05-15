@@ -9,13 +9,14 @@ public interface MavenRepository extends Repository {
 
     @Override
     default Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
-        String[] elements = coordinate.split("/", 5);
-        return switch (elements.length) {
-            case 3 -> fetch(executor, elements[0], elements[1], elements[2], "jar", null, null);
-            case 4 -> fetch(executor, elements[0], elements[1], elements[3], elements[2], null, null);
-            case 5 -> fetch(executor, elements[0], elements[1], elements[4], elements[2], elements[3], null);
-            default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + coordinate);
-        };
+        MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(coordinate);
+        return fetch(executor,
+                parsed.key().groupId(),
+                parsed.key().artifactId(),
+                parsed.version(),
+                parsed.key().type(),
+                parsed.key().classifier(),
+                null);
     }
 
     @Override
@@ -84,29 +85,10 @@ public interface MavenRepository extends Repository {
             if (checksum != null) {
                 return Optional.empty();
             }
-            String classifierSegment = classifier == null ? "" : "/" + classifier;
-            Optional<RepositoryItem> candidate;
-            if ((type == null || "jar".equals(type)) && classifier == null) {
-                candidate = repository.fetch(executor, groupId
-                        + "/" + artifactId
-                        + "/" + version);
-                if (candidate.isEmpty()) {
-                    candidate = repository.fetch(executor, groupId
-                            + "/" + artifactId
-                            + "/jar/" + version);
-                }
-            } else {
-                candidate = repository.fetch(executor, groupId
-                        + "/" + artifactId
-                        + (type == null ? "/jar" : "/" + type)
-                        + "/" + version
-                        + classifierSegment);
-                if (type == null && candidate.isEmpty()) {
-                    candidate = repository.fetch(executor, groupId
-                            + "/" + artifactId
-                            + "/" + version
-                            + classifierSegment);
-                }
+            Optional<RepositoryItem> candidate = repository.fetch(executor,
+                    new MavenDependencyKey(groupId, artifactId, type, classifier).coordinate(null, version));
+            if (candidate.isEmpty() && classifier == null && (type == null || "jar".equals(type))) {
+                candidate = repository.fetch(executor, groupId + "/" + artifactId + "/jar/" + version);
             }
             return candidate;
         };
