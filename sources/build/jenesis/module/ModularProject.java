@@ -21,7 +21,7 @@ import build.jenesis.step.Javac;
 
 public class ModularProject implements BuildExecutorModule {
 
-    private static final String DEPENDENCIES = "dependencies", PREPARE = "prepare";
+    private static final String DEPENDENCIES = "dependencies", PREPARE = "prepare", PIN = "pin";
     private static final String SOURCES = "sources", MANIFESTS = "manifests";
 
     private final String prefix;
@@ -89,11 +89,13 @@ public class ModularProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE)
-                                            .withPin(new PinModuleInfo(prefix, moduleInfoFile)),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
+                    buildExecutor.addStep(PIN, new PinModuleInfo(prefix, moduleInfoFile),
+                            DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
+                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
                     buildExecutor.addModule("produce",
                             builder.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(

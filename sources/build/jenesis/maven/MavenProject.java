@@ -26,7 +26,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
-    private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare";
+    private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare", PIN = "pin";
     private static final String SOURCES = "sources", MANIFESTS = "manifests";
 
     private final Path root;
@@ -84,11 +84,13 @@ public class MavenProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE)
-                                            .withPin(new PinPom(prefix, pomFile)),
+                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
+                    buildExecutor.addStep(PIN, new PinPom(prefix, pomFile),
+                            DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
+                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
                     buildExecutor.addModule("produce",
                             builder.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(

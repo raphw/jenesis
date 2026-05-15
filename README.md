@@ -105,13 +105,12 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   using whatever repositories and resolvers the layout has provided. The `MAVEN` and `MODULAR_TO_MAVEN`
   layouts wrap the user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded
   with project-wide metadata read once from `metadata.properties` (when configured); `MODULAR` does not.
-  Each layout's `MavenProject.make` / `ModularProject.make` opts in to source-level pinning by passing the
-  per-project source file (`<root>/<sub>/pom.xml` for Maven, `<root>/<sub>/module-info.java` for Modular)
-  to `DependenciesModule.withPin(BuildStep)`, which adds a per-scope per-project `pin` sub-step at
-  `<scope>/dependencies/pin`. The pin step depends on the scope's resolved coords and rewrites the source
-  file so the full transitive closure (with checksums) is pinned at source level. Pin runs as part of
-  every build; it's idempotent, so a no-op when the source file is already in sync. To skip pinning, a
-  layout can construct `DependenciesModule` without the `.withPin(...)` opt-in.
+  Each layout's `MavenProject.make` / `ModularProject.make` adds a per-project `pin` sub-step at
+  `<module>/pin` (a sibling of the per-scope `compile` / `runtime` sub-modules), wired with the
+  per-project source file (`<root>/<sub>/pom.xml` for Maven, `<root>/<sub>/module-info.java` for Modular).
+  The pin step depends on both `compile/dependencies/resolved` and `runtime/dependencies/resolved` and
+  rewrites the source file so the full transitive closure (with checksums) is pinned at source level. Pin
+  runs as part of every build; it's idempotent, so a no-op when the source file is already in sync.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, the URI-derived
 module repository for `MODULAR`) with any user-provided ones, and pass the merged maps through `Context`. User
