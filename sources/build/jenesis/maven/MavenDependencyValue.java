@@ -6,5 +6,14 @@ public record MavenDependencyValue(String version,
                                    MavenDependencyScope scope,
                                    Path systemPath,
                                    List<MavenDependencyName> exclusions,
-                                   Boolean optional) {
+                                   Boolean optional,
+                                   String checksum) {
+
+    public MavenDependencyValue(String version,
+                                MavenDependencyScope scope,
+                                Path systemPath,
+                                List<MavenDependencyName> exclusions,
+                                Boolean optional) {
+        this(version, scope, systemPath, exclusions, optional, null);
+    }
 }

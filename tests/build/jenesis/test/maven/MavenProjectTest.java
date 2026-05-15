@@ -688,6 +688,55 @@ public class MavenProjectTest {
     }
 
     @Test
+    public void checksum_comment_inside_dependency_lands_in_requires_properties() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.junit.jupiter</groupId>
+                            <artifactId>junit-jupiter</artifactId>
+                            <version>5.11.3</version>
+                            <scope>test</scope>
+                            <!--Checksum/SHA256/cafebabe-->
+                        </dependency>
+                        <dependency>
+                            <groupId>com.example</groupId>
+                            <artifactId>no-pin</artifactId>
+                            <version>1.0.0</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+
+        Properties testRequires = new Properties();
+        try (Reader reader = Files.newBufferedReader(results.get("maven/module/test-module-/manifests")
+                .resolve(BuildStep.REQUIRES))) {
+            testRequires.load(reader);
+        }
+        assertThat(testRequires.getProperty("maven/org.junit.jupiter/junit-jupiter/jar/5.11.3"))
+                .isEqualTo("SHA256/cafebabe");
+
+        Properties mainRequires = new Properties();
+        try (Reader reader = Files.newBufferedReader(results.get("maven/module/module-/manifests")
+                .resolve(BuildStep.REQUIRES))) {
+            mainRequires.load(reader);
+        }
+        assertThat(mainRequires.getProperty("maven/com.example/no-pin/jar/1.0.0")).isEmpty();
+    }
+
+    @Test
     public void artifactsByModule_links_classes_sources_javadoc_and_pom_under_sub_module_folder() {
         Function<Path, Optional<Path>> placement = MavenProject.artifactsByModule();
         Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");

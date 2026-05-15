@@ -194,21 +194,29 @@ public class MavenProject implements BuildExecutorModule {
                                 String provided = properties.getProperty("dependencies.provided", "");
                                 String runtime = properties.getProperty("dependencies.runtime", "");
                                 String test = properties.getProperty("dependencies.test", "");
+                                String checksums = properties.getProperty("checksums", "");
+                                Map<String, String> checksumByCoordinate = new LinkedHashMap<>();
+                                for (String entry : checksums.isEmpty() ? new String[0] : checksums.split(",")) {
+                                    int split = entry.indexOf('=');
+                                    if (split > 0) {
+                                        checksumByCoordinate.put(entry.substring(0, split), entry.substring(split + 1));
+                                    }
+                                }
                                 String compileAndRuntime = MultiProjectModule.COMPILE + "," + MultiProjectModule.RUNTIME;
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
-                                    requires.setProperty(dependency, "");
+                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, compileAndRuntime);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
-                                    requires.setProperty(dependency, "");
+                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, MultiProjectModule.COMPILE);
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
-                                    requires.setProperty(dependency, "");
+                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, MultiProjectModule.RUNTIME);
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
-                                    requires.setProperty(dependency, "");
+                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, compileAndRuntime);
                                 }
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
@@ -426,6 +434,17 @@ public class MavenProject implements BuildExecutorModule {
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "/" + dep.getValue().version())
                         .collect(Collectors.joining(",")));
+                module.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                        .filter(dep -> dep.getValue().checksum() != null
+                                && dep.getValue().scope() != MavenDependencyScope.TEST)
+                        .map(dep -> prefix
+                                + "/" + dep.getKey().groupId()
+                                + "/" + dep.getKey().artifactId()
+                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
+                                + "/" + dep.getValue().version()
+                                + "=" + dep.getValue().checksum())
+                        .collect(Collectors.joining(",")));
                 module.setProperty("sources", entry.getValue().sourceDirectory() == null
                         ? "src/main/java"
                         : entry.getValue().sourceDirectory());
@@ -472,6 +491,17 @@ public class MavenProject implements BuildExecutorModule {
                                 + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
                                 + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
                                 + "/" + dep.getValue().version())
+                        .collect(Collectors.joining(",")));
+                testModule.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                        .filter(dep -> dep.getValue().checksum() != null
+                                && dep.getValue().scope() == MavenDependencyScope.TEST)
+                        .map(dep -> prefix
+                                + "/" + dep.getKey().groupId()
+                                + "/" + dep.getKey().artifactId()
+                                + "/" + (dep.getKey().type() == null ? "jar" : dep.getKey().type())
+                                + (dep.getKey().classifier() == null ? "" : "/" + dep.getKey().classifier())
+                                + "/" + dep.getValue().version()
+                                + "=" + dep.getValue().checksum())
                         .collect(Collectors.joining(",")));
                 testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
                         ? "src/test/java"

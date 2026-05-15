@@ -2511,6 +2511,58 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void multiple_checksum_comments_on_one_dependency_fail() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <!--Checksum/SHA256/cafebabe-->
+                            <!--Checksum/SHA256/deadbeef-->
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.local(Runnable::run, mavenRepository, project))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Multiple Checksum/* comments")
+                .hasMessageContaining("group:artifact:1");
+    }
+
+    @Test
+    public void can_resolve_local_pom_with_checksum_comment() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>group</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <!--Checksum/SHA256/cafebabe-->
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, mavenRepository, project);
+        MavenLocalPom pom = poms.get(Path.of(""));
+        assertThat(pom.dependencies()).containsExactly(Map.entry(
+                new MavenDependencyKey("group", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null, "SHA256/cafebabe")));
+    }
+
+    @Test
     public void can_resolve_local_pom() throws IOException {
         Files.writeString(project.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>

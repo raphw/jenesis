@@ -575,10 +575,24 @@ manifests step's `versions.properties`, so the resolver sees the project's BOM e
 see them if they had been declared in a top-level POM under resolution - pinning applies uniformly to declared
 dependencies and to transitives that aren't directly required. A `<properties><maven.compiler.release>` element
 in the POM is captured by the same manifests step into a `process/javac.properties` sidecar with `--release=<V>`,
-which `ProcessBuildStep` forwards to `javac`. `MavenProject.make(...)` returns the full wrapped
-`MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies`
+which `ProcessBuildStep` forwards to `javac`. A `<!--Checksum/<algorithm>/<hex>-->` comment placed inside any
+`<dependency>` element is parsed as an optional pre-computed content checksum for that artifact and lands in
+`requires.properties` as the dependency's value (instead of empty); the downstream `Checksum` step passes any
+non-empty value through unchanged, so a hash supplied this way replaces the on-the-fly fetch+digest pass for
+that coordinate while `Download` still validates the bytes against it. `MavenProject.make(...)` returns the
+full wrapped `MultiProjectModule` whose factory runs `prepare` (`MultiProjectDependencies`), `dependencies`
 (`DependenciesModule.computeChecksums`), `build` (caller-supplied, typically `JavaModule`), and `assign`
 (`Assign`) for each project.
+
+```xml
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>5.11.3</version>
+    <scope>test</scope>
+    <!--Checksum/SHA256/abcdef0123...-->
+</dependency>
+```
 
 ```mermaid
 flowchart LR

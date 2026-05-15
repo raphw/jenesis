@@ -11,6 +11,7 @@ public class MavenPomResolver implements Resolver {
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
     private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
+    public static final String CHECKSUM_PREFIX = "Checksum/";
 
     private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
     private final transient DocumentBuilderFactory factory = MavenDefaultVersionNegotiator.toDocumentBuilderFactory();
@@ -157,7 +158,8 @@ public class MavenPomResolver implements Resolver {
                     resolution.widestScope,
                     resolution.systemPath,
                     resolution.exclusions,
-                    resolution.optional));
+                    resolution.optional,
+                    resolution.checksum));
         });
         return results;
     }
@@ -226,6 +228,7 @@ public class MavenPomResolver implements Resolver {
                     resolution.systemPath = entry.getValue().systemPath();
                     resolution.exclusions = entry.getValue().exclusions();
                     resolution.optional = entry.getValue().optional();
+                    resolution.checksum = entry.getValue().checksum();
                 } else {
                     version = resolution.currentVersion;
                     if (resolution.observedVersions.add(value.version()) || resolution.widestScope.reduces(scope)) {
@@ -597,7 +600,27 @@ public class MavenPomResolver implements Resolver {
                                                 toTextChild400(child, "artifactId").orElseThrow(missing("exclusion.artifactId"))))
                                         .toList())
                                 .orElse(null),
-                        toTextChild400(node, "optional").orElse(null)));
+                        toTextChild400(node, "optional").orElse(null),
+                        toCommentChecksum(node).orElse(null)));
+    }
+
+    private static Optional<String> toCommentChecksum(Node node) {
+        List<String> matches = toChildren(node)
+                .filter(child -> child.getNodeType() == Node.COMMENT_NODE)
+                .map(Node::getNodeValue)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(text -> text.startsWith(CHECKSUM_PREFIX))
+                .map(text -> text.substring(CHECKSUM_PREFIX.length()))
+                .toList();
+        if (matches.size() > 1) {
+            throw new IllegalStateException("Multiple " + CHECKSUM_PREFIX + "* comments on dependency "
+                    + toTextChild400(node, "groupId").orElse("?")
+                    + ":" + toTextChild400(node, "artifactId").orElse("?")
+                    + ":" + toTextChild400(node, "version").orElse("?")
+                    + ": " + matches);
+        }
+        return matches.stream().findFirst();
     }
 
     private static String property(String text, Map<String, String> properties) {
@@ -636,7 +659,8 @@ public class MavenPomResolver implements Resolver {
                 left.scope() == null ? right.scope() : left.scope(),
                 left.systemPath() == null ? right.systemPath() : left.systemPath(),
                 left.exclusions() == null ? right.exclusions() : left.exclusions(),
-                left.optional() == null ? right.optional() : left.optional());
+                left.optional() == null ? right.optional() : left.optional(),
+                left.checksum() == null ? right.checksum() : left.checksum());
     }
 
     static Supplier<IllegalStateException> missing(String property) {
@@ -659,7 +683,8 @@ public class MavenPomResolver implements Resolver {
                                    String scope,
                                    String systemPath,
                                    List<MavenDependencyName> exclusions,
-                                   String optional) {
+                                   String optional,
+                                   String checksum) {
         private MavenDependencyValue resolve(Map<String, String> properties) {
             return new MavenDependencyValue(property(version, properties),
                     MavenDependencyScope.of(property(scope, properties)),
@@ -667,7 +692,8 @@ public class MavenPomResolver implements Resolver {
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new MavenDependencyName(
                             property(exclusion.groupId(), properties),
                             property(exclusion.artifactId(), properties))).toList(),
-                    optional == null ? null : Boolean.valueOf(property(optional, properties))
+                    optional == null ? null : Boolean.valueOf(property(optional, properties)),
+                    checksum
             );
         }
     }
@@ -709,5 +735,6 @@ public class MavenPomResolver implements Resolver {
         private Path systemPath;
         private List<MavenDependencyName> exclusions;
         private Boolean optional;
+        private String checksum;
     }
 }
