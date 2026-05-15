@@ -237,6 +237,44 @@ The executor places a `.jenesis.build` marker at the build root so source scanne
 `ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `cache/` by
 convention for cross-build caches such as downloaded module URIs.
 
+### Best practice: communicate through file/folder conventions, not step names
+
+A step or module should treat its `inherited` map as an opaque set of **input folders** and discover what to
+read by looking for files and folders at well-known relative paths inside each input. It should not pattern-match
+on the keys themselves to infer which predecessor an input came from. The same applies to its outputs: a step
+writes file and folder layouts that downstream consumers look up by name, never expecting the consumer to know
+how the step was wired.
+
+Concretely:
+
+- **Don't filter `inherited.sequencedKeySet()` by step-name patterns.** If a module needs to distinguish two
+  categories of inputs (e.g. compile-side vs. runtime-side), let the caller wire each category to a distinct
+  predecessor or pass an explicit predicate; don't have the module sniff `key.split("/").contains("runtime")` to
+  guess.
+- **Don't compose `inherited` keys with extra `BuildExecutorModule.PREVIOUS` (`../`) prefixes** to chase a
+  predecessor that lives one level higher than the descriptor states. Instead, do the lookup at the level where
+  the descriptor's path strings apply directly (typically the outer assembler lambda) and capture the result for
+  any inner sub-module that needs it.
+- **Define each step-name constant once, at the class that adds the step**, and have all consumers reference
+  that constant. `MultiProjectModule.SOURCES` / `.MANIFESTS` belong on `MultiProjectModule` because that's the
+  framework that wires those steps in the per-module sub-graph; `DependenciesModule.CHECKED` / `.ARTIFACTS`
+  belong on `DependenciesModule` because that's where the steps are added; `BuildStep.COMPILE` / `.RUNTIME`
+  live on `BuildStep` because they're shared scope-label conventions used throughout. A class that wants to
+  point at a predecessor's leaf step uses the owner's constant - no separate "same string" duplicate.
+- **`*.properties` files exchanged between steps in different files should have a documented schema.** The
+  conventional files (`identity.properties`, `module.properties`, `metadata.properties`, `requires.properties`,
+  `versions.properties`, `compile-requires.properties`, `runtime-requires.properties`,
+  `compile-versions.properties`, `runtime-versions.properties`) are listed in the table below with their
+  produced/consumed keys and value semantics. The filenames live as constants on `BuildStep`; each property
+  key's contract belongs in the README rather than as a magic string scattered across writer and reader sites.
+
+The exception is **inline sub-modules of the same enclosing module**: a class that adds several sub-modules and
+steps in its own `accept(...)` may reference its own sub-module/step names by their (private) constants, since
+the wiring lives in one file and never crosses the module boundary. `ExternalModule`'s references to its inner
+`EXTERNAL`, `DEPENDENCIES`, `DELEGATE` step names; `MavenProject`'s references to its private `MODULE`,
+`DEPENDENCIES`, `PREPARE` constants; and `MultiProjectModule`'s references to its `IDENTIFIER`, `COMPOSE`,
+`MODULE`, `GROUP` sub-module names are all of this shape.
+
 Conventional folders and files
 ------------------------------
 

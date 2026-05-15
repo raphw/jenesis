@@ -40,26 +40,22 @@ public final class Project {
         BuildExecutorModule apply(Context context, ModuleDescriptor descriptor);
 
         static Assembler ofJava() {
-            return (context, descriptor) -> (sub, _) -> {
-                sub.addModule("java",
-                        (executor, inherited) -> {
-                            BuildExecutorModule delegate;
-                            if (context.tests()) {
-                                Properties module = new Properties();
-                                Path manifestsDir = inherited.get(BuildExecutorModule.PREVIOUS + descriptor.manifests());
-                                Path moduleFile = manifestsDir.resolve(BuildStep.MODULE);
-                                if (Files.isRegularFile(moduleFile)) {
-                                    try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                                        module.load(reader);
-                                    }
-                                }
-                                boolean test = module.getProperty("tests") != null;
-                                delegate = new JavaModule().test(test, null, context.repositories(), context.resolvers());
-                            } else {
-                                delegate = new JavaModule();
-                            }
-                            delegate.accept(executor, inherited);
-                        },
+            return (context, descriptor) -> (sub, outerInherited) -> {
+                BuildExecutorModule java;
+                if (context.tests()) {
+                    Properties module = new Properties();
+                    Path moduleFile = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
+                    if (Files.isRegularFile(moduleFile)) {
+                        try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                            module.load(reader);
+                        }
+                    }
+                    boolean test = module.getProperty("tests") != null;
+                    java = new JavaModule().test(test, null, context.repositories(), context.resolvers());
+                } else {
+                    java = new JavaModule();
+                }
+                sub.addModule("java", java,
                         descriptor.sources(),
                         descriptor.manifests(),
                         descriptor.checked(),
