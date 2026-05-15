@@ -108,7 +108,7 @@ public final class Project {
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(), builder.hashAlgorithm(),
                             descriptor -> wrapped.apply(context, descriptor))));
-            executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
@@ -142,7 +142,7 @@ public final class Project {
                         context.repositories(), context.resolvers(),
                         descriptor -> assembler.apply(context, descriptor)));
             }, "download");
-            executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
@@ -179,7 +179,7 @@ public final class Project {
                         context.repositories(), context.resolvers(),
                         descriptor -> wrapped.apply(context, descriptor)));
             }, "download");
-            executor.addStep(COLLECT, new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
+            executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);

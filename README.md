@@ -376,7 +376,7 @@ output folder" invariant that drives incremental builds:
 The placement is the same `Function<Path, Optional<Path>>` shape `Relocate` uses: each visited file is mapped to
 an `Optional<Path>` relative to the configured target, or skipped. `MavenRepositoryPlacement.toLocalRepository()` and
 `MavenRepositoryPlacement.toRepository(Path)` ship a placement that consumes the canonical per-module output produced
-by `Relocate(MultiProjectModule.artifactsByModule())` (i.e. each sub-module folder contains `classes.jar`, `sources.jar`,
+by `Relocate(MavenProject.artifactsByModule())` (i.e. each sub-module folder contains `classes.jar`, `sources.jar`,
 `javadoc.jar`, `pom.xml`, `identity.properties`, `metadata.properties` and - for test variants - `module.properties`):
 for every visited file it reads the sibling `pom.xml`, parses `groupId`/`artifactId`/`version` out of it, checks the
 sibling `module.properties` for the `tests` key (which marks the directory as a test variant), and routes the file
@@ -1116,9 +1116,10 @@ test-aware POM merging in one pass. `MODULAR` uses a plain `Relocate` parameteri
 `ModularPlacement` function:
 
 ```java
-executor.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), BUILD);
-executor.addStep("stage",   new MavenRepositoryStage(),                          "collect"); // MAVEN, MODULAR_TO_MAVEN
-executor.addStep("stage",   new Relocate(new ModularPlacement()),                "collect"); // MODULAR
+executor.addStep("collect", new Relocate(MavenProject.artifactsByModule()),   BUILD);     // MAVEN, MODULAR_TO_MAVEN
+executor.addStep("collect", new Relocate(ModularProject.artifactsByModule()), BUILD);     // MODULAR
+executor.addStep("stage",   new MavenRepositoryStage(),                       "collect"); // MAVEN, MODULAR_TO_MAVEN
+executor.addStep("stage",   new Relocate(new ModularPlacement()),             "collect"); // MODULAR
 ```
 
 The stage step writes its tree under `target/stage/output/`. Files are hard-linked rather than copied -

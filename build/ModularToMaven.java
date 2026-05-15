@@ -6,13 +6,13 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
+import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Relocate;
 
 public class ModularToMaven {
@@ -44,7 +44,7 @@ public class ModularToMaven {
                     }));
         }, "download");
 
-        root.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), "build");
+        root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
 
         root.execute(args);
     }

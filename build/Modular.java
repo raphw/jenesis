@@ -9,7 +9,6 @@ import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Relocate;
 
 public class Modular {
@@ -41,7 +40,7 @@ public class Modular {
                             descriptor.runtimeArtifacts())));
         }, "download");
 
-        root.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), "build");
+        root.addStep("collect", new Relocate(ModularProject.artifactsByModule()), "build");
 
         root.execute(args);
     }

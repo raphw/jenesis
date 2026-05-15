@@ -4,7 +4,6 @@ import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
-import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Relocate;
 
 public class Maven {
@@ -18,7 +17,7 @@ public class Maven {
                         new JavaModule().testIfAvailable(),
                         descriptor.sources(), descriptor.manifests(), descriptor.artifacts(), descriptor.runtimeArtifacts())));
 
-        root.addStep("collect", new Relocate(MultiProjectModule.artifactsByModule()), "build");
+        root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
 
         root.execute(args);
     }

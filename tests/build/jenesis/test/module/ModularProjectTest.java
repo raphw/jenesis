@@ -224,4 +224,19 @@ public class ModularProjectTest {
         assertThat(bar.getProperty("module/bar"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
     }
+
+    @Test
+    public void artifactsByModule_links_classes_sources_and_javadoc_under_sub_module_folder() {
+        Function<Path, Optional<Path>> placement = ModularProject.artifactsByModule();
+        Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");
+        Path sources = Path.of("/wrap/build/module/module-foo/produce/sources/output/artifacts/sources.jar");
+        Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");
+        Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
+        Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
+        assertThat(placement.apply(classes)).contains(Path.of("module-foo", "classes.jar"));
+        assertThat(placement.apply(sources)).contains(Path.of("module-foo", "sources.jar"));
+        assertThat(placement.apply(javadoc)).contains(Path.of("module-foo", "javadoc.jar"));
+        assertThat(placement.apply(pom)).isEmpty();
+        assertThat(placement.apply(other)).isEmpty();
+    }
 }

@@ -39,6 +39,11 @@ public class MavenProject implements BuildExecutorModule {
         this.resolver = resolver;
     }
 
+    public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
+        return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", Pom.POM,
+                BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
+    }
+
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
                                            Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {

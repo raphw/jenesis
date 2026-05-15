@@ -32,6 +32,11 @@ public class ModularProject implements BuildExecutorModule {
         this.filter = filter;
     }
 
+    public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
+        return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar",
+                BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
+    }
+
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
                                            Map<String, Repository> repositories,
