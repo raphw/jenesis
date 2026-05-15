@@ -28,6 +28,7 @@ public class MavenDefaultRepository implements MavenRepository {
         this.validations = validations;
     }
 
+    @SuppressWarnings("unchecked")
     public static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> F versionResolver() {
         return (F) (BiFunction<URI, String, Optional<URI>> & Serializable) (uri, version) -> {
             String path = uri.getPath();

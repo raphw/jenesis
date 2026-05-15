@@ -5,7 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.Project;
 import build.jenesis.project.ModuleDescriptor;
-import build.jenesis.maven.MavenModuleDescriptor;
+import build.jenesis.maven.MavenProject.MavenModuleDescriptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

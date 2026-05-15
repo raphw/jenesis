@@ -12,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
+import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
@@ -40,7 +41,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path root,
                                            String algorithm,
-                                           Function<MavenModuleDescriptor, BuildExecutorModule> builder) {
+                                           Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {
         return make(root, "maven", algorithm, new MavenDefaultRepository(), new MavenPomResolver(), builder);
     }
 
@@ -49,7 +50,7 @@ public class MavenProject implements BuildExecutorModule {
                                            String algorithm,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
-                                           Function<MavenModuleDescriptor, BuildExecutorModule> builder) {
+                                           Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 identifier -> identifier.startsWith(MODULE + "/")
                         ? Optional.of(identifier.substring(MODULE.length() + 1, identifier.indexOf('/', MODULE.length() + 1)))
@@ -89,10 +90,10 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
-                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS,
-                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.CHECKED,
-                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + MultiProjectModule.ARTIFACTS))
+                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
+                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED,
+                                                    BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
                                     .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
                                             Function.identity(),
                                             key -> switch (key) {
@@ -482,6 +483,39 @@ public class MavenProject implements BuildExecutorModule {
                 }
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    public record MavenModuleDescriptor(String name, SequencedSet<String> dependencies) implements ModuleDescriptor {
+
+        @Override
+        public String sources() {
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.SOURCES;
+        }
+
+        @Override
+        public String manifests() {
+            return BuildExecutorModule.PREVIOUS + MultiProjectModule.MANIFESTS;
+        }
+
+        @Override
+        public String artifacts() {
+            return BuildExecutorModule.PREVIOUS + BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+        }
+
+        @Override
+        public String runtimeArtifacts() {
+            return BuildExecutorModule.PREVIOUS + BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+        }
+
+        @Override
+        public String checked() {
+            return BuildExecutorModule.PREVIOUS + BuildStep.COMPILE + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
+        }
+
+        @Override
+        public String runtimeChecked() {
+            return BuildExecutorModule.PREVIOUS + BuildStep.RUNTIME + "/" + DEPENDENCIES + "/" + DependenciesModule.CHECKED;
         }
     }
 }

@@ -10,9 +10,7 @@ import build.jenesis.step.Group;
 public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String SOURCES = "sources",
-            MANIFESTS = "manifests",
-            CHECKED = "checked",
-            ARTIFACTS = "artifacts";
+            MANIFESTS = "manifests";
 
     public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
@@ -38,6 +36,7 @@ public class MultiProjectModule implements BuildExecutorModule {
         return linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", "pom.xml", BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
     }
 
+    @SuppressWarnings("unchecked")
     public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);
         return (F) (Function<Path, Optional<Path>> & Serializable) (file -> {
