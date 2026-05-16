@@ -17,7 +17,6 @@ import build.jenesis.module.PinModuleInfo;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.project.PinModule;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
@@ -228,6 +227,45 @@ public final class Project {
             throw new IllegalStateException(
                     "No build descriptor found under " + root.toAbsolutePath()
                             + " (expected a module-info.java or a pom.xml)");
+        }
+    }
+
+    private static final class PinModule implements BuildExecutorModule {
+
+        private static final String MODULE_PREFIX = "module-", TEST_MODULE_PREFIX = "test-module-";
+
+        private final Path root;
+        private final String fileName;
+        private final Function<Path, BuildStep> stepFactory;
+
+        private PinModule(Path root, String fileName, Function<Path, BuildStep> stepFactory) {
+            this.root = root;
+            this.fileName = fileName;
+            this.stepFactory = stepFactory;
+        }
+
+        @Override
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+            Set<String> encoded = new LinkedHashSet<>();
+            for (String key : inherited.keySet()) {
+                for (String segment : key.split("/")) {
+                    if (segment.startsWith(TEST_MODULE_PREFIX)) {
+                        encoded.add(segment.substring(TEST_MODULE_PREFIX.length()));
+                        break;
+                    }
+                    if (segment.startsWith(MODULE_PREFIX)) {
+                        encoded.add(segment.substring(MODULE_PREFIX.length()));
+                        break;
+                    }
+                }
+            }
+            SequencedSet<String> allInputs = inherited.sequencedKeySet();
+            for (String name : encoded) {
+                Path file = root
+                        .resolve(URLDecoder.decode(name, StandardCharsets.UTF_8))
+                        .resolve(fileName);
+                buildExecutor.addStep(MODULE_PREFIX + name, stepFactory.apply(file), allInputs);
+            }
         }
     }
 
