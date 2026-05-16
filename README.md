@@ -468,41 +468,48 @@ flowchart LR
 
 A `BuildExecutorModule` that runs a configured `TestEngine` (e.g. JUnit 5) against the compiled tests of its
 predecessors. Construction requires `repositories` and `resolvers` maps; the runner is fetched on the side via
-a nested `DependenciesModule`, so the user never has to declare it as a compile-time `requires` of their test
-module. Empty maps are valid when the runner is already present on the inherited class- or module-path - the
-`Requires` step then writes an empty `requires.properties` and the nested resolve produces no artifacts:
+an inlined `Resolve` → `Download` pipeline, so the user never has to declare it as a compile-time `requires`
+of their test module. Empty maps are valid when the runner is already present on the inherited class- or
+module-path - the `Requires` step then writes an empty `requires.properties` and nothing is fetched:
 
-- `resolved` (`TestModule.Requires`) writes the runner's (versionless) coordinate to `requires.properties`,
-  picking the first entry in `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured
-  resolvers - `JUnit5` ships both `module/org.junit.platform.console` and
-  `maven/org.junit.platform/junit-platform-console`, so the same engine works across `Modular`,
-  `ModularToMaven`, and `Manual`-style builds. The version is not embedded; it is picked up from upstream
-  `versions.properties` (project `dependencyManagement` / `module-info` pins) by the downstream resolver, with
-  `TestEngine.versions()` providing defaults for entries the project does not pin. If the runner is already
-  visible on an input folder (`TestEngine.hasRunner(...)`), nothing is written.
-- `required` is a nested [`DependenciesModule`](#dependenciesmodule) (`required/resolved` + `required/artifacts`)
-  that expands the coordinate transitively and fetches the jars, honouring pinned versions and checksums from
-  upstream just like any other dependency module.
+- `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the
+  first entry in `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers -
+  `JUnit5` ships both `module/org.junit.platform.console` and
+  `maven/org.junit.platform/junit-platform-console/<version>`, so the same engine works across `Modular`,
+  `ModularToMaven`, and `Manual`-style builds. Versions baked into the coordinate act as defaults; upstream
+  `versions.properties` (project `dependencyManagement` / `module-info` pins) wins for any matching managed
+  key during the downstream resolve. If the runner is already visible on an input folder
+  (`TestEngine.hasRunner(...)`), nothing is written.
+- `required` (`Resolve`) takes the runner coordinate *together* with every upstream
+  `requires.properties` (the project's already-transitively-resolved compile/runtime deps) and runs the
+  resolve a second time across the combined set. The resolver dedups by coordinate key and negotiates a
+  single version per key, so a transitive dependency the runner pulls in that the project already resolved
+  collapses to one entry rather than producing two clashing module-path entries downstream.
+- `artifacts` (`Download`) fetches the unified resolved set into `artifacts/`, validating checksums when
+  present and hard-linking from the local cache when available so the second resolve doesn't re-fetch jars
+  the project's own resolve already brought down.
 - `executed` (`TestModule.Run` extends `Java`) honours the `-Djenesis.test=<patterns>` system property: a
-  comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. Class entries are
-  emitted via the engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()` (e.g.
-  `-select-method=`). The property's value is part of the step's serialized state (so changing it invalidates
-  the cache); when set, the step is also forced to re-run regardless of cache consistency. `Java` scans each
-  argument's `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on its own
-  `modular` flag; the runner jars in `required/artifacts/` land on the same path lists as the inherited
-  classes/artifacts of the module under test.
+  comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. Class entries
+  are emitted via the engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()`
+  (e.g. `-select-method=`). The property's value is part of the step's serialized state (so changing it
+  invalidates the cache); when set, the step is also forced to re-run regardless of cache consistency. `Java`
+  scans each argument's `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on
+  its own `modular` flag.
 
 ```mermaid
 flowchart LR
   classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
-  arts(["inherited classes/<br/>+ artifacts/"]):::input
+  arts(["inherited classes/<br/>+ artifacts/<br/>+ requires.properties"]):::input
   resolved["resolved<br/>(Requires)"]:::step
-  required["required<br/>(DependenciesModule:<br/>resolved + artifacts)"]:::step
+  required["required<br/>(Resolve)"]:::step
+  artifacts["artifacts<br/>(Download)"]:::step
   executed["executed<br/>(Java/Run)"]:::step
   arts --> resolved
   resolved --> required
-  required --> executed
+  arts --> required
+  required --> artifacts
+  artifacts --> executed
   arts --> executed
 ```
 

@@ -10,13 +10,16 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Download;
 import build.jenesis.step.Java;
 import build.jenesis.step.ProcessHandler;
+import build.jenesis.step.Resolve;
 import build.jenesis.step.TestEngine;
 
 public class TestModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", REQUIRED = "required", EXECUTED = "executed";
+    public static final String RESOLVED = "resolved", REQUIRED = "required",
+            ARTIFACTS = "artifacts", EXECUTED = "executed";
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
@@ -86,12 +89,16 @@ public class TestModule implements BuildExecutorModule {
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
         buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
-        buildExecutor.addModule(REQUIRED, new DependenciesModule(repositories, resolvers, false), RESOLVED);
+        SequencedSet<String> resolveInputs = new LinkedHashSet<>();
+        resolveInputs.add(RESOLVED);
+        resolveInputs.addAll(upstream);
+        buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories), REQUIRED);
         Run run = factory == null
                 ? new Run(engine, isTest, jarsOnly, modular)
                 : new Run(factory, engine, isTest, jarsOnly, modular);
         buildExecutor.addStep(EXECUTED, run,
-                Stream.concat(upstream.stream(), Stream.of(REQUIRED + "/" + DependenciesModule.ARTIFACTS)));
+                Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
 
     private record Requires(TestEngine engine, Set<String> prefixes) implements BuildStep {

@@ -4,11 +4,19 @@ import module java.base;
 
 public record JUnit5() implements TestEngine {
 
-    public static final String JUPITER_MARKER_CLASS = "org.junit.jupiter.api.Test";
-
     @Override
     public String module() {
         return "org.junit.platform.console";
+    }
+
+    @Override
+    public Map<String, String> markers() {
+        return Map.of("Implementation-Title", "junit-jupiter-api");
+    }
+
+    @Override
+    public Map<String, String> runnerMarkers() {
+        return Map.of("Implementation-Title", "junit-platform-console");
     }
 
     @Override

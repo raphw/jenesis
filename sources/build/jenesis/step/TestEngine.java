@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import java.util.jar.Attributes;
 import build.jenesis.BuildStep;
 
 public interface TestEngine extends Serializable {
@@ -23,41 +24,45 @@ public interface TestEngine extends Serializable {
 
     List<String> arguments();
 
+    Map<String, String> markers();
+
+    Map<String, String> runnerMarkers();
+
     static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
-        String jupiterEntry = JUnit5.JUPITER_MARKER_CLASS.replace('.', '/') + ".class";
-        String junit4Entry = JUnit4.MARKER_CLASS.replace('.', '/') + ".class";
-        boolean jupiter = false, junit4 = false;
-        for (Path folder : folders) {
-            Path artifacts = folder.resolve(BuildStep.ARTIFACTS);
-            if (!Files.exists(artifacts)) {
-                continue;
+        List<Attributes> manifests = scanManifests(folders);
+        for (TestEngine engine : List.<TestEngine>of(new JUnit5(), new JUnit4())) {
+            if (matches(manifests, engine.markers())) {
+                return Optional.of(engine);
             }
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
-                for (Path file : stream) {
-                    try (JarFile jarFile = new JarFile(file.toFile())) {
-                        if (!jupiter && jarFile.getEntry(jupiterEntry) != null) {
-                            jupiter = true;
-                        }
-                        if (!junit4 && jarFile.getEntry(junit4Entry) != null) {
-                            junit4 = true;
-                        }
-                    } catch (IOException e) {
-                        throw e;
-                    } catch (Exception _) {
-                    }
-                }
-            }
-        }
-        if (jupiter) {
-            return Optional.of(new JUnit5());
-        } else if (junit4) {
-            return Optional.of(new JUnit4());
         }
         return Optional.empty();
     }
 
     static boolean hasRunner(TestEngine engine, Iterable<Path> folders) throws IOException {
-        String entry = engine.mainClass().replace('.', '/') + ".class";
+        return matches(scanManifests(folders), engine.runnerMarkers());
+    }
+
+    private static boolean matches(List<Attributes> manifests, Map<String, String> required) {
+        if (required.isEmpty()) {
+            return false;
+        }
+        for (Attributes attributes : manifests) {
+            boolean ok = true;
+            for (Map.Entry<String, String> entry : required.entrySet()) {
+                if (!Objects.equals(entry.getValue(), attributes.getValue(entry.getKey()))) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<Attributes> scanManifests(Iterable<Path> folders) throws IOException {
+        List<Attributes> manifests = new ArrayList<>();
         for (Path folder : folders) {
             Path artifacts = folder.resolve(BuildStep.ARTIFACTS);
             if (!Files.exists(artifacts)) {
@@ -65,9 +70,13 @@ public interface TestEngine extends Serializable {
             }
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
                 for (Path file : stream) {
+                    if (!Files.isRegularFile(file)) {
+                        continue;
+                    }
                     try (JarFile jarFile = new JarFile(file.toFile())) {
-                        if (jarFile.getEntry(entry) != null) {
-                            return true;
+                        Manifest manifest = jarFile.getManifest();
+                        if (manifest != null) {
+                            manifests.add(manifest.getMainAttributes());
                         }
                     } catch (IOException e) {
                         throw e;
@@ -76,7 +85,7 @@ public interface TestEngine extends Serializable {
                 }
             }
         }
-        return false;
+        return manifests;
     }
 
 }

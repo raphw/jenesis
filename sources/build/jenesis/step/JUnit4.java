@@ -4,11 +4,19 @@ import module java.base;
 
 public record JUnit4() implements TestEngine {
 
-    public static final String MARKER_CLASS = "junit.framework.Test";
-
     @Override
     public String module() {
         return "junit";
+    }
+
+    @Override
+    public Map<String, String> markers() {
+        return Map.of("Implementation-Title", "JUnit");
+    }
+
+    @Override
+    public Map<String, String> runnerMarkers() {
+        return Map.of("Implementation-Title", "JUnit");
     }
 
     @Override
