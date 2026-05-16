@@ -47,7 +47,7 @@ public class MavenProject implements BuildExecutorModule {
                 BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
     }
 
-    public static BuildExecutorModule make(Path root, MultiProjectAssembler<MavenModuleDescriptor> assembler) {
+    public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), assembler);
     }
 
@@ -55,7 +55,7 @@ public class MavenProject implements BuildExecutorModule {
                                            String prefix,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
-                                           MultiProjectAssembler<MavenModuleDescriptor> assembler) {
+                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 identifier -> identifier.startsWith(MODULE + "/")
                         ? Optional.of(identifier.substring(MODULE.length() + 1, identifier.indexOf('/', MODULE.length() + 1)))

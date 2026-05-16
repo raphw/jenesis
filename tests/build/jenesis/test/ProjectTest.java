@@ -4,7 +4,10 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.Project;
+import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.maven.MavenProject.MavenModuleDescriptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,15 +160,15 @@ public class ProjectTest {
 
     @Test
     public void assembler_can_be_overridden() {
-        Project.Assembler custom = (_, _, _, _) -> (_, _) -> {};
+        MultiProjectAssembler<ProjectModuleDescriptor> custom = (_, _, _) -> (_, _) -> {};
         assertThat(Project.builder().assembler(custom).assembler()).isSameAs(custom);
     }
 
     @Test
     public void default_assembler_returns_a_module() {
-        ModuleDescriptor descriptor = new MavenModuleDescriptor("module-sources", new LinkedHashSet<>());
-        Project.Context context = new Project.Context(true, false, false, null);
-        assertThat(Project.Assembler.ofJava().apply(context, descriptor, Map.of(), Map.of())).isNotNull();
+        ModuleDescriptor base = new MavenModuleDescriptor("module-sources", new LinkedHashSet<>());
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, false);
+        assertThat(new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of())).isNotNull();
     }
 
     @Test
@@ -178,7 +181,7 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Project.Builder builder = Project.builder().root(root).target(target);
         Function<String, String> resolver = Project.Layout.MAVEN.apply(
-                BuildExecutor.of(target), builder, Project.Assembler.ofJava());
+                BuildExecutor.of(target), builder, new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-");
     }
@@ -188,7 +191,7 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Project.Builder builder = Project.builder().root(root).target(target);
         Function<String, String> resolver = Project.Layout.MODULAR.apply(
-                BuildExecutor.of(target), builder, Project.Assembler.ofJava());
+                BuildExecutor.of(target), builder, new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
@@ -198,7 +201,7 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Project.Builder builder = Project.builder().root(root).target(target);
         Function<String, String> resolver = Project.Layout.MODULAR_TO_MAVEN.apply(
-                BuildExecutor.of(target), builder, Project.Assembler.ofJava());
+                BuildExecutor.of(target), builder, new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }

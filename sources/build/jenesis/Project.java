@@ -14,12 +14,10 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularPlacement;
 import build.jenesis.module.ModularProject;
 import build.jenesis.module.PinModuleInfo;
-import build.jenesis.project.JavaModule;
-import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.ProjectModuleDescriptor;
+import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.project.DependencyScope;
-import build.jenesis.step.Jar;
-import build.jenesis.step.Javadoc;
 import build.jenesis.step.Relocate;
 
 public final class Project {
@@ -29,78 +27,20 @@ public final class Project {
             STAGE = "stage",
             PIN = "pin";
 
-    public record Context(
-            boolean tests,
-            boolean sources,
-            boolean javadoc,
-            Path root
-    ) {
-    }
-
-    @FunctionalInterface
-    public interface Assembler {
-
-        BuildExecutorModule apply(Context context,
-                                  ModuleDescriptor descriptor,
-                                  Map<String, Repository> repositories,
-                                  Map<String, Resolver> resolvers);
-
-        static Assembler ofJava() {
-            return (context, descriptor, repositories, resolvers) -> (sub, outerInherited) -> {
-                BuildExecutorModule java;
-                if (context.tests()) {
-                    Properties module = new Properties();
-                    Path moduleFile = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
-                    if (Files.isRegularFile(moduleFile)) {
-                        try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                            module.load(reader);
-                        }
-                    }
-                    boolean test = module.getProperty("tests") != null;
-                    java = new JavaModule().test(test, null, repositories, resolvers);
-                } else {
-                    java = new JavaModule();
-                }
-                sub.addModule("java", java,
-                        descriptor.sources(),
-                        descriptor.manifests(),
-                        descriptor.resolved(DependencyScope.COMPILE),
-                        descriptor.resolved(DependencyScope.RUNTIME),
-                        descriptor.artifacts(DependencyScope.COMPILE),
-                        descriptor.artifacts(DependencyScope.RUNTIME));
-                if (context.sources()) {
-                    sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
-                }
-                if (context.javadoc()) {
-                    sub.addModule("javadoc", (module, inherited) -> {
-                        module.addStep("classes", Javadoc.tool(), inherited.sequencedKeySet().stream());
-                        module.addStep("artifacts", Jar.tool(Jar.Sort.JAVADOC), "classes");
-                    },
-                    descriptor.sources(),
-                    descriptor.manifests(),
-                    descriptor.resolved(DependencyScope.COMPILE),
-                    descriptor.resolved(DependencyScope.RUNTIME),
-                    descriptor.artifacts(DependencyScope.COMPILE),
-                    descriptor.artifacts(DependencyScope.RUNTIME));
-                }
-            };
-        }
-    }
-
     @FunctionalInterface
     public interface Layout {
 
-        Function<String, String> apply(BuildExecutor executor, Builder builder, Assembler assembler) throws IOException;
+        Function<String, String> apply(BuildExecutor executor,
+                                       Builder builder,
+                                       MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, builder, assembler) -> {
-            Context context = new Context(builder.tests(),
-                    builder.sources(),
-                    builder.javadoc(),
-                    builder.root());
-            Assembler wrapped = new PomAwareAssembler(assembler, builder);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> wrapped = new PomAwareAssembler(assembler, builder);
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(),
-                            (descriptor, repositories, resolvers) -> wrapped.apply(context, descriptor, repositories, resolvers))));
+                            (descriptor, repositories, resolvers) -> wrapped.apply(
+                                    new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                    repositories, resolvers))));
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -118,22 +58,16 @@ public final class Project {
                         (_, value) -> URI.create(value),
                         MavenDefaultRepository.versionResolver(),
                         Files.createDirectories(builder.cache().resolve("modules"))));
-                if (builder.repositories() != null) {
-                    repositories.putAll(builder.repositories());
-                }
+                repositories.putAll(builder.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(true));
-                if (builder.resolvers() != null) {
-                    resolvers.putAll(builder.resolvers());
-                }
-                Context context = new Context(builder.tests(),
-                        builder.sources(),
-                        builder.javadoc(),
-                        builder.root());
+                resolvers.putAll(builder.resolvers());
                 sub.addModule("modules", ModularProject.make(builder.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
-                        (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(context, descriptor, mergedRepos, mergedResolvers)));
+                        (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
+                                new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                mergedRepos, mergedResolvers)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
@@ -145,7 +79,7 @@ public final class Project {
 
         Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
             MavenPomResolver resolver = new MavenPomResolver();
-            Assembler wrapped = new PomAwareAssembler(assembler, builder);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> wrapped = new PomAwareAssembler(assembler, builder);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
@@ -164,14 +98,12 @@ public final class Project {
                 if (builder.resolvers() != null) {
                     resolvers.putAll(builder.resolvers());
                 }
-                Context context = new Context(builder.tests(),
-                        builder.sources(),
-                        builder.javadoc(),
-                        builder.root());
                 sub.addModule("modules", ModularProject.make(builder.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
-                        (descriptor, mergedRepos, mergedResolvers) -> wrapped.apply(context, descriptor, mergedRepos, mergedResolvers)));
+                        (descriptor, mergedRepos, mergedResolvers) -> wrapped.apply(
+                                new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                mergedRepos, mergedResolvers)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
@@ -266,12 +198,12 @@ public final class Project {
         }
     }
 
-    private static final class PomAwareAssembler implements Assembler { // Revisit this later and resolve as submodules.
+    private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> { // Revisit this later and resolve as submodules.
 
-        private final Assembler base;
+        private final MultiProjectAssembler<? super ProjectModuleDescriptor> base;
         private final Pom pom;
 
-        private PomAwareAssembler(Assembler base, Builder builder) throws IOException {
+        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base, Builder builder) throws IOException {
             this.base = base;
             Map<String, String> metadata;
             if (builder.metadata() == null) {
@@ -288,11 +220,10 @@ public final class Project {
         }
 
         @Override
-        public BuildExecutorModule apply(Context context,
-                                         ModuleDescriptor descriptor,
+        public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers) {
-            BuildExecutorModule delegate = base.apply(context, descriptor, repositories, resolvers);
+            BuildExecutorModule delegate = base.apply(descriptor, repositories, resolvers);
             return new BuildExecutorModule() {
                 @Override
                 public Optional<String> resolve(String path) {
@@ -362,9 +293,9 @@ public final class Project {
                 false,
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
-                Assembler.ofJava(),
-                null,
-                null);
+                new JavaMultiProjectAssembler(),
+                Map.of(),
+                Map.of());
     }
 
     public record Builder(
@@ -378,7 +309,7 @@ public final class Project {
             boolean stageTests,
             Path metadata,
             SequencedSet<String> defaultTarget,
-            Assembler assembler,
+            MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers
     ) {
@@ -543,7 +474,7 @@ public final class Project {
                     resolvers);
         }
 
-        public Builder assembler(Assembler assembler) {
+        public Builder assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
             return new Builder(root,
                     target,
                     cache,

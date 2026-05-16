@@ -42,7 +42,7 @@ public class ModularProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
-                                           MultiProjectAssembler<ModularModuleDescriptor> assembler) {
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 repositories,
                 Map.of("module", new ModularJarResolver(true)),
@@ -52,7 +52,7 @@ public class ModularProject implements BuildExecutorModule {
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           MultiProjectAssembler<ModularModuleDescriptor> assembler) {
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 "module",
                 _ -> true,
@@ -66,7 +66,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Predicate<Path> filter,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           MultiProjectAssembler<ModularModuleDescriptor> assembler) {
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
