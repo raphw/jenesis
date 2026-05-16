@@ -20,8 +20,8 @@ public class Maven {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
         root.addModule("build", MavenProject.make(Path.of("."),
-                descriptor -> (buildExecutor, _) -> buildExecutor.addModule("java",
-                        new JavaModule().testIfAvailable(repositories, resolvers),
+                (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> buildExecutor.addModule("java",
+                        new JavaModule().testIfAvailable(mergedRepos, mergedResolvers),
                         descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME))));
 
         root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");

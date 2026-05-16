@@ -36,8 +36,8 @@ public class ModularToMaven {
                     Path.of("."),
                     repositories,
                     resolvers,
-                    descriptor -> (buildExecutor, _) -> {
-                        buildExecutor.addModule("java", new JavaModule().testIfAvailable(repositories, resolvers),
+                    (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
+                        buildExecutor.addModule("java", new JavaModule().testIfAvailable(mergedRepos, mergedResolvers),
                                 descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
                         buildExecutor.addStep("pom", new Pom(),
                                 descriptor.sources(), descriptor.manifests(), descriptor.resolved(DependencyScope.COMPILE));

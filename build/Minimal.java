@@ -33,7 +33,7 @@ public class Minimal {
 
         root.addSource("test", Bind.asSources(), Path.of("tests"));
         root.addStep("test-javac", Javac.tool(), "main-jar", "test-dependencies-downloaded", "test");
-        root.addModule("tests", new TestModule().jarsOnly(false), "main-jar", "test-dependencies-downloaded", "test-javac");
+        root.addModule("tests", new TestModule(repositories, resolvers).jarsOnly(false), "main-jar", "test-dependencies-downloaded", "test-javac");
 
         root.execute(args);
     }

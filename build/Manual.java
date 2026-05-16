@@ -44,7 +44,7 @@ public class Manual {
             module.addSource("sources", Bind.asSources(), Path.of("tests"));
             module.addStep("classes", Javac.tool(), "sources", "../main/artifacts", "../test-deps/artifacts");
             module.addStep("artifacts", Jar.tool(Jar.Sort.CLASSES), "classes", "../test-deps/artifacts");
-            module.addModule("tests", new TestModule(), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
+            module.addModule("tests", new TestModule(repositories, resolvers), "classes", "artifacts", "../main/artifacts", "../test-deps/artifacts");
         }, "test-deps", "main");
 
         root.execute(args);
