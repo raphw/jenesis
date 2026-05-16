@@ -2,13 +2,7 @@ package build.jenesis;
 
 import module java.base;
 
-public class HashDigestFunction implements HashFunction {
-
-    private final String algorithm;
-
-    public HashDigestFunction(String algorithm) {
-        this.algorithm = algorithm;
-    }
+public record HashDigestFunction(String algorithm) implements HashFunction {
 
     @Override
     public byte[] hash(Path file) throws IOException {

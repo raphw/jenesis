@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 
 public class PinModuleInfo implements BuildStep {
@@ -16,23 +17,25 @@ public class PinModuleInfo implements BuildStep {
     private final String prefix;
     private final List<Path> moduleInfoFiles;
     private final boolean fromJars;
+    private final transient HashDigestFunction hashFunction;
 
-    public PinModuleInfo(String prefix, Path moduleInfoFile) {
-        this(prefix, List.of(moduleInfoFile), false);
+    public PinModuleInfo(String prefix, Path moduleInfoFile, HashDigestFunction hashFunction) {
+        this(prefix, List.of(moduleInfoFile), false, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles) {
-        this(prefix, moduleInfoFiles, false);
+    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
+        this(prefix, moduleInfoFiles, false, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, Path moduleInfoFile, boolean fromJars) {
-        this(prefix, List.of(moduleInfoFile), fromJars);
+    public PinModuleInfo(String prefix, Path moduleInfoFile, boolean fromJars, HashDigestFunction hashFunction) {
+        this(prefix, List.of(moduleInfoFile), fromJars, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles, boolean fromJars) {
+    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles, boolean fromJars, HashDigestFunction hashFunction) {
         this.prefix = prefix;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
         this.fromJars = fromJars;
+        this.hashFunction = hashFunction;
     }
 
     @Override
@@ -46,12 +49,25 @@ public class PinModuleInfo implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         SequencedMap<String, String> entries = fromJars
-                ? collectFromJars(arguments)
-                : collectEntries(arguments, prefix);
+                ? collectFromJars(arguments, hashFunction)
+                : collectEntries(arguments, prefix, hashFunction);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static String computeChecksum(Iterable<BuildStepArgument> arguments,
+                                          String coordinate,
+                                          HashDigestFunction hashFunction) throws IOException {
+        String filename = coordinate.replace('/', '-') + ".jar";
+        for (BuildStepArgument argument : arguments) {
+            Path jar = argument.folder().resolve(BuildStep.ARTIFACTS).resolve(filename);
+            if (Files.isRegularFile(jar)) {
+                return hashFunction.algorithm() + "/" + HexFormat.of().formatHex(hashFunction.hash(jar));
+            }
+        }
+        return null;
     }
 
     private static void updateModuleInfo(Path file, SequencedMap<String, String> entries) throws IOException {
@@ -70,7 +86,8 @@ public class PinModuleInfo implements BuildStep {
         }
     }
 
-    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
+    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, BuildStepArgument> arguments,
+                                                               HashDigestFunction hashFunction) throws IOException {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> versionByFile = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -94,9 +111,11 @@ public class PinModuleInfo implements BuildStep {
                     continue;
                 }
                 String version = coordinate.substring(lastSlash + 1);
-                String checksum = properties.getProperty(coordinate);
-                String value = checksum == null || checksum.isEmpty() ? version : version + " " + checksum;
-                versionByFile.putIfAbsent(coordinate.replace('/', '-') + ".jar", value);
+                String existing = properties.getProperty(coordinate);
+                String computed = computeChecksum(arguments.values(), coordinate, hashFunction);
+                String checksum = computed != null ? computed : (existing == null || existing.isEmpty() ? null : existing);
+                versionByFile.putIfAbsent(coordinate.replace('/', '-') + ".jar",
+                        checksum == null ? version : version + " " + checksum);
             }
         }
         SequencedMap<String, String> entries = new TreeMap<>();
@@ -125,7 +144,9 @@ public class PinModuleInfo implements BuildStep {
         return entries;
     }
 
-    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments, String prefix) throws IOException {
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments,
+                                                       String prefix,
+                                                       HashDigestFunction hashFunction) throws IOException {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -143,7 +164,13 @@ public class PinModuleInfo implements BuildStep {
                     if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
                         continue;
                     }
-                    entries.putIfAbsent(key.substring(slash + 1), properties.getProperty(key));
+                    String value = properties.getProperty(key);
+                    int space = value.indexOf(' ');
+                    String version = space < 0 ? value : value.substring(0, space);
+                    String existing = space < 0 ? null : value.substring(space + 1).trim();
+                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
+                    String checksum = computed != null ? computed : existing;
+                    entries.putIfAbsent(key.substring(slash + 1), checksum == null ? version : version + " " + checksum);
                 }
             }
             Path requiresFile = argument.folder().resolve(REQUIRES);
@@ -167,9 +194,10 @@ public class PinModuleInfo implements BuildStep {
                     }
                     String bomKey = suffix.substring(0, lastSlash);
                     String version = suffix.substring(lastSlash + 1);
-                    String checksum = properties.getProperty(key);
-                    String bomValue = checksum.isEmpty() ? version : version + " " + checksum;
-                    entries.putIfAbsent(bomKey, bomValue);
+                    String existing = properties.getProperty(key);
+                    String computed = computeChecksum(arguments.values(), key, hashFunction);
+                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
+                    entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
                 }
             }
         }

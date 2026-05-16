@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.PinPom;
 
@@ -50,7 +51,7 @@ public class PinPomTest {
     }
 
     private String run(Path pomFile) throws IOException {
-        new PinPom("maven", pomFile).apply(Runnable::run,
+        new PinPom("maven", pomFile, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
@@ -256,6 +257,35 @@ public class PinPomTest {
         String afterFirst = run(pom);
         String afterSecond = run(pom);
         assertThat(afterSecond).isEqualTo(afterFirst);
+    }
+
+    @Test
+    public void recomputes_checksum_when_jar_is_present() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path jar = artifacts.resolve("maven-org.example-dep-1.0.jar");
+        byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
+        Files.write(jar, payload);
+        writeVersions(Map.of("maven/org.example/dep", "1.0 SHA-256/stale"));
+        String result = run(pom);
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
+        }
+        String expected = HexFormat.of().formatHex(digest.digest(payload));
+        assertThat(result).contains("<!--Checksum/SHA-256/" + expected + "-->");
+        assertThat(result).doesNotContain("SHA-256/stale");
     }
 
     @Test

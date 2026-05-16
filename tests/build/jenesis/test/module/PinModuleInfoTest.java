@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.PinModuleInfo;
 
@@ -61,7 +62,7 @@ public class PinModuleInfoTest {
     }
 
     private String run(Path moduleInfo) throws IOException {
-        new PinModuleInfo("module", moduleInfo).apply(Runnable::run,
+        new PinModuleInfo("module", moduleInfo, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
@@ -72,7 +73,7 @@ public class PinModuleInfoTest {
     }
 
     private String runFromJars(Path moduleInfo) throws IOException {
-        new PinModuleInfo("module", moduleInfo, true).apply(Runnable::run,
+        new PinModuleInfo("module", moduleInfo, true, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
@@ -254,11 +255,11 @@ public class PinModuleInfoTest {
         writeAutomaticJar(artifacts, "maven-com.example-bar-1.2.3.jar", "com.example.bar");
         writeAutomaticJar(artifacts, "module-baz-2.0.0.jar", "com.example.baz");
         writeRequires(new LinkedHashMap<>(Map.of(
-                "maven/com.example/bar/1.2.3", "SHA-256/cafebabe",
+                "maven/com.example/bar/1.2.3", "",
                 "module/baz/2.0.0", "")));
         String result = runFromJars(file);
-        assertInsideJavadoc(result, "@requires com.example.bar 1.2.3 SHA-256/cafebabe");
-        assertInsideJavadoc(result, "@requires com.example.baz 2.0.0");
+        assertInsideJavadoc(result, "@requires com.example.bar 1.2.3 SHA-256/");
+        assertInsideJavadoc(result, "@requires com.example.baz 2.0.0 SHA-256/");
     }
 
     @Test
@@ -278,6 +279,31 @@ public class PinModuleInfoTest {
         String result = runFromJars(file);
         assertThat(result).doesNotContain("@requires build.jenesis");
         assertInsideJavadoc(result, "@requires other.module 1.0.0");
+    }
+
+    @Test
+    public void recomputes_checksum_when_jar_is_present() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path jar = artifacts.resolve("module-bar-1.2.3.jar");
+        byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
+        Files.write(jar, payload);
+        writeVersions(Map.of("module/bar", "1.2.3 SHA-256/stale"));
+        String result = run(file);
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
+        }
+        String expected = HexFormat.of().formatHex(digest.digest(payload));
+        assertThat(result).contains("@requires bar 1.2.3 SHA-256/" + expected);
+        assertThat(result).doesNotContain("SHA-256/stale");
     }
 
     @Test

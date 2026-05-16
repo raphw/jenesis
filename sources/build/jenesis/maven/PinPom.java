@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 
 public class PinPom implements BuildStep {
@@ -17,14 +18,16 @@ public class PinPom implements BuildStep {
 
     private final String prefix;
     private final List<Path> pomFiles;
+    private final transient HashDigestFunction hashFunction;
 
-    public PinPom(String prefix, Path pomFile) {
-        this(prefix, List.of(pomFile));
+    public PinPom(String prefix, Path pomFile, HashDigestFunction hashFunction) {
+        this(prefix, List.of(pomFile), hashFunction);
     }
 
-    public PinPom(String prefix, List<Path> pomFiles) {
+    public PinPom(String prefix, List<Path> pomFiles, HashDigestFunction hashFunction) {
         this.prefix = prefix;
         this.pomFiles = List.copyOf(pomFiles);
+        this.hashFunction = hashFunction;
     }
 
     @Override
@@ -37,7 +40,7 @@ public class PinPom implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> entries = collectEntries(arguments, prefix);
+        SequencedMap<String, String> entries = collectEntries(arguments, prefix, hashFunction);
         for (Path pomFile : pomFiles) {
             updatePom(pomFile, entries);
         }
@@ -72,7 +75,9 @@ public class PinPom implements BuildStep {
         }
     }
 
-    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments, String prefix) throws IOException {
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments,
+                                                       String prefix,
+                                                       HashDigestFunction hashFunction) throws IOException {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -90,7 +95,13 @@ public class PinPom implements BuildStep {
                     if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
                         continue;
                     }
-                    entries.putIfAbsent(key.substring(slash + 1), properties.getProperty(key));
+                    String value = properties.getProperty(key);
+                    int space = value.indexOf(' ');
+                    String version = space < 0 ? value : value.substring(0, space);
+                    String existing = space < 0 ? null : value.substring(space + 1).trim();
+                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
+                    String checksum = computed != null ? computed : existing;
+                    entries.putIfAbsent(key.substring(slash + 1), checksum == null ? version : version + " " + checksum);
                 }
             }
             Path requiresFile = argument.folder().resolve(REQUIRES);
@@ -114,13 +125,27 @@ public class PinPom implements BuildStep {
                     }
                     String bomKey = suffix.substring(0, lastSlash);
                     String version = suffix.substring(lastSlash + 1);
-                    String checksum = properties.getProperty(key);
-                    String bomValue = checksum.isEmpty() ? version : version + " " + checksum;
-                    entries.putIfAbsent(bomKey, bomValue);
+                    String existing = properties.getProperty(key);
+                    String computed = computeChecksum(arguments.values(), key, hashFunction);
+                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
+                    entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
                 }
             }
         }
         return entries;
+    }
+
+    private static String computeChecksum(Iterable<BuildStepArgument> arguments,
+                                          String coordinate,
+                                          HashDigestFunction hashFunction) throws IOException {
+        String filename = coordinate.replace('/', '-') + ".jar";
+        for (BuildStepArgument argument : arguments) {
+            Path jar = argument.folder().resolve(BuildStep.ARTIFACTS).resolve(filename);
+            if (Files.isRegularFile(jar)) {
+                return hashFunction.algorithm() + "/" + HexFormat.of().formatHex(hashFunction.hash(jar));
+            }
+        }
+        return null;
     }
 
     static Set<String> collectInternal(SequencedMap<String, BuildStepArgument> arguments) throws IOException {

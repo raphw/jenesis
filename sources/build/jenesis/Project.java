@@ -44,8 +44,10 @@ public final class Project {
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            HashDigestFunction hashFunction = new HashDigestFunction(
+                    System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(builder.root(), "pom.xml",
-                    file -> new PinPom("maven", file)), BUILD);
+                    file -> new PinPom("maven", file, hashFunction)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
@@ -72,8 +74,10 @@ public final class Project {
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            HashDigestFunction hashFunction = new HashDigestFunction(
+                    System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
-                    file -> new PinModuleInfo("module", file)), BUILD);
+                    file -> new PinModuleInfo("module", file, hashFunction)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
@@ -108,8 +112,10 @@ public final class Project {
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            HashDigestFunction hashFunction = new HashDigestFunction(
+                    System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
-                    file -> new PinModuleInfo("module", file, true)), BUILD);
+                    file -> new PinModuleInfo("module", file, true, hashFunction)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 

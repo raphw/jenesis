@@ -49,6 +49,24 @@ public class TestModuleTest {
                      .resolve("TestSample.class"))) {
             requireNonNull(input).transferTo(output);
         }
+        Properties versions = new Properties();
+        versions.setProperty("maven/org.junit.platform/junit-platform-console",
+                "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
+        versions.setProperty("maven/org.junit.platform/junit-platform-reporting",
+                "1.11.4 SHA-256/df6896109bfaef4de8d2fa9e3371a6176936d1a45a6c0e7fd8f7e6dd6f4c5597");
+        versions.setProperty("maven/org.junit.platform/junit-platform-launcher",
+                "1.11.4 SHA-256/d7430bd029e7fcced53ee445e4d2d1a8a1e043ea4c4df43b6335a857f79761ae");
+        versions.setProperty("maven/org.junit.platform/junit-platform-engine",
+                "1.11.3 SHA-256/0043f72f611664735da8dc9a308bf12ecd2236b05339351c4741edb4d8fab0da");
+        versions.setProperty("maven/org.junit.platform/junit-platform-commons",
+                "1.11.3 SHA-256/be262964b0b6b48de977c61d4f931df8cf61e80e750cc3f3a0a39cdd21c1008c");
+        versions.setProperty("maven/org.opentest4j/opentest4j",
+                "1.3.0 SHA-256/48e2df636cab6563ced64dcdff8abb2355627cb236ef0bf37598682ddf742f1b");
+        versions.setProperty("maven/org.apiguardian/apiguardian-api",
+                "1.1.2 SHA-256/b509448ac506d607319f182537f0b35d71007582ec741832a1f111e5b5b70b38");
+        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.VERSIONS))) {
+            versions.store(writer, null);
+        }
     }
 
     @Test
