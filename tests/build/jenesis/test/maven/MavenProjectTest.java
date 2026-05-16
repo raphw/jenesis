@@ -650,6 +650,11 @@ public class MavenProjectTest {
                             <name>Alice Example</name>
                             <email>alice@example.com</email>
                         </developer>
+                        <developer>
+                            <id>bob</id>
+                            <name>Bob Example</name>
+                            <email>bob@example.com</email>
+                        </developer>
                     </developers>
                     <scm>
                         <connection>scm:git:https://example.com/project.git</connection>
@@ -678,9 +683,10 @@ public class MavenProjectTest {
                 Map.entry("project.url", "https://example.com/project"),
                 Map.entry("license.name", "Apache-2.0"),
                 Map.entry("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt"),
-                Map.entry("developer.id", "alice"),
-                Map.entry("developer.name", "Alice Example"),
-                Map.entry("developer.email", "alice@example.com"),
+                Map.entry("developer.alice.name", "Alice Example"),
+                Map.entry("developer.alice.email", "alice@example.com"),
+                Map.entry("developer.bob.name", "Bob Example"),
+                Map.entry("developer.bob.email", "bob@example.com"),
                 Map.entry("scm.connection", "scm:git:https://example.com/project.git"),
                 Map.entry("scm.developerConnection", "scm:git:git@example.com:project.git"),
                 Map.entry("scm.url", "https://example.com/project"));

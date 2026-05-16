@@ -286,11 +286,27 @@ public class MavenProject implements BuildExecutorModule {
                     }
                 }
                 case "developers" -> {
-                    Element first = firstChild(node, "developer");
-                    if (first != null) {
-                        copyChildText(first, "id", result, "developer.id");
-                        copyChildText(first, "name", result, "developer.name");
-                        copyChildText(first, "email", result, "developer.email");
+                    NodeList developers = node.getChildNodes();
+                    for (int j = 0; j < developers.getLength(); j++) {
+                        Node devNode = developers.item(j);
+                        if (devNode.getNodeType() != Node.ELEMENT_NODE) {
+                            continue;
+                        }
+                        String devName = devNode.getLocalName() == null ? devNode.getNodeName() : devNode.getLocalName();
+                        if (!"developer".equals(devName)) {
+                            continue;
+                        }
+                        Element developer = (Element) devNode;
+                        Element idElement = firstChild(developer, "id");
+                        if (idElement == null) {
+                            continue;
+                        }
+                        String id = idElement.getTextContent().trim();
+                        if (id.isEmpty()) {
+                            continue;
+                        }
+                        copyChildText(developer, "name", result, "developer." + id + ".name");
+                        copyChildText(developer, "email", result, "developer." + id + ".email");
                     }
                 }
                 case "scm" -> {

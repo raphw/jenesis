@@ -1081,10 +1081,12 @@ project.url=https://github.com/raphw/jenesis
 license.name=Apache-2.0
 license.url=https://www.apache.org/licenses/LICENSE-2.0.txt
 
-# Single <developer> entry. Same single-instance rule as license.
-developer.id=raphw
-developer.name=Rafael Winterhalter
-developer.email=rafael.wth@gmail.com
+# One or more <developer> entries, keyed by id. The key after `developer.`
+# names the developer's id (used verbatim as <id>); the remaining suffix
+# selects the attribute (`name`, `email`). Add another developer by using
+# a different id segment.
+developer.raphw.name=Rafael Winterhalter
+developer.raphw.email=rafael.wth@gmail.com
 
 # <scm> block. <developerConnection> is omitted-then-derived: when
 # scm.developerConnection is missing, the emitter writes scm.connection

@@ -350,9 +350,10 @@ public class PomTest {
         metadata.setProperty("project.url", "https://example.com/jenesis");
         metadata.setProperty("license.name", "Apache-2.0");
         metadata.setProperty("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
-        metadata.setProperty("developer.id", "alice");
-        metadata.setProperty("developer.name", "Alice Example");
-        metadata.setProperty("developer.email", "alice@example.com");
+        metadata.setProperty("developer.alice.name", "Alice Example");
+        metadata.setProperty("developer.alice.email", "alice@example.com");
+        metadata.setProperty("developer.bob.name", "Bob Example");
+        metadata.setProperty("developer.bob.email", "bob@example.com");
         metadata.setProperty("scm.connection", "scm:git:https://example.com/jenesis.git");
         metadata.setProperty("scm.url", "https://example.com/jenesis");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
@@ -375,6 +376,8 @@ public class PomTest {
         assertThat(pom).contains("<name>Apache-2.0</name>");
         assertThat(pom).contains("<id>alice</id>");
         assertThat(pom).contains("<email>alice@example.com</email>");
+        assertThat(pom).contains("<id>bob</id>");
+        assertThat(pom).contains("<email>bob@example.com</email>");
         assertThat(pom).contains("<connection>scm:git:https://example.com/jenesis.git</connection>");
     }
 
