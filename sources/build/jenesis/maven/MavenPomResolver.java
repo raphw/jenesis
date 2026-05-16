@@ -31,12 +31,6 @@ public class MavenPomResolver implements Resolver {
                                                      SequencedSet<String> coordinates,
                                                      SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
-        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-        coordinates.forEach(coordinate -> {
-            MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(coordinate);
-            dependencies.put(parsed.key(),
-                    new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, null, null));
-        });
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         versions.forEach((coordinate, value) -> {
             MavenDependencyKey key = MavenDependencyKey.parseKey(coordinate);
@@ -45,6 +39,22 @@ public class MavenPomResolver implements Resolver {
             String checksum = split < 0 ? null : value.substring(split + 1).trim();
             managedDependencies.put(key, new MavenDependencyValue(
                     version, MavenDependencyScope.COMPILE, null, null, null, checksum));
+        });
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        coordinates.forEach(coordinate -> {
+            MavenDependencyKey.Versioned parsed = MavenDependencyKey.tryParse(coordinate);
+            if (parsed.version() != null) {
+                dependencies.put(parsed.key(),
+                        new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, null, null));
+                return;
+            }
+            MavenDependencyValue managed = managedDependencies.get(parsed.key());
+            if (managed == null) {
+                throw new IllegalStateException(
+                        "No version pinned for " + coordinate + " (add to dependencyManagement)");
+            }
+            dependencies.put(parsed.key(), new MavenDependencyValue(
+                    managed.version(), MavenDependencyScope.COMPILE, null, null, null, managed.checksum()));
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,

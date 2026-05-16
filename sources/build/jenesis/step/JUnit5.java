@@ -2,10 +2,10 @@ package build.jenesis.step;
 
 import module java.base;
 
-public record JUnit5(String jupiterVersion, String platformVersion) implements TestEngine {
+public record JUnit5() implements TestEngine {
 
     public static final String JUPITER_MARKER_CLASS = "org.junit.jupiter.api.Test";
-    public static final String PLATFORM_MARKER_CLASS = "org.junit.platform.commons.JUnitException";
+    private static final String DEFAULT_PLATFORM_VERSION = "1.11.4";
 
     @Override
     public String module() {
@@ -15,7 +15,7 @@ public record JUnit5(String jupiterVersion, String platformVersion) implements T
     @Override
     public Set<String> coordinates() {
         LinkedHashSet<String> coordinates = new LinkedHashSet<>();
-        coordinates.add("maven/org.junit.platform/junit-platform-console/" + platformVersion);
+        coordinates.add("maven/org.junit.platform/junit-platform-console");
         coordinates.add("module/org.junit.platform.console");
         return coordinates;
     }
@@ -23,11 +23,16 @@ public record JUnit5(String jupiterVersion, String platformVersion) implements T
     @Override
     public Map<String, String> versions() {
         LinkedHashMap<String, String> versions = new LinkedHashMap<>();
-        versions.put("module/org.junit.platform.console", platformVersion);
-        versions.put("module/org.junit.platform.commons", platformVersion);
-        versions.put("module/org.junit.platform.engine", platformVersion);
-        versions.put("module/org.junit.platform.launcher", platformVersion);
-        versions.put("module/org.junit.platform.reporting", platformVersion);
+        versions.put("maven/org.junit.platform/junit-platform-console", DEFAULT_PLATFORM_VERSION);
+        versions.put("maven/org.junit.platform/junit-platform-commons", DEFAULT_PLATFORM_VERSION);
+        versions.put("maven/org.junit.platform/junit-platform-engine", DEFAULT_PLATFORM_VERSION);
+        versions.put("maven/org.junit.platform/junit-platform-launcher", DEFAULT_PLATFORM_VERSION);
+        versions.put("maven/org.junit.platform/junit-platform-reporting", DEFAULT_PLATFORM_VERSION);
+        versions.put("module/org.junit.platform.console", DEFAULT_PLATFORM_VERSION);
+        versions.put("module/org.junit.platform.commons", DEFAULT_PLATFORM_VERSION);
+        versions.put("module/org.junit.platform.engine", DEFAULT_PLATFORM_VERSION);
+        versions.put("module/org.junit.platform.launcher", DEFAULT_PLATFORM_VERSION);
+        versions.put("module/org.junit.platform.reporting", DEFAULT_PLATFORM_VERSION);
         return versions;
     }
 

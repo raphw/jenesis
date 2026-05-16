@@ -31,6 +31,17 @@ public record MavenDependencyKey(String groupId, String artifactId, String type,
         };
     }
 
+    public static Versioned tryParse(String suffix) {
+        String[] elements = suffix.split("/");
+        return switch (elements.length) {
+            case 2 -> new Versioned(new MavenDependencyKey(elements[0], elements[1], "jar", null), null);
+            case 3 -> new Versioned(new MavenDependencyKey(elements[0], elements[1], "jar", null), elements[2]);
+            case 4 -> new Versioned(new MavenDependencyKey(elements[0], elements[1], elements[2], null), elements[3]);
+            case 5 -> new Versioned(new MavenDependencyKey(elements[0], elements[1], elements[2], elements[3]), elements[4]);
+            default -> throw new IllegalArgumentException("Insufficient Maven coordinate: " + suffix);
+        };
+    }
+
     public static MavenDependencyKey parseKey(String suffix) {
         String[] elements = suffix.split("/");
         return switch (elements.length) {

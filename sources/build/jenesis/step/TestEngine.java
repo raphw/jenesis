@@ -27,11 +27,8 @@ public interface TestEngine extends Serializable {
 
     static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
         String jupiterEntry = JUnit5.JUPITER_MARKER_CLASS.replace('.', '/') + ".class";
-        String platformEntry = JUnit5.PLATFORM_MARKER_CLASS.replace('.', '/') + ".class";
         String junit4Entry = JUnit4.MARKER_CLASS.replace('.', '/') + ".class";
-        String jupiterVersion = null;
-        String platformVersion = null;
-        boolean junit4 = false;
+        boolean jupiter = false, junit4 = false;
         for (Path folder : folders) {
             Path artifacts = folder.resolve(BuildStep.ARTIFACTS);
             if (!Files.exists(artifacts)) {
@@ -40,11 +37,8 @@ public interface TestEngine extends Serializable {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
                 for (Path file : stream) {
                     try (JarFile jarFile = new JarFile(file.toFile())) {
-                        if (jupiterVersion == null && jarFile.getEntry(jupiterEntry) != null) {
-                            jupiterVersion = manifestVersion(jarFile);
-                        }
-                        if (platformVersion == null && jarFile.getEntry(platformEntry) != null) {
-                            platformVersion = manifestVersion(jarFile);
+                        if (!jupiter && jarFile.getEntry(jupiterEntry) != null) {
+                            jupiter = true;
                         }
                         if (!junit4 && jarFile.getEntry(junit4Entry) != null) {
                             junit4 = true;
@@ -56,8 +50,8 @@ public interface TestEngine extends Serializable {
                 }
             }
         }
-        if (jupiterVersion != null && platformVersion != null) {
-            return Optional.of(new JUnit5(jupiterVersion, platformVersion));
+        if (jupiter) {
+            return Optional.of(new JUnit5());
         } else if (junit4) {
             return Optional.of(new JUnit4());
         }
@@ -87,11 +81,4 @@ public interface TestEngine extends Serializable {
         return false;
     }
 
-    private static String manifestVersion(JarFile jarFile) throws IOException {
-        Manifest manifest = jarFile.getManifest();
-        if (manifest == null) {
-            return null;
-        }
-        return manifest.getMainAttributes().getValue("Implementation-Version");
-    }
 }

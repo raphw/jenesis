@@ -127,14 +127,30 @@ public class TestModule implements BuildExecutorModule {
             try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
                 properties.store(writer, null);
             }
-            if (resolved != null && selectedPrefix != null && !resolved.versions().isEmpty()) {
+            if (resolved != null && selectedPrefix != null) {
                 Properties versions = new SequencedProperties();
+                for (BuildStepArgument argument : arguments.values()) {
+                    Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
+                    if (!Files.exists(versionsFile)) {
+                        continue;
+                    }
+                    Properties upstream = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(versionsFile)) {
+                        upstream.load(reader);
+                    }
+                    for (String key : upstream.stringPropertyNames()) {
+                        int index = key.indexOf('/');
+                        if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
+                            versions.putIfAbsent(key, upstream.getProperty(key));
+                        }
+                    }
+                }
                 for (Map.Entry<String, String> entry : resolved.versions().entrySet()) {
                     String coordinate = entry.getKey();
                     int index = coordinate.indexOf('/');
                     String prefix = index > 0 ? coordinate.substring(0, index) : "";
                     if (selectedPrefix.equals(prefix)) {
-                        versions.setProperty(coordinate, entry.getValue());
+                        versions.putIfAbsent(coordinate, entry.getValue());
                     }
                 }
                 if (!versions.isEmpty()) {

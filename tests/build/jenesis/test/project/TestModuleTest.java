@@ -96,7 +96,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                new TestModule(new JUnit5(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of("maven", new MavenDefaultRepository()),
                         Map.of("maven", new MavenPomResolver())).jarsOnly(false),
@@ -115,7 +115,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                new TestModule(new JUnit5(),
                         Map.of("maven", new MavenDefaultRepository()),
                         Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
@@ -153,7 +153,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                new TestModule(new JUnit5(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
@@ -163,7 +163,7 @@ public class TestModuleTest {
 
         Properties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
-                .containsExactly("maven/org.junit.platform/junit-platform-console/1.11.4");
+                .containsExactly("maven/org.junit.platform/junit-platform-console");
     }
 
     @Test
@@ -173,7 +173,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                new TestModule(new JUnit5(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
@@ -193,7 +193,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                new TestModule(new JUnit5(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of())
@@ -212,7 +212,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                new TestModule(new JUnit5(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of()).jarsOnly(false),
