@@ -33,6 +33,22 @@ public class PinPomTest {
         }
     }
 
+    private void writeRequires(Map<String, String> entries) throws IOException {
+        Properties properties = new SequencedProperties();
+        entries.forEach(properties::setProperty);
+        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.REQUIRES))) {
+            properties.store(writer, null);
+        }
+    }
+
+    private void writeIdentity(Map<String, String> entries) throws IOException {
+        Properties properties = new SequencedProperties();
+        entries.forEach(properties::setProperty);
+        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.IDENTITY))) {
+            properties.store(writer, null);
+        }
+    }
+
     private String run(Path pomFile) throws IOException {
         new PinPom("maven", pomFile).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
@@ -240,5 +256,30 @@ public class PinPomTest {
         String afterFirst = run(pom);
         String afterSecond = run(pom);
         assertThat(afterSecond).isEqualTo(afterFirst);
+    }
+
+    @Test
+    public void skips_internal_coordinates_from_identity() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        writeRequires(new LinkedHashMap<>(Map.of(
+                "maven/com.example/internal/0-SNAPSHOT", "",
+                "maven/com.example/external/1.2.3", "SHA-256/cafebabe")));
+        writeVersions(new LinkedHashMap<>(Map.of(
+                "maven/com.example/internal", "0-SNAPSHOT",
+                "maven/com.example/managed", "9.9")));
+        writeIdentity(Map.of("maven/com.example/internal/0-SNAPSHOT", ""));
+        String result = run(pom);
+        assertThat(result).doesNotContain("<artifactId>internal</artifactId>");
+        assertThat(result).contains("<artifactId>external</artifactId>");
+        assertThat(result).contains("<artifactId>managed</artifactId>");
     }
 }

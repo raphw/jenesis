@@ -259,12 +259,22 @@ public final class Project {
                     }
                 }
             }
-            SequencedSet<String> allInputs = inherited.sequencedKeySet();
             for (String name : encoded) {
+                String mainSegment = "/" + MODULE_PREFIX + name + "/";
+                String testSegment = "/" + TEST_MODULE_PREFIX + name + "/";
+                SequencedSet<String> moduleInputs = new LinkedHashSet<>();
+                for (String key : inherited.sequencedKeySet()) {
+                    if (key.contains(mainSegment) || key.contains(testSegment)) {
+                        moduleInputs.add(key);
+                    }
+                }
+                if (moduleInputs.isEmpty()) {
+                    continue;
+                }
                 Path file = root
                         .resolve(URLDecoder.decode(name, StandardCharsets.UTF_8))
                         .resolve(fileName);
-                buildExecutor.addStep(MODULE_PREFIX + name, stepFactory.apply(file), allInputs);
+                buildExecutor.addStep(MODULE_PREFIX + name, stepFactory.apply(file), moduleInputs);
             }
         }
     }

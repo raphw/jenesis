@@ -71,6 +71,7 @@ public class PinModuleInfo implements BuildStep {
     }
 
     public static SequencedMap<String, String> collectFromJars(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
+        Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> versionByFile = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path requiresFile = argument.folder().resolve(REQUIRES);
@@ -82,6 +83,9 @@ public class PinModuleInfo implements BuildStep {
                 properties.load(reader);
             }
             for (String coordinate : properties.stringPropertyNames()) {
+                if (internal.contains(coordinate)) {
+                    continue;
+                }
                 int firstSlash = coordinate.indexOf('/');
                 int lastSlash = coordinate.lastIndexOf('/');
                 if (firstSlash <= 0 || lastSlash == firstSlash) {
@@ -122,6 +126,7 @@ public class PinModuleInfo implements BuildStep {
     }
 
     static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments, String prefix) throws IOException {
+        Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path versionsFile = argument.folder().resolve(VERSIONS);
@@ -131,6 +136,9 @@ public class PinModuleInfo implements BuildStep {
                     properties.load(reader);
                 }
                 for (String key : properties.stringPropertyNames()) {
+                    if (internal.contains(key)) {
+                        continue;
+                    }
                     int slash = key.indexOf('/');
                     if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
                         continue;
@@ -145,6 +153,9 @@ public class PinModuleInfo implements BuildStep {
                     properties.load(reader);
                 }
                 for (String key : properties.stringPropertyNames()) {
+                    if (internal.contains(key)) {
+                        continue;
+                    }
                     int slash = key.indexOf('/');
                     if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
                         continue;
@@ -163,6 +174,29 @@ public class PinModuleInfo implements BuildStep {
             }
         }
         return entries;
+    }
+
+    static Set<String> collectInternal(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
+        Set<String> internal = new LinkedHashSet<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path identityFile = argument.folder().resolve(IDENTITY);
+            if (!Files.exists(identityFile)) {
+                continue;
+            }
+            Properties properties = new SequencedProperties();
+            try (Reader reader = Files.newBufferedReader(identityFile)) {
+                properties.load(reader);
+            }
+            for (String coord : properties.stringPropertyNames()) {
+                internal.add(coord);
+                int firstSlash = coord.indexOf('/');
+                int lastSlash = coord.lastIndexOf('/');
+                if (firstSlash > 0 && lastSlash > firstSlash) {
+                    internal.add(coord.substring(0, lastSlash));
+                }
+            }
+        }
+        return internal;
     }
 
     private static String updateJavadoc(String prelude, SequencedMap<String, String> entries) {

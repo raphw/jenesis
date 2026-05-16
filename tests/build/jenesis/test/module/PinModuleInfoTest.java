@@ -41,6 +41,14 @@ public class PinModuleInfoTest {
         }
     }
 
+    private void writeIdentity(Map<String, String> entries) throws IOException {
+        Properties properties = new SequencedProperties();
+        entries.forEach(properties::setProperty);
+        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.IDENTITY))) {
+            properties.store(writer, null);
+        }
+    }
+
     private Path writeAutomaticJar(Path artifacts, String filename, String moduleName) throws IOException {
         Path jar = artifacts.resolve(filename);
         Manifest manifest = new Manifest();
@@ -270,5 +278,42 @@ public class PinModuleInfoTest {
         String result = runFromJars(file);
         assertThat(result).doesNotContain("@requires build.jenesis");
         assertInsideJavadoc(result, "@requires other.module 1.0.0");
+    }
+
+    @Test
+    public void skips_internal_coordinates_from_identity() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeVersions(new LinkedHashMap<>(Map.of(
+                "module/internal", "1.0",
+                "module/external", "2.0")));
+        writeIdentity(Map.of("module/internal/1.0", ""));
+        String result = run(file);
+        assertThat(result).doesNotContain("@requires internal");
+        assertInsideJavadoc(result, "@requires external 2.0");
+    }
+
+    @Test
+    public void from_jars_skips_internal_coordinates_from_identity() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        writeAutomaticJar(artifacts, "module-internal-1.0.0.jar", "internal.module");
+        writeAutomaticJar(artifacts, "module-external-2.0.0.jar", "external.module");
+        writeRequires(new LinkedHashMap<>(Map.of(
+                "module/internal/1.0.0", "",
+                "module/external/2.0.0", "")));
+        writeIdentity(Map.of("module/internal/1.0.0", ""));
+        String result = runFromJars(file);
+        assertThat(result).doesNotContain("@requires internal.module");
+        assertInsideJavadoc(result, "@requires external.module 2.0.0");
     }
 }
