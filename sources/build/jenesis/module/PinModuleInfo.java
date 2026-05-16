@@ -82,8 +82,11 @@ public class PinModuleInfo implements BuildStep {
                 properties.load(reader);
             }
             for (String coordinate : properties.stringPropertyNames()) {
+                int firstSlash = coordinate.indexOf('/');
                 int lastSlash = coordinate.lastIndexOf('/');
-                if (lastSlash <= 0) {
+                if (firstSlash <= 0 || lastSlash == firstSlash) {
+                    // Skip coordinates with no version segment (e.g. "module/foo"); the last
+                    // segment must be a real version, not the module/artifact name.
                     continue;
                 }
                 String version = coordinate.substring(lastSlash + 1);

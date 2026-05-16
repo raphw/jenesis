@@ -33,12 +33,42 @@ public class PinModuleInfoTest {
         }
     }
 
+    private void writeRequires(Map<String, String> entries) throws IOException {
+        Properties properties = new SequencedProperties();
+        entries.forEach(properties::setProperty);
+        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.REQUIRES))) {
+            properties.store(writer, null);
+        }
+    }
+
+    private Path writeAutomaticJar(Path artifacts, String filename, String moduleName) throws IOException {
+        Path jar = artifacts.resolve(filename);
+        Manifest manifest = new Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        manifest.getMainAttributes().putValue("Automatic-Module-Name", moduleName);
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            // Manifest is implicit; no further entries needed for an automatic module.
+        }
+        return jar;
+    }
+
     private String run(Path moduleInfo) throws IOException {
         new PinModuleInfo("module", moduleInfo).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
                                 Map.of(Path.of(BuildStep.VERSIONS), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        return Files.readString(moduleInfo);
+    }
+
+    private String runFromJars(Path moduleInfo) throws IOException {
+        new PinModuleInfo("module", moduleInfo, true).apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
+                                input,
+                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         return Files.readString(moduleInfo);
@@ -202,5 +232,43 @@ public class PinModuleInfoTest {
         String afterFirst = run(file);
         String afterSecond = run(file);
         assertThat(afterSecond).isEqualTo(afterFirst);
+    }
+
+    @Test
+    public void from_jars_pins_module_names_with_coordinate_versions() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        writeAutomaticJar(artifacts, "maven-com.example-bar-1.2.3.jar", "com.example.bar");
+        writeAutomaticJar(artifacts, "module-baz-2.0.0.jar", "com.example.baz");
+        writeRequires(new LinkedHashMap<>(Map.of(
+                "maven/com.example/bar/1.2.3", "SHA-256/cafebabe",
+                "module/baz/2.0.0", "")));
+        String result = runFromJars(file);
+        assertInsideJavadoc(result, "@requires com.example.bar 1.2.3 SHA-256/cafebabe");
+        assertInsideJavadoc(result, "@requires com.example.baz 2.0.0");
+    }
+
+    @Test
+    public void from_jars_skips_versionless_coordinates() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        writeAutomaticJar(artifacts, "module-build.jenesis.jar", "build.jenesis");
+        writeAutomaticJar(artifacts, "module-other-1.0.0.jar", "other.module");
+        writeRequires(new LinkedHashMap<>(Map.of(
+                "module/build.jenesis", "",
+                "module/other/1.0.0", "")));
+        String result = runFromJars(file);
+        assertThat(result).doesNotContain("@requires build.jenesis");
+        assertInsideJavadoc(result, "@requires other.module 1.0.0");
     }
 }
