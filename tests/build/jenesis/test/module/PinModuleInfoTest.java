@@ -122,6 +122,58 @@ public class PinModuleInfoTest {
         assertThat(result).contains("@tests foo");
         assertThat(result).contains("@release 25");
         assertThat(result).contains("@requires junit 5.11.3 SHA-256/cafebabe");
+        assertInsideJavadoc(result, "@requires junit 5.11.3 SHA-256/cafebabe");
+    }
+
+    @Test
+    public void inserts_inside_existing_javadoc_when_no_requires_present() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * Existing description.
+                 *
+                 * @release 25
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeVersions(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
+        String result = run(file);
+        assertInsideJavadoc(result, "@requires bar 1.0 SHA-256/cafebabe");
+        assertThat(result.indexOf("@release 25"))
+                .isLessThan(result.indexOf("@requires bar"));
+        assertThat(result.indexOf("@requires bar"))
+                .isLessThan(result.indexOf("*/"));
+    }
+
+    @Test
+    public void inserts_inside_existing_javadoc_with_only_other_tags() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @release 25
+                 * @tests build.foo
+                 */
+                open module foo.test {
+                  requires foo;
+                }
+                """);
+        writeVersions(Map.of(
+                "module/a", "1.0",
+                "module/b", "2.0"));
+        String result = run(file);
+        assertInsideJavadoc(result, "@requires a 1.0");
+        assertInsideJavadoc(result, "@requires b 2.0");
+    }
+
+    private static void assertInsideJavadoc(String content, String needle) {
+        int needleIdx = content.indexOf(needle);
+        assertThat(needleIdx).as("needle '%s' is present", needle).isNotNegative();
+        int openingIdx = content.lastIndexOf("/**", needleIdx);
+        int closingIdx = content.indexOf("*/", needleIdx);
+        assertThat(openingIdx).as("'%s' is preceded by /**", needle).isNotNegative();
+        assertThat(closingIdx).as("'%s' is followed by */", needle).isGreaterThan(needleIdx);
     }
 
     @Test

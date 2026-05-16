@@ -202,9 +202,14 @@ public class PinModuleInfo implements BuildStep {
             }
         }
         if (insertAt < 0) {
-            insertAt = lines.size() - 1;
-            if (insertAt < 1) {
-                insertAt = 1;
+            for (int i = lines.size() - 1; i >= 0; i--) {
+                if (lines.get(i).contains("*/")) {
+                    insertAt = i;
+                    break;
+                }
+            }
+            if (insertAt < 0) {
+                insertAt = Math.max(1, lines.size() - 1);
             }
         }
         List<String> requires = new ArrayList<>();
