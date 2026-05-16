@@ -157,15 +157,15 @@ public class ProjectTest {
 
     @Test
     public void assembler_can_be_overridden() {
-        Project.Assembler custom = (_, _) -> (_, _) -> {};
+        Project.Assembler custom = (_, _, _, _) -> (_, _) -> {};
         assertThat(Project.builder().assembler(custom).assembler()).isSameAs(custom);
     }
 
     @Test
     public void default_assembler_returns_a_module() {
         ModuleDescriptor descriptor = new MavenModuleDescriptor("module-sources", new LinkedHashSet<>());
-        Project.Context context = new Project.Context(true, false, false, null, Map.of(), Map.of());
-        assertThat(Project.Assembler.ofJava().apply(context, descriptor)).isNotNull();
+        Project.Context context = new Project.Context(true, false, false, null);
+        assertThat(Project.Assembler.ofJava().apply(context, descriptor, Map.of(), Map.of())).isNotNull();
     }
 
     @Test

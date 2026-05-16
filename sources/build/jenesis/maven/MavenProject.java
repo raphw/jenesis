@@ -13,6 +13,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.DependencyScope;
@@ -46,16 +47,15 @@ public class MavenProject implements BuildExecutorModule {
                 BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
     }
 
-    public static BuildExecutorModule make(Path root,
-                                           Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {
-        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), builder);
+    public static BuildExecutorModule make(Path root, MultiProjectAssembler<MavenModuleDescriptor> assembler) {
+        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), assembler);
     }
 
     public static BuildExecutorModule make(Path root,
                                            String prefix,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
-                                           Function<? super MavenModuleDescriptor, BuildExecutorModule> builder) {
+                                           MultiProjectAssembler<MavenModuleDescriptor> assembler) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 identifier -> identifier.startsWith(MODULE + "/")
                         ? Optional.of(identifier.substring(MODULE.length() + 1, identifier.indexOf('/', MODULE.length() + 1)))
@@ -85,7 +85,9 @@ public class MavenProject implements BuildExecutorModule {
                         }, inherited.sequencedKeySet());
                     }
                     buildExecutor.addModule("produce",
-                            builder.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet())),
+                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet()),
+                                    mergedRepositories,
+                                    resolverMap),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(

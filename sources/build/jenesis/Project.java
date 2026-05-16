@@ -33,19 +33,20 @@ public final class Project {
             boolean tests,
             boolean sources,
             boolean javadoc,
-            Path root,
-            Map<String, Repository> repositories,
-            Map<String, Resolver> resolvers
+            Path root
     ) {
     }
 
     @FunctionalInterface
     public interface Assembler {
 
-        BuildExecutorModule apply(Context context, ModuleDescriptor descriptor);
+        BuildExecutorModule apply(Context context,
+                                  ModuleDescriptor descriptor,
+                                  Map<String, Repository> repositories,
+                                  Map<String, Resolver> resolvers);
 
         static Assembler ofJava() {
-            return (context, descriptor) -> (sub, outerInherited) -> {
+            return (context, descriptor, repositories, resolvers) -> (sub, outerInherited) -> {
                 BuildExecutorModule java;
                 if (context.tests()) {
                     Properties module = new Properties();
@@ -56,7 +57,7 @@ public final class Project {
                         }
                     }
                     boolean test = module.getProperty("tests") != null;
-                    java = new JavaModule().test(test, null, context.repositories(), context.resolvers());
+                    java = new JavaModule().test(test, null, repositories, resolvers);
                 } else {
                     java = new JavaModule();
                 }
@@ -92,26 +93,14 @@ public final class Project {
         Function<String, String> apply(BuildExecutor executor, Builder builder, Assembler assembler) throws IOException;
 
         Layout MAVEN = (executor, builder, assembler) -> {
-            Map<String, Repository> repositories = new LinkedHashMap<>();
-            repositories.put("maven", new MavenDefaultRepository());
-            if (builder.repositories() != null) {
-                repositories.putAll(builder.repositories());
-            }
-            Map<String, Resolver> resolvers = new LinkedHashMap<>();
-            resolvers.put("maven", new MavenPomResolver());
-            if (builder.resolvers() != null) {
-                resolvers.putAll(builder.resolvers());
-            }
             Context context = new Context(builder.tests(),
                     builder.sources(),
                     builder.javadoc(),
-                    builder.root(),
-                    Collections.unmodifiableMap(repositories),
-                    Collections.unmodifiableMap(resolvers));
+                    builder.root());
             Assembler wrapped = new PomAwareAssembler(assembler, builder);
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(),
-                            descriptor -> wrapped.apply(context, descriptor))));
+                            (descriptor, repositories, resolvers) -> wrapped.apply(context, descriptor, repositories, resolvers))));
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -140,12 +129,11 @@ public final class Project {
                 Context context = new Context(builder.tests(),
                         builder.sources(),
                         builder.javadoc(),
-                        builder.root(),
-                        Collections.unmodifiableMap(repositories),
-                        Collections.unmodifiableMap(resolvers));
+                        builder.root());
                 sub.addModule("modules", ModularProject.make(builder.root(),
-                        context.repositories(), context.resolvers(),
-                        descriptor -> assembler.apply(context, descriptor)));
+                        Collections.unmodifiableMap(repositories),
+                        Collections.unmodifiableMap(resolvers),
+                        (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(context, descriptor, mergedRepos, mergedResolvers)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
@@ -179,12 +167,11 @@ public final class Project {
                 Context context = new Context(builder.tests(),
                         builder.sources(),
                         builder.javadoc(),
-                        builder.root(),
-                        Collections.unmodifiableMap(repositories),
-                        Collections.unmodifiableMap(resolvers));
+                        builder.root());
                 sub.addModule("modules", ModularProject.make(builder.root(),
-                        context.repositories(), context.resolvers(),
-                        descriptor -> wrapped.apply(context, descriptor)));
+                        Collections.unmodifiableMap(repositories),
+                        Collections.unmodifiableMap(resolvers),
+                        (descriptor, mergedRepos, mergedResolvers) -> wrapped.apply(context, descriptor, mergedRepos, mergedResolvers)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
@@ -301,8 +288,11 @@ public final class Project {
         }
 
         @Override
-        public BuildExecutorModule apply(Context context, ModuleDescriptor descriptor) {
-            BuildExecutorModule delegate = base.apply(context, descriptor);
+        public BuildExecutorModule apply(Context context,
+                                         ModuleDescriptor descriptor,
+                                         Map<String, Repository> repositories,
+                                         Map<String, Resolver> resolvers) {
+            BuildExecutorModule delegate = base.apply(context, descriptor, repositories, resolvers);
             return new BuildExecutorModule() {
                 @Override
                 public Optional<String> resolve(String path) {
@@ -322,7 +312,6 @@ public final class Project {
             };
         }
     }
-
 
     public static void main(String... selectors) {
         try {

@@ -468,7 +468,7 @@ public class MavenProjectTest {
                 "maven",
                 new MavenDefaultRepository(repository.toUri(), null, Map.of()),
                 new MavenPomResolver(),
-                descriptor -> {
+                (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();
                         case "module-bar" -> assertThat(descriptor.dependencies()).containsExactly("module-foo");

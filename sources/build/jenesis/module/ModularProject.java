@@ -12,6 +12,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.DependencyScope;
@@ -41,23 +42,23 @@ public class ModularProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
-                                           Function<? super ModularModuleDescriptor, BuildExecutorModule> builder) {
+                                           MultiProjectAssembler<ModularModuleDescriptor> assembler) {
         return make(root,
                 repositories,
                 Map.of("module", new ModularJarResolver(true)),
-                builder);
+                assembler);
     }
 
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           Function<? super ModularModuleDescriptor, BuildExecutorModule> builder) {
+                                           MultiProjectAssembler<ModularModuleDescriptor> assembler) {
         return make(root,
                 "module",
                 _ -> true,
                 repositories,
                 resolvers,
-                builder);
+                assembler);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -65,7 +66,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Predicate<Path> filter,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           Function<? super ModularModuleDescriptor, BuildExecutorModule> builder) {
+                                           MultiProjectAssembler<ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
@@ -92,7 +93,9 @@ public class ModularProject implements BuildExecutorModule {
                         }, inherited.sequencedKeySet());
                     }
                     buildExecutor.addModule("produce",
-                            builder.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet())),
+                            assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
+                                    mergedRepositories,
+                                    resolvers),
                             Stream.concat(
                                             inherited.sequencedKeySet().stream(),
                                             Stream.of(
