@@ -35,7 +35,10 @@ public class ModularJarResolver implements Resolver {
         Queue<String> queue = new ArrayDeque<>(coordinates);
         int runtime = Runtime.version().feature();
         while (!queue.isEmpty()) {
-            String current = queue.remove();
+            String raw = queue.remove();
+            int versionSplit = raw.indexOf('/');
+            String current = versionSplit < 0 ? raw : raw.substring(0, versionSplit);
+            String inlineVersion = versionSplit < 0 ? null : raw.substring(versionSplit + 1);
             if (resolved.contains(current) || unresolved.contains(current)) {
                 continue;
             }
@@ -50,7 +53,7 @@ public class ModularJarResolver implements Resolver {
                 checksum = split < 0 ? null : pinValue.substring(split + 1).trim();
             }
             String hint = propagated.get(current);
-            String requested = pin != null ? pin : hint;
+            String requested = pin != null ? pin : (hint != null ? hint : inlineVersion);
             Repository repository = repositories.getOrDefault(prefix, Repository.empty());
             RepositoryItem item = requested == null
                     ? repository.fetch(executor, current).orElse(null)
