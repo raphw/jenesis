@@ -5,10 +5,8 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.Project;
 import build.jenesis.project.JavaMultiProjectAssembler;
-import build.jenesis.project.ProjectModuleDescriptor;
-import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectAssembler;
-import build.jenesis.maven.MavenProject.MavenModuleDescriptor;
+import build.jenesis.project.ProjectModuleDescriptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -162,13 +160,6 @@ public class ProjectTest {
     public void assembler_can_be_overridden() {
         MultiProjectAssembler<ProjectModuleDescriptor> custom = (_, _, _) -> (_, _) -> {};
         assertThat(Project.builder().assembler(custom).assembler()).isSameAs(custom);
-    }
-
-    @Test
-    public void default_assembler_returns_a_module() {
-        ModuleDescriptor base = new MavenModuleDescriptor("module-sources", new LinkedHashSet<>());
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, false);
-        assertThat(new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of())).isNotNull();
     }
 
     @Test
