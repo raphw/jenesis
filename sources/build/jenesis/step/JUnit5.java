@@ -24,15 +24,7 @@ public record JUnit5() implements TestEngine {
     public Map<String, String> versions() {
         LinkedHashMap<String, String> versions = new LinkedHashMap<>();
         versions.put("maven/org.junit.platform/junit-platform-console", DEFAULT_PLATFORM_VERSION);
-        versions.put("maven/org.junit.platform/junit-platform-commons", DEFAULT_PLATFORM_VERSION);
-        versions.put("maven/org.junit.platform/junit-platform-engine", DEFAULT_PLATFORM_VERSION);
-        versions.put("maven/org.junit.platform/junit-platform-launcher", DEFAULT_PLATFORM_VERSION);
-        versions.put("maven/org.junit.platform/junit-platform-reporting", DEFAULT_PLATFORM_VERSION);
         versions.put("module/org.junit.platform.console", DEFAULT_PLATFORM_VERSION);
-        versions.put("module/org.junit.platform.commons", DEFAULT_PLATFORM_VERSION);
-        versions.put("module/org.junit.platform.engine", DEFAULT_PLATFORM_VERSION);
-        versions.put("module/org.junit.platform.launcher", DEFAULT_PLATFORM_VERSION);
-        versions.put("module/org.junit.platform.reporting", DEFAULT_PLATFORM_VERSION);
         return versions;
     }
 
