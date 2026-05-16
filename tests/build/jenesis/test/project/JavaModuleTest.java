@@ -6,6 +6,8 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.JavaModule;
 import sample.Sample;
 
@@ -74,7 +76,7 @@ public class JavaModuleTest {
             writer.newLine();
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().test(true, null), "input");
+        buildExecutor.addModule("output", new JavaModule().test(true, null, Map.of(), Map.of()), "input");
         assertThatThrownBy(() -> buildExecutor.execute())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
@@ -91,7 +93,7 @@ public class JavaModuleTest {
             writer.newLine();
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().test(false, null), "input");
+        buildExecutor.addModule("output", new JavaModule().test(false, null, Map.of(), Map.of()), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts");
         assertThat(steps).doesNotContainKey("output/test/executed");
@@ -132,7 +134,9 @@ public class JavaModuleTest {
             }
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().testIfAvailable(), "input");
+        buildExecutor.addModule("output", new JavaModule().testIfAvailable(
+                Map.of("maven", new MavenDefaultRepository()),
+                Map.of("maven", new MavenPomResolver())), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/test/executed");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/SampleTest.class")).exists();

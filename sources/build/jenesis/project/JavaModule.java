@@ -18,27 +18,15 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes", VERSIONS = "versions", TEST = "test";
 
-    public BuildExecutorModule testIfAvailable() {
-        return test(false, null, null, null);
-    }
-
     public BuildExecutorModule testIfAvailable(Map<String, Repository> repositories,
                                                Map<String, Resolver> resolvers) {
         return test(false, null, repositories, resolvers);
-    }
-
-    public BuildExecutorModule test(TestEngine engine) {
-        return test(engine, null, null);
     }
 
     public BuildExecutorModule test(TestEngine engine,
                                     Map<String, Repository> repositories,
                                     Map<String, Resolver> resolvers) {
         return test(true, engine, repositories, resolvers);
-    }
-
-    public BuildExecutorModule test(boolean requireEngine, TestEngine engine) {
-        return test(requireEngine, engine, null, null);
     }
 
     public BuildExecutorModule test(boolean requireEngine,
@@ -57,13 +45,10 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
             }
             accept(buildExecutor, inherited);
             if (candidate != null) {
-                TestModule tests = new TestModule(candidate);
-                if (repositories != null && resolvers != null) {
-                    tests = tests.withResolvers(repositories, resolvers);
-                }
-                buildExecutor.addModule(TEST, tests, Stream.concat(
-                        Stream.of(CLASSES, ARTIFACTS),
-                        inherited.sequencedKeySet().stream()));
+                buildExecutor.addModule(TEST, new TestModule(candidate, repositories, resolvers),
+                        Stream.concat(
+                                Stream.of(CLASSES, ARTIFACTS),
+                                inherited.sequencedKeySet().stream()));
             }
         };
     }

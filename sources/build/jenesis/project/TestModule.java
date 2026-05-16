@@ -31,23 +31,28 @@ public class TestModule implements BuildExecutorModule {
     private final boolean jarsOnly;
     private final boolean modular;
 
-    public TestModule() {
-        this(null, defaultIsTest(), null, null, null, true, true);
+    public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true);
     }
 
-    public TestModule(TestEngine engine) {
-        this(engine, defaultIsTest(), null, null, null, true, true);
+    public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, true);
     }
 
-    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine, P isTest) {
-        this(engine, isTest, null, null, null, true, true);
+    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
+                                                                   P isTest,
+                                                                   Map<String, Repository> repositories,
+                                                                   Map<String, Resolver> resolvers) {
+        this(engine, isTest, null, repositories, resolvers, true, true);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
             Function<List<String>, ProcessHandler.OfProcess> factory,
             TestEngine engine,
-            P isTest) {
-        this(engine, isTest, factory, null, null, true, true);
+            P isTest,
+            Map<String, Repository> repositories,
+            Map<String, Resolver> resolvers) {
+        this(engine, isTest, factory, repositories, resolvers, true, true);
     }
 
     private TestModule(TestEngine engine,
@@ -82,24 +87,13 @@ public class TestModule implements BuildExecutorModule {
         return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
     }
 
-    public TestModule withResolvers(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
-    }
-
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        Stream<String> dependencies;
-        if (repositories != null && resolvers != null) {
-            buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
-            buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), RESOLVED);
-            buildExecutor.addStep(PREPARED, new Prepare(repositories), REQUIRED);
-            dependencies = Stream.concat(
-                    upstream.stream(),
-                    Stream.of(PREPARED));
-        } else {
-            dependencies = upstream.stream();
-        }
+        buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
+        buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), RESOLVED);
+        buildExecutor.addStep(PREPARED, new Prepare(repositories, modular), REQUIRED);
+        Stream<String> dependencies = Stream.concat(upstream.stream(), Stream.of(PREPARED));
         Run run = factory == null
                 ? new Run(engine, isTest, jarsOnly, modular)
                 : new Run(factory, engine, isTest, jarsOnly, modular);
@@ -156,9 +150,11 @@ public class TestModule implements BuildExecutorModule {
     private static class Prepare implements BuildStep {
 
         private final transient Map<String, Repository> repositories;
+        private final boolean modular;
 
-        private Prepare(Map<String, Repository> repositories) {
+        private Prepare(Map<String, Repository> repositories, boolean modular) {
             this.repositories = repositories;
+            this.modular = modular;
         }
 
         @Override
@@ -227,7 +223,8 @@ public class TestModule implements BuildExecutorModule {
                                     .toList();
                             Properties properties = new SequencedProperties();
                             if (!paths.isEmpty()) {
-                                properties.setProperty("--module-path", String.join("\n", paths));
+                                properties.setProperty(modular ? "--module-path" : "--class-path",
+                                        String.join("\n", paths));
                             }
                             Path processDir = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
                             try (Writer writer = Files.newBufferedWriter(processDir.resolve("java.properties"))) {

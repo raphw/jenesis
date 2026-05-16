@@ -7,8 +7,8 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorException;
 import build.jenesis.BuildStep;
 import build.jenesis.HashDigestFunction;
-import build.jenesis.Repository;
-import build.jenesis.Resolver;
+import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.TestModule;
 import build.jenesis.step.JUnit4;
 import build.jenesis.step.JUnit5;
@@ -23,7 +23,6 @@ public class TestModuleTest {
 
     @TempDir
     private Path root, dependencies, classes, emptyDependencies;
-    private List<String> appended;
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -32,7 +31,7 @@ public class TestModuleTest {
         List<String> elements = new ArrayList<>();
         elements.addAll(Arrays.asList(System.getProperty("java.class.path", "").split(File.pathSeparator)));
         elements.addAll(Arrays.asList(System.getProperty("jdk.module.path", "").split(File.pathSeparator)));
-        appended = new ArrayList<>();
+        List<String> appended = new ArrayList<>();
         for (String element : elements) {
             if (element.endsWith("_rt.jar") || element.endsWith("-rt.jar")) {
                 continue;
@@ -59,7 +58,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(null,
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -75,7 +77,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modular(false),
+                new TestModule(null,
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -91,7 +96,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -107,7 +115,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4")).jarsOnly(false),
+                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -122,7 +132,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null, candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
+                new TestModule(null,
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of()).jarsOnly(false),
                 "dependencies", "classes");
 
         assertThatThrownBy(executor::execute)
@@ -140,8 +153,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.of("maven", noResolver()))
+                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
@@ -158,8 +173,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.of("module", noResolver()))
+                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
@@ -176,8 +193,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
+                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of())
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
@@ -193,9 +212,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5("5.11.3", "1.11.4"), candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
-                        .jarsOnly(false),
+                new TestModule(new JUnit5("5.11.3", "1.11.4"),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of()).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
@@ -210,9 +230,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit4(), candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
-                        .jarsOnly(false),
+                new TestModule(new JUnit4(),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of()).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
@@ -227,9 +248,10 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null, candidate -> candidate.endsWith("TestSample"))
-                        .withResolvers(Map.<String, Repository>of(), Map.<String, Resolver>of())
-                        .jarsOnly(false),
+                new TestModule(null,
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of()).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
@@ -239,10 +261,6 @@ public class TestModuleTest {
 
     private BuildExecutor newExecutor() throws IOException {
         return BuildExecutor.of(root, new HashDigestFunction("MD5"), BuildExecutorCallback.nop());
-    }
-
-    private static Resolver noResolver() {
-        return (_, _, _, _, _, _) -> new LinkedHashMap<>();
     }
 
     private static Properties readRequires(Path stepFolder) throws IOException {

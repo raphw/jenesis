@@ -435,10 +435,11 @@ the method that enables them.
 Used for compiling and packaging a single Java module from its sources and its resolved dependencies. Between
 compilation and packaging it runs a `Versions` step that consults the compile-scope `requires.properties` and
 rewrites every `module-info.class` to embed the resolved versions on each `requires` directive, so the produced
-jar carries the same versions that were used to assemble its module path. Calling `.test(engine)` or
-`.testIfAvailable()` adds an extra `tests` sub-module that runs the compiled tests; the
-`(repositories, resolvers)` overloads forward into `TestModule.withResolvers(...)` so the test runner can be fetched
-on the side instead of being a compile-time `requires` of the test module (see *`TestModule`* below).
+jar carries the same versions that were used to assemble its module path. Calling `.test(engine, repositories, resolvers)`
+or `.testIfAvailable(repositories, resolvers)` adds an extra `tests` sub-module that runs the compiled tests; the
+repositories/resolvers are forwarded into `TestModule` so the test runner can be fetched on the side instead of being
+a compile-time `requires` of the test module (see *`TestModule`* below). Pass empty maps to skip runner fetching when
+the runner is already present on the inherited class- or module-path.
 
 ```mermaid
 flowchart LR
@@ -466,9 +467,10 @@ flowchart LR
 ### `TestModule`
 
 A `BuildExecutorModule` that runs a configured `TestEngine` (e.g. JUnit 5) against the compiled tests of its
-predecessors. The simple form adds only an `execute` step (`Java`) and expects the runner module to already be on
-the inherited class- or module-path. Calling `withResolvers(repositories, resolvers)` instead fetches the runner
-on the side, so the user never has to declare it as a compile-time `requires` of their test module:
+predecessors. Construction requires `repositories` and `resolvers` maps; with non-empty maps the runner is
+fetched on the side, so the user never has to declare it as a compile-time `requires` of their test module.
+Empty maps are valid when the runner is already present on the inherited class- or module-path - the
+`Requires` step then writes nothing and `Prepare` records an empty module-path:
 
 - `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the first entry in
   `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers - `JUnit5` ships both
@@ -498,15 +500,14 @@ flowchart LR
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
   classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   arts(["inherited classes/<br/>+ artifacts/"]):::input
-  resolved["resolved<br/>(Requires)"]:::optional
-  required["required<br/>(Resolve)"]:::optional
-  prepared["prepared<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::optional
+  resolved["resolved<br/>(Requires)"]:::step
+  required["required<br/>(Resolve)"]:::step
+  prepared["prepared<br/>(downloads runner/<br/>+ writes process/java.properties)"]:::step
   executed["executed<br/>(Java/Run)"]:::step
-  arts --> executed
-  arts -.->|".withResolvers(repositories, resolvers)"| resolved
-  resolved -.-> required
-  required -.-> prepared
-  prepared -.-> executed
+  arts --> resolved
+  resolved --> required
+  required --> prepared
+  prepared --> executed
 ```
 
 ### `DependenciesModule`
