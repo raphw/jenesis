@@ -9,6 +9,8 @@ import build.jenesis.SequencedProperties;
 
 public class Download implements DependencyTransformingBuildStep {
 
+    public static final String REQUIRE_CHECKSUMS_PROPERTY = "jenesis.requireChecksums";
+
     private final transient Map<String, Repository> repositories;
 
     public Download(Map<String, Repository> repositories) {
@@ -31,6 +33,10 @@ public class Download implements DependencyTransformingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(ARTIFACTS + name);
                 if (entry.getValue().isEmpty()) {
+                    if (Boolean.getBoolean(REQUIRE_CHECKSUMS_PROPERTY)) {
+                        throw new IllegalStateException(
+                                "No checksum pinned for " + dependency + " (-D" + REQUIRE_CHECKSUMS_PROPERTY + " is set)");
+                    }
                     if (previous != null && Files.exists(previous)) {
                         Files.createLink(libs.resolve(name), previous);
                     } else {

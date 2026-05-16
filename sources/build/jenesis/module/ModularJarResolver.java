@@ -32,6 +32,7 @@ public class ModularJarResolver implements Resolver {
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
+        SequencedMap<String, String> hints = new LinkedHashMap<>(versions);
         Queue<String> queue = new ArrayDeque<>(coordinates);
         int runtime = Runtime.version().feature();
         while (!queue.isEmpty()) {
@@ -70,6 +71,9 @@ public class ModularJarResolver implements Resolver {
                     throw new IllegalArgumentException("No module found for " + current);
                 }
                 unresolved.add(current);
+                if (requested != null) {
+                    hints.putIfAbsent(current, checksum == null ? requested : requested + " " + checksum);
+                }
             } else {
                 Path file = item.getFile().orElse(null);
                 ModuleDescriptor descriptor;
@@ -136,7 +140,7 @@ public class ModularJarResolver implements Resolver {
             }
         }
         if (!unresolved.isEmpty()) {
-            fallback.dependencies(executor, prefix, repositories, unresolved, versions, compile).forEach(dependencies::putIfAbsent);
+            fallback.dependencies(executor, prefix, repositories, unresolved, hints, compile).forEach(dependencies::putIfAbsent);
         }
         return dependencies;
     }

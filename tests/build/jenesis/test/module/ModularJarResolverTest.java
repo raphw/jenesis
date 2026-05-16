@@ -484,4 +484,5 @@ public class ModularJarResolverTest {
                     builder.requires(ModuleRequireInfo.of(ModuleDesc.of("java.base"), 0, null));
                 }));
     }
+
 }
