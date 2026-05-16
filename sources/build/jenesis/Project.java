@@ -7,14 +7,17 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryStage;
 import build.jenesis.maven.MavenUriParser;
+import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularPlacement;
 import build.jenesis.module.ModularProject;
+import build.jenesis.module.PinModuleInfo;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.PinModule;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
@@ -24,7 +27,8 @@ public final class Project {
 
     public static final String BUILD = "build",
             COLLECT = "collect",
-            STAGE = "stage";
+            STAGE = "stage",
+            PIN = "pin";
 
     public record Context(
             boolean tests,
@@ -112,6 +116,8 @@ public final class Project {
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            executor.addModule(PIN, new PinModule(builder.root(), "pom.xml",
+                    file -> new PinPom("maven", file)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
@@ -145,6 +151,8 @@ public final class Project {
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
+                    file -> new PinModuleInfo("module", file)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 
@@ -182,6 +190,8 @@ public final class Project {
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
+            executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
+                    file -> new PinModuleInfo("module", file)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 

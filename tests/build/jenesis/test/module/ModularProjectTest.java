@@ -191,7 +191,6 @@ public class ModularProjectTest {
                                     "../../module-foo/runtime/dependencies/resolved",
                                     "../../module-foo/runtime/dependencies/resolved",
                                     "../../module-foo/runtime/dependencies/artifacts",
-                                    "../../module-foo/pin",
                                     "../../module-foo/produce/java/classes",
                                     "../../module-foo/produce/java/versions",
                                     "../../module-foo/produce/java/artifacts",

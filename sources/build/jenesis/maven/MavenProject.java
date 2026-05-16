@@ -26,7 +26,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
-    private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare", PIN = "pin";
+    private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare";
     private static final String SOURCES = "sources", MANIFESTS = "manifests";
 
     private final Path root;
@@ -72,10 +72,6 @@ public class MavenProject implements BuildExecutorModule {
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
                     Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
-                    String relativePath = name.startsWith("test-module-")
-                            ? name.substring("test-module-".length())
-                            : name.startsWith("module-") ? name.substring("module-".length()) : name;
-                    Path pomFile = root.resolve(URLDecoder.decode(relativePath, StandardCharsets.UTF_8)).resolve("pom.xml");
                     for (DependencyScope scope : DependencyScope.values()) {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
@@ -88,9 +84,6 @@ public class MavenProject implements BuildExecutorModule {
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
-                    buildExecutor.addStep(PIN, new PinPom(prefix, pomFile),
-                            DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
-                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
                     buildExecutor.addModule("produce",
                             builder.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet())),
                             Stream.concat(
