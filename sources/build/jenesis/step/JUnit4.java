@@ -22,7 +22,7 @@ public record JUnit4() implements TestEngine {
     }
 
     @Override
-    public String prefix() {
+    public String classPrefix() {
         return "";
     }
 

@@ -217,13 +217,13 @@ public class TestModule implements BuildExecutorModule {
                                 String className = raw.substring(0, raw.length() - 6).replace('/', '.');
                                 if (selectors.isEmpty()) {
                                     if (isTest.test(className)) {
-                                        commands.add(resolved.prefix() + className);
+                                        commands.add(resolved.classPrefix() + className);
                                     }
                                 } else {
                                     for (TestSelector selector : selectors) {
                                         if (selector.classPattern.matcher(className).matches()) {
                                             if (selector.method == null) {
-                                                commands.add(resolved.prefix() + className);
+                                                commands.add(resolved.classPrefix() + className);
                                             } else {
                                                 String methodPrefix = resolved.methodPrefix();
                                                 if (methodPrefix == null) {

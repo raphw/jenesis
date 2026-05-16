@@ -11,7 +11,7 @@ public interface TestEngine extends Serializable {
 
     String mainClass();
 
-    String prefix();
+    String classPrefix();
 
     default String methodPrefix() {
         return null;

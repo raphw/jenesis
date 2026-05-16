@@ -25,7 +25,7 @@ public record JUnit5() implements TestEngine {
     }
 
     @Override
-    public String prefix() {
+    public String classPrefix() {
         return "-select-class=";
     }
 
