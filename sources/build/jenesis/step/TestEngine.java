@@ -9,8 +9,6 @@ public interface TestEngine extends Serializable {
 
     Set<String> coordinates();
 
-    String markerClass();
-
     String mainClass();
 
     String prefix();

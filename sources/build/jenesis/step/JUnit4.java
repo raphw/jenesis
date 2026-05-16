@@ -17,11 +17,6 @@ public record JUnit4() implements TestEngine {
     }
 
     @Override
-    public String markerClass() {
-        return MARKER_CLASS;
-    }
-
-    @Override
     public String mainClass() {
         return "org.junit.runner.JUnitCore";
     }

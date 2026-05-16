@@ -163,7 +163,7 @@ public class TestModuleTest {
 
         Properties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
-                .containsExactly("maven/org.junit.platform/junit-platform-console");
+                .containsExactly("maven/org.junit.platform/junit-platform-console/1.11.4");
     }
 
     @Test
