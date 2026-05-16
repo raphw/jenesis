@@ -190,7 +190,7 @@ public final class Project {
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
-                    file -> new PinModuleInfo("module", file)), BUILD);
+                    file -> new PinModuleInfo("module", file, true)), BUILD);
             return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
         };
 

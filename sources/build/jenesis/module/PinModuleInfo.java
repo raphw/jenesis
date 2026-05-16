@@ -15,14 +15,24 @@ public class PinModuleInfo implements BuildStep {
 
     private final String prefix;
     private final List<Path> moduleInfoFiles;
+    private final boolean fromJars;
 
     public PinModuleInfo(String prefix, Path moduleInfoFile) {
-        this(prefix, List.of(moduleInfoFile));
+        this(prefix, List.of(moduleInfoFile), false);
     }
 
     public PinModuleInfo(String prefix, List<Path> moduleInfoFiles) {
+        this(prefix, moduleInfoFiles, false);
+    }
+
+    public PinModuleInfo(String prefix, Path moduleInfoFile, boolean fromJars) {
+        this(prefix, List.of(moduleInfoFile), fromJars);
+    }
+
+    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles, boolean fromJars) {
         this.prefix = prefix;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
+        this.fromJars = fromJars;
     }
 
     @Override
@@ -35,7 +45,9 @@ public class PinModuleInfo implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> entries = collectEntries(arguments, prefix);
+        SequencedMap<String, String> entries = fromJars
+                ? collectFromJars(arguments)
+                : collectEntries(arguments, prefix);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries);
         }
@@ -56,6 +68,54 @@ public class PinModuleInfo implements BuildStep {
         if (!updated.equals(existing)) {
             Files.writeString(file, updated);
         }
+    }
+
+    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
+        SequencedMap<String, String> versionByFile = new LinkedHashMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path requiresFile = argument.folder().resolve(REQUIRES);
+            if (!Files.exists(requiresFile)) {
+                continue;
+            }
+            Properties properties = new SequencedProperties();
+            try (Reader reader = Files.newBufferedReader(requiresFile)) {
+                properties.load(reader);
+            }
+            for (String coordinate : properties.stringPropertyNames()) {
+                int lastSlash = coordinate.lastIndexOf('/');
+                if (lastSlash <= 0) {
+                    continue;
+                }
+                String version = coordinate.substring(lastSlash + 1);
+                String checksum = properties.getProperty(coordinate);
+                String value = checksum == null || checksum.isEmpty() ? version : version + " " + checksum;
+                versionByFile.putIfAbsent(coordinate.replace('/', '-') + ".jar", value);
+            }
+        }
+        SequencedMap<String, String> entries = new TreeMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (!Files.exists(artifacts)) {
+                continue;
+            }
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts, "*.jar")) {
+                for (Path jar : stream) {
+                    if (!Files.isRegularFile(jar)) {
+                        continue;
+                    }
+                    String value = versionByFile.get(jar.getFileName().toString());
+                    if (value == null) {
+                        continue;
+                    }
+                    Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
+                    if (reference.isEmpty()) {
+                        continue;
+                    }
+                    entries.putIfAbsent(reference.get().descriptor().name(), value);
+                }
+            }
+        }
+        return entries;
     }
 
     static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments, String prefix) throws IOException {
