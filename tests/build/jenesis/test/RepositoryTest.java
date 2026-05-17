@@ -30,7 +30,7 @@ public class RepositoryTest {
         assertThat(repositories).containsOnlyKeys("module");
         Optional<RepositoryItem> item = repositories.get("module").fetch(Runnable::run, "foo");
         assertThat(item).isPresent();
-        assertThat(item.get().getFile()).contains(target);
+        assertThat(item.get().file()).contains(target);
     }
 
     @Test

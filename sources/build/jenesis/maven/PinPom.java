@@ -15,6 +15,7 @@ public class PinPom implements BuildStep {
     private static final Pattern DEPENDENCIES_OPEN = Pattern.compile("([ \\t]*)<dependencies>");
     private static final Pattern PROJECT_CLOSE = Pattern.compile("\\n([ \\t]*)</project>");
     private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--Checksum/[^>]*-->\\s*\\n");
+    private static final Pattern INDENT = Pattern.compile("\\n([ \\t]+)<");
 
     private final String prefix;
     private final List<Path> pomFiles;
@@ -50,7 +51,13 @@ public class PinPom implements BuildStep {
     private void updatePom(Path pomFile, SequencedMap<String, String> entries) throws IOException {
         String existing = Files.readString(pomFile);
         Matcher dmMatch = DEPENDENCY_MANAGEMENT.matcher(existing);
-        String indent = dmMatch.find() ? dmMatch.group(1) : detectIndent(existing);
+        String indent;
+        if (dmMatch.find()) {
+            indent = dmMatch.group(1);
+        } else {
+            Matcher indentMatch = INDENT.matcher(existing);
+            indent = indentMatch.find() ? indentMatch.group(1) : "    ";
+        }
         String block = entries.isEmpty() ? "" : renderBlock(entries, indent);
         String updated;
         if (dmMatch.find(0)) {
@@ -190,11 +197,6 @@ public class PinPom implements BuildStep {
         }
         result.append(content, prev, content.length());
         return result.toString();
-    }
-
-    private static String detectIndent(String existing) {
-        Matcher match = Pattern.compile("\\n([ \\t]+)<").matcher(existing);
-        return match.find() ? match.group(1) : "    ";
     }
 
     private static String renderBlock(SequencedMap<String, String> entries, String indent) {

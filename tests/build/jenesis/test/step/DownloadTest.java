@@ -64,7 +64,7 @@ public class DownloadTest {
                 }
 
                 @Override
-                public Optional<Path> getFile() {
+                public Optional<Path> file() {
                     return Optional.of(file);
                 }
             });
@@ -163,7 +163,7 @@ public class DownloadTest {
                 }
 
                 @Override
-                public Optional<Path> getFile() {
+                public Optional<Path> file() {
                     return Optional.of(file);
                 }
             });

@@ -5,7 +5,7 @@ import module java.base;
 @FunctionalInterface
 public interface RepositoryItem {
 
-    default Optional<Path> getFile() {
+    default Optional<Path> file() {
         return Optional.empty();
     }
 
@@ -14,7 +14,7 @@ public interface RepositoryItem {
     static RepositoryItem ofFile(Path file) {
         return new RepositoryItem() {
             @Override
-            public Optional<Path> getFile() {
+            public Optional<Path> file() {
                 return Optional.of(file);
             }
 

@@ -294,7 +294,7 @@ public class MavenDefaultRepository implements MavenRepository {
         }
 
         @Override
-        public Optional<Path> getFile() {
+        public Optional<Path> file() {
             return Optional.of(path);
         }
     }

@@ -45,7 +45,7 @@ public class Download implements DependencyTransformingBuildStep {
                             try {
                                 RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
                                         () -> new IllegalStateException("Unresolved: " + dependency));
-                                Path file = source.getFile().orElse(null);
+                                Path file = source.file().orElse(null);
                                 if (file == null) {
                                     try (InputStream inputStream = source.toInputStream()) {
                                         Files.copy(inputStream, libs.resolve(name));
@@ -84,7 +84,7 @@ public class Download implements DependencyTransformingBuildStep {
                         try {
                             RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
                                     () -> new IllegalStateException("Unresolved: " + dependency));
-                            Path file = source.getFile().orElse(null);
+                            Path file = source.file().orElse(null);
                             if (file == null) {
                                 try (DigestInputStream inputStream = new DigestInputStream(
                                         source.toInputStream(),

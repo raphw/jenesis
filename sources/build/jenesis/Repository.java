@@ -33,7 +33,7 @@ public interface Repository {
                         if (item == null) {
                             return null;
                         }
-                        Path file = item.getFile().orElse(null);
+                        Path file = item.file().orElse(null);
                         if (file != null) {
                             Files.createLink(candidate, file);
                         } else {

@@ -75,7 +75,7 @@ public class ModularJarResolver implements Resolver {
                     hints.putIfAbsent(current, checksum == null ? requested : requested + " " + checksum);
                 }
             } else {
-                Path file = item.getFile().orElse(null);
+                Path file = item.file().orElse(null);
                 ModuleDescriptor descriptor;
                 if (file == null) {
                     NavigableMap<Integer, byte[]> candidates = new TreeMap<>();
