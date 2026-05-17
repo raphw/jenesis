@@ -5,15 +5,17 @@ project:
   license: Apache-2.0
   links:
     homepage: https://github.com/raphw/jenesis
-  java:
-    groupId: build.jenesis
-    artifactId: jenesis
-    version: '25'
+  languages:
+    java:
+      groupId: build.jenesis
+      artifactId: jenesis
+      version: '25'
 
 signing:
   active: ALWAYS
-  armored: true
-  mode: MEMORY
+  pgp:
+    armored: true
+    mode: MEMORY
 
 release:
   github:
