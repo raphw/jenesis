@@ -28,7 +28,9 @@ public class MavenProject implements BuildExecutorModule {
     public static final String POM = "pom/", MAVEN = "maven/";
 
     private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare";
+    private static final String SCAN = "scan", ASSIGN = "assign", PRODUCE = "produce";
     private static final String SOURCES = "sources", MANIFESTS = "manifests";
+    private static final String SIBLING_MODULE_PREFIX = MultiProjectModule.MODULE + "-";
 
     private final Path root;
     private final String prefix;
@@ -65,8 +67,8 @@ public class MavenProject implements BuildExecutorModule {
                             Repository.ofProperties(BuildStep.IDENTITY,
                                     inherited.entrySet().stream()
                                             .filter(entry ->
-                                                    entry.getKey().startsWith(PREVIOUS + "module-")
-                                                            && entry.getKey().endsWith("/assign"))
+                                                    entry.getKey().startsWith(PREVIOUS + SIBLING_MODULE_PREFIX)
+                                                            && entry.getKey().endsWith("/" + ASSIGN))
                                             .map(Map.Entry::getValue)
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
@@ -84,7 +86,7 @@ public class MavenProject implements BuildExecutorModule {
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
-                    buildExecutor.addModule("produce",
+                    buildExecutor.addModule(PRODUCE,
                             assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet()),
                                     mergedRepositories,
                                     resolverMap),
@@ -110,7 +112,7 @@ public class MavenProject implements BuildExecutorModule {
                                             },
                                             (a, _) -> a,
                                             LinkedHashMap::new)));
-                    buildExecutor.addStep("assign",
+                    buildExecutor.addStep(ASSIGN,
                             new Assign((BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable) ((coordinates, files) -> {
                                 Path resolved = files.stream()
                                         .filter(file -> file.getFileName() != null
@@ -125,7 +127,7 @@ public class MavenProject implements BuildExecutorModule {
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
                                             MultiProjectModule.IDENTIFIER_PATH)),
-                                    Stream.of("produce")));
+                                    Stream.of(PRODUCE)));
                 });
     }
 
@@ -134,11 +136,11 @@ public class MavenProject implements BuildExecutorModule {
         if (!Files.exists(root.resolve("pom.xml"))) {
             return;
         }
-        buildExecutor.addStep("scan", new Scan(root));
-        buildExecutor.addStep("prepare", new Prepare(prefix, resolver, repository), "scan");
+        buildExecutor.addStep(SCAN, new Scan(root));
+        buildExecutor.addStep(PREPARE, new Prepare(prefix, resolver, repository), SCAN);
         buildExecutor.addModule(MODULE, (modules, paths) -> {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
-                    paths.get("../prepare").resolve(MAVEN),
+                    paths.get(PREVIOUS + PREPARE).resolve(MAVEN),
                     "*.properties")) {
                 for (Path file : files) {
                     String name = file.getFileName().toString();
@@ -170,7 +172,7 @@ public class MavenProject implements BuildExecutorModule {
                             module.addStep(MANIFESTS, (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
-                                Path pomFile = paths.get("../scan")
+                                Path pomFile = paths.get(PREVIOUS + SCAN)
                                         .resolve(POM)
                                         .resolve(properties.getProperty("path"))
                                         .resolve("pom.xml");
@@ -250,7 +252,7 @@ public class MavenProject implements BuildExecutorModule {
                     });
                 }
             }
-        }, "scan", "prepare");
+        }, SCAN, PREPARE);
     }
 
     private static Properties extractMetadata(Path pomFile) throws IOException {
@@ -398,7 +400,7 @@ public class MavenProject implements BuildExecutorModule {
             Path maven = Files.createDirectory(context.next().resolve(MAVEN));
             for (Map.Entry<Path, MavenLocalPom> entry : resolver.local(executor,
                     repository,
-                    arguments.get("scan")
+                    arguments.get(SCAN)
                             .folder()
                             .resolve(POM)).entrySet()) {
                 if (Objects.equals("pom", entry.getValue().packaging())) {

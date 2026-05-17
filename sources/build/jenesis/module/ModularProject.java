@@ -23,7 +23,9 @@ import build.jenesis.step.Javac;
 public class ModularProject implements BuildExecutorModule {
 
     private static final String DEPENDENCIES = "dependencies", PREPARE = "prepare";
+    private static final String ASSIGN = "assign", PRODUCE = "produce";
     private static final String SOURCES = "sources", MANIFESTS = "manifests";
+    private static final String SIBLING_MODULE_PREFIX = MultiProjectModule.MODULE + "-";
 
     private final String prefix;
     private final Path root;
@@ -74,8 +76,8 @@ public class ModularProject implements BuildExecutorModule {
                             Repository.ofProperties(BuildStep.IDENTITY,
                                     inherited.entrySet().stream()
                                             .filter(entry ->
-                                                    entry.getKey().startsWith(PREVIOUS + "module-")
-                                                            && entry.getKey().endsWith("/assign"))
+                                                    entry.getKey().startsWith(PREVIOUS + SIBLING_MODULE_PREFIX)
+                                                            && entry.getKey().endsWith("/" + ASSIGN))
                                             .map(Map.Entry::getValue)
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
@@ -92,7 +94,7 @@ public class ModularProject implements BuildExecutorModule {
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
-                    buildExecutor.addModule("produce",
+                    buildExecutor.addModule(PRODUCE,
                             assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
                                     mergedRepositories,
                                     resolvers),
@@ -116,7 +118,7 @@ public class ModularProject implements BuildExecutorModule {
                                             },
                                             (a, _) -> a,
                                             LinkedHashMap::new)));
-                    buildExecutor.addStep("assign",
+                    buildExecutor.addStep(ASSIGN,
                             new Assign((BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable) ((coordinates, files) -> {
                                 Path resolved = files.stream()
                                         .filter(file -> file.getFileName() != null
@@ -131,7 +133,7 @@ public class ModularProject implements BuildExecutorModule {
                             Stream.concat(
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier
                                             .startsWith(MultiProjectModule.IDENTIFIER_PATH)),
-                                    Stream.of("produce")));
+                                    Stream.of(PRODUCE)));
                 });
     }
 
@@ -218,7 +220,7 @@ public class ModularProject implements BuildExecutorModule {
                 if (file.getFileName().toString().equals("module-info.java")) {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
-                        buildExecutor.addModule("module-" + URLEncoder.encode(
+                        buildExecutor.addModule(SIBLING_MODULE_PREFIX + URLEncoder.encode(
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
