@@ -44,14 +44,11 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         if (parent == null) {
             return Optional.empty();
         }
-        if (!includeTests) {
-            Properties module = readProperties(parent.resolve(BuildStep.MODULE));
-            if (module != null && module.getProperty("tests") != null) {
-                return Optional.empty();
-            }
+        Properties module = readProperties(parent.resolve(BuildStep.MODULE));
+        if (!includeTests && module != null && module.getProperty("tests") != null) {
+            return Optional.empty();
         }
-        Properties metadata = readProperties(parent.resolve(BuildStep.METADATA));
-        String moduleName = metadata == null ? null : metadata.getProperty("project.module");
+        String moduleName = module == null ? null : module.getProperty("module");
         if (moduleName == null) {
             Path dir = parent.getFileName();
             if (dir == null) {

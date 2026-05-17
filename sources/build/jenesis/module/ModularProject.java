@@ -39,7 +39,7 @@ public class ModularProject implements BuildExecutorModule {
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar",
-                BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
+                BuildStep.MODULE, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -137,7 +137,7 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
-    private record Manifests(String prefix) implements BuildStep {
+    private record Manifests(String prefix, String path) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -154,25 +154,16 @@ public class ModularProject implements BuildExecutorModule {
                     .resolve(BuildStep.IDENTITY))) {
                 coordinates.store(writer, null);
             }
-            if (info.testOf() != null) {
-                if (!info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
-                    throw new IllegalStateException("Test module '"
-                            + info.coordinate()
-                            + "' declares @tests "
-                            + info.testOf()
-                            + " but does not 'requires "
-                            + info.testOf()
-                            + ";' (declared requires: "
-                            + info.requires()
-                            + ")");
-                }
-                Properties module = new SequencedProperties();
-                module.setProperty("tests", info.testOf());
-                try (BufferedWriter writer = Files.newBufferedWriter(context
-                        .next()
-                        .resolve(BuildStep.MODULE))) {
-                    module.store(writer, null);
-                }
+            if (info.testOf() != null && !info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
+                throw new IllegalStateException("Test module '"
+                        + info.coordinate()
+                        + "' declares @tests "
+                        + info.testOf()
+                        + " but does not 'requires "
+                        + info.testOf()
+                        + ";' (declared requires: "
+                        + info.requires()
+                        + ")");
             }
             Properties requires = new SequencedProperties();
             Properties scopes = new SequencedProperties();
@@ -197,16 +188,20 @@ public class ModularProject implements BuildExecutorModule {
                 }
             }
             Javac.writeRelease(context.next(), info.release());
-            Properties metadata = new SequencedProperties();
-            metadata.setProperty("project.module", info.coordinate());
+            Properties module = new SequencedProperties();
+            module.setProperty("path", path);
+            module.setProperty("module", info.coordinate());
             if (info.name() != null) {
-                metadata.setProperty("project.name", info.name());
+                module.setProperty("name", info.name());
             }
             if (info.description() != null) {
-                metadata.setProperty("project.description", info.description());
+                module.setProperty("description", info.description());
             }
-            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
-                metadata.store(writer, null);
+            if (info.testOf() != null) {
+                module.setProperty("tests", info.testOf());
+            }
+            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
+                module.store(writer, null);
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -224,7 +219,7 @@ public class ModularProject implements BuildExecutorModule {
                                 location.toString(),
                                 StandardCharsets.UTF_8), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MANIFESTS, new Manifests(prefix), "sources");
+                            module.addStep(MANIFESTS, new Manifests(prefix, location.toString()), "sources");
                         });
                     }
                 }

@@ -54,7 +54,7 @@ jobs:
           java -Djenesis.buildVersion=${VERSION} \
                -Djenesis.project.sources=true \
                -Djenesis.project.docs=true \
-               -Djenesis.project.metadata=metadata.properties \
+               -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
 
       - name: JReleaser deploy

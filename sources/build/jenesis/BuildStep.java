@@ -13,7 +13,6 @@ public interface BuildStep extends Serializable {
     String IDENTITY = "identity.properties",
             REQUIRES = "requires.properties",
             VERSIONS = "versions.properties",
-            METADATA = "metadata.properties",
             MODULE = "module.properties",
             SCOPES = "scopes.properties";
 

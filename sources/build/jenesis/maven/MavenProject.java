@@ -46,7 +46,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", Pom.POM,
-                BuildStep.METADATA, BuildStep.IDENTITY, BuildStep.MODULE);
+                BuildStep.MODULE, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
@@ -182,13 +182,9 @@ public class MavenProject implements BuildExecutorModule {
                                     coordinates.store(writer, null);
                                 }
                                 String[] coordinateParts = properties.getProperty("coordinate").split("/");
-                                if (coordinateParts.length == 6 && "tests".equals(coordinateParts[4])) {
-                                    Properties moduleProperties = new SequencedProperties();
-                                    moduleProperties.setProperty("tests", coordinateParts[2]);
-                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
-                                        moduleProperties.store(writer, null);
-                                    }
-                                }
+                                String testsOf = coordinateParts.length == 6 && "tests".equals(coordinateParts[4])
+                                        ? coordinateParts[2]
+                                        : null;
                                 Properties requires = new SequencedProperties();
                                 Properties scopes = new SequencedProperties();
                                 String compile = properties.getProperty("dependencies.compile", "");
@@ -240,11 +236,13 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));
-                                Properties metadata = extractMetadata(pomFile);
-                                if (!metadata.isEmpty()) {
-                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
-                                        metadata.store(writer, null);
-                                    }
+                                Properties descriptor = extractMetadata(pomFile);
+                                descriptor.setProperty("path", properties.getProperty("path"));
+                                if (testsOf != null) {
+                                    descriptor.setProperty("tests", testsOf);
+                                }
+                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
+                                    descriptor.store(writer, null);
                                 }
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
@@ -277,9 +275,9 @@ public class MavenProject implements BuildExecutorModule {
             }
             String name = node.getLocalName() == null ? node.getNodeName() : node.getLocalName();
             switch (name) {
-                case "name" -> result.setProperty("project.name", node.getTextContent().trim());
-                case "description" -> result.setProperty("project.description", node.getTextContent().trim());
-                case "url" -> result.setProperty("project.url", node.getTextContent().trim());
+                case "name" -> result.setProperty("name", node.getTextContent().trim());
+                case "description" -> result.setProperty("description", node.getTextContent().trim());
+                case "url" -> result.setProperty("url", node.getTextContent().trim());
                 case "licenses" -> {
                     Element first = firstChild(node, "license");
                     if (first != null) {

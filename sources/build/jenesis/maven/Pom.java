@@ -53,7 +53,6 @@ public class Pom implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         Properties coordinates = new SequencedProperties();
-        Properties module = new SequencedProperties();
         Properties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
         boolean scoped = false;
@@ -63,12 +62,6 @@ public class Pom implements BuildStep {
             if (Files.exists(coordinatesFile)) {
                 try (Reader reader = Files.newBufferedReader(coordinatesFile)) {
                     coordinates.load(reader);
-                }
-            }
-            Path moduleFile = argument.folder().resolve(MODULE);
-            if (Files.exists(moduleFile)) {
-                try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                    module.load(reader);
                 }
             }
             Path requiresFile = argument.folder().resolve(REQUIRES);
@@ -100,9 +93,9 @@ public class Pom implements BuildStep {
                     }
                 }
             }
-            Path metadataFile = argument.folder().resolve(METADATA);
-            if (Files.exists(metadataFile)) {
-                try (Reader reader = Files.newBufferedReader(metadataFile)) {
+            Path moduleFile = argument.folder().resolve(MODULE);
+            if (Files.exists(moduleFile)) {
+                try (Reader reader = Files.newBufferedReader(moduleFile)) {
                     metadata.load(reader);
                 }
             }
@@ -136,8 +129,8 @@ public class Pom implements BuildStep {
             throw new IllegalStateException(
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
-        String targetModule = metadata.getProperty("project.module");
-        boolean test = module.getProperty("tests") != null;
+        String targetModule = metadata.getProperty("module");
+        boolean test = metadata.getProperty("tests") != null;
         if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -219,9 +212,9 @@ public class Pom implements BuildStep {
                         scmUrl);
             }
             parsed = new MavenPomEmitter.Metadata(
-                    metadata.getProperty("project.name"),
-                    metadata.getProperty("project.description"),
-                    metadata.getProperty("project.url"),
+                    metadata.getProperty("name"),
+                    metadata.getProperty("description"),
+                    metadata.getProperty("url"),
                     licenses,
                     developers,
                     scm);

@@ -157,8 +157,6 @@ public final class Project {
 
     private static final class PinModule implements BuildExecutorModule {
 
-        private static final String MODULE_PREFIX = "module-", TEST_MODULE_PREFIX = "test-module-";
-
         private final Path root;
         private final String fileName;
         private final Function<Path, BuildStep> stepFactory;
@@ -170,36 +168,30 @@ public final class Project {
         }
 
         @Override
-        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-            Set<String> encoded = new LinkedHashSet<>();
-            for (String key : inherited.keySet()) {
-                for (String segment : key.split("/")) {
-                    if (segment.startsWith(TEST_MODULE_PREFIX)) {
-                        encoded.add(segment.substring(TEST_MODULE_PREFIX.length()));
-                        break;
-                    }
-                    if (segment.startsWith(MODULE_PREFIX)) {
-                        encoded.add(segment.substring(MODULE_PREFIX.length()));
-                        break;
-                    }
-                }
-            }
-            for (String name : encoded) {
-                String mainSegment = "/" + MODULE_PREFIX + name + "/";
-                String testSegment = "/" + TEST_MODULE_PREFIX + name + "/";
-                SequencedSet<String> moduleInputs = new LinkedHashSet<>();
-                for (String key : inherited.sequencedKeySet()) {
-                    if (key.contains(mainSegment) || key.contains(testSegment)) {
-                        moduleInputs.add(key);
-                    }
-                }
-                if (moduleInputs.isEmpty()) {
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+            Set<String> paths = new LinkedHashSet<>();
+            for (Path folder : inherited.values()) {
+                Path moduleFile = folder.resolve(BuildStep.MODULE);
+                if (!Files.isRegularFile(moduleFile)) {
                     continue;
                 }
-                Path file = root
-                        .resolve(URLDecoder.decode(name, StandardCharsets.UTF_8))
-                        .resolve(fileName);
-                buildExecutor.addStep(MODULE_PREFIX + name, stepFactory.apply(file), moduleInputs);
+                Properties properties = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                    properties.load(reader);
+                }
+                String path = properties.getProperty("path");
+                if (path != null) {
+                    paths.add(path);
+                }
+            }
+            for (String path : paths) {
+                Path file = root.resolve(path).resolve(fileName);
+                if (!Files.isRegularFile(file)) {
+                    continue;
+                }
+                buildExecutor.addStep("module-" + URLEncoder.encode(path, StandardCharsets.UTF_8),
+                        stepFactory.apply(file),
+                        inherited.sequencedKeySet());
             }
         }
     }

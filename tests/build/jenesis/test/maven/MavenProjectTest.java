@@ -671,16 +671,17 @@ public class MavenProjectTest {
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("maven/module/module-/manifests");
-        Path metadataFile = module.resolve(BuildStep.METADATA);
-        assertThat(metadataFile).exists();
+        Path projectFile = module.resolve(BuildStep.MODULE);
+        assertThat(projectFile).exists();
         Properties metadata = new Properties();
-        try (Reader reader = Files.newBufferedReader(metadataFile)) {
+        try (Reader reader = Files.newBufferedReader(projectFile)) {
             metadata.load(reader);
         }
         assertThat(metadata).containsOnly(
-                Map.entry("project.name", "Project Name"),
-                Map.entry("project.description", "Project description."),
-                Map.entry("project.url", "https://example.com/project"),
+                Map.entry("name", "Project Name"),
+                Map.entry("description", "Project description."),
+                Map.entry("url", "https://example.com/project"),
+                Map.entry("path", ""),
                 Map.entry("license.name", "Apache-2.0"),
                 Map.entry("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt"),
                 Map.entry("developer.alice.name", "Alice Example"),

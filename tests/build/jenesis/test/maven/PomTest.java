@@ -345,9 +345,9 @@ public class PomTest {
             coordinates.store(writer, null);
         }
         Properties metadata = new SequencedProperties();
-        metadata.setProperty("project.name", "Jenesis");
-        metadata.setProperty("project.description", "A build tool.");
-        metadata.setProperty("project.url", "https://example.com/jenesis");
+        metadata.setProperty("name", "Jenesis");
+        metadata.setProperty("description", "A build tool.");
+        metadata.setProperty("url", "https://example.com/jenesis");
         metadata.setProperty("license.name", "Apache-2.0");
         metadata.setProperty("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
         metadata.setProperty("developer.alice.name", "Alice Example");
@@ -356,7 +356,7 @@ public class PomTest {
         metadata.setProperty("developer.bob.email", "bob@example.com");
         metadata.setProperty("scm.connection", "scm:git:https://example.com/jenesis.git");
         metadata.setProperty("scm.url", "https://example.com/jenesis");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.MODULE))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -365,7 +365,7 @@ public class PomTest {
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.MODULE), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -389,8 +389,8 @@ public class PomTest {
             coordinates.store(writer, null);
         }
         Properties metadata = new SequencedProperties();
-        metadata.setProperty("project.module", "other.module");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+        metadata.setProperty("module", "other.module");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.MODULE))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -399,7 +399,7 @@ public class PomTest {
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.MODULE), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
