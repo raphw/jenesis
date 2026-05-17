@@ -56,6 +56,7 @@ public class Pom implements BuildStep {
         Properties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
         boolean scoped = false;
+        Properties module = new SequencedProperties();
         Properties metadata = new SequencedProperties();
         for (BuildStepArgument argument : arguments.values()) {
             Path coordinatesFile = argument.folder().resolve(IDENTITY);
@@ -96,6 +97,12 @@ public class Pom implements BuildStep {
             Path moduleFile = argument.folder().resolve(MODULE);
             if (Files.exists(moduleFile)) {
                 try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                    module.load(reader);
+                }
+            }
+            Path metadataFile = argument.folder().resolve(METADATA);
+            if (Files.exists(metadataFile)) {
+                try (Reader reader = Files.newBufferedReader(metadataFile)) {
                     metadata.load(reader);
                 }
             }
@@ -130,7 +137,7 @@ public class Pom implements BuildStep {
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
         String targetModule = metadata.getProperty("module");
-        boolean test = metadata.getProperty("tests") != null;
+        boolean test = module.getProperty("tests") != null;
         if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

@@ -356,7 +356,7 @@ public class PomTest {
         metadata.setProperty("developer.bob.email", "bob@example.com");
         metadata.setProperty("scm.connection", "scm:git:https://example.com/jenesis.git");
         metadata.setProperty("scm.url", "https://example.com/jenesis");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.MODULE))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -365,7 +365,7 @@ public class PomTest {
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.MODULE), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -390,7 +390,7 @@ public class PomTest {
         }
         Properties metadata = new SequencedProperties();
         metadata.setProperty("module", "other.module");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.MODULE))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -399,7 +399,7 @@ public class PomTest {
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.MODULE), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();

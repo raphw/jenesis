@@ -46,7 +46,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", Pom.POM,
-                BuildStep.MODULE, BuildStep.IDENTITY);
+                BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
@@ -236,13 +236,19 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));
-                                Properties descriptor = extractMetadata(pomFile);
+                                Properties descriptor = new SequencedProperties();
                                 descriptor.setProperty("path", properties.getProperty("path"));
                                 if (testsOf != null) {
                                     descriptor.setProperty("tests", testsOf);
                                 }
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
                                     descriptor.store(writer, null);
+                                }
+                                Properties metadata = extractMetadata(pomFile);
+                                if (!metadata.isEmpty()) {
+                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
+                                        metadata.store(writer, null);
+                                    }
                                 }
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });

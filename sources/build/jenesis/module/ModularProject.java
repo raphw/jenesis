@@ -39,7 +39,7 @@ public class ModularProject implements BuildExecutorModule {
 
     public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar",
-                BuildStep.MODULE, BuildStep.IDENTITY);
+                BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -191,17 +191,23 @@ public class ModularProject implements BuildExecutorModule {
             Properties module = new SequencedProperties();
             module.setProperty("path", path);
             module.setProperty("module", info.coordinate());
-            if (info.name() != null) {
-                module.setProperty("name", info.name());
-            }
-            if (info.description() != null) {
-                module.setProperty("description", info.description());
-            }
             if (info.testOf() != null) {
                 module.setProperty("tests", info.testOf());
             }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
                 module.store(writer, null);
+            }
+            Properties metadata = new SequencedProperties();
+            if (info.name() != null) {
+                metadata.setProperty("name", info.name());
+            }
+            if (info.description() != null) {
+                metadata.setProperty("description", info.description());
+            }
+            if (!metadata.isEmpty()) {
+                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
+                    metadata.store(writer, null);
+                }
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
