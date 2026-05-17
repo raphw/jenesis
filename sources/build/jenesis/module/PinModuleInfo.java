@@ -72,11 +72,11 @@ public class PinModuleInfo implements BuildStep {
 
     private static void updateModuleInfo(Path file, SequencedMap<String, String> entries) throws IOException {
         String existing = Files.readString(file);
-        Matcher moduleMatch = MODULE_DECLARATION.matcher(existing);
-        if (!moduleMatch.find()) {
+        Matcher moduleDeclarationMatcher = MODULE_DECLARATION.matcher(existing);
+        if (!moduleDeclarationMatcher.find()) {
             throw new IllegalStateException("No module declaration found in " + file);
         }
-        int moduleStart = moduleMatch.start();
+        int moduleStart = moduleDeclarationMatcher.start();
         String prelude = existing.substring(0, moduleStart);
         String body = existing.substring(moduleStart);
         String updatedPrelude = updateJavadoc(prelude, entries);
@@ -230,9 +230,9 @@ public class PinModuleInfo implements BuildStep {
     private static String updateJavadoc(String prelude, SequencedMap<String, String> entries) {
         int javadocEnd = -1;
         int javadocStart = -1;
-        Matcher endMatch = JAVADOC_END.matcher(prelude);
-        while (endMatch.find()) {
-            javadocEnd = endMatch.end();
+        Matcher javadocEndMatcher = JAVADOC_END.matcher(prelude);
+        while (javadocEndMatcher.find()) {
+            javadocEnd = javadocEndMatcher.end();
         }
         if (javadocEnd >= 0) {
             javadocStart = prelude.lastIndexOf("/**", javadocEnd);
@@ -267,9 +267,9 @@ public class PinModuleInfo implements BuildStep {
             }
         }
         if (insertAt < 0) {
-            for (int i = lines.size() - 1; i >= 0; i--) {
-                if (lines.get(i).contains("*/")) {
-                    insertAt = i;
+            for (int lineIndex = lines.size() - 1; lineIndex >= 0; lineIndex--) {
+                if (lines.get(lineIndex).contains("*/")) {
+                    insertAt = lineIndex;
                     break;
                 }
             }

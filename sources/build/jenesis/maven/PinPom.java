@@ -50,30 +50,30 @@ public class PinPom implements BuildStep {
 
     private void updatePom(Path pomFile, SequencedMap<String, String> entries) throws IOException {
         String existing = Files.readString(pomFile);
-        Matcher dmMatch = DEPENDENCY_MANAGEMENT.matcher(existing);
+        Matcher dependencyManagementMatcher = DEPENDENCY_MANAGEMENT.matcher(existing);
         String indent;
-        if (dmMatch.find()) {
-            indent = dmMatch.group(1);
+        if (dependencyManagementMatcher.find()) {
+            indent = dependencyManagementMatcher.group(1);
         } else {
-            Matcher indentMatch = INDENT.matcher(existing);
-            indent = indentMatch.find() ? indentMatch.group(1) : "    ";
+            Matcher indentMatcher = INDENT.matcher(existing);
+            indent = indentMatcher.find() ? indentMatcher.group(1) : "    ";
         }
         String block = entries.isEmpty() ? "" : renderBlock(entries, indent);
         String updated;
-        if (dmMatch.find(0)) {
-            updated = dmMatch.replaceFirst(Matcher.quoteReplacement(block));
+        if (dependencyManagementMatcher.find(0)) {
+            updated = dependencyManagementMatcher.replaceFirst(Matcher.quoteReplacement(block));
         } else if (block.isEmpty()) {
             updated = existing;
         } else {
-            Matcher depsMatch = DEPENDENCIES_OPEN.matcher(existing);
-            if (depsMatch.find()) {
-                updated = existing.substring(0, depsMatch.start()) + block + existing.substring(depsMatch.start());
+            Matcher dependenciesMatcher = DEPENDENCIES_OPEN.matcher(existing);
+            if (dependenciesMatcher.find()) {
+                updated = existing.substring(0, dependenciesMatcher.start()) + block + existing.substring(dependenciesMatcher.start());
             } else {
-                Matcher closeMatch = PROJECT_CLOSE.matcher(existing);
-                if (!closeMatch.find()) {
+                Matcher projectCloseMatcher = PROJECT_CLOSE.matcher(existing);
+                if (!projectCloseMatcher.find()) {
                     throw new IllegalStateException("No </project> tag in " + pomFile);
                 }
-                updated = existing.substring(0, closeMatch.start() + 1) + block + existing.substring(closeMatch.start() + 1);
+                updated = existing.substring(0, projectCloseMatcher.start() + 1) + block + existing.substring(projectCloseMatcher.start() + 1);
             }
         }
         updated = stripDirectDependencyChecksums(updated);
@@ -179,23 +179,23 @@ public class PinPom implements BuildStep {
     }
 
     private static String stripDirectDependencyChecksums(String content) {
-        Matcher dmMatch = DEPENDENCY_MANAGEMENT.matcher(content);
-        int dmStart = -1, dmEnd = -1;
-        if (dmMatch.find()) {
-            dmStart = dmMatch.start();
-            dmEnd = dmMatch.end();
+        Matcher dependencyManagementMatcher = DEPENDENCY_MANAGEMENT.matcher(content);
+        int dependencyManagementStart = -1, dependencyManagementEnd = -1;
+        if (dependencyManagementMatcher.find()) {
+            dependencyManagementStart = dependencyManagementMatcher.start();
+            dependencyManagementEnd = dependencyManagementMatcher.end();
         }
-        Matcher checksumMatch = CHECKSUM_COMMENT.matcher(content);
+        Matcher checksumMatcher = CHECKSUM_COMMENT.matcher(content);
         StringBuilder result = new StringBuilder();
-        int prev = 0;
-        while (checksumMatch.find()) {
-            if (checksumMatch.start() >= dmStart && checksumMatch.end() <= dmEnd) {
+        int previous = 0;
+        while (checksumMatcher.find()) {
+            if (checksumMatcher.start() >= dependencyManagementStart && checksumMatcher.end() <= dependencyManagementEnd) {
                 continue;
             }
-            result.append(content, prev, checksumMatch.start());
-            prev = checksumMatch.end();
+            result.append(content, previous, checksumMatcher.start());
+            previous = checksumMatcher.end();
         }
-        result.append(content, prev, content.length());
+        result.append(content, previous, content.length());
         return result.toString();
     }
 

@@ -274,8 +274,8 @@ public class MavenProject implements BuildExecutorModule {
             throw new IOException(e);
         }
         NodeList children = document.getDocumentElement().getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            Node node = children.item(i);
+        for (int index = 0; index < children.getLength(); index++) {
+            Node node = children.item(index);
             if (node.getNodeType() != Node.ELEMENT_NODE) {
                 continue;
             }
@@ -293,8 +293,8 @@ public class MavenProject implements BuildExecutorModule {
                 }
                 case "developers" -> {
                     NodeList developers = node.getChildNodes();
-                    for (int j = 0; j < developers.getLength(); j++) {
-                        Node devNode = developers.item(j);
+                    for (int developerIndex = 0; developerIndex < developers.getLength(); developerIndex++) {
+                        Node devNode = developers.item(developerIndex);
                         if (devNode.getNodeType() != Node.ELEMENT_NODE) {
                             continue;
                         }
@@ -329,8 +329,8 @@ public class MavenProject implements BuildExecutorModule {
 
     private static Element firstChild(Node parent, String localName) {
         NodeList children = parent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            Node node = children.item(i);
+        for (int index = 0; index < children.getLength(); index++) {
+            Node node = children.item(index);
             if (node.getNodeType() == Node.ELEMENT_NODE && localName.equals(node.getLocalName())) {
                 return (Element) node;
             }

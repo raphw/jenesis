@@ -19,8 +19,8 @@ public class DockerizedJava {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(IMPLICIT_DOCKERFILE.getBytes(StandardCharsets.UTF_8));
             StringBuilder builder = new StringBuilder(12);
-            for (int i = 0; i < 6; i++) {
-                builder.append(String.format("%02x", digest[i]));
+            for (int index = 0; index < 6; index++) {
+                builder.append(String.format("%02x", digest[index]));
             }
             image = "jenesis-build:" + builder.toString();
         } catch (NoSuchAlgorithmException e) {
