@@ -241,6 +241,10 @@ public class MavenProject implements BuildExecutorModule {
                                 if (testsOf != null) {
                                     descriptor.setProperty("tests", testsOf);
                                 }
+                                String mainClass = properties.getProperty("mainClass");
+                                if (mainClass != null && testsOf == null) {
+                                    descriptor.setProperty("main", mainClass);
+                                }
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
                                     descriptor.store(writer, null);
                                 }
@@ -426,6 +430,9 @@ public class MavenProject implements BuildExecutorModule {
                 module.setProperty("type", packaging);
                 if (entry.getValue().release() != null) {
                     module.setProperty("release", entry.getValue().release());
+                }
+                if (entry.getValue().mainClass() != null) {
+                    module.setProperty("mainClass", entry.getValue().mainClass());
                 }
                 for (MavenDependencyScope scope : List.of(
                         MavenDependencyScope.COMPILE,

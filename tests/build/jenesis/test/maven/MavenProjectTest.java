@@ -798,4 +798,64 @@ public class MavenProjectTest {
         assertThat(placement.apply(pom)).contains(Path.of("module-foo", "pom.xml"));
         assertThat(placement.apply(other)).isEmpty();
     }
+
+    @Test
+    public void main_class_pom_property_lands_in_module_properties_main_module() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <properties>
+                        <mainClass>com.example.Entry</mainClass>
+                    </properties>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Properties mainModule = new Properties();
+        try (Reader reader = Files.newBufferedReader(
+                results.get("maven/module/module-/manifests").resolve(BuildStep.MODULE))) {
+            mainModule.load(reader);
+        }
+        assertThat(mainModule.getProperty("main")).isEqualTo("com.example.Entry");
+        Properties testModule = new Properties();
+        try (Reader reader = Files.newBufferedReader(
+                results.get("maven/module/test-module-/manifests").resolve(BuildStep.MODULE))) {
+            testModule.load(reader);
+        }
+        assertThat(testModule.getProperty("main")).isNull();
+    }
+
+    @Test
+    public void absent_main_class_pom_property_leaves_module_properties_without_main_key() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Properties mainModule = new Properties();
+        try (Reader reader = Files.newBufferedReader(
+                results.get("maven/module/module-/manifests").resolve(BuildStep.MODULE))) {
+            mainModule.load(reader);
+        }
+        assertThat(mainModule.getProperty("main")).isNull();
+    }
 }

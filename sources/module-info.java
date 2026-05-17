@@ -4,6 +4,7 @@
  * A build tool for Java projects, written and configured in Java itself.
  *
  * @release 25
+ * @main build.jenesis.Project
  */
 module build.jenesis {
 

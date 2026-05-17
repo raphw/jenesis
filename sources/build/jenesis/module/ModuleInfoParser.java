@@ -43,6 +43,7 @@ public class ModuleInfoParser {
             String name = null;
             String description = null;
             String testOf = null;
+            String main = null;
             DocCommentTree docComment = docTrees.getDocCommentTree(TreePath.getPath(unit, module));
             if (docComment != null) {
                 String summary = docComment.getFirstSentence().stream()
@@ -86,6 +87,11 @@ public class ModuleInfoParser {
                                 }
                             }
                             case "tests" -> testOf = content;
+                            case "main" -> {
+                                if (!content.isEmpty()) {
+                                    main = content;
+                                }
+                            }
                         }
                     }
                 }
@@ -95,6 +101,7 @@ public class ModuleInfoParser {
                     name,
                     description,
                     testOf,
+                    main,
                     dependencies,
                     runtimeDependencies,
                     versions);

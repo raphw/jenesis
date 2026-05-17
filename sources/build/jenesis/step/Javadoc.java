@@ -32,7 +32,8 @@ public class Javadoc extends JdkProcessBuildStep {
                 "-notimestamp",
                 "-tag", "release:a:Release:",
                 "-tag", "requires:a:Requires:",
-                "-tag", "tests:X"));
+                "-tag", "tests:X",
+                "-tag", "main:X"));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(BuildStep.SOURCES),
                     classes = argument.folder().resolve(BuildStep.CLASSES),

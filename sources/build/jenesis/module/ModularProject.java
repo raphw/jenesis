@@ -194,6 +194,9 @@ public class ModularProject implements BuildExecutorModule {
             if (info.testOf() != null) {
                 module.setProperty("tests", info.testOf());
             }
+            if (info.main() != null) {
+                module.setProperty("main", info.main());
+            }
             try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
                 module.store(writer, null);
             }

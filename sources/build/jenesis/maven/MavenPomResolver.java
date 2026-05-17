@@ -309,7 +309,8 @@ public class MavenPomResolver implements Resolver {
                             .map(resource -> property(resource, pom.properties()))
                             .toList(),
                     dependencies,
-                    managedDependencies));
+                    managedDependencies,
+                    pom.properties().get("mainClass")));
         });
         return results;
     }

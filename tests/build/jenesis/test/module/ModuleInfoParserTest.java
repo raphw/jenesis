@@ -314,4 +314,32 @@ public class ModuleInfoParserTest {
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.testOf()).isNull();
     }
+
+    @Test
+    public void main_tag_captures_main_class() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @main build.jenesis.Project
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.main()).isEqualTo("build.jenesis.Project");
+    }
+
+    @Test
+    public void absent_main_tag_leaves_main_class_unset() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @release 25
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.main()).isNull();
+    }
 }

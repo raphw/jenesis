@@ -225,6 +225,49 @@ public class ModularProjectTest {
     }
 
     @Test
+    public void at_main_lands_in_module_properties() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @main com.example.Entry
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Properties module = new Properties();
+        try (Reader reader = Files.newBufferedReader(
+                results.get("module/module-/manifests").resolve(BuildStep.MODULE))) {
+            module.load(reader);
+        }
+        assertThat(module.getProperty("main")).isEqualTo("com.example.Entry");
+    }
+
+    @Test
+    public void absent_at_main_leaves_module_properties_without_main_key() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                new HashDigestFunction("MD5"),
+                BuildExecutorCallback.nop());
+        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Properties module = new Properties();
+        try (Reader reader = Files.newBufferedReader(
+                results.get("module/module-/manifests").resolve(BuildStep.MODULE))) {
+            module.load(reader);
+        }
+        assertThat(module.getProperty("main")).isNull();
+    }
+
+    @Test
     public void artifactsByModule_links_classes_sources_and_javadoc_under_sub_module_folder() {
         Function<Path, Optional<Path>> placement = ModularProject.artifactsByModule();
         Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");

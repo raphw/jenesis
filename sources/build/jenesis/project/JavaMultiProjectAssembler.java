@@ -1,12 +1,18 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
+import build.jenesis.BuildStepContext;
+import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
+import build.jenesis.step.ProcessBuildStep;
 
 public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
@@ -29,7 +35,9 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
             } else {
                 java = new JavaModule();
             }
+            sub.addStep("prepare", new Prepare(), descriptor.manifests());
             sub.addModule("java", java,
+                    "prepare",
                     descriptor.sources(),
                     descriptor.manifests(),
                     descriptor.resolved(DependencyScope.COMPILE),
@@ -52,5 +60,40 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                 descriptor.artifacts(DependencyScope.RUNTIME));
             }
         };
+    }
+
+    private record Prepare() implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            String main = null;
+            for (BuildStepArgument argument : arguments.values()) {
+                Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
+                if (!Files.isRegularFile(moduleFile)) {
+                    continue;
+                }
+                Properties module = new SequencedProperties();
+                try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                    module.load(reader);
+                }
+                String value = module.getProperty("main");
+                if (value != null && !value.isEmpty()) {
+                    main = value;
+                    break;
+                }
+            }
+            if (main != null) {
+                Path target = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+                Properties jar = new SequencedProperties();
+                jar.setProperty("--main-class", main);
+                try (BufferedWriter writer = Files.newBufferedWriter(target.resolve("jar.properties"))) {
+                    jar.store(writer, null);
+                }
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
     }
 }
