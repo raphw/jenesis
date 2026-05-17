@@ -21,6 +21,8 @@ release:
   github:
     owner: raphw
     name: jenesis
+    branch: main
+    branchPush: main
     skipRelease: false
     skipTag: false
     tagName: 'v{{projectVersion}}'

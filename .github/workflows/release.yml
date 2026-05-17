@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: [Build]
     types: [completed]
-    branches: [master]
+    branches: [main]
 
 jobs:
   release:
