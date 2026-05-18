@@ -406,6 +406,17 @@ Concretely:
   predecessor that lives one level higher than the descriptor states. Instead, do the lookup at the level where
   the descriptor's path strings apply directly (typically the outer assembler lambda) and capture the result for
   any inner sub-module that needs it.
+- **Modules should publish only their final outcome by filtering through `resolve(...)`.** By default a
+  `BuildExecutorModule` republishes the name of every registered sub-step and sub-module to its caller, so a
+  module that internally creates a file, enriches it, then signs it would surface all three intermediate leaves.
+  Override `resolve(String path)` to return `Optional.empty()` for internal-only scaffolding leaves and
+  `Optional.of(<other-name>)` for ones to republish under a different identifier. The module is then free to
+  compose any number of intermediate steps and expose only the final shape to its consumers, who look up the
+  result by its file/folder conventions instead of by whatever internal step happens to have produced it -
+  keeping the consumer independent of how the module is composed and free to add or rearrange internal steps
+  without breaking downstream wiring. `ExternalModule` is the canonical example: it hides its four internal
+  nodes (`coordinate`, `dependencies`, `external`, `delegate`) and republishes the delegated module's leaves
+  directly under its own registered name (see [`ExternalModule`](#externalmodule)).
 - **Define each step-name constant once, at the class that adds the step**, and have all consumers reference
   that constant. `MultiProjectModule.IDENTIFIER` / `.COMPOSE` / `.MODULE` belong on `MultiProjectModule`
   because that's the framework that wires those sub-modules; `DependenciesModule.RESOLVED` / `.ARTIFACTS`
