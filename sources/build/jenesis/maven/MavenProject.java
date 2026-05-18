@@ -187,7 +187,7 @@ public class MavenProject implements BuildExecutorModule {
                                         .resolve(properties.getProperty("path"))
                                         .resolve("pom.xml");
                                 coordinates.setProperty(properties.getProperty("pom"),
-                                        context.next().relativize(pomFile).toString());
+                                        context.next().relativize(pomFile).toString().replace(File.separatorChar, '/'));
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
                                     coordinates.store(writer, null);
                                 }
@@ -430,10 +430,11 @@ public class MavenProject implements BuildExecutorModule {
                 String coordinate = selfKey.coordinate(prefix, entry.getValue().version());
                 MavenDependencyKey selfPom = new MavenDependencyKey(
                         entry.getValue().groupId(), entry.getValue().artifactId(), "pom", null);
+                String relativePath = entry.getKey().toString().replace(File.separatorChar, '/');
                 Properties module = new SequencedProperties();
                 module.setProperty("coordinate", coordinate);
                 module.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
-                module.setProperty("path", entry.getKey().toString());
+                module.setProperty("path", relativePath);
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
                 module.setProperty("version", entry.getValue().version());
@@ -471,7 +472,7 @@ public class MavenProject implements BuildExecutorModule {
                 module.setProperty("resources", entry.getValue().resourceDirectories() == null
                         ? "src/main/resources"
                         : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + BuildExecutorModule.encode(entry.getKey().toString()) + ".properties"))) {
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + BuildExecutorModule.encode(relativePath) + ".properties"))) {
                     module.store(writer, null);
                 }
                 Properties testModule = new SequencedProperties();
@@ -479,7 +480,7 @@ public class MavenProject implements BuildExecutorModule {
                         entry.getValue().groupId(), entry.getValue().artifactId(), packaging, "tests");
                 testModule.setProperty("coordinate", testSelfKey.coordinate(prefix, entry.getValue().version()));
                 testModule.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
-                testModule.setProperty("path", entry.getKey().toString());
+                testModule.setProperty("path", relativePath);
                 if (entry.getValue().release() != null) {
                     testModule.setProperty("release", entry.getValue().release());
                 }
@@ -507,7 +508,7 @@ public class MavenProject implements BuildExecutorModule {
                 testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
                         ? "src/test/resources"
                         : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + BuildExecutorModule.encode(entry.getKey().toString()) + ".properties"))) {
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + BuildExecutorModule.encode(relativePath) + ".properties"))) {
                     testModule.store(writer, null);
                 }
             }

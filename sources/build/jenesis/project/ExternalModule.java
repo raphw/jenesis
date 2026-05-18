@@ -154,8 +154,9 @@ public class ExternalModule implements BuildExecutorModule {
                 throws IOException {
             Path artifacts = arguments.get(EXTERNAL_ARTIFACTS).folder().resolve(BuildStep.ARTIFACTS);
             String name;
-            try (JarFile jarFile = new JarFile(artifacts.resolve(coordinate.replace('/', '-') + ".jar").toFile())) {
-                Manifest manifest = jarFile.getManifest();
+            try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(
+                    artifacts.resolve(coordinate.replace('/', '-') + ".jar")))) {
+                Manifest manifest = jarStream.getManifest();
                 if (manifest == null) {
                     throw new IllegalStateException("Missing manifest in main artifact: " + coordinate);
                 }

@@ -23,6 +23,7 @@ jobs:
           java-version: '25'
 
       - name: ${{ matrix.build }}.java
+        shell: bash
         run: java build/${{ matrix.build }}.java
 
   project:
@@ -42,4 +43,5 @@ jobs:
           java-version: '25'
 
       - name: Project layout ${{ matrix.layout }}
+        shell: bash
         run: java -Djenesis.project.layout=${{ matrix.layout }} build/jenesis/Project.java stage

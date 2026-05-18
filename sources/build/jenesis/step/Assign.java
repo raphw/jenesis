@@ -53,7 +53,10 @@ public class Assign implements BuildStep {
                         assignments.put(name, "");
                     } else {
                         Path resolved = argument.folder().resolve(value);
-                        assignments.put(name, context.next().relativize(resolved).toString());
+                        assignments.put(name, context.next()
+                                .relativize(resolved)
+                                .toString()
+                                .replace(File.separatorChar, '/'));
                     }
                 }
             }
@@ -65,7 +68,10 @@ public class Assign implements BuildStep {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
             }
-            assignments.setProperty(coordinate, context.next().relativize(path).toString());
+            assignments.setProperty(coordinate, context.next()
+                    .relativize(path)
+                    .toString()
+                    .replace(File.separatorChar, '/'));
         });
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
             assignments.store(writer, null);

@@ -73,8 +73,8 @@ public interface TestEngine extends Serializable {
                     if (!Files.isRegularFile(file)) {
                         continue;
                     }
-                    try (JarFile jarFile = new JarFile(file.toFile())) {
-                        Manifest manifest = jarFile.getManifest();
+                    try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(file))) {
+                        Manifest manifest = jarStream.getManifest();
                         if (manifest != null) {
                             manifests.add(manifest.getMainAttributes());
                         }
@@ -87,5 +87,4 @@ public interface TestEngine extends Serializable {
         }
         return manifests;
     }
-
 }

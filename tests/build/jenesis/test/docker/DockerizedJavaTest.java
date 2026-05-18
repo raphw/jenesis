@@ -70,7 +70,7 @@ public class DockerizedJavaTest {
 
     static boolean dockerAvailable() {
         try {
-            Process process = new ProcessBuilder("docker", "version")
+            Process process = new ProcessBuilder("docker", "info")
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                     .redirectError(ProcessBuilder.Redirect.DISCARD)
                     .start();
