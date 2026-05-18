@@ -34,4 +34,27 @@ public class ProjectModuleDescriptorTest {
         assertThat(descriptor.resolved(DependencyScope.COMPILE)).isEqualTo(base.resolved(DependencyScope.COMPILE));
         assertThat(descriptor.resolved(DependencyScope.RUNTIME)).isEqualTo(base.resolved(DependencyScope.RUNTIME));
     }
+
+    @Test
+    public void to_inherited_prepends_one_parent_segment_per_call() {
+        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", new LinkedHashSet<>());
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, true, true);
+        ProjectModuleDescriptor inherited = descriptor.toInherited();
+        assertThat(inherited.name()).isEqualTo(base.name());
+        assertThat(inherited.dependencies()).isEqualTo(base.dependencies());
+        assertThat(inherited.tests()).isTrue();
+        assertThat(inherited.source()).isTrue();
+        assertThat(inherited.javadoc()).isTrue();
+        assertThat(inherited.sources()).isEqualTo("../" + base.sources());
+        assertThat(inherited.manifests()).isEqualTo("../" + base.manifests());
+        assertThat(inherited.artifacts(DependencyScope.COMPILE)).isEqualTo("../" + base.artifacts(DependencyScope.COMPILE));
+        assertThat(inherited.artifacts(DependencyScope.RUNTIME)).isEqualTo("../" + base.artifacts(DependencyScope.RUNTIME));
+        assertThat(inherited.resolved(DependencyScope.COMPILE)).isEqualTo("../" + base.resolved(DependencyScope.COMPILE));
+        assertThat(inherited.resolved(DependencyScope.RUNTIME)).isEqualTo("../" + base.resolved(DependencyScope.RUNTIME));
+        ProjectModuleDescriptor twice = inherited.toInherited();
+        assertThat(twice.sources()).isEqualTo("../../" + base.sources());
+        assertThat(twice.manifests()).isEqualTo("../../" + base.manifests());
+        assertThat(twice.artifacts(DependencyScope.COMPILE)).isEqualTo("../../" + base.artifacts(DependencyScope.COMPILE));
+        assertThat(twice.resolved(DependencyScope.RUNTIME)).isEqualTo("../../" + base.resolved(DependencyScope.RUNTIME));
+    }
 }

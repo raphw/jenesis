@@ -35,10 +35,10 @@ public final class Project {
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, builder, assembler) -> {
-            MultiProjectAssembler<? super ProjectModuleDescriptor> wrapped = new PomAwareAssembler(assembler, builder);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, builder);
             executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
                     MavenProject.make(builder.root(),
-                            (descriptor, repositories, resolvers) -> wrapped.apply(
+                            (descriptor, repositories, resolvers) -> pomAware.apply(
                                     new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
                                     repositories, resolvers))));
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
@@ -83,7 +83,7 @@ public final class Project {
 
         Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
             MavenPomResolver resolver = new MavenPomResolver();
-            MultiProjectAssembler<? super ProjectModuleDescriptor> wrapped = new PomAwareAssembler(assembler, builder);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, builder);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, downloaded) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
@@ -91,21 +91,17 @@ public final class Project {
                         downloaded.values());
                 Map<String, Repository> repositories = new LinkedHashMap<>();
                 repositories.put("maven", new MavenDefaultRepository());
-                if (builder.repositories() != null) {
-                    repositories.putAll(builder.repositories());
-                }
+                repositories.putAll(builder.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(false,
                         resolver.translated("maven",
                                 (_, coordinate) -> parser.apply(coordinate))));
                 resolvers.put("maven", resolver);
-                if (builder.resolvers() != null) {
-                    resolvers.putAll(builder.resolvers());
-                }
+                resolvers.putAll(builder.resolvers());
                 sub.addModule("modules", ModularProject.make(builder.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
-                        (descriptor, mergedRepos, mergedResolvers) -> wrapped.apply(
+                        (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                 new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
                                 mergedRepos, mergedResolvers)));
             }, "download");
@@ -196,7 +192,7 @@ public final class Project {
         }
     }
 
-    private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> { // Revisit this later and resolve as submodules.
+    private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         private final MultiProjectAssembler<? super ProjectModuleDescriptor> base;
         private final Pom pom;
@@ -221,23 +217,12 @@ public final class Project {
         public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers) {
-            BuildExecutorModule delegate = base.apply(descriptor, repositories, resolvers);
-            return new BuildExecutorModule() {
-                @Override
-                public Optional<String> resolve(String path) {
-                    if (path.equals("pom") || path.startsWith("pom/")) {
-                        return Optional.of(path);
-                    }
-                    return delegate.resolve(path);
-                }
-
-                @Override
-                public void accept(BuildExecutor sub, SequencedMap<String, Path> inherited) throws IOException {
-                    delegate.accept(sub, inherited);
-                    sub.addStep("pom", pom,
-                            descriptor.sources(),
-                            descriptor.manifests());
-                }
+            BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
+            return (sub, inherited) -> {
+                sub.addModule("main", delegate, inherited.sequencedKeySet().stream());
+                sub.addStep("pom", pom,
+                        descriptor.sources(),
+                        descriptor.manifests());
             };
         }
     }
