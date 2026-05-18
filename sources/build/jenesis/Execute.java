@@ -28,14 +28,17 @@ public record Execute(Project project, String mainClass, String module) {
     }
 
     public int execute(String... arguments) throws IOException, InterruptedException {
+        return doExecute(false, arguments);
+    }
+
+    private int doExecute(boolean mainMethod, String... arguments) throws IOException, InterruptedException {
         String moduleSegmentPrefix = MultiProjectModule.MODULE + "-";
         String runtimeArtifactsSuffix = "/" + DependencyScope.RUNTIME.label()
                 + "/" + MultiProjectModule.DEPENDENCIES
                 + "/" + DependenciesModule.ARTIFACTS;
         String targetSegment = module != null ? moduleSegmentPrefix + BuildExecutorModule.encode(module) : null;
-        SequencedMap<String, Path> outputs = module != null
-                ? project.build("+" + module)
-                : project.build(Project.BUILD);
+        String selector = module != null ? "+" + module : Project.BUILD;
+        SequencedMap<String, Path> outputs = mainMethod ? project.doMain(selector) : project.build(selector);
         SequencedMap<String, SequencedMap<String, Path>> groups = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : outputs.entrySet()) {
             String key = entry.getKey();
@@ -179,7 +182,7 @@ public record Execute(Project project, String mainClass, String module) {
     public static void main(String... arguments) {
         try {
             Project project = new Project().resolveProperties();
-            int code = new Execute(project).resolveProperties().execute(arguments);
+            int code = new Execute(project).resolveProperties().doExecute(true, arguments);
             if (code != 0) {
                 System.exit(code);
             }
