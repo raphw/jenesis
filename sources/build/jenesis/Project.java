@@ -26,7 +26,8 @@ public final class Project {
     public static final String BUILD = "build",
             COLLECT = "collect",
             STAGE = "stage",
-            PIN = "pin";
+            PIN = "pin",
+            METADATA = "metadata";
 
     @FunctionalInterface
     public interface Layout {
@@ -36,12 +37,19 @@ public final class Project {
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, builder, assembler) -> {
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, builder);
-            executor.addModule(BUILD, (sub, _) -> sub.addModule("maven",
-                    MavenProject.make(builder.root(),
-                            (descriptor, repositories, resolvers) -> pomAware.apply(
-                                    new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
-                                    repositories, resolvers))));
+            SequencedSet<String> references = MetadataModule.register(executor, builder);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, references);
+            executor.addModule(BUILD, (sub, inherited) -> {
+                SequencedSet<String> mavenDeps = new LinkedHashSet<>();
+                inherited.sequencedKeySet().stream()
+                        .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
+                        .forEach(mavenDeps::add);
+                sub.addModule("maven", MavenProject.make(builder.root(),
+                        (descriptor, repositories, resolvers) -> pomAware.apply(
+                                new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                repositories, resolvers)),
+                        mavenDeps);
+            }, METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -84,12 +92,13 @@ public final class Project {
 
         Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
             MavenPomResolver resolver = new MavenPomResolver();
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, builder);
+            SequencedSet<String> references = MetadataModule.register(executor, builder);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, references);
             executor.addStep("download", new DownloadModuleUris(null));
-            executor.addModule(BUILD, (sub, downloaded) -> {
+            executor.addModule(BUILD, (sub, inherited) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
                         DownloadModuleUris.URIS,
-                        downloaded.values());
+                        inherited.values());
                 Map<String, Repository> repositories = new LinkedHashMap<>();
                 repositories.put("maven", new MavenDefaultRepository());
                 repositories.putAll(builder.repositories());
@@ -99,13 +108,18 @@ public final class Project {
                                 (_, coordinate) -> parser.apply(coordinate))));
                 resolvers.put("maven", resolver);
                 resolvers.putAll(builder.resolvers());
+                SequencedSet<String> modulesDeps = new LinkedHashSet<>();
+                inherited.sequencedKeySet().stream()
+                        .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
+                        .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(builder.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
                         (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                 new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
-                                mergedRepos, mergedResolvers)));
-            }, "download");
+                                mergedRepos, mergedResolvers)),
+                        modulesDeps);
+            }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -149,6 +163,32 @@ public final class Project {
             throw new IllegalStateException(
                     "No build descriptor found under " + root.toAbsolutePath()
                             + " (expected a module-info.java or a pom.xml)");
+        }
+    }
+
+    private static final class MetadataModule implements BuildExecutorModule {
+
+        private final SequencedMap<String, Path> files;
+
+        private MetadataModule(SequencedMap<String, Path> files) {
+            this.files = files;
+        }
+
+        static SequencedSet<String> register(BuildExecutor executor, Builder builder) {
+            Path root = builder.root().toAbsolutePath().normalize();
+            SequencedMap<String, Path> files = new LinkedHashMap<>();
+            for (Path file : builder.metadata()) {
+                Path absolute = (file.isAbsolute() ? file : builder.root().resolve(file)).toAbsolutePath().normalize();
+                Path relative = root.relativize(absolute);
+                files.put(METADATA + "-" + BuildExecutorModule.encode(relative.toString()), relative);
+            }
+            executor.addModule(METADATA, new MetadataModule(files));
+            return Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(METADATA)));
+        }
+
+        @Override
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+            files.forEach((name, file) -> buildExecutor.addSource(name, Bind.asMetadata(), file));
         }
     }
 
@@ -196,11 +236,12 @@ public final class Project {
     private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         private final MultiProjectAssembler<? super ProjectModuleDescriptor> base;
-        private final Path metadataFile;
+        private final SequencedSet<String> references;
 
-        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base, Builder builder) {
+        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base,
+                                  SequencedSet<String> references) {
             this.base = base;
-            this.metadataFile = builder.metadata() == null ? null : builder.root().resolve(builder.metadata());
+            this.references = references;
         }
 
         @Override
@@ -210,16 +251,32 @@ public final class Project {
             BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
             return (sub, inherited) -> {
                 sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
-                sub.addModule("describe", (describe, _) -> {
-                    SequencedSet<String> deps = new LinkedHashSet<>();
-                    deps.add(BuildExecutorModule.PREVIOUS + descriptor.sources());
-                    deps.add(BuildExecutorModule.PREVIOUS + descriptor.manifests());
-                    if (metadataFile != null) {
-                        describe.addSource("metadata", Bind.asMetadata(), metadataFile);
-                        deps.add("metadata");
+                SequencedSet<String> available = new LinkedHashSet<>();
+                for (String reference : references) {
+                    String prefix = reference + "/";
+                    for (String key : inherited.sequencedKeySet()) {
+                        String stripped = key;
+                        while (stripped.startsWith(BuildExecutorModule.PREVIOUS)) {
+                            stripped = stripped.substring(BuildExecutorModule.PREVIOUS.length());
+                        }
+                        if (stripped.startsWith(prefix)) {
+                            available.add(key);
+                        }
                     }
-                    describe.addStep("pom", new Pom(), deps);
-                }, descriptor.sources(), descriptor.manifests());
+                }
+                SequencedSet<String> describeOuterDeps = new LinkedHashSet<>();
+                describeOuterDeps.add(descriptor.sources());
+                describeOuterDeps.add(descriptor.manifests());
+                describeOuterDeps.addAll(available);
+                sub.addModule("describe", (describe, _) -> {
+                    SequencedSet<String> describeInnerDeps = new LinkedHashSet<>();
+                    describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.sources());
+                    describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.manifests());
+                    for (String key : available) {
+                        describeInnerDeps.add(BuildExecutorModule.PREVIOUS + key);
+                    }
+                    describe.addStep("pom", new Pom(), describeInnerDeps);
+                }, describeOuterDeps);
             };
         }
     }
@@ -271,7 +328,7 @@ public final class Project {
                 false,
                 false,
                 false,
-                null,
+                List.of(),
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 new JavaMultiProjectAssembler(),
                 Map.of(),
@@ -287,7 +344,7 @@ public final class Project {
             boolean sources,
             boolean javadoc,
             boolean stageTests,
-            Path metadata,
+            List<Path> metadata,
             SequencedSet<String> defaultTarget,
             MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
             Map<String, Repository> repositories,
@@ -422,7 +479,7 @@ public final class Project {
                     resolvers);
         }
 
-        public Builder metadata(Path metadata) {
+        public Builder metadata(Path... metadata) {
             return new Builder(root,
                     target,
                     cache,
@@ -431,7 +488,7 @@ public final class Project {
                     sources,
                     javadoc,
                     stageTests,
-                    metadata,
+                    List.of(metadata),
                     defaultTarget,
                     assembler,
                     repositories,
@@ -511,7 +568,7 @@ public final class Project {
             boolean resolvedSources = sources;
             boolean resolvedJavadoc = javadoc;
             boolean resolvedStageTests = stageTests;
-            Path resolvedMetadata = metadata;
+            List<Path> resolvedMetadata = metadata;
             String rootOverride = System.getProperty("jenesis.project.root");
             if (rootOverride != null) {
                 resolvedRoot = Path.of(rootOverride);
@@ -549,7 +606,19 @@ public final class Project {
             }
             String metadataOverride = System.getProperty("jenesis.project.metadata");
             if (metadataOverride != null) {
-                resolvedMetadata = Path.of(metadataOverride);
+                resolvedMetadata = Arrays.stream(metadataOverride.split(Pattern.quote(File.pathSeparator)))
+                        .map(String::trim)
+                        .filter(value -> !value.isEmpty())
+                        .map(Path::of)
+                        .toList();
+            }
+            if (resolvedRoot.isAbsolute()) {
+                Path absoluteCwd = Path.of("").toAbsolutePath().normalize();
+                Path absoluteRoot = resolvedRoot.normalize();
+                if (absoluteRoot.startsWith(absoluteCwd)) {
+                    Path relative = absoluteCwd.relativize(absoluteRoot);
+                    resolvedRoot = relative.toString().isEmpty() ? Path.of(".") : relative;
+                }
             }
             return new Builder(resolvedRoot,
                     resolvedTarget,

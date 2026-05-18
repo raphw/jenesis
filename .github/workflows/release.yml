@@ -57,6 +57,19 @@ jobs:
                -Djenesis.project.metadata=metadata.properties \
                build/jenesis/Project.java stage
 
+      - name: Package SDKMAN archive
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git clean -fdX sdk/
+          mkdir -p sdk/lib
+          cp "target/stage/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}.jar" sdk/lib/
+          cp LICENSE sdk/LICENSE
+          BASE="jenesis-${VERSION}"
+          ln -sfn sdk "${BASE}"
+          zip -r "sdk/${BASE}.zip" "${BASE}"
+          rm "${BASE}"
+
       - name: JReleaser deploy
         uses: jreleaser/release-action@90ac653bb9c79d11179e65d81499f3f34527dcd5 # 2.5.0
         with:
