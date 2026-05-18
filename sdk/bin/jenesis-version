@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+JENESIS_HOME="$(dirname "$SCRIPT_DIR")"
+
+SOURCES_JAR=""
+for candidate in "$JENESIS_HOME"/sources/*-sources.jar; do
+    if [ -f "$candidate" ]; then
+        SOURCES_JAR="$candidate"
+        break
+    fi
+done
+if [ -z "$SOURCES_JAR" ]; then
+    echo "jenesis-version: no sources jar found in $JENESIS_HOME/sources" >&2
+    exit 1
+fi
+
+JAR_NAME="$(basename "$SOURCES_JAR" .jar)"
+VERSION="${JAR_NAME#build.jenesis-}"
+VERSION="${VERSION%-sources}"
+
+echo "jenesis-version: sdk is at version ${VERSION}"
+
+if [ "$#" -eq 0 ]; then
+    TARGETS=(".")
+    LABELED=0
+else
+    TARGETS=("$@")
+    LABELED=1
+fi
+
+ALL_MATCH=1
+for target in "${TARGETS[@]}"; do
+    if [ ! -d "$target" ]; then
+        echo "jenesis-version: target '$target' is not a directory" >&2
+        exit 1
+    fi
+    abs_target="$(cd "$target" && pwd -P)"
+    BUILD_DIR="$abs_target/build/jenesis"
+    VERSION_FILE="$BUILD_DIR/jenesis.version"
+
+    if [ "$LABELED" = "1" ]; then
+        target_clean="${target%/}"
+        summary_prefix="$target_clean - "
+    else
+        summary_prefix=""
+    fi
+
+    if [ ! -d "$BUILD_DIR" ]; then
+        echo "jenesis-version: ${summary_prefix}no build/jenesis found"
+        ALL_MATCH=0
+    elif [ ! -f "$VERSION_FILE" ]; then
+        echo "jenesis-version: ${summary_prefix}no version found"
+        ALL_MATCH=0
+    else
+        CUR_VERSION="$(cat "$VERSION_FILE")"
+        echo "jenesis-version: ${summary_prefix}build/jenesis is at version ${CUR_VERSION}"
+        if [ "$CUR_VERSION" != "$VERSION" ]; then
+            ALL_MATCH=0
+        fi
+    fi
+done
+
+if [ "$ALL_MATCH" = "1" ]; then
+    exit 0
+fi
+exit 1

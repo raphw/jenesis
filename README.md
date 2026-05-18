@@ -4,23 +4,78 @@ Jenesis
 Getting started
 ---------------
 
-Jenesis is a build tool for Java projects, written and configured in Java itself. It needs no installation, wrapper
-script, or precompiled binary: the tool's own sources sit next to your project's (typically as a Git submodule) and
-run directly via the JVM's single-file launcher. A build is fully reproducible from a clone of the project plus a
-JDK.
+Jenesis is a build tool for Java projects, written and configured in Java itself. It builds **modular projects**
+out of the box (anything whose modules declare themselves via `module-info.java`) and also understands the
+declarative slices of a `pom.xml` - descriptive metadata, plugin-free dependency lists, parent coordinates - so
+a Maven-shaped project that does not lean on plugin lifecycles can be built without conversion. Pointed at a
+project root containing a `module-info.java`, a `pom.xml`, or both, Jenesis discovers the multi-project graph
+automatically and wires the matching compile, package, and (where sources are present) test pipeline.
 
-The fastest way to use it is the canonical entry point, `build.jenesis.Project`. From a project root that contains
-a `module-info.java` (modular) or a `pom.xml` (Maven), run:
+The design goal is to ship the build *with* the project as plain Java source, never as a binary. The Jenesis
+sources sit inside your repository under `build/jenesis/`, the launcher is the JVM's single-file mode
+(`java build/jenesis/Project.java`), and the build is reproducible from a clone plus a JDK. There is no opaque
+wrapper, no fetched plugin tree, no fetched daemon - which closes the supply-chain surface that wrappers and
+plugin resolvers otherwise expose.
 
+### Installing
+
+Three equivalent ways to populate `build/jenesis/` inside your project. All three land at the same on-disk
+state, so the canonical `java build/jenesis/Project.java` invocation works identically afterwards:
+
+**curl-piped bootstrap.** Fastest, no prerequisites beyond a JDK and `curl`. Run from your project root:
+
+    curl -fsSL https://get.jenesis.build | bash
     java build/jenesis/Project.java
 
-That is the whole invocation. `Project` auto-detects the project shape, wires the corresponding pipeline (compile,
-package, optionally test), and runs the discovered multi-project graph. Jenesis itself is built this way: clone
-this repository and run the command above from its root.
+Set `JENESIS_VERSION=X.Y.Z` to pin a specific version. The script is `install.sh` at the repository root.
+
+**Git submodule.** Most explicit; the pinned submodule commit is the reproducibility anchor, so a fresh clone
+plus `git submodule update --init` is the entire setup with no separate install step:
+
+    git submodule add https://github.com/raphw/jenesis.git .jenesis
+    ln -s ../.jenesis/sources/build/jenesis build/jenesis
+    java build/jenesis/Project.java
+
+On platforms without symlink support, replace the `ln -s` with `cp -r .jenesis/sources/build/jenesis build/jenesis`
+and refresh after each submodule update.
+
+**SDKMAN.** Best fit when you would rather manage versions globally instead of vendoring sources per project.
+Install once, then initialise each consuming project from the SDK:
+
+    sdk install jenesis
+    jenesis-init                       # from your project root
+    java build/jenesis/Project.java    # or just 'jenesis', equivalent
+
+`jenesis-init` populates `build/jenesis/` from the installed SDK. The companion scripts `jenesis-validate`,
+`jenesis-version`, and `jenesis-switch` are documented under [Using Jenesis as a CLI](#using-jenesis-as-a-cli).
+
+You can also skip the embedding entirely and run `jenesis` directly from a project root: the SDK's own copy
+of `Project.main(...)` is invoked against the current directory, with no `build/jenesis/` written. Customisation
+is then limited to system properties (`-Djenesis.project.layout=...` and friends); custom builders and
+hand-wired `.java` files under `build/` are not reachable. Useful for quick trials and for building projects
+with an untrusted build source, where Jenesis itself stays the trusted, SDK-installed copy.
+
+### Example: Building Jenesis itself
+
+A clone of this repository is the easiest working example. Sources live under `sources/` and tests under
+`tests/`, with a `module-info.java` in each (`build.jenesis` and `build.jenesis.test`) and a single root
+`pom.xml` that points at both directories. The same canonical invocation builds it:
+
+    git clone https://github.com/raphw/jenesis.git
+    cd jenesis
+    java build/jenesis/Project.java
+
+The auto-detected layout is `MAVEN`, since the root `pom.xml` takes precedence over a nested module-info.
+The build compiles main and test sources, runs the tests, and writes artifacts under `target/`. Try
+`java build/jenesis/Project.java stage` to materialise the release tree pushed to Maven Central, or browse
+`metadata.properties` and the module-info javadoc to see how descriptive metadata flows into the emitted POM.
 
 ### Customizing the build
 
-`Project` exposes a fluent `Builder` so the defaults can be overridden in code:
+Customisation comes in three tiers, picked by how far you need to deviate from the auto-wired pipeline.
+
+**Builder flags.** When the project shape is fine but a knob needs flipping - skip tests, force a layout, route
+`target/` somewhere else - override on the way in via the fluent `Project.builder()`:
 
 ```java
 Project.builder()
@@ -29,40 +84,34 @@ Project.builder()
        .build(args);
 ```
 
-Most builder properties also have a corresponding system property (`jenesis.project.layout`,
-`jenesis.project.skipTests`, `jenesis.project.stageTests`,
-`jenesis.project.root` / `.target` / `.cache`), applied by `resolveProperties()` which `Project.main(...)`
-calls before delegating to `build(args)`. See the [Configuration](#configuration) section for the complete table.
+Most builder properties also have a matching system property (`jenesis.project.layout`,
+`jenesis.project.skipTests`, `jenesis.project.stageTests`, `jenesis.project.root` / `.target` / `.cache`),
+applied by `resolveProperties()` which `Project.main(...)` calls before delegating to `build(args)`. See the
+[Configuration](#configuration) section for the full table. The `jenesis.project.root` form is also how you
+build a project that lives outside the directory holding `build/jenesis/`:
 
-### Building other projects
+    java -Djenesis.project.root=/path/to/other/project build/jenesis/Project.java
 
-To use Jenesis to build a project of your own, add this repository as a Git submodule and expose its
-`build.jenesis` package under your project's `build/` folder so the launcher can find `Project.java`. The convention
-this repository uses is a single symlink, so the same `java build/jenesis/Project.java` invocation works from any
-project root:
+**Custom assembler.** When the per-project pipeline itself needs different steps - an extra processing stage,
+a different test runner, a non-default jar layout - pass your own `MultiProjectAssembler` to the builder:
 
-    git submodule add https://github.com/raphw/jenesis.git .jenesis
-    ln -s ../.jenesis/sources/build/jenesis build/jenesis
+```java
+Project.builder()
+       .assembler(new MyAssembler())
+       .build(args);
+```
 
-The pinned submodule commit gives reproducibility: a clone of your project plus `git submodule update --init` is
-the entire setup, no Jenesis installation required. From there, the same auto-detection applies to your project's
-own `module-info.java` or `pom.xml`:
+The assembler's `apply(descriptor, repositories, resolvers)` is invoked once per module with the merged
+repository and resolver maps, and returns that module's step graph. See [`MultiProjectModule`](#multiprojectmodule)
+and [Layouts and assemblers](#layouts-and-assemblers) for the full surface.
 
-    java build/jenesis/Project.java
-
-On platforms without symlink support, replace the `ln -s` with a one-time copy
-(`cp -r .jenesis/sources/build/jenesis build/jenesis`) and refresh it after each submodule update.
-
-You can also build a project that lives somewhere else without setting up the submodule layout inside it. Use the
-`jenesis.project.root` system property to point at the project root, while keeping the launcher resolved against
-the Jenesis checkout itself:
-
-    java -Djenesis.project.root=/path/to/other/project .jenesis/sources/build/jenesis/Project.java
-
-The same applies to `jenesis.project.target` and `jenesis.project.cache` if you want their on-disk locations
-separated from the project tree as well.
-
-Other distribution methods (a published jar, a wrapper script, a CI-friendly bootstrap) will follow.
+**Hand-wired build.** When auto-detection is not the right starting point at all, drop your own `.java` source
+under `build/` and wire the build from the underlying primitives - a `BuildExecutor` plus a graph of
+`BuildStep`s. Run it the same way: `java build/Mine.java`. This is the mode the rest of this README -
+[Architecture](#architecture), [Build steps](#build-steps), [Build executor modules](#build-executor-modules),
+[Implementing a `BuildStep`](#implementing-a-buildstep) - describes in detail. The example launchers under
+`build/` (`Minimal.java`, `Manual.java`, `Maven.java`, `Modular.java`, `ModularToMaven.java`, `Modules.java`)
+are working starting points.
 
 ### Selectors
 
@@ -1048,14 +1097,14 @@ hash-tracked channel keyed off a properties file named by convention `metadata.p
 fed by per-layout defaults extracted from the project's own sources (module-info or pom.xml), and overridden
 key-by-key by the user-supplied file.
 
-### Pointing jenesis at the file
+### Pointing Jenesis at the file
 
 The file path is set in one of two equivalent ways:
 
 - System property: `-Djenesis.project.metadata=metadata.properties` (path resolved relative to the project root).
 - Programmatic API: `Project.builder().metadata(Path.of("metadata.properties"))`.
 
-A `null` (unset) value means no project-level metadata file; jenesis still emits POMs that contain only the
+A `null` (unset) value means no project-level metadata file; Jenesis still emits POMs that contain only the
 fields the active layout supplies. When the value is set, the assembler creates a single-file source pointing at
 that path, hard-links it through a `Bind` step, and exposes the result as a predecessor named `metadata` to the
 `Pom` step. Because the file's content participates in the build hash chain, any edit to `metadata.properties`
@@ -1156,13 +1205,13 @@ folder is iterated and contributes `identity.properties`, `module.properties`, `
 
 The `module` key (read from the merged `metadata.properties`) and the `tests` key (read from
 `module.properties`) together suppress POM emission for any module whose resolver-computed `artifactId`
-does not match - that's how the test module gets filtered out of a release build of jenesis without
+does not match - that's how the test module gets filtered out of a release build of Jenesis without
 anyone having to thread an exclusion list through the assembler.
 
 Releasing to Maven Central
 --------------------------
 
-This section describes the release pipeline that any project using jenesis can adopt. The next section
+This section describes the release pipeline that any project using Jenesis can adopt. The next section
 documents how this repository wires those mechanisms together for its own releases.
 
 ### The stage step
@@ -1180,7 +1229,7 @@ executor.addStep("stage",   new Relocate(new ModularPlacement()),             "c
 ```
 
 The stage step writes its tree under `target/stage/output/`. Files are hard-linked rather than copied -
-the staged tree shares inodes with `target/collect/output/`. Like every other jenesis step, its output is
+the staged tree shares inodes with `target/collect/output/`. Like every other Jenesis step, its output is
 content-hashed and skipped on re-runs when inputs are unchanged.
 
 Under `MavenRepositoryStage` (used by `MAVEN`, `MODULAR_TO_MAVEN`), each per-module directory from
@@ -1224,7 +1273,7 @@ between the module name and the jar files.
 The resulting trees under `target/stage/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
 `-Djenesis.project.sources=true`, `-Djenesis.project.docs=true`):
 
-`MAVEN` and `MODULAR_TO_MAVEN` (Maven repository layout, identical for the jenesis project):
+`MAVEN` and `MODULAR_TO_MAVEN` (Maven repository layout, identical for the Jenesis project):
 
 ```
 target/stage/output/
@@ -1290,7 +1339,7 @@ a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2
 staged artifacts to Maven Central. `JRELEASER_PROJECT_VERSION` should be set to the same value passed as
 `jenesis.buildVersion` so JReleaser and the emitted POM agree on the coordinate.
 
-How jenesis itself releases
+How Jenesis itself releases
 ---------------------------
 
 The release configuration that this repo actually uses lives in three files: `metadata.properties` at the root,
@@ -1312,7 +1361,7 @@ javadoc, and `module-info.java` has:
 module build.jenesis { ... }
 ```
 
-`pom.xml` at the root mirrors the same metadata for IDE/Maven consumers and for jenesis itself if anyone forces
+`pom.xml` at the root mirrors the same metadata for IDE/Maven consumers and for Jenesis itself if anyone forces
 the `MAVEN` layout. The published coordinate is therefore `build.jenesis:build.jenesis:<version>`, and a
 successful release produces:
 
@@ -1335,3 +1384,108 @@ The workflow then runs the release build (the canonical command above, with `jen
 resolved version) and hands off to `jreleaser/release-action@v2` with `full-release`. JReleaser signs, uploads,
 and (because `release.github.skipRelease: false`) cuts a matching `v<version>` git tag, which the next
 `[release]` commit will pick up to compute its own auto-incremented version.
+
+Using Jenesis as a CLI
+----------------------
+
+Alongside the Maven Central artifacts, every release produces a self-contained CLI distribution
+(`jenesis-<version>.zip`) that bundles the published jar with a small set of launcher scripts.
+This zip is attached to the matching GitHub release and is the same artifact served by SDKMAN.
+Once unpacked it looks like:
+
+    jenesis-<version>/
+      bin/
+        jenesis,          jenesis.bat
+        jenesis-init,     jenesis-init.bat
+        jenesis-validate, jenesis-validate.bat
+        jenesis-version,  jenesis-version.bat
+        jenesis-switch,   jenesis-switch.bat
+      lib/
+        build.jenesis-<version>.jar
+      sources/
+        build.jenesis-<version>-sources.jar
+      LICENSE
+
+Each script comes in two flavours: a POSIX bash script (no extension) and a Windows batch file
+(`.bat`); the batch versions mirror the bash logic exactly. Every script derives `JENESIS_HOME`
+from its own location, so the unpacked tree is fully relocatable.
+
+### Shell scripts
+
+- **`jenesis`** is a thin launcher around the bundled jar. It locates a Java 25+ runtime
+  (`JAVA_HOME` first, then `java` on `PATH`), verifies the major version, and runs
+  `java -p <home>/lib -m build.jenesis "$@"`. All arguments pass through, so `jenesis +sources`
+  is the SDK equivalent of `java build/jenesis/Project.java +sources` from a project root.
+  `JAVA_OPTS` is honoured.
+
+- **`jenesis-init`** extracts the bundled `*-sources.jar` into each target's `build/jenesis`
+  directory, deleting any existing `build/jenesis` first and writing the SDK's version into
+  `build/jenesis/jenesis.version`. The bundled `module-info.java` is dropped, since the
+  consuming project carries its own. With no arguments the current directory is the target;
+  with one or more arguments each path is processed in turn and lines are prefixed with the
+  target name. This is the no-submodule analog of the `ln -s` step from
+  [Installing](#installing).
+
+- **`jenesis-validate`** extracts the bundled sources to a temporary directory and
+  SHA-256-compares every file against the matching file in the target's `build/jenesis`. It
+  reports per-file `differs` / `missing` / `additional` lines and a final summary with counts,
+  and emits a `version differs` line when `build/jenesis/jenesis.version` does not match the
+  SDK's version. As with `jenesis-init`, the current directory is the default target.
+
+- **`jenesis-version`** prints the SDK version and the version recorded in
+  `build/jenesis/jenesis.version` for each target. It exits 0 only when every target's recorded
+  version matches the SDK version, and 1 otherwise (including when `build/jenesis` or the
+  version file is missing). It is intended as a CI check that a submodule update has been
+  propagated to all consuming projects.
+
+- **`jenesis-switch`** discovers the version recorded in `build/jenesis/jenesis.version` across
+  the given targets and switches the current shell to that version via SDKMAN, installing it on
+  the fly if it is not already present locally. Unlike the other scripts, it **must be sourced**,
+  so that `sdk use` modifies the calling shell rather than a subprocess:
+
+      . jenesis-switch                # source from current directory
+      . jenesis-switch project-a project-b
+
+  Every target must agree on the recorded version; a mismatch aborts the switch with exit code 1.
+  A version that is not known to SDKMAN (i.e. `sdk install jenesis <version>` does not produce a
+  candidate directory) also exits 1. The install runs non-interactively and **does not** set the
+  installed version as the SDKMAN default - the switch only affects the current shell. Run
+  `sdk default jenesis <version>` separately if you want new shells to start on that version as
+  well. The script ships only as a POSIX shell script; the `.bat` stub errors out because native
+  Windows is not a supported SDKMAN target (use WSL instead).
+
+  Because `jenesis-switch` modifies the current shell's `PATH`, a chained call resolves to the
+  newly-switched SDK's binaries. A useful "align then verify" idiom for CI is:
+
+      . jenesis-switch && jenesis-validate
+
+  This installs the project's pinned version on the fly (if needed), activates it for the shell,
+  and then SHA-256-checks the checked-in `build/jenesis` against the bundled sources of that
+  exact version. The combined exit code is non-zero if either step fails, so the chain is safe
+  to drop into a CI pipeline as a single verification command.
+
+### Installing via SDKMAN
+
+[SDKMAN](https://sdkman.io) packages Jenesis as the `jenesis` candidate. On any system where
+SDKMAN runs (Linux, macOS, WSL), installation is a single command:
+
+    sdk install jenesis           # install the latest version
+    sdk install jenesis 0.0.2     # pin a specific version
+    sdk use jenesis 0.0.2         # switch the active version in this shell
+    sdk current jenesis           # show the active version
+
+SDKMAN unpacks the zip under `~/.sdkman/candidates/jenesis/<version>/` and adds its `bin/`
+directory to `PATH`, so `jenesis`, `jenesis-init`, `jenesis-validate`, and `jenesis-version`
+become immediately available. From a project root that contains a `module-info.java` or
+`pom.xml`, the usual entry point reduces to:
+
+    jenesis
+
+On systems without SDKMAN (notably Windows without WSL), the same zip can be downloaded from
+the matching GitHub release and unpacked anywhere on disk; adding the unpacked `bin/` directory
+to `PATH` makes the scripts available with no further setup.
+
+> Note: SDKMAN publication is wired up in `.github/workflows/release.yml` but currently disabled
+> (`if: false`) pending registration of the `jenesis` candidate with the SDKMAN vendor program.
+> Until that lands, the release zip is still attached to each GitHub release and can be unpacked
+> manually using the same layout described above.

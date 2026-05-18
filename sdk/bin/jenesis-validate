@@ -37,7 +37,7 @@ JAR_NAME="$(basename "$SOURCES_JAR" .jar)"
 VERSION="${JAR_NAME#build.jenesis-}"
 VERSION="${VERSION%-sources}"
 
-echo "jenesis-validate: jenesis ${VERSION} - comparing build/jenesis against bundled sources (SHA-256)"
+echo "jenesis-validate: Jenesis ${VERSION} - comparing build/jenesis against bundled sources (SHA-256)"
 
 if [ "$#" -eq 0 ]; then
     TARGETS=(".")

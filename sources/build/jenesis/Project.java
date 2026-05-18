@@ -21,7 +21,20 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Relocate;
 
-public final class Project {
+public record Project(
+        Path root,
+        Path target,
+        Path cache,
+        Layout layout,
+        boolean tests,
+        boolean sources,
+        boolean javadoc,
+        boolean stageTests,
+        List<Path> metadata,
+        SequencedSet<String> defaultTarget,
+        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
+        Map<String, Repository> repositories,
+        Map<String, Resolver> resolvers) {
 
     public static final String BUILD = "build",
             COLLECT = "collect",
@@ -33,34 +46,34 @@ public final class Project {
     public interface Layout {
 
         Function<String, String> apply(BuildExecutor executor,
-                                       Builder builder,
+                                       Project project,
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
-        Layout MAVEN = (executor, builder, assembler) -> {
-            SequencedSet<String> references = MetadataModule.register(executor, builder);
+        Layout MAVEN = (executor, project, assembler) -> {
+            SequencedSet<String> references = MetadataModule.register(executor, project);
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, references);
             executor.addModule(BUILD, (sub, inherited) -> {
                 SequencedSet<String> mavenDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
-                sub.addModule("maven", MavenProject.make(builder.root(),
+                sub.addModule("maven", MavenProject.make(project.root(),
                         (descriptor, repositories, resolvers) -> pomAware.apply(
-                                new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
                                 repositories, resolvers)),
                         mavenDeps);
             }, METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStage(project.stageTests()), COLLECT);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
-            executor.addModule(PIN, new PinModule(builder.root(), "pom.xml",
+            executor.addModule(PIN, new PinModule(project.root(), "pom.xml",
                     file -> new PinPom("maven", file, hashFunction)), BUILD);
             return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
         };
 
-        Layout MODULAR = (executor, builder, assembler) -> {
+        Layout MODULAR = (executor, project, assembler) -> {
             executor.addStep("download", new DownloadModuleUris());
             executor.addModule(BUILD, (sub, downloaded) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(Repository.ofProperties(
@@ -68,31 +81,31 @@ public final class Project {
                         downloaded.values(),
                         (_, value) -> URI.create(value),
                         MavenDefaultRepository.versionResolver(),
-                        Files.createDirectories(builder.cache().resolve("modules"))));
-                repositories.putAll(builder.repositories());
+                        Files.createDirectories(project.cache().resolve("modules"))));
+                repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(true));
-                resolvers.putAll(builder.resolvers());
-                sub.addModule("modules", ModularProject.make(builder.root(),
+                resolvers.putAll(project.resolvers());
+                sub.addModule("modules", ModularProject.make(project.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
-                                new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
                                 mergedRepos, mergedResolvers)));
             }, "download");
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new ModularPlacement(builder.stageTests())), COLLECT);
+            executor.addStep(STAGE, new Relocate(new ModularPlacement(project.stageTests())), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
-            executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
+            executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
                     file -> new PinModuleInfo("module", file, hashFunction)), BUILD);
             return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
         };
 
-        Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
+        Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
             MavenPomResolver resolver = new MavenPomResolver();
-            SequencedSet<String> references = MetadataModule.register(executor, builder);
+            SequencedSet<String> references = MetadataModule.register(executor, project);
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, references);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, inherited) -> {
@@ -101,36 +114,36 @@ public final class Project {
                         inherited.values());
                 Map<String, Repository> repositories = new LinkedHashMap<>();
                 repositories.put("maven", new MavenDefaultRepository());
-                repositories.putAll(builder.repositories());
+                repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(false,
                         resolver.translated("maven",
                                 (_, coordinate) -> parser.apply(coordinate))));
                 resolvers.put("maven", resolver);
-                resolvers.putAll(builder.resolvers());
+                resolvers.putAll(project.resolvers());
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
-                sub.addModule("modules", ModularProject.make(builder.root(),
+                sub.addModule("modules", ModularProject.make(project.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
                         (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
-                                new ProjectModuleDescriptor(descriptor, builder.tests(), builder.sources(), builder.javadoc()),
+                                new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
                                 mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new MavenRepositoryStage(builder.stageTests()), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStage(project.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
-            executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
+            executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
                     file -> new PinModuleInfo("module", file, true, hashFunction)), BUILD);
             return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
         };
 
-        Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);
+        Layout AUTO = (executor, project, assembler) -> of(project.root()).apply(executor, project, assembler);
 
         static Layout of(Path root) throws IOException {
             List<Path> moduleInfos = new ArrayList<>();
@@ -174,11 +187,11 @@ public final class Project {
             this.files = files;
         }
 
-        static SequencedSet<String> register(BuildExecutor executor, Builder builder) {
-            Path root = builder.root().toAbsolutePath().normalize();
+        static SequencedSet<String> register(BuildExecutor executor, Project project) {
+            Path root = project.root().toAbsolutePath().normalize();
             SequencedMap<String, Path> files = new LinkedHashMap<>();
-            for (Path file : builder.metadata()) {
-                Path absolute = (file.isAbsolute() ? file : builder.root().resolve(file)).toAbsolutePath().normalize();
+            for (Path file : project.metadata()) {
+                Path absolute = (file.isAbsolute() ? file : project.root().resolve(file)).toAbsolutePath().normalize();
                 Path relative = root.relativize(absolute);
                 files.put(METADATA + "-" + BuildExecutorModule.encode(relative.toString()), relative);
             }
@@ -281,46 +294,8 @@ public final class Project {
         }
     }
 
-    public static void main(String... selectors) {
-        try {
-            Builder builder = builder().resolveProperties();
-            if (Boolean.getBoolean("jenesis.project.docker")) {
-                SortedMap<String, String> properties = new TreeMap<>();
-                for (String name : System.getProperties().stringPropertyNames()) {
-                    if (name.startsWith("jenesis.") && !name.startsWith("jenesis.project.docker")) {
-                        properties.put(name, System.getProperty(name));
-                    }
-                }
-                String image = System.getProperty("jenesis.project.docker.image");
-                Path root = builder.root().toAbsolutePath().normalize();
-                DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
-                for (Path path : List.of(builder.target(), builder.cache())) {
-                    Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
-                    if (!absolute.startsWith(root)) {
-                        docker = docker.mount(absolute, absolute.toString(), false);
-                    }
-                }
-                String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
-                if (mavenRepositoryUri != null) {
-                    docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
-                }
-                if (Boolean.getBoolean("jenesis.verbose")) {
-                    System.out.println("Wrapping build within Docker image: " + docker.image());
-                }
-                System.exit(docker.execute("build/jenesis/Project.java", properties, selectors));
-            }
-            builder.build(selectors);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed using selectors " + List.of(selectors), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while wrapping build in container", e);
-        }
-    }
-
-    public static Builder builder() {
-        return new Builder(
-                Path.of("."),
+    public Project() {
+        this(Path.of("."),
                 Path.of("target"),
                 Path.of("cache"),
                 Layout.AUTO,
@@ -335,312 +310,332 @@ public final class Project {
                 Map.of());
     }
 
-    public record Builder(
-            Path root,
-            Path target,
-            Path cache,
-            Layout layout,
-            boolean tests,
-            boolean sources,
-            boolean javadoc,
-            boolean stageTests,
-            List<Path> metadata,
-            SequencedSet<String> defaultTarget,
-            MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
-            Map<String, Repository> repositories,
-            Map<String, Resolver> resolvers
-    ) {
+    public Project root(Path root) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
 
-        public Builder root(Path root) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+    public Project target(Path target) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project cache(Path cache) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project layout(Layout layout) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project tests(boolean tests) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project sources(boolean sources) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project javadoc(boolean javadoc) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project stageTests(boolean stageTests) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project metadata(Path... metadata) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                List.of(metadata),
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project defaultTarget(String... defaultTarget) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project repositories(Map<String, Repository> repositories) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project resolvers(Map<String, Resolver> resolvers) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project resolveProperties() {
+        Path resolvedRoot = root;
+        Path resolvedTarget = target;
+        Path resolvedCache = cache;
+        Layout resolvedLayout = layout;
+        boolean resolvedTests = tests;
+        boolean resolvedSources = sources;
+        boolean resolvedJavadoc = javadoc;
+        boolean resolvedStageTests = stageTests;
+        List<Path> resolvedMetadata = metadata;
+        String rootOverride = System.getProperty("jenesis.project.root");
+        if (rootOverride != null) {
+            resolvedRoot = Path.of(rootOverride);
         }
-
-        public Builder target(Path target) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        String targetOverride = System.getProperty("jenesis.project.target");
+        if (targetOverride != null) {
+            resolvedTarget = Path.of(targetOverride);
         }
-
-        public Builder cache(Path cache) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        String cacheOverride = System.getProperty("jenesis.project.cache");
+        if (cacheOverride != null) {
+            resolvedCache = Path.of(cacheOverride);
         }
-
-        public Builder layout(Layout layout) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        String forced = System.getProperty("jenesis.project.layout");
+        if (forced != null) {
+            resolvedLayout = switch (forced.toLowerCase(Locale.ROOT)) {
+                case "auto" -> Layout.AUTO;
+                case "maven" -> Layout.MAVEN;
+                case "modular" -> Layout.MODULAR;
+                case "modular_to_maven" -> Layout.MODULAR_TO_MAVEN;
+                default -> throw new IllegalArgumentException(
+                        "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
+            };
         }
-
-        public Builder tests(boolean tests) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        if (System.getProperty("jenesis.project.skipTests") != null) {
+            resolvedTests = false;
         }
-
-        public Builder sources(boolean sources) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        if (Boolean.getBoolean("jenesis.project.sources")) {
+            resolvedSources = true;
         }
-
-        public Builder javadoc(boolean javadoc) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        if (Boolean.getBoolean("jenesis.project.docs")) {
+            resolvedJavadoc = true;
         }
-
-        public Builder stageTests(boolean stageTests) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        if (Boolean.getBoolean("jenesis.project.stageTests")) {
+            resolvedStageTests = true;
         }
-
-        public Builder metadata(Path... metadata) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    List.of(metadata),
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
+        String metadataOverride = System.getProperty("jenesis.project.metadata");
+        if (metadataOverride != null) {
+            resolvedMetadata = Arrays.stream(metadataOverride.split(Pattern.quote(File.pathSeparator)))
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .map(Path::of)
+                    .toList();
         }
-
-        public Builder defaultTarget(String... defaultTarget) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
-                    assembler,
-                    repositories,
-                    resolvers);
-        }
-
-        public Builder assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
-        }
-
-        public Builder repositories(Map<String, Repository> repositories) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
-        }
-
-        public Builder resolvers(Map<String, Resolver> resolvers) {
-            return new Builder(root,
-                    target,
-                    cache,
-                    layout,
-                    tests,
-                    sources,
-                    javadoc,
-                    stageTests,
-                    metadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
-        }
-
-        public Builder resolveProperties() {
-            Path resolvedRoot = root;
-            Path resolvedTarget = target;
-            Path resolvedCache = cache;
-            Layout resolvedLayout = layout;
-            boolean resolvedTests = tests;
-            boolean resolvedSources = sources;
-            boolean resolvedJavadoc = javadoc;
-            boolean resolvedStageTests = stageTests;
-            List<Path> resolvedMetadata = metadata;
-            String rootOverride = System.getProperty("jenesis.project.root");
-            if (rootOverride != null) {
-                resolvedRoot = Path.of(rootOverride);
+        if (resolvedRoot.isAbsolute()) {
+            Path absoluteCwd = Path.of("").toAbsolutePath().normalize();
+            Path absoluteRoot = resolvedRoot.normalize();
+            if (absoluteRoot.startsWith(absoluteCwd)) {
+                Path relative = absoluteCwd.relativize(absoluteRoot);
+                resolvedRoot = relative.toString().isEmpty() ? Path.of(".") : relative;
             }
-            String targetOverride = System.getProperty("jenesis.project.target");
-            if (targetOverride != null) {
-                resolvedTarget = Path.of(targetOverride);
-            }
-            String cacheOverride = System.getProperty("jenesis.project.cache");
-            if (cacheOverride != null) {
-                resolvedCache = Path.of(cacheOverride);
-            }
-            String forced = System.getProperty("jenesis.project.layout");
-            if (forced != null) {
-                resolvedLayout = switch (forced.toLowerCase(Locale.ROOT)) {
-                    case "auto" -> Layout.AUTO;
-                    case "maven" -> Layout.MAVEN;
-                    case "modular" -> Layout.MODULAR;
-                    case "modular_to_maven" -> Layout.MODULAR_TO_MAVEN;
-                    default -> throw new IllegalArgumentException(
-                            "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
-                };
-            }
-            if (System.getProperty("jenesis.project.skipTests") != null) {
-                resolvedTests = false;
-            }
-            if (Boolean.getBoolean("jenesis.project.sources")) {
-                resolvedSources = true;
-            }
-            if (Boolean.getBoolean("jenesis.project.docs")) {
-                resolvedJavadoc = true;
-            }
-            if (Boolean.getBoolean("jenesis.project.stageTests")) {
-                resolvedStageTests = true;
-            }
-            String metadataOverride = System.getProperty("jenesis.project.metadata");
-            if (metadataOverride != null) {
-                resolvedMetadata = Arrays.stream(metadataOverride.split(Pattern.quote(File.pathSeparator)))
-                        .map(String::trim)
-                        .filter(value -> !value.isEmpty())
-                        .map(Path::of)
-                        .toList();
-            }
-            if (resolvedRoot.isAbsolute()) {
-                Path absoluteCwd = Path.of("").toAbsolutePath().normalize();
-                Path absoluteRoot = resolvedRoot.normalize();
-                if (absoluteRoot.startsWith(absoluteCwd)) {
-                    Path relative = absoluteCwd.relativize(absoluteRoot);
-                    resolvedRoot = relative.toString().isEmpty() ? Path.of(".") : relative;
+        }
+        return new Project(resolvedRoot,
+                resolvedTarget,
+                resolvedCache,
+                resolvedLayout,
+                resolvedTests,
+                resolvedSources,
+                resolvedJavadoc,
+                resolvedStageTests,
+                resolvedMetadata,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public SequencedMap<String, Path> build(String... selectors) throws IOException {
+        BuildExecutor executor = BuildExecutor.of(target);
+        Function<String, String> resolver = layout.apply(executor, this, assembler);
+        return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
+                .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
+                .toArray(String[]::new));
+    }
+
+    public static void main(String... selectors) {
+        try {
+            Project project = new Project().resolveProperties();
+            if (Boolean.getBoolean("jenesis.project.docker")) {
+                SortedMap<String, String> properties = new TreeMap<>();
+                for (String name : System.getProperties().stringPropertyNames()) {
+                    if (name.startsWith("jenesis.") && !name.startsWith("jenesis.project.docker")) {
+                        properties.put(name, System.getProperty(name));
+                    }
                 }
+                String image = System.getProperty("jenesis.project.docker.image");
+                Path root = project.root().toAbsolutePath().normalize();
+                DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
+                for (Path path : List.of(project.target(), project.cache())) {
+                    Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
+                    if (!absolute.startsWith(root)) {
+                        docker = docker.mount(absolute, absolute.toString(), false);
+                    }
+                }
+                String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
+                if (mavenRepositoryUri != null) {
+                    docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
+                }
+                if (Boolean.getBoolean("jenesis.verbose")) {
+                    System.out.println("Wrapping build within Docker image: " + docker.image());
+                }
+                System.exit(docker.execute("build/jenesis/Project.java", properties, selectors));
             }
-            return new Builder(resolvedRoot,
-                    resolvedTarget,
-                    resolvedCache,
-                    resolvedLayout,
-                    resolvedTests,
-                    resolvedSources,
-                    resolvedJavadoc,
-                    resolvedStageTests,
-                    resolvedMetadata,
-                    defaultTarget,
-                    assembler,
-                    repositories,
-                    resolvers);
-        }
-
-        public SequencedMap<String, Path> build(String... selectors) throws IOException {
-            BuildExecutor executor = BuildExecutor.of(target);
-            Function<String, String> resolver = layout.apply(executor, this, assembler);
-            return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
-                    .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
-                    .toArray(String[]::new));
+            project.build(selectors);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed using selectors " + List.of(selectors), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while wrapping build in container", e);
         }
     }
 }

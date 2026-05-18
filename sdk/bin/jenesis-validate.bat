@@ -29,7 +29,7 @@ set "VERSION=!JAR_NAME!"
 if /i "!VERSION:~0,14!"=="build.jenesis-" set "VERSION=!VERSION:~14!"
 if /i "!VERSION:~-8!"=="-sources" set "VERSION=!VERSION:~0,-8!"
 
-echo jenesis-validate: jenesis !VERSION! - comparing build\jenesis against bundled sources ^(SHA-256^)
+echo jenesis-validate: Jenesis !VERSION! - comparing build\jenesis against bundled sources ^(SHA-256^)
 
 set "TMPDIR=%TEMP%\jenesis-validate-%RANDOM%-%RANDOM%"
 mkdir "!TMPDIR!" || exit /b 1

@@ -28,7 +28,7 @@ JAR_NAME="$(basename "$SOURCES_JAR" .jar)"
 VERSION="${JAR_NAME#build.jenesis-}"
 VERSION="${VERSION%-sources}"
 
-echo "jenesis-init: jenesis ${VERSION} - extracting bundled sources into build/jenesis"
+echo "jenesis-init: Jenesis ${VERSION} - extracting bundled sources into build/jenesis"
 
 if [ "$#" -eq 0 ]; then
     TARGETS=(".")

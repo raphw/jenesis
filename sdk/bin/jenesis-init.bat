@@ -29,7 +29,7 @@ set "VERSION=!JAR_NAME!"
 if /i "!VERSION:~0,14!"=="build.jenesis-" set "VERSION=!VERSION:~14!"
 if /i "!VERSION:~-8!"=="-sources" set "VERSION=!VERSION:~0,-8!"
 
-echo jenesis-init: jenesis !VERSION! - extracting bundled sources into build\jenesis
+echo jenesis-init: Jenesis !VERSION! - extracting bundled sources into build\jenesis
 
 set "TMPDIR=%TEMP%\jenesis-init-%RANDOM%-%RANDOM%"
 mkdir "!TMPDIR!" || exit /b 1
