@@ -14,10 +14,10 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularPlacement;
 import build.jenesis.module.ModularProject;
 import build.jenesis.module.PinModuleInfo;
-import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Relocate;
 
@@ -58,9 +58,9 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
                 sub.addModule("maven", MavenProject.make(project.root(),
-                        (descriptor, repositories, resolvers) -> pomAware.apply(
-                                new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
-                                repositories, resolvers)),
+                                (descriptor, repositories, resolvers) -> pomAware.apply(
+                                        new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
+                                        repositories, resolvers)),
                         mavenDeps);
             }, METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
@@ -126,11 +126,11 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
-                        Collections.unmodifiableMap(repositories),
-                        Collections.unmodifiableMap(resolvers),
-                        (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
-                                new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
-                                mergedRepos, mergedResolvers)),
+                                Collections.unmodifiableMap(repositories),
+                                Collections.unmodifiableMap(resolvers),
+                                (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
+                                        new ProjectModuleDescriptor(descriptor, project.tests(), project.sources(), project.javadoc()),
+                                        mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
@@ -602,35 +602,41 @@ public record Project(
                 .toArray(String[]::new));
     }
 
+    SequencedMap<String, Path> doMain(String... selectors) throws IOException, InterruptedException {
+        if (Boolean.getBoolean("jenesis.project.docker")) {
+            SortedMap<String, String> properties = new TreeMap<>();
+            for (String name : System.getProperties().stringPropertyNames()) {
+                if (name.startsWith("jenesis.") && !name.startsWith("jenesis.project.docker")) {
+                    properties.put(name, System.getProperty(name));
+                }
+            }
+            String image = System.getProperty("jenesis.project.docker.image");
+            Path root = this.root().toAbsolutePath().normalize();
+            DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
+            for (Path path : List.of(this.target(), this.cache())) {
+                Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
+                if (!absolute.startsWith(root)) {
+                    docker = docker.mount(absolute, absolute.toString(), false);
+                }
+            }
+            String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
+            if (mavenRepositoryUri != null) {
+                docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
+            }
+            if (Boolean.getBoolean("jenesis.verbose")) {
+                System.out.println("Wrapping build within Docker image: " + docker.image());
+            }
+            int code = docker.execute("build/jenesis/Project.java", properties, selectors);
+            if (code != 0) {
+                System.exit(code);
+            }
+        }
+        return this.build(selectors);
+    }
+
     public static void main(String... selectors) {
         try {
-            Project project = new Project().resolveProperties();
-            if (Boolean.getBoolean("jenesis.project.docker")) {
-                SortedMap<String, String> properties = new TreeMap<>();
-                for (String name : System.getProperties().stringPropertyNames()) {
-                    if (name.startsWith("jenesis.") && !name.startsWith("jenesis.project.docker")) {
-                        properties.put(name, System.getProperty(name));
-                    }
-                }
-                String image = System.getProperty("jenesis.project.docker.image");
-                Path root = project.root().toAbsolutePath().normalize();
-                DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
-                for (Path path : List.of(project.target(), project.cache())) {
-                    Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
-                    if (!absolute.startsWith(root)) {
-                        docker = docker.mount(absolute, absolute.toString(), false);
-                    }
-                }
-                String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
-                if (mavenRepositoryUri != null) {
-                    docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
-                }
-                if (Boolean.getBoolean("jenesis.verbose")) {
-                    System.out.println("Wrapping build within Docker image: " + docker.image());
-                }
-                System.exit(docker.execute("build/jenesis/Project.java", properties, selectors));
-            }
-            project.build(selectors);
+            new Project().resolveProperties().doMain(selectors);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed using selectors " + List.of(selectors), e);
         } catch (InterruptedException e) {

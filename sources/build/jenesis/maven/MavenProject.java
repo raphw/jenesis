@@ -22,14 +22,19 @@ import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
 
 import static build.jenesis.BuildStep.IDENTITY;
+import static build.jenesis.project.MultiProjectModule.ASSIGN;
+import static build.jenesis.project.MultiProjectModule.DEPENDENCIES;
+import static build.jenesis.project.MultiProjectModule.MANIFESTS;
+import static build.jenesis.project.MultiProjectModule.MODULE;
+import static build.jenesis.project.MultiProjectModule.PREPARE;
+import static build.jenesis.project.MultiProjectModule.PRODUCE;
+import static build.jenesis.project.MultiProjectModule.SOURCES;
 
 public class MavenProject implements BuildExecutorModule {
 
     public static final String POM = "pom/", MAVEN = "maven/";
 
-    private static final String MODULE = "module", DEPENDENCIES = "dependencies", PREPARE = "prepare";
-    private static final String SCAN = "scan", ASSIGN = "assign", PRODUCE = "produce";
-    private static final String SOURCES = "sources", MANIFESTS = "manifests";
+    private static final String SCAN = "scan";
     private static final String SIBLING_MODULE_PREFIX = MultiProjectModule.MODULE + "-";
 
     private final Path root;

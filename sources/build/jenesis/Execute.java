@@ -1,6 +1,9 @@
 package build.jenesis;
 
 import module java.base;
+import build.jenesis.project.DependenciesModule;
+import build.jenesis.project.DependencyScope;
+import build.jenesis.project.MultiProjectModule;
 
 public record Execute(Project project, String mainClass, String module) {
 
@@ -25,48 +28,81 @@ public record Execute(Project project, String mainClass, String module) {
     }
 
     public int execute(String... arguments) throws IOException, InterruptedException {
-        String targetSegment = module != null ? "module-" + BuildExecutorModule.encode(module) : null;
+        String moduleSegmentPrefix = MultiProjectModule.MODULE + "-";
+        String runtimeArtifactsSuffix = "/" + DependencyScope.RUNTIME.label()
+                + "/" + MultiProjectModule.DEPENDENCIES
+                + "/" + DependenciesModule.ARTIFACTS;
+        String targetSegment = module != null ? moduleSegmentPrefix + BuildExecutorModule.encode(module) : null;
         SequencedMap<String, Path> outputs = module != null
                 ? project.build("+" + module)
                 : project.build(Project.BUILD);
-        SequencedMap<String, Candidate> candidates = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, Path>> groups = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : outputs.entrySet()) {
             String key = entry.getKey();
-            if (!key.endsWith("/manifests")) {
+            String segment = null;
+            for (String part : key.split("/")) {
+                if (part.startsWith(moduleSegmentPrefix)) {
+                    segment = part;
+                    break;
+                }
+            }
+            if (segment == null) {
                 continue;
             }
-            int identifierIndex = key.indexOf("/identifier/");
-            if (identifierIndex < 0) {
+            if (targetSegment != null && !targetSegment.equals(segment)) {
                 continue;
             }
-            int lastSlash = key.lastIndexOf('/', key.length() - "/manifests".length() - 1);
-            String moduleSegment = key.substring(lastSlash + 1, key.length() - "/manifests".length());
-            if (!moduleSegment.startsWith("module-")) {
-                continue;
-            }
-            if (targetSegment != null && !targetSegment.equals(moduleSegment)) {
-                continue;
-            }
-            Path moduleFile = entry.getValue().resolve(BuildStep.MODULE);
-            if (!Files.isRegularFile(moduleFile)) {
-                continue;
-            }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                properties.load(reader);
+            groups.computeIfAbsent(segment, _ -> new LinkedHashMap<>()).put(key, entry.getValue());
+        }
+        SequencedMap<String, Candidate> candidates = new LinkedHashMap<>();
+        for (Map.Entry<String, SequencedMap<String, Path>> group : groups.entrySet()) {
+            SequencedProperties mergedModule = new SequencedProperties();
+            SequencedProperties mergedIdentity = new SequencedProperties();
+            for (Path folder : group.getValue().values()) {
+                Path moduleFile = folder.resolve(BuildStep.MODULE);
+                if (Files.isRegularFile(moduleFile)) {
+                    Properties loaded = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                        loaded.load(reader);
+                    }
+                    mergedModule.putAll(loaded);
+                }
+                Path identityFile = folder.resolve(BuildStep.IDENTITY);
+                if (Files.isRegularFile(identityFile)) {
+                    Properties loaded = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(identityFile)) {
+                        loaded.load(reader);
+                    }
+                    boolean complete = true;
+                    for (String name : loaded.stringPropertyNames()) {
+                        String value = loaded.getProperty(name);
+                        if (value == null || value.isEmpty()) {
+                            complete = false;
+                            break;
+                        }
+                    }
+                    if (complete) {
+                        for (String name : loaded.stringPropertyNames()) {
+                            mergedIdentity.setProperty(name, folder.resolve(loaded.getProperty(name)).normalize().toString());
+                        }
+                    }
+                }
             }
             String main;
             if (mainClass != null) {
                 main = mainClass;
             } else {
-                main = properties.getProperty("main");
+                main = mergedModule.getProperty("main");
                 if (main == null || main.isEmpty()) {
                     continue;
                 }
             }
-            String path = properties.getProperty("path", "");
-            String composeBase = key.substring(0, identifierIndex) + "/compose/module/" + moduleSegment;
-            candidates.put(moduleSegment, new Candidate(path, main, properties.getProperty("module"), composeBase));
+            candidates.put(group.getKey(), new Candidate(
+                    mergedModule.getProperty("path", ""),
+                    main,
+                    mergedModule.getProperty("module"),
+                    mergedIdentity,
+                    group.getValue()));
         }
         if (candidates.isEmpty()) {
             throw new IllegalStateException(module != null
@@ -85,36 +121,25 @@ public record Execute(Project project, String mainClass, String module) {
             throw new IllegalStateException(message.toString());
         }
         Candidate candidate = candidates.values().iterator().next();
-        Path assignFolder = outputs.get(candidate.composeBase + "/assign");
-        if (assignFolder == null) {
-            throw new IllegalStateException("Did not find assign output for module: "
-                    + (candidate.path.isEmpty() ? "<root>" : candidate.path));
-        }
-        Path identityFile = assignFolder.resolve(BuildStep.IDENTITY);
-        if (!Files.isRegularFile(identityFile)) {
-            throw new IllegalStateException("Missing identity properties at: " + identityFile);
-        }
-        Properties identity = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(identityFile)) {
-            identity.load(reader);
-        }
-        Path classesJar = null;
-        for (String name : identity.stringPropertyNames()) {
-            String value = identity.getProperty(name);
-            if (value != null && value.endsWith("classes.jar")) {
-                classesJar = assignFolder.resolve(value).normalize();
+        Path mainArtifact = null;
+        for (String name : candidate.identity.stringPropertyNames()) {
+            Path resolved = Path.of(candidate.identity.getProperty(name));
+            if (Files.isRegularFile(resolved)) {
+                mainArtifact = resolved;
                 break;
             }
         }
-        if (classesJar == null || !Files.isRegularFile(classesJar)) {
-            throw new IllegalStateException("Did not find classes.jar for module: "
+        if (mainArtifact == null) {
+            throw new IllegalStateException("Did not find a main artifact for module: "
                     + (candidate.path.isEmpty() ? "<root>" : candidate.path));
         }
         List<String> jars = new ArrayList<>();
-        jars.add(classesJar.toString());
-        Path runtimeArtifacts = outputs.get(candidate.composeBase + "/runtime/dependencies/artifacts");
-        if (runtimeArtifacts != null) {
-            Path libraries = runtimeArtifacts.resolve("artifacts");
+        jars.add(mainArtifact.toString());
+        for (Map.Entry<String, Path> entry : candidate.folders.entrySet()) {
+            if (!entry.getKey().endsWith(runtimeArtifactsSuffix)) {
+                continue;
+            }
+            Path libraries = entry.getValue().resolve(DependenciesModule.ARTIFACTS);
             if (Files.isDirectory(libraries)) {
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(libraries)) {
                     for (Path file : stream) {
@@ -153,7 +178,8 @@ public record Execute(Project project, String mainClass, String module) {
 
     public static void main(String... arguments) {
         try {
-            int code = new Execute(new Project().resolveProperties()).resolveProperties().execute(arguments);
+            Project project = new Project().resolveProperties();
+            int code = new Execute(project).resolveProperties().execute(arguments);
             if (code != 0) {
                 System.exit(code);
             }
@@ -165,6 +191,10 @@ public record Execute(Project project, String mainClass, String module) {
         }
     }
 
-    private record Candidate(String path, String mainClass, String module, String composeBase) {
+    private record Candidate(String path,
+                             String mainClass,
+                             String module,
+                             SequencedProperties identity,
+                             SequencedMap<String, Path> folders) {
     }
 }

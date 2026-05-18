@@ -20,11 +20,15 @@ import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
 
+import static build.jenesis.project.MultiProjectModule.ASSIGN;
+import static build.jenesis.project.MultiProjectModule.DEPENDENCIES;
+import static build.jenesis.project.MultiProjectModule.MANIFESTS;
+import static build.jenesis.project.MultiProjectModule.PREPARE;
+import static build.jenesis.project.MultiProjectModule.PRODUCE;
+import static build.jenesis.project.MultiProjectModule.SOURCES;
+
 public class ModularProject implements BuildExecutorModule {
 
-    private static final String DEPENDENCIES = "dependencies", PREPARE = "prepare";
-    private static final String ASSIGN = "assign", PRODUCE = "produce";
-    private static final String SOURCES = "sources", MANIFESTS = "manifests";
     private static final String SIBLING_MODULE_PREFIX = MultiProjectModule.MODULE + "-";
 
     private final String prefix;

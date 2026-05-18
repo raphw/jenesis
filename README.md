@@ -72,67 +72,137 @@ The build compiles main and test sources, runs the tests, and writes artifacts u
 
 ### Customizing the build
 
-Customisation comes in three tiers, picked by how far you need to deviate from the auto-wired pipeline.
+Customisation comes in three stages, picked by how far from the auto-wired pipeline you need to go.
 
-**Builder flags.** When the project shape is fine but a knob needs flipping - skip tests, force a layout, route
-`target/` somewhere else - override on the way in via the fluent `Project.builder()`:
+**1. System properties on the canonical launcher.** When the project shape is fine but a knob needs flipping -
+skip tests, force a layout, route `target/` elsewhere - pass `-Djenesis.project.*` flags. No Java code, no
+separate entry point:
 
-```java
-Project.builder()
-       .layout(Project.Layout.MODULAR_TO_MAVEN)
-       .tests(false)
-       .build(args);
-```
+    java -Djenesis.project.skipTests=true \
+         -Djenesis.project.layout=MODULAR_TO_MAVEN \
+         build/jenesis/Project.java
 
-Most builder properties also have a matching system property (`jenesis.project.layout`,
-`jenesis.project.skipTests`, `jenesis.project.stageTests`, `jenesis.project.root` / `.target` / `.cache`),
-applied by `resolveProperties()` which `Project.main(...)` calls before delegating to `build(args)`. See the
-[Configuration](#configuration) section for the full table. The `jenesis.project.root` form is also how you
-build a project that lives outside the directory holding `build/jenesis/`:
+`Project.main(...)` calls `resolveProperties()` first, which maps `jenesis.project.*` onto the corresponding
+`Project.Builder` setters. The full list is in [Configuration](#configuration). `jenesis.project.root` also
+lets you target a project that lives outside the directory holding `build/jenesis/`:
 
     java -Djenesis.project.root=/path/to/other/project build/jenesis/Project.java
 
-**Custom assembler.** When the per-project pipeline itself needs different steps - an extra processing stage,
-a different test runner, a non-default jar layout - pass your own `MultiProjectAssembler` to the builder:
+**2. Custom entry point under `build/`.** When you want code-level control - a tailored assembler, an extra
+step on top of the default per-module pipeline - drop a `.java` file alongside `Project.java` and use the
+Builder there. Run it the same way (`java build/MyBuild.java`):
 
 ```java
-Project.builder()
-       .assembler(new MyAssembler())
-       .build(args);
+package build;
+
+import module java.base;
+import build.jenesis.BuildExecutorModule;
+import build.jenesis.Project;
+import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.MultiProjectAssembler;
+import build.jenesis.project.ProjectModuleDescriptor;
+
+public class MyBuild {
+
+    static void main(String[] args) throws IOException {
+        MultiProjectAssembler<ProjectModuleDescriptor> base = new JavaMultiProjectAssembler();
+        MultiProjectAssembler<ProjectModuleDescriptor> withSign = (descriptor, repos, resolvers) -> {
+            BuildExecutorModule delegate = base.apply(descriptor, repos, resolvers);
+            return (sub, inherited) -> {
+                sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
+                sub.addStep("sign", new Sign(), "assemble"); // Sign is a user-defined BuildStep
+            };
+        };
+        Project.builder()
+               .assembler(withSign)
+               .build(args);
+    }
+}
 ```
 
-The assembler's `apply(descriptor, repositories, resolvers)` is invoked once per module with the merged
-repository and resolver maps, and returns that module's step graph. See [`MultiProjectModule`](#multiprojectmodule)
-and [Layouts and assemblers](#layouts-and-assemblers) for the full surface.
+The wrapper registers `JavaMultiProjectAssembler`'s output as a nested module named `assemble` and then
+chains a `sign` step that depends on it. Assemblers compose this way freely: each layer registers its
+delegate as a sub-module and adds its own steps next to it, so you can stack multiple decorators (sign,
+attach licence headers, emit checksums) on top of a base assembler without subclassing. Jenesis itself
+relies on the same pattern internally - the `MAVEN` and `MODULAR_TO_MAVEN` layouts transparently wrap the
+user's assembler with `PomAwareAssembler`, which registers the user-supplied assembler under `assemble/`
+and emits the per-module POM alongside it.
 
-**Hand-wired build.** When auto-detection is not the right starting point at all, drop your own `.java` source
-under `build/` and wire the build from the underlying primitives - a `BuildExecutor` plus a graph of
-`BuildStep`s. Run it the same way: `java build/Mine.java`. This is the mode the rest of this README -
-[Architecture](#architecture), [Build steps](#build-steps), [Build executor modules](#build-executor-modules),
-[Implementing a `BuildStep`](#implementing-a-buildstep) - describes in detail. The example launchers under
-`build/` (`Minimal.java`, `Manual.java`, `Maven.java`, `Modular.java`, `ModularToMaven.java`, `Modules.java`)
-are working starting points.
+**3. Hand-wired build on the `BuildExecutor` API.** When auto-detection is not the right starting point at
+all - a non-Java pipeline, a wildly custom graph, or you just want the primitives - bypass `Project` and
+wire the build yourself:
+
+```java
+package build;
+
+import module java.base;
+import build.jenesis.BuildExecutor;
+import build.jenesis.step.Bind;
+import build.jenesis.step.Jar;
+import build.jenesis.step.Javac;
+
+public class Hand {
+
+    static void main(String[] args) throws IOException {
+        BuildExecutor root = BuildExecutor.of(Path.of("target"));
+        root.addSource("sources", Bind.asSources(), Path.of("sources"));
+        root.addStep("classes", Javac.tool(), "sources");
+        root.addStep("artifacts", Jar.tool(Jar.Sort.CLASSES), "classes");
+        root.execute(args);
+    }
+}
+```
+
+`BuildExecutor.of(Path.of("target"))` is the root of the graph and writes all outputs under `target/`.
+`addSource` binds an input directory through a `Bind` step so changes to the path invalidate downstream
+caches; `addStep` chains a `BuildStep` whose argument list names its predecessors (`"sources"` for
+`classes`, `"classes"` for `artifacts`); `execute(args)` runs the requested target (or the whole graph by
+default), reusing cached outputs whose inputs have not changed. The full primitive set is documented under
+[Architecture](#architecture), [Build steps](#build-steps), and [Build executor modules](#build-executor-modules),
+and the example launchers under `build/` (`Minimal.java`, `Manual.java`, `Maven.java`, `Modular.java`,
+`ModularToMaven.java`, `Modules.java`) are progressively richer working starting points.
 
 ### Selectors
 
-`Project.main(args)` and `Builder.build(args)` accept selectors as positional arguments. With no positional
-arguments the builder's `defaultTarget` is used (default: `"build"`, which runs the discovered multi-project graph
-but skips the downstream `collect` step). `Builder.defaultTarget(...)` changes what an argument-less invocation
-runs; it has no corresponding system property.
+`Project.main(args)` and `Builder.build(args)` accept selector strings as positional arguments. The canonical
+example is `stage`, which runs the full release recipe (build → collect → stage) and materialises a
+Maven-shaped tree under `target/stage/output/`:
 
-Selectors starting with `+` are rewritten into per-project module paths via a name resolver supplied by the active
-layout. The shipped layouts encode names as `module-<URLEncode(name)>` and place them under their per-project
-aggregator:
+    java build/jenesis/Project.java stage
 
-- `+sources` resolves to `build/modules/compose/module/module-sources` under `MODULAR` and `MODULAR_TO_MAVEN`, or
-  to `build/maven/compose/module/module-sources` under `MAVEN`.
+Without arguments, `Project` runs whatever its `defaultTarget` is set to. Out of the box that is `"build"`,
+which compiles and packages every discovered module but stops short of the downstream `collect` and `stage`
+steps. `Project.Builder.defaultTarget(...)` changes the default (there is no matching system property). The
+other top-level targets the shipped layouts register are `collect` (group each module's artifacts under its
+coordinate) and `pin` (rewrite every `pom.xml` / `module-info.java` so the full transitive closure is pinned
+at source level).
+
+**Module selectors.** Selectors that start with `+` are rewritten by the active layout into the per-project
+module path of that name, so a single module can be built without dragging its siblings in. The shipped
+layouts encode names as `module-<URLEncode(name)>` and place them under their per-project aggregator:
+
+- `+sources` resolves to `build/modules/compose/module/module-sources` under `MODULAR` and `MODULAR_TO_MAVEN`,
+  or to `build/maven/compose/module/module-sources` under `MAVEN`.
 - `+` alone resolves to `module-` (trailing empty segment), the identity Maven's scanner produces for the root
-  POM (the "unnamed" project in a multi-module Maven layout). A pure modular project has no such root, so `+`
-  alone won't resolve there.
+  POM in a multi-module Maven layout. A pure modular project has no such root, so `+` alone will not resolve
+  there.
 
-The resulting path is a literal selector, which avoids the lenient `::/<name>` cascade across sibling modules. Run
-`java build/jenesis/Project.java +sources` to build one module without dragging its siblings in. The full selector
-syntax (`/`, `:`, `::`, literal paths) is described under [Selectors on the command line](#selectors-on-the-command-line).
+The rewriter always yields a literal path, which avoids the lenient cascade that a bare module name would
+trigger across sibling modules.
+
+**General syntax and wildcards.** Under the hood every selector is a slash-delimited path of step identities
+(`module/step`) that the executor matches against the registered graph. Two wildcards are supported:
+
+- `:` matches a single path segment, so `build/:/java` matches the `java` module of every direct child of
+  `build`.
+- `::` matches any depth (zero or more segments), so `::/sign` matches every `sign` step anywhere in the
+  tree.
+
+Wildcards are lenient: branches that fail to match are silently skipped. A literal path that does not
+resolve throws. Once a step is matched, its transitive preliminary closure runs unconditionally, so its
+inputs are real folders rather than lenient-skipped placeholders. The full mechanics, including how sibling
+modules along a wildcard path still have their `accept(...)` invoked, are documented under
+[`BuildExecutor`](#buildexecutor) and [Selectors on the command line](#selectors-on-the-command-line).
 
 ### Layouts and assemblers
 
@@ -894,9 +964,10 @@ arguments, the full graph runs.
 | `java build/Modular.java build/::/test`   | Same, but anchored under the top-level `build` module. Top-level entries that aren't on the path to `build` (e.g. the `collect` step that depends on `build`) are not scheduled at all.                  |
 | `java -Djenesis.test='.*FooTest' build/Modular.java ::/test` | Same selector, but `TestModule.executed` re-runs unconditionally and only selects classes matching the regex; upstream `classes`/`artifacts` etc. stay cached. |
 
-A literal selector that doesn't resolve throws (`Unknown selector: …`). Wildcards (`:` and `::`) are lenient - they
-silently skip branches with no match - but as a result they over-schedule sibling subtrees: their modules' `accept`
-runs and their declared step preliminaries are pinned for safety. Prefer literal paths when you know them.
+Literal selectors that don't resolve throw `Unknown selector: …`. Wildcards (`:` for one segment, `::` for any
+depth) silently skip non-matching branches, but over-schedule sibling subtrees: each such module's `accept(...)`
+runs and its declared step preliminaries are pinned, guaranteeing the predecessor folders exist wherever the
+wildcard lands. Prefer literal paths when you know them.
 
 Implementation details
 ----------------------

@@ -13,6 +13,13 @@ public class MultiProjectModule implements BuildExecutorModule {
             COMPOSE = "compose",
             MODULE = "module";
 
+    public static final String SOURCES = "sources",
+            MANIFESTS = "manifests",
+            PREPARE = "prepare",
+            PRODUCE = "produce",
+            ASSIGN = "assign",
+            DEPENDENCIES = "dependencies";
+
     private static final String GROUP = "group";
 
     public static final String IDENTIFIER_PATH = PREVIOUS.repeat(3) + IDENTIFIER + "/";
