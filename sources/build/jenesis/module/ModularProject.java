@@ -100,33 +100,24 @@ public class ModularProject implements BuildExecutorModule {
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
+                    SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
+                    produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
+                    produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
+                    produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES, COORDINATES);
+                    for (DependencyScope scope : List.of(DependencyScope.COMPILE, DependencyScope.RUNTIME)) {
+                        String resolved = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
+                        String artifacts = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+                        produceDeps.put(resolved, resolved);
+                        produceDeps.put(artifacts, artifacts);
+                    }
+                    for (String key : inherited.sequencedKeySet()) {
+                        produceDeps.putIfAbsent(key, key);
+                    }
                     buildExecutor.addModule(PRODUCE,
                             assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
                                     mergedRepositories,
                                     resolvers),
-                            Stream.concat(
-                                            inherited.sequencedKeySet().stream(),
-                                            Stream.of(
-                                                    DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
-                                                    DependencyScope.COMPILE.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                                                    DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED,
-                                                    DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS))
-                                    .collect(Collectors.<String, String, String, LinkedHashMap<String, String>>toMap(
-                                            Function.identity(),
-                                            key -> switch (key) {
-                                                case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
-                                                        + name + "/"
-                                                        + SOURCES) -> SOURCES;
-                                                case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
-                                                        + name + "/"
-                                                        + MANIFESTS) -> MANIFESTS;
-                                                case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
-                                                        + name + "/"
-                                                        + COORDINATES) -> COORDINATES;
-                                                default -> key;
-                                            },
-                                            (a, _) -> a,
-                                            LinkedHashMap::new)));
+                            produceDeps);
                     buildExecutor.addStep(ASSIGN,
                             new Assign((BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable) ((coordinates, files) -> {
                                 Path resolved = files.stream()
