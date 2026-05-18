@@ -406,17 +406,20 @@ Concretely:
   predecessor that lives one level higher than the descriptor states. Instead, do the lookup at the level where
   the descriptor's path strings apply directly (typically the outer assembler lambda) and capture the result for
   any inner sub-module that needs it.
-- **Modules should publish only their final outcome by filtering through `resolve(...)`.** By default a
-  `BuildExecutorModule` republishes the name of every registered sub-step and sub-module to its caller, so a
-  module that internally creates a file, enriches it, then signs it would surface all three intermediate leaves.
-  Override `resolve(String path)` to return `Optional.empty()` for internal-only scaffolding leaves and
-  `Optional.of(<other-name>)` for ones to republish under a different identifier. The module is then free to
-  compose any number of intermediate steps and expose only the final shape to its consumers, who look up the
-  result by its file/folder conventions instead of by whatever internal step happens to have produced it -
-  keeping the consumer independent of how the module is composed and free to add or rearrange internal steps
-  without breaking downstream wiring. `ExternalModule` is the canonical example: it hides its four internal
-  nodes (`coordinate`, `dependencies`, `external`, `delegate`) and republishes the delegated module's leaves
-  directly under its own registered name (see [`ExternalModule`](#externalmodule)).
+- **A module's exposed steps must not publish the same file at the same relative path in more than one of
+  them.** Exposing several intermediate steps is *not* a problem by itself - a consumer that doesn't recognise
+  a given file/folder convention just ignores those entries. The problem is when two of a module's exposed
+  steps both write, say, `versions.properties` at the same relative path: a consumer iterating
+  `inherited.values()` and resolving `folder.resolve(BuildStep.VERSIONS)` will find that file twice with
+  possibly different content (typically an early-pipeline placeholder and a later-pipeline refined version),
+  and which one wins depends on iteration order. Override `resolve(String path)` to return `Optional.empty()`
+  for any leaf whose exposure would create such a collision, keeping only the step that holds the **final**
+  state of each file. A chain like `Resolve` -> `Download` where each step rewrites `requires.properties` /
+  `versions.properties` should expose only the downstream `Download` leaf; the upstream `Resolve` output stays
+  available to its in-module successor by name but disappears from the module's published map. Leaves whose
+  files don't collide with any sibling can stay exposed unchanged. `ExternalModule` is the strict end of the
+  spectrum: it hides every internal node (`coordinate`, `dependencies`, `external`, `delegate`) and republishes
+  the delegated module's leaves under its own registered name (see [`ExternalModule`](#externalmodule)).
 - **Define each step-name constant once, at the class that adds the step**, and have all consumers reference
   that constant. `MultiProjectModule.IDENTIFIER` / `.COMPOSE` / `.MODULE` belong on `MultiProjectModule`
   because that's the framework that wires those sub-modules; `DependenciesModule.RESOLVED` / `.ARTIFACTS`

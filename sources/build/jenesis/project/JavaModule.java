@@ -16,7 +16,8 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
         this(false);
     }
 
-    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", VERSIONS = "versions", TEST = "test";
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TEST = "test";
+    private static final String COMPILED = "compiled";
 
     public BuildExecutorModule testIfAvailable(Map<String, Repository> repositories,
                                                Map<String, Resolver> resolvers) {
@@ -55,13 +56,12 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(CLASSES, process ? Javac.process() : Javac.tool(), inherited.sequencedKeySet());
-        buildExecutor.addStep(VERSIONS, new Versions(), Stream.concat(
-                Stream.of(CLASSES),
+        buildExecutor.addStep(COMPILED, process ? Javac.process() : Javac.tool(), inherited.sequencedKeySet());
+        buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
+                Stream.of(COMPILED),
                 inherited.sequencedKeySet().stream()));
         buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
-                Stream.of(VERSIONS),
+                Stream.of(CLASSES),
                 inherited.sequencedKeySet().stream()));
     }
-
 }
