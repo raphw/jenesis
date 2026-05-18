@@ -75,8 +75,16 @@ if not exist "!TARGET!\" (
 )
 if "!LABELED!"=="1" echo jenesis-init: !TARGET!
 if exist "!TARGET!\build\jenesis" (
-    echo jenesis-init: removing existing build\jenesis
+    if exist "!TARGET!\build\jenesis\jenesis.version" (
+        set "PREVIOUS_VERSION="
+        for /f "usebackq delims=" %%v in ("!TARGET!\build\jenesis\jenesis.version") do if not defined PREVIOUS_VERSION set "PREVIOUS_VERSION=%%v"
+        echo jenesis-init: removing existing build\jenesis ^(was version !PREVIOUS_VERSION!^)
+    ) else (
+        echo jenesis-init: removing existing build\jenesis ^(unknown previous version^)
+    )
     rmdir /s /q "!TARGET!\build\jenesis"
 )
 xcopy /s /e /y /i /q "!TMPDIR!\*" "!TARGET!\" >nul
-exit /b !ERRORLEVEL!
+if errorlevel 1 exit /b !ERRORLEVEL!
+<nul set /p =!VERSION!>"!TARGET!\build\jenesis\jenesis.version"
+exit /b 0

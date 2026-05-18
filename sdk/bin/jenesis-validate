@@ -51,6 +51,9 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 (cd "$TMPDIR" && "$JAR" xf "$SOURCES_JAR")
 JAR_ROOT="$TMPDIR/build/jenesis"
+if [ -d "$JAR_ROOT" ]; then
+    printf '%s' "$VERSION" > "$JAR_ROOT/jenesis.version"
+fi
 
 for target in "${TARGETS[@]}"; do
     if [ ! -d "$target" ]; then
@@ -69,8 +72,17 @@ for target in "${TARGETS[@]}"; do
         summary_prefix=""
     fi
 
+    if [ -f "$CUR_ROOT/jenesis.version" ]; then
+        CUR_VERSION="$(cat "$CUR_ROOT/jenesis.version")"
+        if [ "$CUR_VERSION" != "$VERSION" ]; then
+            echo "jenesis-validate: ${summary_prefix}version differs - build/jenesis is at ${CUR_VERSION}, bundled is ${VERSION}"
+        fi
+    fi
+
     MATCHED=0
-    DIFFERED=0
+    DIFFERS=0
+    MISSING=0
+    ADDITIONAL=0
 
     if [ -d "$JAR_ROOT" ]; then
         while IFS= read -r path; do
@@ -80,15 +92,14 @@ for target in "${TARGETS[@]}"; do
                 h_jar="$(sha256_of "$path")"
                 h_cur="$(sha256_of "$cur")"
                 if [ "$h_jar" != "$h_cur" ]; then
-                    echo "${path_prefix}build/jenesis/$rel $h_jar $h_cur"
-                    DIFFERED=$((DIFFERED + 1))
+                    echo "${path_prefix}build/jenesis/$rel differs (bundled $h_jar, target $h_cur)"
+                    DIFFERS=$((DIFFERS + 1))
                 else
                     MATCHED=$((MATCHED + 1))
                 fi
             else
-                h_jar="$(sha256_of "$path")"
-                echo "${path_prefix}build/jenesis/$rel $h_jar -"
-                DIFFERED=$((DIFFERED + 1))
+                echo "${path_prefix}build/jenesis/$rel missing"
+                MISSING=$((MISSING + 1))
             fi
         done < <(find "$JAR_ROOT" -type f)
     fi
@@ -97,12 +108,11 @@ for target in "${TARGETS[@]}"; do
         while IFS= read -r path; do
             rel="${path#"$CUR_ROOT"/}"
             if [ ! -f "$JAR_ROOT/$rel" ]; then
-                h_cur="$(sha256_of "$path")"
-                echo "${path_prefix}build/jenesis/$rel - $h_cur"
-                DIFFERED=$((DIFFERED + 1))
+                echo "${path_prefix}build/jenesis/$rel additional"
+                ADDITIONAL=$((ADDITIONAL + 1))
             fi
         done < <(find "$CUR_ROOT" -type f)
     fi
 
-    echo "jenesis-validate: ${summary_prefix}${MATCHED} matched, ${DIFFERED} differed"
+    echo "jenesis-validate: ${summary_prefix}${MATCHED} matched, ${DIFFERS} differs, ${MISSING} missing, ${ADDITIONAL} additional"
 done

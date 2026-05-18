@@ -52,8 +52,14 @@ for target in "${TARGETS[@]}"; do
         echo "jenesis-init: $target"
     fi
     if [ -d "$target/build/jenesis" ]; then
-        echo "jenesis-init: removing existing build/jenesis"
+        if [ -f "$target/build/jenesis/jenesis.version" ]; then
+            PREVIOUS_VERSION="$(cat "$target/build/jenesis/jenesis.version")"
+            echo "jenesis-init: removing existing build/jenesis (was version ${PREVIOUS_VERSION})"
+        else
+            echo "jenesis-init: removing existing build/jenesis (unknown previous version)"
+        fi
         rm -rf "$target/build/jenesis"
     fi
     cp -R "$TMPDIR"/. "$target/"
+    printf '%s' "$VERSION" > "$target/build/jenesis/jenesis.version"
 done
