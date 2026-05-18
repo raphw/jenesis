@@ -19,6 +19,7 @@ public class MultiProjectModule implements BuildExecutorModule {
             PREPARE = "prepare",
             PRODUCE = "produce",
             ASSIGN = "assign",
+            INVENTORY = "inventory",
             DEPENDENCIES = "dependencies";
 
     private static final String GROUP = "group";

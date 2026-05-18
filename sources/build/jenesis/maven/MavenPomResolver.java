@@ -328,7 +328,8 @@ public class MavenPomResolver implements Resolver {
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
         }
-        return switch (document.getDocumentElement().getNamespaceURI()) {
+        String namespace = document.getDocumentElement().getNamespaceURI();
+        return switch (namespace == null ? NAMESPACE_4_0_0 : namespace) {
             case NAMESPACE_4_0_0 -> {
                 ParentCoordinate parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
@@ -457,8 +458,7 @@ public class MavenPomResolver implements Resolver {
                         managedDependencies,
                         dependencies);
             }
-            case null, default -> throw new IllegalArgumentException(
-                    "Unknown namespace: " + document.getDocumentElement().getNamespaceURI());
+            default -> throw new IllegalArgumentException("Unknown namespace: " + namespace);
         };
     }
 
@@ -615,7 +615,8 @@ public class MavenPomResolver implements Resolver {
 
     private static Stream<Node> toChildren400(Node node, String localName) {
         return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName)
-                && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
+                && (child.getNamespaceURI() == null
+                        || NAMESPACE_4_0_0.equals(child.getNamespaceURI())));
     }
 
     private static Optional<String> toTextChild400(Node node, String localName) {

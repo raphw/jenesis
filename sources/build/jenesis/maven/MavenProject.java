@@ -19,6 +19,7 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 
 import static build.jenesis.BuildStep.IDENTITY;
@@ -133,6 +134,14 @@ public class MavenProject implements BuildExecutorModule {
                                     inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
                                             MultiProjectModule.IDENTIFIER_PATH)),
                                     Stream.of(PRODUCE)));
+                    buildExecutor.addStep(MultiProjectModule.INVENTORY,
+                            new Inventory(),
+                            Stream.concat(
+                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier.startsWith(
+                                            MultiProjectModule.IDENTIFIER_PATH)),
+                                    Stream.of(
+                                            ASSIGN,
+                                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)));
                 });
     }
 

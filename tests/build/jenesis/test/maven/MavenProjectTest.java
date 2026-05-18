@@ -509,7 +509,8 @@ public class MavenProjectTest {
                                     "../../module-foo/runtime/dependencies/artifacts",
                                     "../../module-foo/produce/java/classes",
                                     "../../module-foo/produce/java/artifacts",
-                                    "../../module-foo/assign");
+                                    "../../module-foo/assign",
+                                    "../../module-foo/inventory");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
                         buildExecutor.addModule("java", new JavaModule(),

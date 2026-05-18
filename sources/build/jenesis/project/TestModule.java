@@ -209,6 +209,7 @@ public class TestModule implements BuildExecutorModule {
                                                    .orElseThrow(() -> new IllegalArgumentException("No test engine found")) : engine;
             List<TestSelector> selectors = TestSelector.parse(filter);
             List<String> commands = new ArrayList<>();
+            commands.add("-Dorg.jline.terminal.dumb=true");
             if (modular && resolved.module() != null) {
                 commands.add("--add-modules");
                 commands.add("ALL-MODULE-PATH");

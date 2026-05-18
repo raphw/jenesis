@@ -2,9 +2,7 @@ package build.jenesis;
 
 import module java.base;
 import build.jenesis.docker.DockerizedJava;
-import build.jenesis.project.DependenciesModule;
-import build.jenesis.project.DependencyScope;
-import build.jenesis.project.MultiProjectModule;
+import build.jenesis.step.Inventory;
 
 public record Execute(Project project, String mainClass, String module) {
 
@@ -33,80 +31,45 @@ public record Execute(Project project, String mainClass, String module) {
     }
 
     private int doExecute(boolean mainMethod, String... arguments) throws IOException, InterruptedException {
-        String moduleSegmentPrefix = MultiProjectModule.MODULE + "-";
-        String runtimeArtifactsSuffix = "/" + DependencyScope.RUNTIME.label()
-                + "/" + MultiProjectModule.DEPENDENCIES
-                + "/" + DependenciesModule.ARTIFACTS;
-        String targetSegment = module != null ? moduleSegmentPrefix + BuildExecutorModule.encode(module) : null;
         String selector = module != null ? "+" + module : Project.BUILD;
         SequencedMap<String, Path> outputs = mainMethod ? project.doMain(selector) : project.build(selector);
-        SequencedMap<String, SequencedMap<String, Path>> groups = new LinkedHashMap<>();
+        SequencedProperties merged = new SequencedProperties();
+        SequencedMap<String, Path> sourceByPrefix = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : outputs.entrySet()) {
-            String key = entry.getKey();
-            String segment = null;
-            for (String part : key.split("/")) {
-                if (part.startsWith(moduleSegmentPrefix)) {
-                    segment = part;
-                    break;
-                }
-            }
-            if (segment == null) {
+            Path inv = entry.getValue().resolve(Inventory.INVENTORY);
+            if (!Files.isRegularFile(inv)) {
                 continue;
             }
-            if (targetSegment != null && !targetSegment.equals(segment)) {
-                continue;
+            Properties loaded = new SequencedProperties();
+            try (Reader reader = Files.newBufferedReader(inv)) {
+                loaded.load(reader);
             }
-            groups.computeIfAbsent(segment, _ -> new LinkedHashMap<>()).put(key, entry.getValue());
+            for (String key : loaded.stringPropertyNames()) {
+                merged.setProperty(key, loaded.getProperty(key));
+                int dot = key.indexOf('.');
+                String prefix = dot < 0 ? "" : key.substring(0, dot);
+                sourceByPrefix.put(prefix, entry.getValue());
+            }
+        }
+        if (module != null && !sourceByPrefix.containsKey(module)) {
+            throw new IllegalStateException("No module at path: " + (module.isEmpty() ? "<root>" : module));
         }
         SequencedMap<String, Candidate> candidates = new LinkedHashMap<>();
-        for (Map.Entry<String, SequencedMap<String, Path>> group : groups.entrySet()) {
-            SequencedProperties mergedModule = new SequencedProperties();
-            SequencedProperties mergedIdentity = new SequencedProperties();
-            for (Path folder : group.getValue().values()) {
-                Path moduleFile = folder.resolve(BuildStep.MODULE);
-                if (Files.isRegularFile(moduleFile)) {
-                    Properties loaded = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                        loaded.load(reader);
-                    }
-                    mergedModule.putAll(loaded);
-                }
-                Path identityFile = folder.resolve(BuildStep.IDENTITY);
-                if (Files.isRegularFile(identityFile)) {
-                    Properties loaded = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(identityFile)) {
-                        loaded.load(reader);
-                    }
-                    boolean complete = true;
-                    for (String name : loaded.stringPropertyNames()) {
-                        String value = loaded.getProperty(name);
-                        if (value == null || value.isEmpty()) {
-                            complete = false;
-                            break;
-                        }
-                    }
-                    if (complete) {
-                        for (String name : loaded.stringPropertyNames()) {
-                            mergedIdentity.setProperty(name, folder.resolve(loaded.getProperty(name)).normalize().toString());
-                        }
-                    }
-                }
+        for (Map.Entry<String, Path> entry : sourceByPrefix.entrySet()) {
+            String prefix = entry.getKey();
+            if (module != null && !module.equals(prefix)) {
+                continue;
             }
-            String main;
-            if (mainClass != null) {
-                main = mainClass;
-            } else {
-                main = mergedModule.getProperty("main");
-                if (main == null || main.isEmpty()) {
-                    continue;
-                }
+            String prefixDot = prefix.isEmpty() ? "" : prefix + ".";
+            String resolvedMainClass = mainClass != null ? mainClass : merged.getProperty(prefixDot + "mainClass");
+            if (resolvedMainClass == null) {
+                continue;
             }
-            candidates.put(group.getKey(), new Candidate(
-                    mergedModule.getProperty("path", ""),
-                    main,
-                    mergedModule.getProperty("module"),
-                    mergedIdentity,
-                    group.getValue()));
+            candidates.put(prefix, new Candidate(prefix,
+                    resolvedMainClass,
+                    merged.getProperty(prefixDot + "module"),
+                    merged.getProperty(prefixDot + "runtime"),
+                    entry.getValue()));
         }
         if (candidates.isEmpty()) {
             throw new IllegalStateException(module != null
@@ -125,32 +88,19 @@ public record Execute(Project project, String mainClass, String module) {
             throw new IllegalStateException(message.toString());
         }
         Candidate candidate = candidates.values().iterator().next();
-        Path mainArtifact = null;
-        for (String name : candidate.identity.stringPropertyNames()) {
-            Path resolved = Path.of(candidate.identity.getProperty(name));
-            if (Files.isRegularFile(resolved)) {
-                mainArtifact = resolved;
-                break;
-            }
-        }
-        if (mainArtifact == null) {
-            throw new IllegalStateException("Did not find a main artifact for module: "
+        if (candidate.runtime == null || candidate.runtime.isEmpty()) {
+            throw new IllegalStateException("No runtime artifacts for module: "
                     + (candidate.path.isEmpty() ? "<root>" : candidate.path));
         }
         List<String> jars = new ArrayList<>();
-        jars.add(mainArtifact.toString());
-        for (Map.Entry<String, Path> entry : candidate.folders.entrySet()) {
-            if (!entry.getKey().endsWith(runtimeArtifactsSuffix)) {
-                continue;
+        for (String part : candidate.runtime.split(",")) {
+            Path resolved = candidate.folder.resolve(part).normalize();
+            if (!Files.isRegularFile(resolved)) {
+                throw new IllegalStateException("Missing runtime artifact for module "
+                        + (candidate.path.isEmpty() ? "<root>" : candidate.path)
+                        + ": " + resolved);
             }
-            Path libraries = entry.getValue().resolve(DependenciesModule.ARTIFACTS);
-            if (Files.isDirectory(libraries)) {
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(libraries)) {
-                    for (Path file : stream) {
-                        jars.add(file.toString());
-                    }
-                }
-            }
+            jars.add(resolved.toString());
         }
         List<String> javaArgs = new ArrayList<>();
         if (candidate.module != null) {
@@ -215,7 +165,7 @@ public record Execute(Project project, String mainClass, String module) {
     private record Candidate(String path,
                              String mainClass,
                              String module,
-                             SequencedProperties identity,
-                             SequencedMap<String, Path> folders) {
+                             String runtime,
+                             Path folder) {
     }
 }

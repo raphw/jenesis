@@ -72,7 +72,7 @@ public class ExecuteTest {
     @Test
     public void execute_aborts_when_no_module_declares_main() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
-        Path alpha = writeManifests("alpha", null, "alpha", null);
+        Path alpha = writeInventory("alpha", "alpha", null, null, null);
         Project.Layout layout = layoutWithModules(Map.of("module-alpha", alpha));
         Project project = new Project().root(root).target(target).layout(layout);
         assertThatThrownBy(() -> new Execute(project).execute())
@@ -83,8 +83,8 @@ public class ExecuteTest {
     @Test
     public void execute_aborts_when_multiple_modules_declare_main() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
-        Path alpha = writeManifests("alpha", "foo.Alpha", "alpha", null);
-        Path beta = writeManifests("beta", "foo.Beta", "beta", null);
+        Path alpha = writeInventory("alpha", "alpha", "foo.Alpha", null, "alpha.jar");
+        Path beta = writeInventory("beta", "beta", "foo.Beta", null, "beta.jar");
         Project.Layout layout = layoutWithModules(Map.of(
                 "module-alpha", alpha,
                 "module-beta", beta));
@@ -99,7 +99,7 @@ public class ExecuteTest {
     @Test
     public void execute_aborts_when_explicit_module_has_no_main() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
-        Path alpha = writeManifests("alpha", null, "alpha", null);
+        Path alpha = writeInventory("alpha", "alpha", null, null, null);
         Project.Layout layout = layoutWithModules(Map.of("module-alpha", alpha));
         Project project = new Project().root(root).target(target).layout(layout);
         assertThatThrownBy(() -> new Execute(project).module("alpha").execute())
@@ -110,21 +110,20 @@ public class ExecuteTest {
     @Test
     public void execute_aborts_when_main_artifact_missing() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
-        Path alpha = writeManifests("alpha", "foo.Alpha", "alpha", null);
-        writeIdentity(alpha, Map.of("alpha/coord", "missing.jar"));
+        Path alpha = writeInventory("alpha", "alpha", "foo.Alpha", null, "missing.jar");
         Project.Layout layout = layoutWithModules(Map.of("module-alpha", alpha));
         Project project = new Project().root(root).target(target).layout(layout);
         assertThatThrownBy(() -> new Execute(project).execute())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Did not find a main artifact");
+                .hasMessageContaining("Missing runtime artifact");
     }
 
     @Test
     public void execute_launches_single_declared_main() throws IOException, InterruptedException {
         Path target = Files.createDirectory(root.resolve("target"));
-        Path alpha = writeManifests("alpha", Sample.class.getName(), "alpha", null);
+        Path alpha = Files.createDirectory(root.resolve("alpha-inventory"));
         Path classesJar = packageSample(alpha.resolve("classes.jar"));
-        writeIdentity(alpha, Map.of("alpha/coord", alpha.relativize(classesJar).toString()));
+        writeInventoryFile(alpha, "alpha", Sample.class.getName(), null, alpha.relativize(classesJar).toString());
         Project.Layout layout = layoutWithModules(Map.of("module-alpha", alpha));
         Project project = new Project().root(root).target(target).layout(layout);
         int code = new Execute(project).execute();
@@ -134,37 +133,34 @@ public class ExecuteTest {
     @Test
     public void execute_honours_explicit_main_class_override() throws IOException, InterruptedException {
         Path target = Files.createDirectory(root.resolve("target"));
-        Path alpha = writeManifests("alpha", "ignored.OldMain", "alpha", null);
+        Path alpha = Files.createDirectory(root.resolve("alpha-inventory"));
         Path classesJar = packageSample(alpha.resolve("classes.jar"));
-        writeIdentity(alpha, Map.of("alpha/coord", alpha.relativize(classesJar).toString()));
+        writeInventoryFile(alpha, "alpha", "ignored.OldMain", null, alpha.relativize(classesJar).toString());
         Project.Layout layout = layoutWithModules(Map.of("module-alpha", alpha));
         Project project = new Project().root(root).target(target).layout(layout);
         int code = new Execute(project).mainClass(Sample.class.getName()).execute();
         assertThat(code).isEqualTo(0);
     }
 
-    private Path writeManifests(String name, String main, String path, String module) throws IOException {
-        Path folder = Files.createDirectory(root.resolve(name + "-manifests"));
-        Properties properties = new SequencedProperties();
-        if (path != null) {
-            properties.setProperty("path", path);
-        }
-        if (main != null) {
-            properties.setProperty("main", main);
-        }
-        if (module != null) {
-            properties.setProperty("module", module);
-        }
-        try (Writer writer = Files.newBufferedWriter(folder.resolve("module.properties"))) {
-            properties.store(writer, null);
-        }
+    private Path writeInventory(String name, String path, String mainClass, String module, String runtime) throws IOException {
+        Path folder = Files.createDirectory(root.resolve(name + "-inventory"));
+        writeInventoryFile(folder, path, mainClass, module, runtime);
         return folder;
     }
 
-    private void writeIdentity(Path folder, Map<String, String> entries) throws IOException {
+    private void writeInventoryFile(Path folder, String path, String mainClass, String module, String runtime) throws IOException {
         Properties properties = new SequencedProperties();
-        entries.forEach(properties::setProperty);
-        try (Writer writer = Files.newBufferedWriter(folder.resolve("identity.properties"))) {
+        String prefix = (path == null || path.isEmpty()) ? "" : path + ".";
+        if (runtime != null) {
+            properties.setProperty(prefix + "runtime", runtime);
+        }
+        if (mainClass != null) {
+            properties.setProperty(prefix + "mainClass", mainClass);
+        }
+        if (module != null) {
+            properties.setProperty(prefix + "module", module);
+        }
+        try (Writer writer = Files.newBufferedWriter(folder.resolve("inventory.properties"))) {
             properties.store(writer, null);
         }
     }
