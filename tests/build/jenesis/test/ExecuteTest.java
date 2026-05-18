@@ -131,6 +131,43 @@ public class ExecuteTest {
     }
 
     @Test
+    public void execute_launches_main_via_real_maven_layout() throws IOException, InterruptedException {
+        Path source = Files.createDirectories(root.resolve("src/main/java/sample"));
+        Files.writeString(source.resolve("Sample.java"), """
+                package sample;
+
+                public class Sample {
+
+                    public static void main(String[] args) {
+                        System.out.print("Hello world!");
+                    }
+                }
+                """);
+        Files.writeString(root.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>sample</groupId>
+                    <artifactId>sample</artifactId>
+                    <version>1</version>
+                    <properties>
+                        <mainClass>%s</mainClass>
+                    </properties>
+                </project>
+                """.formatted(Sample.class.getName()));
+        Path target = Files.createDirectory(root.resolve("target"));
+        Path cache = Files.createDirectory(root.resolve("cache"));
+        Project project = new Project()
+                .root(root)
+                .target(target)
+                .cache(cache)
+                .layout(Project.Layout.MAVEN)
+                .tests(false);
+        int code = new Execute(project).execute();
+        assertThat(code).isEqualTo(0);
+    }
+
+    @Test
     public void execute_honours_explicit_main_class_override() throws IOException, InterruptedException {
         Path target = Files.createDirectory(root.resolve("target"));
         Path alpha = Files.createDirectory(root.resolve("alpha-inventory"));

@@ -542,6 +542,27 @@ public class MavenProjectTest {
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         assertThat(bar.getProperty("maven/group/bar/pom/1"))
                 .isEqualTo("../../../../../identifier/scan/output/pom/bar/pom.xml");
+        assertThat(results.keySet())
+                .contains("maven/module-foo/inventory", "maven/module-bar/inventory")
+                .doesNotContain("maven/module-foo/coordinates", "maven/module-bar/coordinates");
+        Properties fooInventory = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("maven/module-foo/inventory")
+                .resolve("inventory.properties"))) {
+            fooInventory.load(reader);
+        }
+        assertThat(fooInventory).containsOnlyKeys("foo.runtime");
+        assertThat(fooInventory.getProperty("foo.runtime").split(","))
+                .anyMatch(part -> part.endsWith("/classes.jar"));
+        Properties barInventory = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("maven/module-bar/inventory")
+                .resolve("inventory.properties"))) {
+            barInventory.load(reader);
+        }
+        assertThat(barInventory).containsOnlyKeys("bar.runtime");
+        assertThat(barInventory.getProperty("bar.runtime").split(","))
+                .anyMatch(part -> part.endsWith("/classes.jar"));
     }
 
     @Test

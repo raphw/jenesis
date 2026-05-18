@@ -477,6 +477,7 @@ others are declared next to the step that emits them.
 | `scopes.properties`        | `BuildStep.SCOPES`               | Sibling of `requires.properties` produced by the `Manifests` steps in `ModularProject` and `MavenProject`. Each key is a `<prefix>/<coordinate>` from `requires.properties`; the value is a comma-separated list of scope tokens describing in which scopes the dependency is visible. The token set is open-ended (matched as literal strings) so additional steps can introduce their own scope tokens later. The currently recognized tokens are the upper-case `DependencyScope` enum names `COMPILE` and `RUNTIME`: compile-only entries (Maven `provided`, Java `requires static`) carry just `COMPILE`; runtime-only entries (Maven `runtime`) carry just `RUNTIME`; entries visible in both carry `COMPILE,RUNTIME`. `MultiProjectDependencies` filters `requires.properties` against the `DependencyScope` it is bound to; `Pom` reads it to decide whether each dependency is emitted as `compile`, `provided`, or `runtime`. The upper-case spelling distinguishes property-file content from the lower-case sub-module folder names (`compile/`, `runtime/`) that share the same root word. |
 | `module.properties`        | `BuildStep.MODULE`               | Per-module **graph-state** descriptor written by every `Manifests` step. Carries only keys the framework manages, never the user. Always present with `path=<directory-relative-to-project-root>` (the source folder housing this module's `pom.xml` / `module-info.java`). `ModularProject.Manifests` also writes `module=<java-module-name>` (used by `ModularPlacement` to compute the staging directory). Test variants additionally carry `tests=<artifactId>` (or the empty string for the deprecated bare `@tests` form); the key is absent on main modules, and consumers (`Pom`, `JavaMultiProjectAssembler`, `MavenRepositoryStage`, `MavenRepositoryPlacement`, `ModularPlacement`) use that absence/presence as the test-variant signal. Modules with an entry point carry `main=<class>` on the **main** variant (omitted on test variants): `ModularProject.Manifests` populates it from an `@main <class>` Javadoc tag on `module-info.java`, `MavenProject`'s per-module manifests step populates it from a `<properties><mainClass>...</mainClass></properties>` entry in the module's `pom.xml`. `JavaMultiProjectAssembler` runs a `prepare` step that translates `main` into a `process/jar.properties` file with a `--main-class=<class>` flag; the existing `ProcessBuildStep` plumbing then prepends that flag to the `jar` command line, which makes the produced `classes.jar` carry both a manifest `Main-Class:` entry and a `ModuleMainClass` attribute on the bundled `module-info.class`. `Project.PinModule` reads `path` from every input folder that carries this file to discover which source files to pin without pattern-matching graph paths. |
 | `metadata.properties`      | `BuildStep.METADATA`             | Per-module **POM descriptive metadata** written by every `Manifests` step (omitted if no descriptive keys apply). `ModularProject.Manifests` writes `name` and `description` parsed from the module-info Javadoc when present. `MavenProject`'s per-module manifests step writes any `<name>`, `<description>`, `<url>`, `licenses/`, `developers/`, and `scm/` fields lifted from the module's `pom.xml`. Schema keys are `name`, `description`, `url`, `license.name`, `license.url`, `developer.<id>.name`, `developer.<id>.email`, `scm.connection`, `scm.developerConnection`, `scm.url`, plus the optional `module=<artifactId>` release-target filter. `Pom` reads them to populate the emitted pom, and `module` to filter which sub-module the pom is emitted for. The same key/value schema is used by the optional project-root override file (conventionally named `metadata.properties`, pointed at via `-Djenesis.project.metadata=metadata.properties`); entries there overlay the per-module values inside `Pom`. |
+| `inventory.properties`     | `Inventory.INVENTORY`            | Per-module **launchable summary** written by `Inventory`. Each module produces one file whose keys are prefixed with the module's path (`<path>.runtime`, `<path>.mainClass`, `<path>.module`); root modules (empty `path`) emit unprefixed keys. `<prefix>.runtime` is a comma-separated list of jar paths (the main artifact followed by runtime dependencies), each path relativised against the file's own folder. `<prefix>.mainClass` and `<prefix>.module` carry the values mirrored from `module.properties`; any key whose value would be empty is omitted entirely. A consumer that reads several modules' inventories can `putAll` them into one `Properties` map without key collisions, then group by the prefix to recover per-module records. `Execute` consumes the merged map to pick the candidate(s) with `<prefix>.mainClass` set and to assemble the classpath/modulepath from `<prefix>.runtime`. |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<java-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a Java module name into a download URL. When a versioned coordinate is requested (e.g. `org.assertj.core/3.27.0`) and the bare name is mapped to a URL whose final path segments follow the Maven repository layout (`.../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`), an opt-in version-resolver function (`MavenDefaultRepository.versionResolver()`) supplied by the caller rewrites the path's version segment and the filename's version segment to the pinned value, so a single-URL registry still satisfies version pins. Without that function, `Repository.ofUris` performs strict literal lookup only; URLs not matching the Maven layout always fall back to the bare-name URL. The `MODULAR` layout passes this resolver explicitly when wiring `Repository.ofProperties`, since the dominant Java module URL registries (sormuras/modules and most internal mirrors) point at Maven Central -- making the Maven layout assumption visible at the use site rather than baked into the generic `Repository` infrastructure. |
 | `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value emitting the same flag once per piece. Each input folder's file is processed independently and its entries are appended to the command line in folder order, so the same key in two folders becomes two flag instances. Values that name filesystem paths are written relative to the file's containing folder (paths are not resolved until the consumer step needs them), which keeps the on-disk content position-independent so build outputs can be relocated or shared between caches without rewriting.                                                                                          |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
@@ -503,6 +504,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Versions`                 | Walks each predecessor's `classes/`, hard-links every non-`module-info.class` file under `context.next()/classes/`, and rewrites every `module-info.class` so each `requires <X>` directive gets a `compiledVersion` set from the matching entry in the resolved `requires.properties` (module-style `<prefix>/<name>/<version>` coordinates). Uses the JDK's `java.lang.classfile` API; module flags (`OPEN`), the module's own version, `exports`, `opens`, `uses` and `provides` round-trip unchanged. | `classes/`, `requires.properties`                                                                                                     | `classes/` (non-`module-info` hard-linked, `module-info.class` rewritten in-place) |
 | `Group`                    | Reads each predecessor's `identity.properties` and `requires.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `identity.properties`, `requires.properties`                                                                                          | `groups/<encoded-name>.properties`                                               |
 | `Assign`                   | Fills the empty values of `identity.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                           | `identity.properties`, `artifacts/`                                                                                                   | `identity.properties` (empty values filled with artifact paths)                  |
+| `Inventory`                | Builds a per-module **launchable summary**: scans each predecessor for `module.properties` (`path`, `main`, `module`), the first complete `identity.properties` (to pick a main artifact), and any `artifacts/` subdir (collected as the runtime classpath). Emits one `inventory.properties` whose keys are prefixed with the module's path. | `module.properties`, `identity.properties`, `artifacts/`                                                                              | `inventory.properties`                                                            |
 | `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
 | `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`. Sibling-built coordinates are written with empty values (no integrity validation; trust is implicit within the same build); externally-pinned coordinates pass through with their declared checksums intact. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`                                                    |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
@@ -700,7 +702,7 @@ source tree and writes their coordinates and dependencies; a `Group` step partit
 dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
 between them. Each per-project closure receives a `ModuleDescriptor` exposing `name()` and `dependencies()`; the
 concrete subtype (`ModularModuleDescriptor` or `MavenModuleDescriptor`) also exposes the standardised inherited
-keys as helpers (`sources()`, `manifests()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`), so a closure doesn't need to know how
+keys as helpers (`sources()`, `manifests()`, `coordinates()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`), so a closure doesn't need to know how
 the identifier laid out its outputs. The example below shows two projects `A` and `B` where `A` requires `B`,
 so `B` is built first and its output flows into `A`.
 
@@ -760,7 +762,8 @@ it streams the bytes through a digest and fails the build if they do not match t
 integrity story extends to POMs the build pulls in for reference, not just to artifact jars.
 `MavenProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs
 `prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
-`build` (caller-supplied, typically `JavaModule`), and `assign` (`Assign`) for each project.
+`build` (caller-supplied, typically `JavaModule`), `assign` (`Assign`), and `inventory` (`Inventory`,
+producing the per-module `inventory.properties` consumed by `Execute`) for each project.
 
 ```xml
 <dependency>
@@ -796,7 +799,8 @@ flowchart LR
     pBdeps["dependencies<br/>(DependenciesModule)"]:::module
     pBbuild["build<br/>(caller-supplied)"]:::module
     pBassn["assign<br/>(Assign)"]:::step
-    pBprep --> pBdeps --> pBbuild --> pBassn
+    pBinv["inventory<br/>(Inventory)"]:::step
+    pBprep --> pBdeps --> pBbuild --> pBassn --> pBinv
   end
   subgraph "A (per project, requires B)"
     direction LR
@@ -804,7 +808,8 @@ flowchart LR
     pAdeps["dependencies<br/>(DependenciesModule)"]:::module
     pAbuild["build<br/>(caller-supplied)"]:::module
     pAassn["assign<br/>(Assign)"]:::step
-    pAprep --> pAdeps --> pAbuild --> pAassn
+    pAinv["inventory<br/>(Inventory)"]:::step
+    pAprep --> pAdeps --> pAbuild --> pAassn --> pAinv
   end
   tree --> scan
   idA --> pAprep
@@ -844,7 +849,8 @@ hash computation in the build - validation is opt-in by declaring hashes in sour
 
 `ModularProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs `prepare`
 (`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
-`build` (caller-supplied, typically `JavaModule`), and `assign` (`Assign`) for each project.
+`build` (caller-supplied, typically `JavaModule`), `assign` (`Assign`), and `inventory` (`Inventory`,
+producing the per-module `inventory.properties` consumed by `Execute`) for each project.
 
 ```mermaid
 flowchart LR
@@ -863,7 +869,8 @@ flowchart LR
     pBdeps["dependencies<br/>(DependenciesModule)"]:::module
     pBbuild["build<br/>(caller-supplied)"]:::module
     pBassn["assign<br/>(Assign)"]:::step
-    pBprep --> pBdeps --> pBbuild --> pBassn
+    pBinv["inventory<br/>(Inventory)"]:::step
+    pBprep --> pBdeps --> pBbuild --> pBassn --> pBinv
   end
   subgraph "A (per project, requires B)"
     direction LR
@@ -871,7 +878,8 @@ flowchart LR
     pAdeps["dependencies<br/>(DependenciesModule)"]:::module
     pAbuild["build<br/>(caller-supplied)"]:::module
     pAassn["assign<br/>(Assign)"]:::step
-    pAprep --> pAdeps --> pAbuild --> pAassn
+    pAinv["inventory<br/>(Inventory)"]:::step
+    pAprep --> pAdeps --> pAbuild --> pAassn --> pAinv
   end
   tree --> idA
   tree --> idB

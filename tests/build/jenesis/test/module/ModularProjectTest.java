@@ -225,6 +225,29 @@ public class ModularProjectTest {
         assertThat(bar.stringPropertyNames()).containsExactly("module/bar");
         assertThat(bar.getProperty("module/bar"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+        assertThat(results.keySet())
+                .contains("modules/module-foo/inventory", "modules/module-bar/inventory")
+                .doesNotContain("modules/module-foo/coordinates", "modules/module-bar/coordinates");
+        Properties fooInventory = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("modules/module-foo/inventory")
+                .resolve("inventory.properties"))) {
+            fooInventory.load(reader);
+        }
+        assertThat(fooInventory).containsOnlyKeys("foo.runtime", "foo.module");
+        assertThat(fooInventory.getProperty("foo.module")).isEqualTo("foo");
+        assertThat(fooInventory.getProperty("foo.runtime").split(","))
+                .anyMatch(part -> part.endsWith("/classes.jar"));
+        Properties barInventory = new SequencedProperties();
+        try (Reader reader = Files.newBufferedReader(results
+                .get("modules/module-bar/inventory")
+                .resolve("inventory.properties"))) {
+            barInventory.load(reader);
+        }
+        assertThat(barInventory).containsOnlyKeys("bar.runtime", "bar.module");
+        assertThat(barInventory.getProperty("bar.module")).isEqualTo("bar");
+        assertThat(barInventory.getProperty("bar.runtime").split(","))
+                .anyMatch(part -> part.endsWith("/classes.jar"));
     }
 
     @Test
