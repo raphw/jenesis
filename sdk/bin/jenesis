@@ -23,4 +23,4 @@ if [ "${JAVA_MAJOR:-0}" -lt 25 ] 2>/dev/null; then
     exit 1
 fi
 
-exec "$JAVA" ${JAVA_OPTS:-} -p "$JENESIS_HOME/lib" -m build.jenesis/build.jenesis.Project "$@"
+exec "$JAVA" ${JAVA_OPTS:-} -p "$JENESIS_HOME/lib" -m build.jenesis "$@"

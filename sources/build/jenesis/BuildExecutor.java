@@ -146,16 +146,25 @@ public class BuildExecutor {
                         checksum = previous.resolve("checksum"),
                         output = previous.resolve("output");
                 boolean exists = Files.exists(previous);
-                Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("checksums")) : Map.of();
+                Map<Path, byte[]> current = exists ? HashFunction.read(checksum.resolve("output.properties")) : Map.of();
                 byte[] currentStepHash = stepHash.hash(step);
-                Path stepFile = checksum.resolve("step");
-                boolean consistent = exists
-                        && Files.exists(stepFile)
-                        && Arrays.equals(currentStepHash, HexFormat.of().parseHex(Files.readString(stepFile).trim()))
-                        && HashFunction.areConsistent(output, current, hash);
+                Path stepFile = checksum.resolve("step.properties");
+                boolean consistent;
+                if (exists && Files.exists(stepFile)) {
+                    Properties stepProperties = new SequencedProperties();
+                    try (Reader reader = Files.newBufferedReader(stepFile)) {
+                        stepProperties.load(reader);
+                    }
+                    String serialization = stepProperties.getProperty("serialization");
+                    consistent = serialization != null
+                            && Arrays.equals(currentStepHash, HexFormat.of().parseHex(serialization))
+                            && HashFunction.areConsistent(output, current, hash);
+                } else {
+                    consistent = false;
+                }
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                    Path checksums = checksum.resolve("checksums." + BuildExecutorModule.encode(entry.getKey()));
+                    Path checksums = checksum.resolve("argument." + BuildExecutorModule.encode(entry.getKey()) + ".properties");
                     arguments.put(entry.getKey(), new BuildStepArgument(
                             entry.getValue().folder(),
                             consistent && Files.exists(checksums)
@@ -187,12 +196,16 @@ public class BuildExecutor {
                             }
                             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                                 HashFunction.write(
-                                        checksum.resolve("checksums." + BuildExecutorModule.encode(entry.getKey())),
+                                        checksum.resolve("argument." + BuildExecutorModule.encode(entry.getKey()) + ".properties"),
                                         entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
-                            HashFunction.write(checksum.resolve("checksums"), checksums);
-                            Files.writeString(checksum.resolve("step"), HexFormat.of().formatHex(currentStepHash));
+                            HashFunction.write(checksum.resolve("output.properties"), checksums);
+                            Properties stepProperties = new SequencedProperties();
+                            stepProperties.setProperty("serialization", HexFormat.of().formatHex(currentStepHash));
+                            try (Writer writer = Files.newBufferedWriter(checksum.resolve("step.properties"))) {
+                                stepProperties.store(writer, null);
+                            }
                             completion.accept(result.next(), null);
                             return CompletableFuture.completedStage(Map.of(
                                     identity,

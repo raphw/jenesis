@@ -30,5 +30,5 @@ if !JAVA_MAJOR! LSS 25 (
     exit /b 1
 )
 
-"!JAVA!" %JAVA_OPTS% -p "!JENESIS_HOME!\lib" -m build.jenesis/build.jenesis.Project %*
+"!JAVA!" %JAVA_OPTS% -p "!JENESIS_HOME!\lib" -m build.jenesis %*
 exit /b %ERRORLEVEL%

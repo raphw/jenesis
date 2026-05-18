@@ -55,7 +55,7 @@ public interface BuildExecutorCallback {
                             if (verbose) {
                                 Path checksums = target.resolve(identity)
                                         .resolve("checksum")
-                                        .resolve("checksums");
+                                        .resolve("output.properties");
                                 if (Files.isRegularFile(checksums)) {
                                     try {
                                         HashFunction.read(checksums).forEach((file, hash) -> out.printf(

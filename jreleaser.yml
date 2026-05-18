@@ -27,6 +27,12 @@ release:
     skipTag: false
     tagName: 'v{{projectVersion}}'
 
+files:
+  artifacts:
+    - path: 'sdk/jenesis-{{projectVersion}}.zip'
+    - path: 'target/stage/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}.jar'
+    - path: 'target/stage/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}-sources.jar'
+
 deploy:
   maven:
     mavenCentral:
