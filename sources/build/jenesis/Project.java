@@ -219,10 +219,8 @@ public final class Project {
                                          Map<String, Resolver> resolvers) {
             BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
             return (sub, inherited) -> {
-                sub.addModule("main", delegate, inherited.sequencedKeySet().stream());
-                sub.addStep("pom", pom,
-                        descriptor.sources(),
-                        descriptor.manifests());
+                sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
+                sub.addStep("describe", pom, descriptor.sources(), descriptor.manifests());
             };
         }
     }
