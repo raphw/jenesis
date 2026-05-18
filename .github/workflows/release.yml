@@ -63,8 +63,9 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           git clean -fdX sdk/
-          mkdir -p sdk/lib
+          mkdir -p sdk/lib sdk/sources
           cp "target/stage/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}.jar" sdk/lib/
+          cp "target/stage/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}-sources.jar" sdk/sources/
           cp LICENSE sdk/LICENSE
           BASE="jenesis-${VERSION}"
           ln -sfn sdk "${BASE}"

@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+JENESIS_HOME="$(dirname "$SCRIPT_DIR")"
+
+if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/jar" ]; then
+    JAR="${JAVA_HOME}/bin/jar"
+elif command -v jar >/dev/null 2>&1; then
+    JAR="jar"
+else
+    echo "jenesis-init: no 'jar' tool found - install a JDK or set JAVA_HOME (Java 25 or newer required)" >&2
+    exit 1
+fi
+
+SOURCES_JAR=""
+for candidate in "$JENESIS_HOME"/sources/*-sources.jar; do
+    if [ -f "$candidate" ]; then
+        SOURCES_JAR="$candidate"
+        break
+    fi
+done
+if [ -z "$SOURCES_JAR" ]; then
+    echo "jenesis-init: no sources jar found in $JENESIS_HOME/sources" >&2
+    exit 1
+fi
+
+JAR_NAME="$(basename "$SOURCES_JAR" .jar)"
+VERSION="${JAR_NAME#build.jenesis-}"
+VERSION="${VERSION%-sources}"
+
+echo "jenesis-init: jenesis ${VERSION} - extracting bundled sources into build/jenesis"
+
+if [ "$#" -eq 0 ]; then
+    TARGETS=(".")
+    LABELED=0
+else
+    TARGETS=("$@")
+    LABELED=1
+fi
+
+TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR"' EXIT
+(cd "$TMPDIR" && "$JAR" xf "$SOURCES_JAR")
+rm -f "$TMPDIR/module-info.java"
+
+for target in "${TARGETS[@]}"; do
+    if [ ! -d "$target" ]; then
+        echo "jenesis-init: target '$target' is not a directory" >&2
+        exit 1
+    fi
+    if [ "$LABELED" = "1" ]; then
+        echo "jenesis-init: $target"
+    fi
+    if [ -d "$target/build/jenesis" ]; then
+        echo "jenesis-init: removing existing build/jenesis"
+        rm -rf "$target/build/jenesis"
+    fi
+    cp -R "$TMPDIR"/. "$target/"
+done
