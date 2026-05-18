@@ -58,8 +58,8 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/manifests", "maven/module/test-module-/manifests");
-        Path module = results.get("maven/module/module-/manifests");
+        assertThat(results).containsKeys("maven/module-/manifests", "maven/test-module-/manifests");
+        Path module = results.get("maven/module-/manifests");
         assertThat(module.resolve(BuildStep.IDENTITY)).exists();
         Properties coordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.IDENTITY))) {
@@ -77,7 +77,7 @@ public class MavenProjectTest {
         }
         assertThat(dependencies).containsOnlyKeys("maven/other/artifact/1");
         assertThat(dependencies.getProperty("maven/other/artifact/1")).isEmpty();
-        Path testModule = results.get("maven/module/test-module-/manifests");
+        Path testModule = results.get("maven/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.IDENTITY)).exists();
         Properties testCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.IDENTITY))) {
@@ -146,9 +146,9 @@ public class MavenProjectTest {
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
 
-        Path mainRequires = results.get("maven/module/module-/manifests")
+        Path mainRequires = results.get("maven/module-/manifests")
                 .resolve(BuildStep.REQUIRES);
-        Path mainScopes = results.get("maven/module/module-/manifests")
+        Path mainScopes = results.get("maven/module-/manifests")
                 .resolve(BuildStep.SCOPES);
         Properties mainRequiresProps = new Properties();
         try (Reader reader = Files.newBufferedReader(mainRequires)) {
@@ -169,7 +169,7 @@ public class MavenProjectTest {
         assertThat(mainScopesProps.getProperty("maven/scope/runtime-dep/1"))
                 .isEqualTo(DependencyScope.RUNTIME.name());
 
-        Path testRequires = results.get("maven/module/test-module-/manifests")
+        Path testRequires = results.get("maven/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES);
         Properties testRequiresProps = new Properties();
         try (Reader reader = Files.newBufferedReader(testRequires)) {
@@ -218,8 +218,8 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/manifests", "maven/module/module-subproject/manifests");
-        Path parent = results.get("maven/module/module-/manifests");
+        assertThat(results).containsKeys("maven/module-/manifests", "maven/module-subproject/manifests");
+        Path parent = results.get("maven/module-/manifests");
         assertThat(parent.resolve(BuildStep.IDENTITY)).exists();
         Properties parentCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(parent.resolve(BuildStep.IDENTITY))) {
@@ -230,7 +230,7 @@ public class MavenProjectTest {
                 "maven/parent/artifact/pom/1");
         assertThat(parentCoordinates.getProperty("maven/parent/artifact/1")).isEmpty();
         assertThat(parent.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
-        Path parentTests = results.get("maven/module/test-module-/manifests");
+        Path parentTests = results.get("maven/test-module-/manifests");
         assertThat(parentTests.resolve(BuildStep.IDENTITY)).exists();
         Properties parentTestCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.IDENTITY))) {
@@ -251,7 +251,7 @@ public class MavenProjectTest {
         }
         assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/1");
         assertThat(parentTestDependencies.getProperty("maven/parent/artifact/1")).isEmpty();
-        Path child = results.get("maven/module/module-subproject/manifests");
+        Path child = results.get("maven/module-subproject/manifests");
         assertThat(child.resolve(BuildStep.IDENTITY)).exists();
         Properties childCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(child.resolve(BuildStep.IDENTITY))) {
@@ -262,7 +262,7 @@ public class MavenProjectTest {
                 "maven/group/artifact/pom/1");
         assertThat(childCoordinates.getProperty("maven/group/artifact/1")).isEmpty();
         assertThat(child.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
-        Path childTests = results.get("maven/module/test-module-subproject/manifests");
+        Path childTests = results.get("maven/test-module-subproject/manifests");
         assertThat(childTests.resolve(BuildStep.IDENTITY)).exists();
         Properties childTestCoordinates = new Properties();
         try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.IDENTITY))) {
@@ -303,11 +303,11 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/manifests",
-                "maven/module/module-/sources",
-                "maven/module/module-/resources-1");
-        assertThat(results.get("maven/module/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
-        assertThat(results.get("maven/module/module-/resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
+        assertThat(results).containsKeys("maven/module-/manifests",
+                "maven/module-/sources",
+                "maven/module-/resources-1");
+        assertThat(results.get("maven/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/module-/resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
     }
 
     @Test
@@ -336,13 +336,13 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/module-/manifests",
-                "maven/module/module-/sources",
-                "maven/module/module-/resources-1",
-                "maven/module/module-/resources-2");
-        assertThat(results.get("maven/module/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
-        assertThat(results.get("maven/module/module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
-        assertThat(results.get("maven/module/module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
+        assertThat(results).containsKeys("maven/module-/manifests",
+                "maven/module-/sources",
+                "maven/module-/resources-1",
+                "maven/module-/resources-2");
+        assertThat(results.get("maven/module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
+        assertThat(results.get("maven/module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
     }
 
     @Test
@@ -363,11 +363,11 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/test-module-/manifests",
-                "maven/module/test-module-/sources",
-                "maven/module/test-module-/resources-1");
-        assertThat(results.get("maven/module/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
-        assertThat(results.get("maven/module/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
+        assertThat(results).containsKeys("maven/test-module-/manifests",
+                "maven/test-module-/sources",
+                "maven/test-module-/resources-1");
+        assertThat(results.get("maven/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource")).content().isEqualTo("bar");
     }
 
     @Test
@@ -396,13 +396,13 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module/test-module-/manifests",
-                "maven/module/test-module-/sources",
-                "maven/module/test-module-/resources-1",
-                "maven/module/test-module-/resources-2");
-        assertThat(results.get("maven/module/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
-        assertThat(results.get("maven/module/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
-        assertThat(results.get("maven/module/test-module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
+        assertThat(results).containsKeys("maven/test-module-/manifests",
+                "maven/test-module-/sources",
+                "maven/test-module-/resources-1",
+                "maven/test-module-/resources-2");
+        assertThat(results.get("maven/test-module-/sources").resolve(BuildStep.SOURCES + "source")).content().isEqualTo("foo");
+        assertThat(results.get("maven/test-module-/resources-1").resolve(BuildStep.RESOURCES + "resource1")).content().isEqualTo("bar");
+        assertThat(results.get("maven/test-module-/resources-2").resolve(BuildStep.RESOURCES + "resource2")).content().isEqualTo("qux");
     }
 
     @Test
@@ -510,7 +510,7 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         Properties foo = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
-                .get("maven/compose/module/module-foo/assign")
+                .get("maven/module-foo/assign")
                 .resolve(BuildStep.IDENTITY))) {
             foo.load(reader);
         }
@@ -521,7 +521,7 @@ public class MavenProjectTest {
                 .isEqualTo("../../../../../identifier/scan/output/pom/foo/pom.xml");
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
-                .get("maven/compose/module/module-bar/assign")
+                .get("maven/module-bar/assign")
                 .resolve(BuildStep.IDENTITY))) {
             bar.load(reader);
         }
@@ -571,7 +571,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        Path module = results.get("maven/module/module-/manifests");
+        Path module = results.get("maven/module-/manifests");
         Path compileVersions = module.resolve(BuildStep.VERSIONS);
         assertThat(compileVersions).exists();
         Properties versions = new Properties();
@@ -592,7 +592,7 @@ public class MavenProjectTest {
                 Map.entry("maven/pinned/simple", "2.0"),
                 Map.entry("maven/pinned/typed/war", "3.0"),
                 Map.entry("maven/pinned/classified/jar/sources", "4.0"));
-        Path testModule = results.get("maven/module/test-module-/manifests");
+        Path testModule = results.get("maven/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.VERSIONS)).exists();
         assertThat(testModule.resolve(BuildStep.VERSIONS)).exists();
     }
@@ -615,10 +615,10 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        Path module = results.get("maven/module/module-/manifests");
+        Path module = results.get("maven/module-/manifests");
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
-        Path testModule = results.get("maven/module/test-module-/manifests");
+        Path testModule = results.get("maven/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.VERSIONS)).doesNotExist();
         assertThat(testModule.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
@@ -667,7 +667,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        Path module = results.get("maven/module/module-/manifests");
+        Path module = results.get("maven/module-/manifests");
         Path moduleFile = module.resolve(BuildStep.MODULE);
         assertThat(moduleFile).exists();
         Properties moduleProperties = new Properties();
@@ -725,7 +725,7 @@ public class MavenProjectTest {
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Properties versions = new Properties();
-        try (Reader reader = Files.newBufferedReader(results.get("maven/module/module-/manifests")
+        try (Reader reader = Files.newBufferedReader(results.get("maven/module-/manifests")
                 .resolve(BuildStep.VERSIONS))) {
             versions.load(reader);
         }
@@ -766,7 +766,7 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
 
         Properties testRequires = new Properties();
-        try (Reader reader = Files.newBufferedReader(results.get("maven/module/test-module-/manifests")
+        try (Reader reader = Files.newBufferedReader(results.get("maven/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES))) {
             testRequires.load(reader);
         }
@@ -774,7 +774,7 @@ public class MavenProjectTest {
                 .isEqualTo("SHA256/cafebabe");
 
         Properties mainRequires = new Properties();
-        try (Reader reader = Files.newBufferedReader(results.get("maven/module/module-/manifests")
+        try (Reader reader = Files.newBufferedReader(results.get("maven/module-/manifests")
                 .resolve(BuildStep.REQUIRES))) {
             mainRequires.load(reader);
         }
@@ -819,13 +819,13 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Properties mainModule = new Properties();
         try (Reader reader = Files.newBufferedReader(
-                results.get("maven/module/module-/manifests").resolve(BuildStep.MODULE))) {
+                results.get("maven/module-/manifests").resolve(BuildStep.MODULE))) {
             mainModule.load(reader);
         }
         assertThat(mainModule.getProperty("main")).isEqualTo("com.example.Entry");
         Properties testModule = new Properties();
         try (Reader reader = Files.newBufferedReader(
-                results.get("maven/module/test-module-/manifests").resolve(BuildStep.MODULE))) {
+                results.get("maven/test-module-/manifests").resolve(BuildStep.MODULE))) {
             testModule.load(reader);
         }
         assertThat(testModule.getProperty("main")).isNull();
@@ -850,7 +850,7 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Properties mainModule = new Properties();
         try (Reader reader = Files.newBufferedReader(
-                results.get("maven/module/module-/manifests").resolve(BuildStep.MODULE))) {
+                results.get("maven/module-/manifests").resolve(BuildStep.MODULE))) {
             mainModule.load(reader);
         }
         assertThat(mainModule.getProperty("main")).isNull();

@@ -64,9 +64,7 @@ public class MavenProject implements BuildExecutorModule {
                                            MavenPomResolver mavenResolver,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
-                identifier -> identifier.startsWith(MODULE + "/")
-                        ? Optional.of(identifier.substring(MODULE.length() + 1, identifier.indexOf('/', MODULE.length() + 1)))
-                        : Optional.empty(),
+                identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(Map.of(prefix, mavenRepository),
                             Repository.ofProperties(BuildStep.IDENTITY,
@@ -83,7 +81,7 @@ public class MavenProject implements BuildExecutorModule {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
-                                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + MODULE + "/" + name + "/"),
+                                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
@@ -106,11 +104,9 @@ public class MavenProject implements BuildExecutorModule {
                                             Function.identity(),
                                             key -> switch (key) {
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
-                                                        + MODULE + "/"
                                                         + name + "/"
                                                         + SOURCES) -> SOURCES;
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
-                                                        + MODULE + "/"
                                                         + name + "/"
                                                         + MANIFESTS) -> MANIFESTS;
                                                 default -> key;
@@ -134,6 +130,15 @@ public class MavenProject implements BuildExecutorModule {
                                             MultiProjectModule.IDENTIFIER_PATH)),
                                     Stream.of(PRODUCE)));
                 });
+    }
+
+    @Override
+    public Optional<String> resolve(String path) {
+        String wrapped = MultiProjectModule.MODULE + "/";
+        if (path.startsWith(wrapped)) {
+            return Optional.of(path.substring(wrapped.length()));
+        }
+        return Optional.empty();
     }
 
     @Override

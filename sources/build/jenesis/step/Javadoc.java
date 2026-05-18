@@ -62,7 +62,7 @@ public class Javadoc extends JdkProcessBuildStep {
                 });
             }
         }
-        boolean module = files.stream().anyMatch(file -> file.endsWith("/module-info.java"));
+        boolean module = files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
         if (!path.isEmpty()) {
             for (String entry : path) {
                 if (entry.indexOf(File.pathSeparatorChar) != -1) {

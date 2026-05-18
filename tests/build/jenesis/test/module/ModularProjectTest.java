@@ -203,7 +203,7 @@ public class ModularProjectTest {
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         Properties foo = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
-                .get("modules/compose/module/module-foo/assign")
+                .get("modules/module-foo/assign")
                 .resolve(BuildStep.IDENTITY))) {
             foo.load(reader);
         }
@@ -212,7 +212,7 @@ public class ModularProjectTest {
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         Properties bar = new SequencedProperties();
         try (Reader reader = Files.newBufferedReader(results
-                .get("modules/compose/module/module-bar/assign")
+                .get("modules/module-bar/assign")
                 .resolve(BuildStep.IDENTITY))) {
             bar.load(reader);
         }

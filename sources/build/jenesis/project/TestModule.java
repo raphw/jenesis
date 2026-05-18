@@ -226,7 +226,7 @@ public class TestModule implements BuildExecutorModule {
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                             if (file.toString().endsWith(".class")) {
                                 String raw = classes.relativize(file).toString();
-                                String className = raw.substring(0, raw.length() - 6).replace('/', '.');
+                                String className = raw.substring(0, raw.length() - 6).replace(File.separatorChar, '.');
                                 if (selectors.isEmpty()) {
                                     if (isTest.test(className)) {
                                         commands.add(resolved.classPrefix() + className);

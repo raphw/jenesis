@@ -61,6 +61,18 @@ public class MultiProjectModule implements BuildExecutorModule {
     }
 
     @Override
+    public Optional<String> resolve(String path) {
+        if (path.startsWith(IDENTIFIER + "/")) {
+            return Optional.of(path.substring(IDENTIFIER.length() + 1));
+        }
+        String composeModulePrefix = COMPOSE + "/" + MODULE + "/";
+        if (path.startsWith(composeModulePrefix)) {
+            return Optional.of(path.substring(composeModulePrefix.length()));
+        }
+        return Optional.empty();
+    }
+
+    @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addModule(IDENTIFIER, identifier);
         buildExecutor.addModule(COMPOSE, (process, identified) -> {

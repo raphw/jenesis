@@ -90,8 +90,8 @@ public class MultiProjectModuleTest {
             };
         }));
         SequencedMap<String, Path> paths = buildExecutor.execute();
-        assertThat(paths).containsKeys("project/compose/module/2/step");
-        assertThat(paths.get("project/compose/module/2/step").resolve("file")).content().contains("foobar");
+        assertThat(paths).containsKeys("project/2/step");
+        assertThat(paths.get("project/2/step").resolve("file")).content().contains("foobar");
     }
 
     @Test
@@ -195,8 +195,8 @@ public class MultiProjectModuleTest {
             };
         }));
         SequencedMap<String, Path> paths = buildExecutor.execute();
-        assertThat(paths).containsKeys("project/compose/module/3/step");
-        assertThat(paths.get("project/compose/module/3/step").resolve("file")).content().contains("foobarqux");
+        assertThat(paths).containsKeys("project/3/step");
+        assertThat(paths.get("project/3/step").resolve("file")).content().contains("foobarqux");
     }
 
     @Test
