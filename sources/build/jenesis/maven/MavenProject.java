@@ -23,6 +23,7 @@ import build.jenesis.step.Javac;
 
 import static build.jenesis.BuildStep.IDENTITY;
 import static build.jenesis.project.MultiProjectModule.ASSIGN;
+import static build.jenesis.project.MultiProjectModule.COORDINATES;
 import static build.jenesis.project.MultiProjectModule.DEPENDENCIES;
 import static build.jenesis.project.MultiProjectModule.MANIFESTS;
 import static build.jenesis.project.MultiProjectModule.MODULE;
@@ -109,6 +110,9 @@ public class MavenProject implements BuildExecutorModule {
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
                                                         + name + "/"
                                                         + MANIFESTS) -> MANIFESTS;
+                                                case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
+                                                        + name + "/"
+                                                        + COORDINATES) -> COORDINATES;
                                                 default -> key;
                                             },
                                             (a, _) -> a,
@@ -179,7 +183,7 @@ public class MavenProject implements BuildExecutorModule {
                             }
                         }
                         if (active) {
-                            module.addStep(MANIFESTS, (_, context, _) -> {
+                            module.addStep(COORDINATES, (_, context, _) -> {
                                 Properties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
                                 Path pomFile = paths.get(PREVIOUS + SCAN)
@@ -191,6 +195,13 @@ public class MavenProject implements BuildExecutorModule {
                                 try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
                                     coordinates.store(writer, null);
                                 }
+                                return CompletableFuture.completedStage(new BuildStepResult(true));
+                            });
+                            module.addStep(MANIFESTS, (_, context, _) -> {
+                                Path pomFile = paths.get(PREVIOUS + SCAN)
+                                        .resolve(POM)
+                                        .resolve(properties.getProperty("path"))
+                                        .resolve("pom.xml");
                                 String[] coordinateParts = properties.getProperty("coordinate").split("/");
                                 String testsOf = coordinateParts.length == 6 && "tests".equals(coordinateParts[4])
                                         ? coordinateParts[2]
@@ -526,6 +537,11 @@ public class MavenProject implements BuildExecutorModule {
         @Override
         public String manifests() {
             return BuildExecutorModule.PREVIOUS + MANIFESTS;
+        }
+
+        @Override
+        public String coordinates() {
+            return BuildExecutorModule.PREVIOUS + COORDINATES;
         }
 
         @Override

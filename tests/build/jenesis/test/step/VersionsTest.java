@@ -75,6 +75,7 @@ public class VersionsTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void non_module_info_files_are_hardlinked() throws IOException {
         Path classesDir = Files.createDirectory(classesInput.resolve(BuildStep.CLASSES));
         Path subDir = Files.createDirectories(classesDir.resolve("foo/sub"));
@@ -96,6 +97,7 @@ public class VersionsTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void module_info_is_rewritten_not_hardlinked() throws IOException {
         writeModuleInfo("foo", null, false, require("bar"));
         writeRequires(Map.of("module/bar/1.0", ""));
@@ -223,6 +225,7 @@ public class VersionsTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void reuses_prior_module_info_when_requires_and_module_info_retained() throws IOException {
         writeModuleInfo("foo", null, false, require("bar"));
         writeRequires(Map.of("module/bar/1.0", ""));

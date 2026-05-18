@@ -53,12 +53,15 @@ public class ModularProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("module/module-/sources", "module/module-/manifests");
+        assertThat(results).containsKeys("module/module-/sources",
+                "module/module-/manifests",
+                "module/module-/coordinates");
         assertThat(results.get("module/module-/sources").resolve(BuildStep.SOURCES + "module-info.java")).exists();
         Path module = results.get("module/module-/manifests");
-        assertThat(module.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(module.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path coordinatesFolder = results.get("module/module-/coordinates");
         Properties coordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(coordinatesFolder.resolve(BuildStep.IDENTITY))) {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsOnlyKeys("module/foo");
@@ -171,6 +174,7 @@ public class ModularProjectTest {
                         switch (descriptor.name()) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
+                                    "../coordinates",
                                     "../sources",
                                     "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",
@@ -178,6 +182,7 @@ public class ModularProjectTest {
                                     "../runtime/dependencies/artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
+                                    "../coordinates",
                                     "../sources",
                                     "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",

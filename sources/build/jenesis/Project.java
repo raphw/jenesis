@@ -280,11 +280,13 @@ public record Project(
                 SequencedSet<String> describeOuterDeps = new LinkedHashSet<>();
                 describeOuterDeps.add(descriptor.sources());
                 describeOuterDeps.add(descriptor.manifests());
+                describeOuterDeps.add(descriptor.coordinates());
                 describeOuterDeps.addAll(available);
                 sub.addModule("describe", (describe, _) -> {
                     SequencedSet<String> describeInnerDeps = new LinkedHashSet<>();
                     describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.sources());
                     describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.manifests());
+                    describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.coordinates());
                     for (String key : available) {
                         describeInnerDeps.add(BuildExecutorModule.PREVIOUS + key);
                     }

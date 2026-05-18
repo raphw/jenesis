@@ -148,11 +148,13 @@ public class MavenPomEmitter {
         transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         return writer -> {
+            StringWriter buffer = new StringWriter();
             try {
-                transformer.transform(new DOMSource(document), new StreamResult(writer));
+                transformer.transform(new DOMSource(document), new StreamResult(buffer));
             } catch (TransformerException e) {
                 throw new IOException(e);
             }
+            writer.write(buffer.toString().replace("\r\n", "\n"));
         };
     }
 

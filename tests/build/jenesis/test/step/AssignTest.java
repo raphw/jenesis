@@ -52,8 +52,8 @@ public class AssignTest {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsExactly(
-                Map.entry("foo", next.relativize(argument.resolve(BuildStep.ARTIFACTS).resolve("artifact")).toString()),
-                Map.entry("bar", next.relativize(passthroughArtifact).toString()));
+                Map.entry("foo", next.relativize(argument.resolve(BuildStep.ARTIFACTS).resolve("artifact")).toString().replace(File.separatorChar, '/')),
+                Map.entry("bar", next.relativize(passthroughArtifact).toString().replace(File.separatorChar, '/')));
         assertThat(coordinates.getProperty("foo")).doesNotStartWith("/");
         assertThat(coordinates.getProperty("bar")).doesNotStartWith("/");
     }
@@ -91,9 +91,9 @@ public class AssignTest {
         }
         Path artifact = argument.resolve(BuildStep.ARTIFACTS).resolve("artifact");
         assertThat(coordinates).containsExactly(
-                Map.entry("foo", next.relativize(artifact).toString()),
-                Map.entry("bar", next.relativize(passthroughArtifact).toString()),
-                Map.entry("qux", next.relativize(artifact).toString()));
+                Map.entry("foo", next.relativize(artifact).toString().replace(File.separatorChar, '/')),
+                Map.entry("bar", next.relativize(passthroughArtifact).toString().replace(File.separatorChar, '/')),
+                Map.entry("qux", next.relativize(artifact).toString().replace(File.separatorChar, '/')));
         coordinates.stringPropertyNames().forEach(name ->
                 assertThat(coordinates.getProperty(name)).doesNotStartWith("/"));
     }

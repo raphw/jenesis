@@ -40,7 +40,7 @@ public class ModularToMaven {
                         buildExecutor.addModule("java", new JavaModule().testIfAvailable(mergedRepos, mergedResolvers),
                                 descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
                         buildExecutor.addStep("pom", new Pom(),
-                                descriptor.sources(), descriptor.manifests(), descriptor.resolved(DependencyScope.COMPILE));
+                                descriptor.sources(), descriptor.manifests(), descriptor.coordinates(), descriptor.resolved(DependencyScope.COMPILE));
                     }));
         }, "download");
 

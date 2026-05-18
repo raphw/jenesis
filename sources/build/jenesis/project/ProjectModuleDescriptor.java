@@ -60,6 +60,11 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     }
 
     @Override
+    public String coordinates() {
+        return BuildExecutorModule.PREVIOUS.repeat(depth) + base.coordinates();
+    }
+
+    @Override
     public String artifacts(DependencyScope scope) {
         return BuildExecutorModule.PREVIOUS.repeat(depth) + base.artifacts(scope);
     }

@@ -58,11 +58,15 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        assertThat(results).containsKeys("maven/module-/manifests", "maven/test-module-/manifests");
+        assertThat(results).containsKeys("maven/module-/manifests",
+                "maven/module-/coordinates",
+                "maven/test-module-/manifests",
+                "maven/test-module-/coordinates");
         Path module = results.get("maven/module-/manifests");
-        assertThat(module.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(module.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path moduleCoordinates = results.get("maven/module-/coordinates");
         Properties coordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(module.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(moduleCoordinates.resolve(BuildStep.IDENTITY))) {
             coordinates.load(reader);
         }
         assertThat(coordinates).containsOnlyKeys(
@@ -78,9 +82,10 @@ public class MavenProjectTest {
         assertThat(dependencies).containsOnlyKeys("maven/other/artifact/1");
         assertThat(dependencies.getProperty("maven/other/artifact/1")).isEmpty();
         Path testModule = results.get("maven/test-module-/manifests");
-        assertThat(testModule.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(testModule.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path testModuleCoordinates = results.get("maven/test-module-/coordinates");
         Properties testCoordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(testModule.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(testModuleCoordinates.resolve(BuildStep.IDENTITY))) {
             testCoordinates.load(reader);
         }
         assertThat(testCoordinates).containsOnlyKeys(
@@ -220,9 +225,10 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("maven/module-/manifests", "maven/module-subproject/manifests");
         Path parent = results.get("maven/module-/manifests");
-        assertThat(parent.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(parent.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path parentCoordinatesFolder = results.get("maven/module-/coordinates");
         Properties parentCoordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(parent.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(parentCoordinatesFolder.resolve(BuildStep.IDENTITY))) {
             parentCoordinates.load(reader);
         }
         assertThat(parentCoordinates).containsOnlyKeys(
@@ -231,9 +237,10 @@ public class MavenProjectTest {
         assertThat(parentCoordinates.getProperty("maven/parent/artifact/1")).isEmpty();
         assertThat(parent.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
         Path parentTests = results.get("maven/test-module-/manifests");
-        assertThat(parentTests.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(parentTests.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path parentTestCoordinatesFolder = results.get("maven/test-module-/coordinates");
         Properties parentTestCoordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(parentTests.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(parentTestCoordinatesFolder.resolve(BuildStep.IDENTITY))) {
             parentTestCoordinates.load(reader);
         }
         assertThat(parentTestCoordinates).containsOnlyKeys(
@@ -252,9 +259,10 @@ public class MavenProjectTest {
         assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/1");
         assertThat(parentTestDependencies.getProperty("maven/parent/artifact/1")).isEmpty();
         Path child = results.get("maven/module-subproject/manifests");
-        assertThat(child.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(child.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path childCoordinatesFolder = results.get("maven/module-subproject/coordinates");
         Properties childCoordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(child.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(childCoordinatesFolder.resolve(BuildStep.IDENTITY))) {
             childCoordinates.load(reader);
         }
         assertThat(childCoordinates).containsOnlyKeys(
@@ -263,9 +271,10 @@ public class MavenProjectTest {
         assertThat(childCoordinates.getProperty("maven/group/artifact/1")).isEmpty();
         assertThat(child.resolve(BuildStep.REQUIRES)).exists().content().isEmpty();
         Path childTests = results.get("maven/test-module-subproject/manifests");
-        assertThat(childTests.resolve(BuildStep.IDENTITY)).exists();
+        assertThat(childTests.resolve(BuildStep.IDENTITY)).doesNotExist();
+        Path childTestCoordinatesFolder = results.get("maven/test-module-subproject/coordinates");
         Properties childTestCoordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(childTests.resolve(BuildStep.IDENTITY))) {
+        try (Reader reader = Files.newBufferedReader(childTestCoordinatesFolder.resolve(BuildStep.IDENTITY))) {
             childTestCoordinates.load(reader);
         }
         assertThat(childTestCoordinates).containsOnlyKeys(
@@ -479,6 +488,7 @@ public class MavenProjectTest {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
+                                    "../coordinates",
                                     "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",
                                     "../runtime/dependencies/resolved",
@@ -486,6 +496,7 @@ public class MavenProjectTest {
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
+                                    "../coordinates",
                                     "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",
                                     "../runtime/dependencies/resolved",

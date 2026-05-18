@@ -205,7 +205,7 @@ public class SequencedProperties extends Properties {
             if (skipNextNewLine) {
                 skipNextNewLine = false;
             } else {
-                super.newLine();
+                super.write('\n');
             }
         }
     }

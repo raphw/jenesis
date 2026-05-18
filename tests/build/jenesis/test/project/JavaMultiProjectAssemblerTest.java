@@ -130,6 +130,11 @@ public class JavaMultiProjectAssemblerTest {
             }
 
             @Override
+            public String coordinates() {
+                return BuildExecutorModule.PREVIOUS + "coordinates";
+            }
+
+            @Override
             public String resolved(DependencyScope scope) {
                 return BuildExecutorModule.PREVIOUS + scope.label() + "-resolved";
             }

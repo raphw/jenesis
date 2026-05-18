@@ -15,6 +15,7 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     public static final String SOURCES = "sources",
             MANIFESTS = "manifests",
+            COORDINATES = "coordinates",
             PREPARE = "prepare",
             PRODUCE = "produce",
             ASSIGN = "assign",
@@ -63,6 +64,9 @@ public class MultiProjectModule implements BuildExecutorModule {
     @Override
     public Optional<String> resolve(String path) {
         if (path.startsWith(IDENTIFIER + "/")) {
+            if (path.endsWith("/" + COORDINATES)) {
+                return Optional.empty();
+            }
             return Optional.of(path.substring(IDENTIFIER.length() + 1));
         }
         String composeModulePrefix = COMPOSE + "/" + MODULE + "/";

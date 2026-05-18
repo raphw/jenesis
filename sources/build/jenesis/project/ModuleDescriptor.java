@@ -12,6 +12,8 @@ public interface ModuleDescriptor {
 
     String manifests();
 
+    String coordinates();
+
     String artifacts(DependencyScope scope);
 
     String resolved(DependencyScope scope);

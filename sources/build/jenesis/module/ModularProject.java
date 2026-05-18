@@ -21,6 +21,7 @@ import build.jenesis.step.Bind;
 import build.jenesis.step.Javac;
 
 import static build.jenesis.project.MultiProjectModule.ASSIGN;
+import static build.jenesis.project.MultiProjectModule.COORDINATES;
 import static build.jenesis.project.MultiProjectModule.DEPENDENCIES;
 import static build.jenesis.project.MultiProjectModule.MANIFESTS;
 import static build.jenesis.project.MultiProjectModule.PREPARE;
@@ -118,6 +119,9 @@ public class ModularProject implements BuildExecutorModule {
                                                 case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
                                                         + name + "/"
                                                         + MANIFESTS) -> MANIFESTS;
+                                                case String value when value.equals(MultiProjectModule.IDENTIFIER_PATH
+                                                        + name + "/"
+                                                        + COORDINATES) -> COORDINATES;
                                                 default -> key;
                                             },
                                             (a, _) -> a,
@@ -141,6 +145,28 @@ public class ModularProject implements BuildExecutorModule {
                 });
     }
 
+    private record Coordinates(String prefix) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Properties module = new SequencedProperties();
+            try (Reader reader = Files.newBufferedReader(arguments.get(MANIFESTS)
+                    .folder()
+                    .resolve(BuildStep.MODULE))) {
+                module.load(reader);
+            }
+            Properties coordinates = new SequencedProperties();
+            coordinates.setProperty(prefix + "/" + module.getProperty("module"), "");
+            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.IDENTITY))) {
+                coordinates.store(writer, null);
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
     private record Manifests(String prefix, String path) implements BuildStep {
 
         @Override
@@ -151,13 +177,6 @@ public class ModularProject implements BuildExecutorModule {
             ModuleInfo info = new ModuleInfoParser().identify(arguments.get("sources").folder()
                     .resolve(BuildStep.SOURCES)
                     .resolve("module-info.java"));
-            Properties coordinates = new SequencedProperties();
-            coordinates.setProperty(prefix + "/" + info.coordinate(), "");
-            try (BufferedWriter writer = Files.newBufferedWriter(context
-                    .next()
-                    .resolve(BuildStep.IDENTITY))) {
-                coordinates.store(writer, null);
-            }
             if (info.testOf() != null && !info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
                 throw new IllegalStateException("Test module '"
                         + info.coordinate()
@@ -232,6 +251,7 @@ public class ModularProject implements BuildExecutorModule {
                         buildExecutor.addModule(SIBLING_MODULE_PREFIX + BuildExecutorModule.encode(relative), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
                             module.addStep(MANIFESTS, new Manifests(prefix, relative), "sources");
+                            module.addStep(COORDINATES, new Coordinates(prefix), MANIFESTS);
                         });
                     }
                 }
@@ -258,6 +278,11 @@ public class ModularProject implements BuildExecutorModule {
         @Override
         public String manifests() {
             return BuildExecutorModule.PREVIOUS + MANIFESTS;
+        }
+
+        @Override
+        public String coordinates() {
+            return BuildExecutorModule.PREVIOUS + COORDINATES;
         }
 
         @Override
