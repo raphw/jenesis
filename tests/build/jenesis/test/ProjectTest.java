@@ -196,4 +196,54 @@ public class ProjectTest {
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
+
+    @Test
+    public void build_returns_paths_for_the_default_target() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Path source = Files.createDirectory(root.resolve("source"));
+        Project.Layout layout = (executor, _, _) -> {
+            executor.addSource(Project.BUILD, source);
+            return name -> name;
+        };
+        SequencedMap<String, Path> result = Project.builder()
+                .root(root)
+                .target(target)
+                .layout(layout)
+                .build();
+        assertThat(result).containsExactly(Map.entry(Project.BUILD, source));
+    }
+
+    @Test
+    public void build_returns_paths_for_explicit_selectors() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Path alpha = Files.createDirectory(root.resolve("alpha"));
+        Path beta = Files.createDirectory(root.resolve("beta"));
+        Project.Layout layout = (executor, _, _) -> {
+            executor.addSource("alpha", alpha);
+            executor.addSource("beta", beta);
+            return name -> name;
+        };
+        SequencedMap<String, Path> result = Project.builder()
+                .root(root)
+                .target(target)
+                .layout(layout)
+                .build("beta");
+        assertThat(result).containsExactly(Map.entry("beta", beta));
+    }
+
+    @Test
+    public void build_resolves_plus_prefixed_selectors_via_the_layout() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Path source = Files.createDirectory(root.resolve("source"));
+        Project.Layout layout = (executor, _, _) -> {
+            executor.addSource("resolved", source);
+            return name -> "resolved";
+        };
+        SequencedMap<String, Path> result = Project.builder()
+                .root(root)
+                .target(target)
+                .layout(layout)
+                .build("+anything");
+        assertThat(result).containsExactly(Map.entry("resolved", source));
+    }
 }

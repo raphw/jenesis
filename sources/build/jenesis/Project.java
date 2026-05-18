@@ -635,10 +635,10 @@ public final class Project {
                     resolvers);
         }
 
-        public void build(String... selectors) throws IOException {
+        public SequencedMap<String, Path> build(String... selectors) throws IOException {
             BuildExecutor executor = BuildExecutor.of(target);
             Function<String, String> resolver = layout.apply(executor, this, assembler);
-            executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
+            return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
                     .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
                     .toArray(String[]::new));
         }
