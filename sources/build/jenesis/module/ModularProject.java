@@ -139,18 +139,13 @@ public class ModularProject implements BuildExecutorModule {
                                         Function.identity(),
                                         _ -> resolved));
                             })),
-                            Stream.concat(
-                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier
-                                            .startsWith(MultiProjectModule.IDENTIFIER_PATH)),
-                                    Stream.of(PRODUCE)));
+                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
+                            PRODUCE);
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
                             new Inventory(),
-                            Stream.concat(
-                                    inherited.sequencedKeySet().stream().filter(identifier -> identifier
-                                            .startsWith(MultiProjectModule.IDENTIFIER_PATH)),
-                                    Stream.of(
-                                            ASSIGN,
-                                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)));
+                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
+                            ASSIGN,
+                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }
 
