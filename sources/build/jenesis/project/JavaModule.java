@@ -34,24 +34,7 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
                                     TestEngine engine,
                                     Map<String, Repository> repositories,
                                     Map<String, Resolver> resolvers) {
-        return (buildExecutor, inherited) -> {
-            TestEngine candidate = engine;
-            if (candidate == null) {
-                candidate = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
-                if (requireEngine && candidate == null) {
-                    throw new IllegalStateException(
-                            "No test engine could be resolved from inherited dependencies: "
-                                    + inherited.sequencedKeySet());
-                }
-            }
-            accept(buildExecutor, inherited);
-            if (candidate != null) {
-                buildExecutor.addModule(TEST, new TestModule(candidate, repositories, resolvers),
-                        Stream.concat(
-                                Stream.of(CLASSES, ARTIFACTS),
-                                inherited.sequencedKeySet().stream()));
-            }
-        };
+        return new TestedJavaModule(this, requireEngine, engine, repositories, resolvers);
     }
 
     @Override
@@ -63,5 +46,42 @@ public record JavaModule(boolean process) implements BuildExecutorModule {
         buildExecutor.addStep(ARTIFACTS, process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES), Stream.concat(
                 Stream.of(CLASSES),
                 inherited.sequencedKeySet().stream()));
+    }
+
+    @Override
+    public Optional<String> resolve(String path) {
+        return path.equals(COMPILED) ? Optional.empty() : Optional.of(path);
+    }
+
+    private record TestedJavaModule(JavaModule javaModule,
+                                    boolean requireEngine,
+                                    TestEngine engine,
+                                    Map<String, Repository> repositories,
+                                    Map<String, Resolver> resolvers) implements BuildExecutorModule {
+
+        @Override
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+            TestEngine candidate = engine;
+            if (candidate == null) {
+                candidate = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
+                if (requireEngine && candidate == null) {
+                    throw new IllegalStateException(
+                            "No test engine could be resolved from inherited dependencies: "
+                                    + inherited.sequencedKeySet());
+                }
+            }
+            javaModule.accept(buildExecutor, inherited);
+            if (candidate != null) {
+                buildExecutor.addModule(TEST, new TestModule(candidate, repositories, resolvers),
+                        Stream.concat(
+                                Stream.of(CLASSES, ARTIFACTS),
+                                inherited.sequencedKeySet().stream()));
+            }
+        }
+
+        @Override
+        public Optional<String> resolve(String path) {
+            return javaModule.resolve(path);
+        }
     }
 }

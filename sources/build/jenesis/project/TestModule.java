@@ -18,8 +18,8 @@ import build.jenesis.step.TestEngine;
 
 public class TestModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", REQUIRED = "required",
-            ARTIFACTS = "artifacts", EXECUTED = "executed";
+    public static final String REQUIRED = "required", ARTIFACTS = "artifacts", EXECUTED = "executed";
+    private static final String RESOLVED = "resolved";
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
@@ -99,6 +99,11 @@ public class TestModule implements BuildExecutorModule {
                 : new Run(factory, engine, isTest, jarsOnly, modular);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
+    }
+
+    @Override
+    public Optional<String> resolve(String path) {
+        return path.equals(RESOLVED) ? Optional.empty() : Optional.of(path);
     }
 
     private record Requires(TestEngine engine, Set<String> prefixes) implements BuildStep {
