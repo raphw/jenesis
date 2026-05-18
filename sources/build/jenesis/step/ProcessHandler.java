@@ -82,8 +82,8 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             Process process = new ProcessBuilder(commands)
                     .redirectOutput(output.toFile())
                     .redirectError(error.toFile())
-                    .redirectInput(ProcessBuilder.Redirect.INHERIT)
                     .start();
+            process.getOutputStream().close();
             try {
                 return process.waitFor();
             } catch (InterruptedException e) {
