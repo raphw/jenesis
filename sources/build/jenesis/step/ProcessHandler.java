@@ -59,11 +59,11 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             if (home == null) {
                 throw new IllegalStateException("Neither JAVA_HOME environment or java.home property set");
             } else {
-                File program = new File(home, command);
+                File program = new File(home, command + (WINDOWS ? ".exe" : ""));
                 if (program.isFile()) {
-                    return of(List.of(program.getPath() + (WINDOWS ? ".exe" : "")));
+                    return of(List.of(program.getPath()));
                 } else {
-                    throw new IllegalStateException("Could not find command " + command + " in " + home);
+                    throw new IllegalStateException("Could not find command " + program.getPath() + " in " + home);
                 }
             }
         }
