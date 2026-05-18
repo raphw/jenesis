@@ -29,6 +29,12 @@ public class ExternalModuleTest {
                 BuildExecutorCallback.nop());
     }
 
+    @AfterEach
+    public void tearDown() {
+        buildExecutor = null;
+        System.gc();
+    }
+
     @Test
     public void can_load_external_module_from_jar() throws IOException {
         Path jar = buildModuleJar(jars, "gen.NoArgs", """

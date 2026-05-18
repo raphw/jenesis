@@ -85,7 +85,7 @@ public class TestModuleTest {
 
         Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
-        assertThat(supplement.resolve("error")).isEmptyFile();
+        assertThat(Files.readString(supplement.resolve("error"))).isEmpty();
     }
 
     @Test
@@ -104,7 +104,7 @@ public class TestModuleTest {
 
         Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
-        assertThat(supplement.resolve("error")).isEmptyFile();
+        assertThat(Files.readString(supplement.resolve("error"))).isEmpty();
     }
 
     @Test
@@ -123,7 +123,7 @@ public class TestModuleTest {
 
         Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
-        assertThat(supplement.resolve("error")).isEmptyFile();
+        assertThat(Files.readString(supplement.resolve("error"))).isEmpty();
     }
 
     @Test
