@@ -1,6 +1,7 @@
 package build.jenesis;
 
 import module java.base;
+import build.jenesis.docker.DockerizedJava;
 import build.jenesis.project.DependenciesModule;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.project.MultiProjectModule;
@@ -151,6 +152,33 @@ public record Execute(Project project, String mainClass, String module) {
                 }
             }
         }
+        List<String> javaArgs = new ArrayList<>();
+        if (candidate.module != null) {
+            javaArgs.add("--module-path");
+            javaArgs.add(String.join(File.pathSeparator, jars));
+            javaArgs.add("-m");
+            javaArgs.add(candidate.module + "/" + candidate.mainClass);
+        } else {
+            javaArgs.add("-cp");
+            javaArgs.add(String.join(File.pathSeparator, jars));
+            javaArgs.add(candidate.mainClass);
+        }
+        javaArgs.addAll(List.of(arguments));
+        if (mainMethod && Boolean.getBoolean("jenesis.execute.docker")) {
+            String image = System.getProperty("jenesis.execute.docker.image");
+            Path root = project.root().toAbsolutePath().normalize();
+            DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
+            for (Path path : List.of(project.target(), project.cache())) {
+                Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
+                if (!absolute.startsWith(root)) {
+                    docker = docker.mount(absolute, absolute.toString(), false);
+                }
+            }
+            if (Boolean.getBoolean("jenesis.verbose")) {
+                System.out.println("Launching Java execution within Docker image: " + docker.image());
+            }
+            return docker.execute(javaArgs);
+        }
         String home = System.getProperty("java.home");
         if (home == null) {
             home = System.getenv("JAVA_HOME");
@@ -165,17 +193,7 @@ public record Execute(Project project, String mainClass, String module) {
         }
         List<String> command = new ArrayList<>();
         command.add(javaExecutable.toString());
-        if (candidate.module != null) {
-            command.add("--module-path");
-            command.add(String.join(File.pathSeparator, jars));
-            command.add("-m");
-            command.add(candidate.module + "/" + candidate.mainClass);
-        } else {
-            command.add("-cp");
-            command.add(String.join(File.pathSeparator, jars));
-            command.add(candidate.mainClass);
-        }
-        command.addAll(List.of(arguments));
+        command.addAll(javaArgs);
         return new ProcessBuilder(command).inheritIO().start().waitFor();
     }
 

@@ -624,7 +624,7 @@ public record Project(
                 docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
             }
             if (Boolean.getBoolean("jenesis.verbose")) {
-                System.out.println("Wrapping build within Docker image: " + docker.image());
+                System.out.println("Launching build within Docker image: " + docker.image());
             }
             int code = docker.execute("build/jenesis/Project.java", properties, selectors);
             if (code != 0) {

@@ -77,6 +77,16 @@ public class DockerizedJava {
     }
 
     public int execute(String main, Map<String, String> properties, String... args) throws IOException, InterruptedException {
+        List<String> javaArgs = new ArrayList<>();
+        for (Map.Entry<String, String> property : properties.entrySet()) {
+            javaArgs.add("-D" + property.getKey() + "=" + property.getValue());
+        }
+        javaArgs.add(main);
+        javaArgs.addAll(Arrays.asList(args));
+        return execute(javaArgs);
+    }
+
+    public int execute(List<String> javaArgs) throws IOException, InterruptedException {
         String home = System.getProperty("java.home");
         if (home == null) {
             home = System.getenv("JAVA_HOME");
@@ -113,11 +123,7 @@ public class DockerizedJava {
         }
         docker.add(image);
         docker.add(JAVA_HOME_MOUNT + "/bin/java");
-        for (Map.Entry<String, String> property : properties.entrySet()) {
-            docker.add("-D" + property.getKey() + "=" + property.getValue());
-        }
-        docker.add(main);
-        docker.addAll(Arrays.asList(args));
+        docker.addAll(javaArgs);
         return new ProcessBuilder(docker).inheritIO().start().waitFor();
     }
 }

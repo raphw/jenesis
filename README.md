@@ -274,6 +274,29 @@ the host JVM:
 A minimal image is built on demand the first time and cached for subsequent runs. To target a different image,
 add `-Djenesis.project.docker.image=<reference>`.
 
+### Running a module's main entry
+
+`build/jenesis/Execute.java` is a companion launcher to `Project.java`. It runs the build first, finds the
+module that declares a `@main` (in its `module-info.java`) or `<mainClass>` (in its `pom.xml`), and spawns a
+child `java` process for it, forwarding any trailing arguments to the program:
+
+    java build/jenesis/Execute.java arg1 arg2
+
+If exactly one module in the project declares a main, Execute selects it implicitly. If several do, it aborts
+and lists the candidates; pass `-Djenesis.execute.module=<path>` (the same path you would use after `+` in a
+build selector) and `-Djenesis.execute.mainClass=<fqcn>` to specify the target explicitly. Doing so also
+narrows the build to that module's subtree, skipping siblings:
+
+    java -Djenesis.execute.module=tools \
+         -Djenesis.execute.mainClass=org.example.tools.Cli \
+         build/jenesis/Execute.java --help
+
+Execute can also run the launched program inside a container, independently of whether the build itself was
+dockerised. Set `-Djenesis.execute.docker=true` to dispatch the final `java -m <module>/<main>` (or `java -cp
+... <main>`) invocation through Docker, with `-Djenesis.execute.docker.image=<reference>` overriding the
+image. The build runs as usual (locally, or in `jenesis.project.docker.image` if set), and only the launch
+step crosses the container boundary, so the build image and the runtime image can differ.
+
 Architecture
 ------------
 
@@ -1467,6 +1490,7 @@ Once unpacked it looks like:
     jenesis-<version>/
       bin/
         jenesis,          jenesis.bat
+        jenesis-exec,     jenesis-exec.bat
         jenesis-init,     jenesis-init.bat
         jenesis-validate, jenesis-validate.bat
         jenesis-version,  jenesis-version.bat
@@ -1488,6 +1512,25 @@ from its own location, so the unpacked tree is fully relocatable.
   `java -p <home>/lib -m build.jenesis "$@"`. All arguments pass through, so `jenesis +sources`
   is the SDK equivalent of `java build/jenesis/Project.java +sources` from a project root.
   `JAVA_OPTS` is honoured.
+
+- **`jenesis-exec`** is the companion launcher around `Execute` (see
+  [Running a module's main entry](#running-a-modules-main-entry)). Same runtime resolution and
+  `JAVA_OPTS` handling as `jenesis`, but runs `java -p <home>/lib -m build.jenesis/build.jenesis.Execute "$@"`,
+  so `jenesis-exec arg1 arg2` is the SDK equivalent of
+  `java build/jenesis/Execute.java arg1 arg2` from a project root. The
+  `jenesis.execute.module`, `jenesis.execute.mainClass`, `jenesis.execute.docker`, and
+  `jenesis.execute.docker.image` system properties apply.
+
+  Trailing arguments to `jenesis` and `jenesis-exec` pass straight through as selectors (for
+  `jenesis`) or as program arguments to the launched main (for `jenesis-exec`); they reach
+  `Project.main` / `Execute.main` as `String... args`, not the JVM. Set JVM-level flags such as
+  the `jenesis.project.*` and `jenesis.execute.*` system properties via `JAVA_OPTS`, which the
+  scripts splice in before `-m`:
+
+      JAVA_OPTS="-Djenesis.project.layout=maven -Djenesis.project.skipTests=" jenesis
+      JAVA_OPTS="-Djenesis.execute.module=tools -Djenesis.execute.docker=true" jenesis-exec arg1 arg2
+
+  Multiple `-D…` (or `-X…`) flags can be chained inside the single `JAVA_OPTS` string.
 
 - **`jenesis-init`** extracts the bundled `*-sources.jar` into each target's `build/jenesis`
   directory, deleting any existing `build/jenesis` first and writing the SDK's version into
