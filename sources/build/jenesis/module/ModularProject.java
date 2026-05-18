@@ -224,9 +224,7 @@ public class ModularProject implements BuildExecutorModule {
                 if (file.getFileName().toString().equals("module-info.java")) {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
-                        buildExecutor.addModule(SIBLING_MODULE_PREFIX + URLEncoder.encode(
-                                location.toString(),
-                                StandardCharsets.UTF_8), (module, _) -> {
+                        buildExecutor.addModule(SIBLING_MODULE_PREFIX + BuildExecutorModule.encode(location.toString()), (module, _) -> {
                             module.addSource("sources", Bind.asSources(), parent);
                             module.addStep(MANIFESTS, new Manifests(prefix, location.toString()), "sources");
                         });

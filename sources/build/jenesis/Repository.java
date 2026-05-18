@@ -22,7 +22,7 @@ public interface Repository {
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
         return (executor, coordinate) -> {
             try {
-                Path candidate = folder.resolve(URLEncoder.encode(coordinate, StandardCharsets.UTF_8) + ".jar");
+                Path candidate = folder.resolve(BuildExecutorModule.encode(coordinate) + ".jar");
                 boolean preexisting = Files.exists(candidate);
                 Path target = cache.computeIfAbsent(coordinate, key -> {
                     if (Files.exists(candidate)) {

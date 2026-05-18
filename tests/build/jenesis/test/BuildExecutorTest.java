@@ -55,7 +55,7 @@ public class BuildExecutorTest implements Serializable {
         assertThatThrownBy(() -> buildExecutor.addStep("foo/bar", (_, _, _) -> {
             throw new AssertionError();
         })).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(
-                "foo/bar does not match pattern: [a-zA-Z0-9-]+");
+                "foo/bar does not match pattern: [a-zA-Z0-9._%-]+");
     }
 
     @Test

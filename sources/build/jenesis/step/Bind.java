@@ -30,6 +30,10 @@ public class Bind implements BuildStep {
         return new Bind(Map.of(Path.of(name), Path.of(REQUIRES)));
     }
 
+    public static Bind asMetadata() {
+        return new Bind(Map.of(Path.of(""), Path.of(METADATA)));
+    }
+
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(paths.keySet()));

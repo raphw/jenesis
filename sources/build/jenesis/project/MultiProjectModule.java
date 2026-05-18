@@ -62,7 +62,7 @@ public class MultiProjectModule implements BuildExecutorModule {
             for (String identifier : identified.sequencedKeySet()) {
                 if (identifier.startsWith(PREVIOUS + IDENTIFIER + "/")) {
                     resolver.apply(identifier.substring(PREVIOUS.length() + IDENTIFIER.length() + 1)).ifPresent(module -> {
-                        String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
+                        String name = BuildExecutorModule.encode(module);
                         if (name.isEmpty()) {
                             throw new IllegalArgumentException("Module name must not be empty");
                         }

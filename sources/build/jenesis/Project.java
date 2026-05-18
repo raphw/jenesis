@@ -18,6 +18,7 @@ import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.step.Bind;
 import build.jenesis.step.Relocate;
 
 public final class Project {
@@ -48,7 +49,7 @@ public final class Project {
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(builder.root(), "pom.xml",
                     file -> new PinPom("maven", file, hashFunction)), BUILD);
-            return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
+            return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
         };
 
         Layout MODULAR = (executor, builder, assembler) -> {
@@ -78,7 +79,7 @@ public final class Project {
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
                     file -> new PinModuleInfo("module", file, hashFunction)), BUILD);
-            return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
+            return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
         };
 
         Layout MODULAR_TO_MAVEN = (executor, builder, assembler) -> {
@@ -112,7 +113,7 @@ public final class Project {
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(builder.root(), "module-info.java",
                     file -> new PinModuleInfo("module", file, true, hashFunction)), BUILD);
-            return name -> prefix + "/module-" + URLEncoder.encode(name, StandardCharsets.UTF_8);
+            return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
         };
 
         Layout AUTO = (executor, builder, assembler) -> of(builder.root()).apply(executor, builder, assembler);
@@ -185,7 +186,7 @@ public final class Project {
                 if (!Files.isRegularFile(file)) {
                     continue;
                 }
-                buildExecutor.addStep("module-" + URLEncoder.encode(path, StandardCharsets.UTF_8),
+                buildExecutor.addStep("module-" + BuildExecutorModule.encode(path),
                         stepFactory.apply(file),
                         inherited.sequencedKeySet());
             }
@@ -195,22 +196,11 @@ public final class Project {
     private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         private final MultiProjectAssembler<? super ProjectModuleDescriptor> base;
-        private final Pom pom;
+        private final Path metadataFile;
 
-        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base, Builder builder) throws IOException {
+        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base, Builder builder) {
             this.base = base;
-            Map<String, String> metadata;
-            if (builder.metadata() == null) {
-                metadata = Map.of();
-            } else {
-                Properties properties = new Properties();
-                try (Reader reader = Files.newBufferedReader(builder.root().resolve(builder.metadata()))) {
-                    properties.load(reader);
-                }
-                metadata = new LinkedHashMap<>();
-                properties.stringPropertyNames().forEach(name -> metadata.put(name, properties.getProperty(name)));
-            }
-            this.pom = new Pom(metadata);
+            this.metadataFile = builder.metadata() == null ? null : builder.root().resolve(builder.metadata());
         }
 
         @Override
@@ -220,7 +210,16 @@ public final class Project {
             BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
             return (sub, inherited) -> {
                 sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
-                sub.addStep("describe", pom, descriptor.sources(), descriptor.manifests());
+                sub.addModule("describe", (describe, _) -> {
+                    SequencedSet<String> deps = new LinkedHashSet<>();
+                    deps.add(BuildExecutorModule.PREVIOUS + descriptor.sources());
+                    deps.add(BuildExecutorModule.PREVIOUS + descriptor.manifests());
+                    if (metadataFile != null) {
+                        describe.addSource("metadata", Bind.asMetadata(), metadataFile);
+                        deps.add("metadata");
+                    }
+                    describe.addStep("pom", new Pom(), deps);
+                }, descriptor.sources(), descriptor.manifests());
             };
         }
     }

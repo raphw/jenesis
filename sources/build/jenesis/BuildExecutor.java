@@ -7,8 +7,8 @@ public class BuildExecutor {
     public static final String BUILD_MARKER = ".jenesis.build";
 
     private static final Pattern
-            VALIDATE_ORIGINAL = Pattern.compile("[a-zA-Z0-9-]+"),
-            VALIDATE_RESOLVED = Pattern.compile("[a-zA-Z0-9/-]+");
+            VALIDATE_ORIGINAL = Pattern.compile("[a-zA-Z0-9._%-]+"),
+            VALIDATE_RESOLVED = Pattern.compile("[a-zA-Z0-9./_%-]+");
 
     private final Path target;
     private final HashFunction hash;
@@ -142,7 +142,7 @@ public class BuildExecutor {
                     });
                     return CompletableFuture.completedStage(Map.of(identity, Map.of()));
                 }
-                Path previous = target.resolve(URLEncoder.encode(identity, StandardCharsets.UTF_8)),
+                Path previous = target.resolve(BuildExecutorModule.encode(identity)),
                         checksum = previous.resolve("checksum"),
                         output = previous.resolve("output");
                 boolean exists = Files.exists(previous);
@@ -155,9 +155,7 @@ public class BuildExecutor {
                         && HashFunction.areConsistent(output, current, hash);
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
-                    Path checksums = checksum.resolve("checksums." + URLEncoder.encode(
-                            entry.getKey(),
-                            StandardCharsets.UTF_8));
+                    Path checksums = checksum.resolve("checksums." + BuildExecutorModule.encode(entry.getKey()));
                     arguments.put(entry.getKey(), new BuildStepArgument(
                             entry.getValue().folder(),
                             consistent && Files.exists(checksums)
@@ -168,7 +166,7 @@ public class BuildExecutor {
                         location + identity,
                         new LinkedHashSet<>(summaries.keySet()));
                 if (!consistent || step.shouldRun(arguments)) {
-                    Path next = Files.createTempDirectory(target, URLEncoder.encode(identity, StandardCharsets.UTF_8));
+                    Path next = Files.createTempDirectory(target, BuildExecutorModule.encode(identity));
                     return step.apply(executor,
                             new BuildStepContext(
                                     consistent ? output : null,
@@ -189,9 +187,7 @@ public class BuildExecutor {
                             }
                             for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                                 HashFunction.write(
-                                        checksum.resolve("checksums." + URLEncoder.encode(
-                                                entry.getKey(),
-                                                StandardCharsets.UTF_8)),
+                                        checksum.resolve("checksums." + BuildExecutorModule.encode(entry.getKey())),
                                         entry.getValue().checksums());
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
@@ -641,7 +637,7 @@ public class BuildExecutor {
                     SequencedMap<String, StepSummary> extended = new LinkedHashMap<>(summaries);
                     for (Path path : paths) {
                         extended.put(
-                                ":" + URLEncoder.encode(path.toString(), StandardCharsets.UTF_8),
+                                ":" + BuildExecutorModule.encode(path.toString()),
                                 new StepSummary(path, HashFunction.read(path, hash)));
                     }
                     return delegate.apply(identity, executor, extended, selectors);

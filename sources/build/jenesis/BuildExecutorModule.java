@@ -7,6 +7,12 @@ public interface BuildExecutorModule {
 
     String PREVIOUS = "../";
 
+    static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
+                .replace("+", "%20")
+                .replace("*", "%2A");
+    }
+
     default Optional<String> resolve(String path) {
         return Optional.of(path);
     }

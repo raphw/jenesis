@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -49,9 +50,7 @@ public class Group implements BuildStep {
                     .flatMap(dependency -> from.getOrDefault(dependency, Set.of()).stream())
                     .distinct()
                     .forEach(name -> properties.setProperty(name, ""));
-            try (Writer writer = Files.newBufferedWriter(folder.resolve(URLEncoder.encode(
-                    entry.getKey(),
-                    StandardCharsets.UTF_8) + ".properties"))) {
+            try (Writer writer = Files.newBufferedWriter(folder.resolve(BuildExecutorModule.encode(entry.getKey()) + ".properties"))) {
                 properties.store(writer, null);
             }
         }

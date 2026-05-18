@@ -461,9 +461,7 @@ public class MavenProject implements BuildExecutorModule {
                 module.setProperty("resources", entry.getValue().resourceDirectories() == null
                         ? "src/main/resources"
                         : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + URLEncoder.encode(
-                        entry.getKey().toString(),
-                        StandardCharsets.UTF_8) + ".properties"))) {
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + BuildExecutorModule.encode(entry.getKey().toString()) + ".properties"))) {
                     module.store(writer, null);
                 }
                 Properties testModule = new SequencedProperties();
@@ -499,9 +497,7 @@ public class MavenProject implements BuildExecutorModule {
                 testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
                         ? "src/test/resources"
                         : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + URLEncoder.encode(
-                        entry.getKey().toString(),
-                        StandardCharsets.UTF_8) + ".properties"))) {
+                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + BuildExecutorModule.encode(entry.getKey().toString()) + ".properties"))) {
                     testModule.store(writer, null);
                 }
             }
