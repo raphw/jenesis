@@ -79,10 +79,13 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
 
         @Override
         public int execute(Path output, Path error) throws IOException {
-            Process process = new ProcessBuilder(commands)
+            ProcessBuilder builder = new ProcessBuilder(commands)
                     .redirectOutput(output.toFile())
-                    .redirectError(error.toFile())
-                    .start();
+                    .redirectError(error.toFile());
+            builder.environment().putIfAbsent("COLUMNS", "80");
+            builder.environment().putIfAbsent("LINES", "24");
+            builder.environment().putIfAbsent("TERM", "dumb");
+            Process process = builder.start();
             process.getOutputStream().close();
             try {
                 return process.waitFor();

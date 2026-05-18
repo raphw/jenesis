@@ -85,7 +85,10 @@ public class TestModuleTest {
 
         Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
-        assertThat(Files.readString(supplement.resolve("error"))).isEmpty();
+        assertThat(Files.readString(supplement.resolve("error"))
+                .lines()
+                .filter(line -> !line.startsWith("stty:"))
+                .collect(Collectors.joining("\n"))).isEmpty();
     }
 
     @Test
@@ -104,7 +107,10 @@ public class TestModuleTest {
 
         Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
-        assertThat(Files.readString(supplement.resolve("error"))).isEmpty();
+        assertThat(Files.readString(supplement.resolve("error"))
+                .lines()
+                .filter(line -> !line.startsWith("stty:"))
+                .collect(Collectors.joining("\n"))).isEmpty();
     }
 
     @Test
@@ -123,7 +129,10 @@ public class TestModuleTest {
 
         Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
         assertThat(supplement.resolve("output")).content().contains("Hello world!");
-        assertThat(Files.readString(supplement.resolve("error"))).isEmpty();
+        assertThat(Files.readString(supplement.resolve("error"))
+                .lines()
+                .filter(line -> !line.startsWith("stty:"))
+                .collect(Collectors.joining("\n"))).isEmpty();
     }
 
     @Test

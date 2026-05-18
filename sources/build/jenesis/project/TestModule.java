@@ -210,8 +210,6 @@ public class TestModule implements BuildExecutorModule {
             List<TestSelector> selectors = TestSelector.parse(filter);
             List<String> commands = new ArrayList<>();
             commands.add("-Dorg.jline.terminal.dumb=true");
-            commands.add("-Dpicocli.usage.width=80");
-            commands.add("-Dpicocli.ansi=false");
             if (modular && resolved.module() != null) {
                 commands.add("--add-modules");
                 commands.add("ALL-MODULE-PATH");
