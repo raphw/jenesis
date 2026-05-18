@@ -8,7 +8,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
 
 @FunctionalInterface
-public interface DependencyTransformingBuildStep extends BuildStep {
+public interface DependencyProcessingBuildStep extends BuildStep {
 
     @Override
     default CompletionStage<BuildStepResult> apply(Executor executor,
@@ -43,12 +43,14 @@ public interface DependencyTransformingBuildStep extends BuildStep {
         CompletionStage<Properties> requiresStage = transform(executor, context, arguments, groups, versions);
         CompletionStage<Properties> versionsStage = transformVersions(executor, context, arguments, versions);
         return requiresStage.thenCombineAsync(versionsStage, (requiresProperties, versionsProperties) -> {
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
-                requiresProperties.store(writer, null);
-            } catch (IOException e) {
-                throw new CompletionException(e);
+            if (requiresProperties != null) {
+                try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
+                    requiresProperties.store(writer, null);
+                } catch (IOException e) {
+                    throw new CompletionException(e);
+                }
             }
-            if (!versionsProperties.isEmpty()) {
+            if (versionsProperties != null) {
                 try (Writer writer = Files.newBufferedWriter(context.next().resolve(VERSIONS))) {
                     versionsProperties.store(writer, null);
                 } catch (IOException e) {
@@ -70,6 +72,6 @@ public interface DependencyTransformingBuildStep extends BuildStep {
                                                           SequencedMap<String, BuildStepArgument> arguments,
                                                           SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
-        return CompletableFuture.completedStage(new SequencedProperties());
+        return CompletableFuture.completedStage(null);
     }
 }

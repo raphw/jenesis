@@ -9,7 +9,7 @@ import build.jenesis.SequencedProperties;
 
 import static java.util.Objects.requireNonNull;
 
-public class Resolve implements DependencyTransformingBuildStep {
+public class Resolve implements DependencyProcessingBuildStep {
 
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;

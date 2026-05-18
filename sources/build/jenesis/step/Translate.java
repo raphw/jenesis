@@ -5,7 +5,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.SequencedProperties;
 
-public class Translate implements DependencyTransformingBuildStep {
+public class Translate implements DependencyProcessingBuildStep {
 
     private final Map<String, Function<String, String>> translators;
 

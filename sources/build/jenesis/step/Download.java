@@ -7,7 +7,7 @@ import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.SequencedProperties;
 
-public class Download implements DependencyTransformingBuildStep {
+public class Download implements DependencyProcessingBuildStep {
 
     public static final String REQUIRE_CHECKSUMS_PROPERTY = "jenesis.requireChecksums";
 
@@ -25,7 +25,6 @@ public class Download implements DependencyTransformingBuildStep {
                                                  SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        Properties properties = new SequencedProperties();
         Path libs = Files.createDirectory(context.next().resolve(ARTIFACTS));
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
@@ -116,7 +115,7 @@ public class Download implements DependencyTransformingBuildStep {
         }
         return CompletableFuture
                 .allOf(futures.toArray(CompletableFuture[]::new))
-                .thenApply(_ -> properties);
+                .thenApply(_ -> null);
     }
 
     private static boolean validateFile(MessageDigest digest, Path file, String expected) throws IOException {

@@ -70,7 +70,32 @@ public class Versions implements BuildStep {
                                 }
                             }
                         }
-                        Files.write(destination, stamp(Files.readAllBytes(file), versions));
+                        ClassFile classFile = ClassFile.of();
+                        ClassModel model = classFile.parse(Files.readAllBytes(file));
+                        Files.write(destination, classFile.transformClass(model, (classBuilder, element) -> {
+                            if (element instanceof ModuleAttribute moduleAttribute) {
+                                classBuilder.with(ModuleAttribute.of(moduleAttribute.moduleName(), builder -> {
+                                    builder.moduleFlags(moduleAttribute.moduleFlagsMask());
+                                    moduleAttribute.moduleVersion().ifPresent(
+                                            version -> builder.moduleVersion(version.stringValue()));
+                                    for (ModuleRequireInfo require : moduleAttribute.requires()) {
+                                        String name = require.requires().name().stringValue();
+                                        String version = versions.get(name);
+                                        if (version != null) {
+                                            builder.requires(ModuleDesc.of(name), require.requiresFlagsMask(), version);
+                                        } else {
+                                            builder.requires(require);
+                                        }
+                                    }
+                                    moduleAttribute.exports().forEach(builder::exports);
+                                    moduleAttribute.opens().forEach(builder::opens);
+                                    moduleAttribute.uses().forEach(builder::uses);
+                                    moduleAttribute.provides().forEach(builder::provides);
+                                }));
+                            } else {
+                                classBuilder.with(element);
+                            }
+                        }));
                     } else {
                         Files.createLink(destination, file);
                     }
@@ -79,37 +104,5 @@ public class Versions implements BuildStep {
             });
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
-    }
-
-    private static byte[] stamp(byte[] bytes, Map<String, String> versions) {
-        ClassFile classFile = ClassFile.of();
-        ClassModel model = classFile.parse(bytes);
-        return classFile.transformClass(model, (classBuilder, element) -> {
-            if (element instanceof ModuleAttribute moduleAttribute) {
-                classBuilder.with(rewrite(moduleAttribute, versions));
-            } else {
-                classBuilder.with(element);
-            }
-        });
-    }
-
-    private static ModuleAttribute rewrite(ModuleAttribute original, Map<String, String> versions) {
-        return ModuleAttribute.of(original.moduleName(), builder -> {
-            builder.moduleFlags(original.moduleFlagsMask());
-            original.moduleVersion().ifPresent(version -> builder.moduleVersion(version.stringValue()));
-            for (ModuleRequireInfo require : original.requires()) {
-                String name = require.requires().name().stringValue();
-                String version = versions.get(name);
-                if (version != null) {
-                    builder.requires(ModuleDesc.of(name), require.requiresFlagsMask(), version);
-                } else {
-                    builder.requires(require);
-                }
-            }
-            original.exports().forEach(builder::exports);
-            original.opens().forEach(builder::opens);
-            original.uses().forEach(builder::uses);
-            original.provides().forEach(builder::provides);
-        });
     }
 }
