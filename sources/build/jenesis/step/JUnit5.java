@@ -43,6 +43,11 @@ public record JUnit5() implements TestEngine {
     }
 
     @Override
+    public Map<String, String> properties() {
+        return Map.of("org.jline.terminal.dumb", "true");
+    }
+
+    @Override
     public List<String> arguments() {
         return List.of("execute", "--disable-banner", "--disable-ansi-colors");
     }

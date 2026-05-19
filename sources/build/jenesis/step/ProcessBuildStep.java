@@ -78,6 +78,7 @@ public abstract class ProcessBuildStep implements BuildStep {
                 }
                 Path output = context.supplement().resolve("output"), error = context.supplement().resolve("error");
                 ProcessHandler handler = factory.apply(Stream.concat(prepended.stream(), processed.stream()).toList());
+                Files.writeString(context.supplement().resolve("command"), String.join(" ", handler.commands()));
                 executor.execute(() -> {
                     try {
                         int exitCode = handler.execute(output, error);

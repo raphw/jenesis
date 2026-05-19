@@ -22,6 +22,10 @@ public interface TestEngine extends Serializable {
         return Map.of();
     }
 
+    default Map<String, String> properties() {
+        return Map.of();
+    }
+
     List<String> arguments();
 
     Map<String, String> markers();
