@@ -79,7 +79,7 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addModule(IDENTIFIER, identifier);
+        buildExecutor.addModule(IDENTIFIER, identifier, inherited.sequencedKeySet().stream());
         buildExecutor.addModule(COMPOSE, (process, identified) -> {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();

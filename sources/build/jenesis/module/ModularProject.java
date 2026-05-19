@@ -88,6 +88,7 @@ public class ModularProject implements BuildExecutorModule {
                                             .map(Map.Entry::getValue)
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
+                                    (BiFunction<URI, String, Optional<URI>> & Serializable) (base, _) -> Optional.of(base),
                                     null));
                     for (DependencyScope scope : DependencyScope.values()) {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
