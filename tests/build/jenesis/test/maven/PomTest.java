@@ -343,6 +343,77 @@ public class PomTest {
     }
 
     @Test
+    public void user_metadata_overrides_pom_derived_metadata_when_both_are_provided() throws IOException {
+        SequencedProperties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/com.example/foo/jar/1.0.0", "");
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties pomDerived = new SequencedProperties();
+        pomDerived.setProperty("project", "com.example");
+        pomDerived.setProperty("artifact", "foo");
+        pomDerived.setProperty("version", "1.0.0");
+        pomDerived.setProperty("url", "https://example.com/pom-url");
+        pomDerived.store(argument.resolve(BuildStep.METADATA));
+        Path userMetadata = Files.createDirectory(root.resolve("user-metadata"));
+        SequencedProperties user = new SequencedProperties();
+        user.setProperty("version", "2.7.1");
+        user.setProperty("url", "https://example.com/user-url");
+        user.store(userMetadata.resolve(BuildStep.METADATA));
+        LinkedHashMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("pom", new BuildStepArgument(argument, Map.of(
+                Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+        arguments.put("user", new BuildStepArgument(userMetadata, Map.of(
+                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+        BuildStepResult result = new Pom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        arguments)
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        String pom = Files.readString(next.resolve(Pom.POM));
+        assertThat(pom).contains("<groupId>com.example</groupId>");
+        assertThat(pom).contains("<artifactId>foo</artifactId>");
+        assertThat(pom).contains("<version>2.7.1</version>");
+        assertThat(pom).contains("<url>https://example.com/user-url</url>");
+        assertThat(pom).doesNotContain("<version>1.0.0</version>");
+        assertThat(pom).doesNotContain("https://example.com/pom-url");
+    }
+
+    @Test
+    public void pom_derived_metadata_supplies_fields_user_did_not_override() throws IOException {
+        SequencedProperties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/com.example/foo/jar/0-SNAPSHOT", "");
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties pomDerived = new SequencedProperties();
+        pomDerived.setProperty("project", "com.example");
+        pomDerived.setProperty("artifact", "foo");
+        pomDerived.setProperty("version", "1.0.0");
+        pomDerived.setProperty("url", "https://example.com/pom-url");
+        pomDerived.store(argument.resolve(BuildStep.METADATA));
+        Path userMetadata = Files.createDirectory(root.resolve("user-metadata"));
+        SequencedProperties user = new SequencedProperties();
+        user.setProperty("license.name", "Apache-2.0");
+        user.store(userMetadata.resolve(BuildStep.METADATA));
+        LinkedHashMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("pom", new BuildStepArgument(argument, Map.of(
+                Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+        arguments.put("user", new BuildStepArgument(userMetadata, Map.of(
+                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+        new Pom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        arguments)
+                .toCompletableFuture()
+                .join();
+        String pom = Files.readString(next.resolve(Pom.POM));
+        assertThat(pom).contains("<groupId>com.example</groupId>");
+        assertThat(pom).contains("<artifactId>foo</artifactId>");
+        assertThat(pom).contains("<version>1.0.0</version>");
+        assertThat(pom).contains("<url>https://example.com/pom-url</url>");
+        assertThat(pom).contains("<name>Apache-2.0</name>");
+    }
+
+    @Test
     public void fails_when_no_self_coordinate_is_present() throws IOException {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "/already/resolved.jar");
