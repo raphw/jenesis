@@ -95,7 +95,7 @@ public class JavacTest {
             writer.append("module sample { }");
             writer.newLine();
         }
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).buildVersion("1.2.3").apply(Runnable::run,
+        BuildStepResult result = (process ? Javac.process("1.2.3") : Javac.tool("1.2.3")).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -115,7 +115,7 @@ public class JavacTest {
             writer.append("module sample { }");
             writer.newLine();
         }
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).buildVersion(null).apply(Runnable::run,
+        BuildStepResult result = (process ? Javac.process(null) : Javac.tool(null)).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,

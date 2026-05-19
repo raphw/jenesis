@@ -183,9 +183,8 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver()))
-                        .jarsOnly(false)
-                        .filter("sample\\.TestSample"),
+                        Map.of("maven", new MavenPomResolver()),
+                        "sample\\.TestSample").jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -208,9 +207,8 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver()))
-                        .jarsOnly(false)
-                        .filter("sample\\.TestSample#test"),
+                        Map.of("maven", new MavenPomResolver()),
+                        "sample\\.TestSample#test").jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 

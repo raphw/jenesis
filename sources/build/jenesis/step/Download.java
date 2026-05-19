@@ -23,10 +23,6 @@ public class Download implements DependencyProcessingBuildStep {
         this.requireChecksums = requireChecksums;
     }
 
-    public Download requireChecksums(boolean requireChecksums) {
-        return new Download(repositories, requireChecksums);
-    }
-
     @Override
     public CompletionStage<Properties> transform(Executor executor,
                                                  BuildStepContext context,

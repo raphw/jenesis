@@ -31,18 +31,37 @@ public class TestModule implements BuildExecutorModule {
     private final String filter;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
+        this(repositories, resolvers, System.getProperty("jenesis.test"));
+    }
+
+    public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, filter);
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
+        this(engine, repositories, resolvers, System.getProperty("jenesis.test"));
+    }
+
+    public TestModule(TestEngine engine,
+                      Map<String, Repository> repositories,
+                      Map<String, Resolver> resolvers,
+                      String filter) {
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
                                                                    P isTest,
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers) {
-        this(engine, isTest, null, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
+        this(engine, isTest, repositories, resolvers, System.getProperty("jenesis.test"));
+    }
+
+    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
+                                                                   P isTest,
+                                                                   Map<String, Repository> repositories,
+                                                                   Map<String, Resolver> resolvers,
+                                                                   String filter) {
+        this(engine, isTest, null, repositories, resolvers, true, true, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
@@ -51,7 +70,17 @@ public class TestModule implements BuildExecutorModule {
             P isTest,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers) {
-        this(engine, isTest, factory, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
+        this(factory, engine, isTest, repositories, resolvers, System.getProperty("jenesis.test"));
+    }
+
+    public <P extends Predicate<String> & Serializable> TestModule(
+            Function<List<String>, ProcessHandler.OfProcess> factory,
+            TestEngine engine,
+            P isTest,
+            Map<String, Repository> repositories,
+            Map<String, Resolver> resolvers,
+            String filter) {
+        this(engine, isTest, factory, repositories, resolvers, true, true, filter);
     }
 
     private TestModule(TestEngine engine,
@@ -85,10 +114,6 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
-    }
-
-    public TestModule filter(String filter) {
         return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
     }
 

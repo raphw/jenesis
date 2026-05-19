@@ -207,7 +207,7 @@ public class PomTest {
     }
 
     @Test
-    public void jenesis_buildVersion_overrides_self_version_in_emitted_pom() throws IOException {
+    public void buildVersion_overrides_self_version_in_emitted_pom() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/0-SNAPSHOT", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
@@ -218,123 +218,83 @@ public class PomTest {
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
-        String previousProperty = System.getProperty("jenesis.buildVersion");
-        System.setProperty("jenesis.buildVersion", "2.7.1");
-        try {
-            BuildStepResult result = new Pom().apply(Runnable::run,
-                            new BuildStepContext(previous, next, supplement),
-                            new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                    argument,
-                                    Map.of(
-                                            Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                            Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
-                    .toCompletableFuture()
-                    .join();
-            assertThat(result.next()).isTrue();
-            String pom = Files.readString(next.resolve(Pom.POM));
-            assertThat(pom).contains("<version>2.7.1</version>");
-            assertThat(pom).contains("<version>1.2.3</version>");
-        } finally {
-            if (previousProperty == null) {
-                System.clearProperty("jenesis.buildVersion");
-            } else {
-                System.setProperty("jenesis.buildVersion", previousProperty);
-            }
-        }
+        BuildStepResult result = new Pom(Map.of(), "2.7.1").apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        String pom = Files.readString(next.resolve(Pom.POM));
+        assertThat(pom).contains("<version>2.7.1</version>");
+        assertThat(pom).contains("<version>1.2.3</version>");
     }
 
     @Test
-    public void jenesis_buildVersion_overrides_default_resolver_snapshot_version() throws IOException {
+    public void buildVersion_overrides_default_resolver_snapshot_version() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("module/build.jenesis.test", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        String previousProperty = System.getProperty("jenesis.buildVersion");
-        System.setProperty("jenesis.buildVersion", "9.0.0");
-        try {
-            BuildStepResult result = new Pom().apply(Runnable::run,
-                            new BuildStepContext(previous, next, supplement),
-                            new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                    argument,
-                                    Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
-                    .toCompletableFuture()
-                    .join();
-            assertThat(result.next()).isTrue();
-            assertThat(Files.readString(next.resolve(Pom.POM))).contains("<version>9.0.0</version>");
-        } finally {
-            if (previousProperty == null) {
-                System.clearProperty("jenesis.buildVersion");
-            } else {
-                System.setProperty("jenesis.buildVersion", previousProperty);
-            }
-        }
+        BuildStepResult result = new Pom(Map.of(), "9.0.0").apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(Files.readString(next.resolve(Pom.POM))).contains("<version>9.0.0</version>");
     }
 
     @Test
-    public void empty_jenesis_buildVersion_falls_back_to_self_version() throws IOException {
+    public void empty_buildVersion_falls_back_to_self_version() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        String previousProperty = System.getProperty("jenesis.buildVersion");
-        System.setProperty("jenesis.buildVersion", "");
-        try {
-            BuildStepResult result = new Pom().apply(Runnable::run,
-                            new BuildStepContext(previous, next, supplement),
-                            new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                    argument,
-                                    Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
-                    .toCompletableFuture()
-                    .join();
-            assertThat(result.next()).isTrue();
-            assertThat(Files.readString(next.resolve(Pom.POM))).contains("<version>1.0.0</version>");
-        } finally {
-            if (previousProperty == null) {
-                System.clearProperty("jenesis.buildVersion");
-            } else {
-                System.setProperty("jenesis.buildVersion", previousProperty);
-            }
-        }
+        BuildStepResult result = new Pom(Map.of(), "").apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(Files.readString(next.resolve(Pom.POM))).contains("<version>1.0.0</version>");
     }
 
     @Test
-    public void jenesis_buildVersion_propagates_through_export_layout() throws IOException {
+    public void buildVersion_propagates_through_export_layout() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/com.example/foo/jar/0-SNAPSHOT", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
         Path exported = Files.createDirectory(root.resolve("repository"));
-        String previousProperty = System.getProperty("jenesis.buildVersion");
-        System.setProperty("jenesis.buildVersion", "2.7.1");
-        try {
-            new Pom().apply(Runnable::run,
-                            new BuildStepContext(previous, next, supplement),
-                            new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                    argument,
-                                    Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
-                    .toCompletableFuture()
-                    .join();
-            Files.writeString(next.resolve("classes.jar"), "jar bytes");
-            MavenRepositoryPlacement.toRepository(exported).apply(Runnable::run,
-                            new BuildStepContext(previous, Files.createDirectory(root.resolve("next2")), supplement),
-                            new LinkedHashMap<>(Map.of("pom-and-jar", new BuildStepArgument(
-                                    next,
-                                    Map.of(Path.of("pom.xml"), ChecksumStatus.ADDED,
-                                            Path.of("classes.jar"), ChecksumStatus.ADDED)))))
-                    .toCompletableFuture()
-                    .join();
-            assertThat(exported.resolve("com/example/foo/2.7.1/foo-2.7.1.jar")).hasContent("jar bytes");
-            assertThat(exported.resolve("com/example/foo/2.7.1/foo-2.7.1.pom")).exists();
-        } finally {
-            if (previousProperty == null) {
-                System.clearProperty("jenesis.buildVersion");
-            } else {
-                System.setProperty("jenesis.buildVersion", previousProperty);
-            }
-        }
+        new Pom(Map.of(), "2.7.1").apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        Files.writeString(next.resolve("classes.jar"), "jar bytes");
+        MavenRepositoryPlacement.toRepository(exported).apply(Runnable::run,
+                        new BuildStepContext(previous, Files.createDirectory(root.resolve("next2")), supplement),
+                        new LinkedHashMap<>(Map.of("pom-and-jar", new BuildStepArgument(
+                                next,
+                                Map.of(Path.of("pom.xml"), ChecksumStatus.ADDED,
+                                        Path.of("classes.jar"), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(exported.resolve("com/example/foo/2.7.1/foo-2.7.1.jar")).hasContent("jar bytes");
+        assertThat(exported.resolve("com/example/foo/2.7.1/foo-2.7.1.pom")).exists();
     }
 
     @Test

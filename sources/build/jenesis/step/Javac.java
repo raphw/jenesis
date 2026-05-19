@@ -22,12 +22,16 @@ public class Javac extends JdkProcessBuildStep {
         return new Javac(ProcessHandler.OfTool.of("javac"));
     }
 
+    public static Javac tool(String buildVersion) {
+        return new Javac(ProcessHandler.OfTool.of("javac"), buildVersion);
+    }
+
     public static Javac process() {
         return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"));
     }
 
-    public Javac buildVersion(String buildVersion) {
-        return new Javac(factory, buildVersion);
+    public static Javac process(String buildVersion) {
+        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"), buildVersion);
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
