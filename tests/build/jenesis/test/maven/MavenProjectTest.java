@@ -15,7 +15,7 @@ import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.DependencyScope;
-import build.jenesis.step.FilePlacement;
+import build.jenesis.step.Placement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -767,7 +767,7 @@ public class MavenProjectTest {
 
     @Test
     public void artifactsByModule_links_classes_sources_javadoc_and_pom_under_sub_module_folder() throws IOException {
-        FilePlacement placement = MavenProject.artifactsByModule();
+        Placement placement = MavenProject.artifactsByModule();
         Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");
         Path sources = Path.of("/wrap/build/module/module-foo/produce/sources/output/artifacts/sources.jar");
         Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");

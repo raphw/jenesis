@@ -10,16 +10,16 @@ import build.jenesis.SequencedProperties;
 public class Export implements BuildStep {
 
     private final Path target;
-    private final FilePlacement placement;
+    private final Placement placement;
     private final Consumer<Path> finalizer;
 
-    public Export(Path target, FilePlacement placement) {
+    public Export(Path target, Placement placement) {
         this(target, placement, _ -> {
         });
     }
 
     public <C extends Consumer<Path> & Serializable> Export(Path target,
-                                                            FilePlacement placement,
+                                                            Placement placement,
                                                             C finalizer) {
         this.target = target;
         this.placement = placement;

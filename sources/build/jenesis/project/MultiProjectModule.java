@@ -5,7 +5,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
-import build.jenesis.step.FilePlacement;
+import build.jenesis.step.Placement;
 import build.jenesis.step.Group;
 
 public class MultiProjectModule implements BuildExecutorModule {
@@ -39,7 +39,7 @@ public class MultiProjectModule implements BuildExecutorModule {
         this.factory = factory;
     }
 
-    public static FilePlacement linkBySubModule(String... names) {
+    public static Placement linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);
         return (file, module, metadata) -> {
             Path filename = file.getFileName();

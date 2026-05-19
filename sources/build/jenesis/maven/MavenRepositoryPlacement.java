@@ -5,9 +5,9 @@ import module java.xml;
 import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Export;
-import build.jenesis.step.FilePlacement;
+import build.jenesis.step.Placement;
 
-public class MavenRepositoryPlacement implements FilePlacement {
+public class MavenRepositoryPlacement implements Placement {
 
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter
             .ofPattern("yyyyMMddHHmmss")

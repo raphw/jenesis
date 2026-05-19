@@ -9,14 +9,14 @@ import build.jenesis.SequencedProperties;
 
 public class Relocate implements BuildStep {
 
-    private final FilePlacement placement;
+    private final Placement placement;
     private final Set<Path> prefixes;
 
-    public Relocate(FilePlacement placement) {
+    public Relocate(Placement placement) {
         this(placement, null);
     }
 
-    public Relocate(FilePlacement placement, Set<Path> prefixes) {
+    public Relocate(Placement placement, Set<Path> prefixes) {
         this.placement = placement;
         this.prefixes = prefixes;
     }

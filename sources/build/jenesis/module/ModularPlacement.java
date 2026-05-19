@@ -2,9 +2,9 @@ package build.jenesis.module;
 
 import module java.base;
 import build.jenesis.SequencedProperties;
-import build.jenesis.step.FilePlacement;
+import build.jenesis.step.Placement;
 
-public class ModularPlacement implements FilePlacement {
+public class ModularPlacement implements Placement {
 
     private final boolean includeTests;
 

@@ -12,7 +12,7 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.step.FilePlacement;
+import build.jenesis.step.Placement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -281,7 +281,7 @@ public class ModularProjectTest {
 
     @Test
     public void artifactsByModule_links_classes_sources_and_javadoc_under_sub_module_folder() throws IOException {
-        FilePlacement placement = ModularProject.artifactsByModule();
+        Placement placement = ModularProject.artifactsByModule();
         Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");
         Path sources = Path.of("/wrap/build/module/module-foo/produce/sources/output/artifacts/sources.jar");
         Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");

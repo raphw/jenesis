@@ -4,7 +4,7 @@ import module java.base;
 import build.jenesis.SequencedProperties;
 
 @FunctionalInterface
-public interface FilePlacement extends Serializable {
+public interface Placement extends Serializable {
 
     Optional<Path> apply(Path file, SequencedProperties module, SequencedProperties metadata) throws IOException;
 }
