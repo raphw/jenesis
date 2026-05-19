@@ -7,31 +7,16 @@ import build.jenesis.SequencedProperties;
 
 public class Javac extends JdkProcessBuildStep {
 
-    private final String buildVersion;
-
     protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, System.getProperty("jenesis.buildVersion"));
-    }
-
-    protected Javac(Function<List<String>, ? extends ProcessHandler> factory, String buildVersion) {
         super("javac", factory);
-        this.buildVersion = buildVersion;
     }
 
     public static Javac tool() {
         return new Javac(ProcessHandler.OfTool.of("javac"));
     }
 
-    public static Javac tool(String buildVersion) {
-        return new Javac(ProcessHandler.OfTool.of("javac"), buildVersion);
-    }
-
     public static Javac process() {
         return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"));
-    }
-
-    public static Javac process(String buildVersion) {
-        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"), buildVersion);
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
@@ -106,10 +91,6 @@ public class Javac extends JdkProcessBuildStep {
             Path file = context.supplement().resolve("javac.args");
             Files.writeString(file, (module ? "--module-path" : "--class-path") + "\n\"" + escaped + "\"\n");
             commands.add("@" + file);
-        }
-        if (module && buildVersion != null && !buildVersion.isEmpty()) {
-            commands.add("--module-version");
-            commands.add(buildVersion);
         }
         commands.addAll(files);
         return CompletableFuture.completedStage(commands);

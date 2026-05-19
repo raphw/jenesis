@@ -89,17 +89,24 @@ public class JavacTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void stamps_module_version_when_buildVersion_is_set(boolean process) throws IOException {
+    public void stamps_module_version_when_javac_properties_contains_module_version(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("module-info.java"))) {
             writer.append("module sample { }");
             writer.newLine();
         }
-        BuildStepResult result = (process ? Javac.process("1.2.3") : Javac.tool("1.2.3")).apply(Runnable::run,
+        Properties javac = new Properties();
+        javac.setProperty("--module-version", "1.2.3");
+        Path processFolder = Files.createDirectories(sources.resolve("process"));
+        try (BufferedWriter writer = Files.newBufferedWriter(processFolder.resolve("javac.properties"))) {
+            javac.store(writer, null);
+        }
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
+                                Path.of("process/javac.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
         assertThat(moduleInfo).isNotEmptyFile();
@@ -109,13 +116,13 @@ public class JavacTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void does_not_stamp_module_version_when_buildVersion_is_absent(boolean process) throws IOException {
+    public void does_not_stamp_module_version_when_javac_properties_absent(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("module-info.java"))) {
             writer.append("module sample { }");
             writer.newLine();
         }
-        BuildStepResult result = (process ? Javac.process(null) : Javac.tool(null)).apply(Runnable::run,
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,

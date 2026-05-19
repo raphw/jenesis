@@ -35,7 +35,9 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
             } else {
                 java = new JavaModule();
             }
-            sub.addStep("prepare", new Prepare(), descriptor.manifests());
+            SequencedSet<String> prepareDeps = new LinkedHashSet<>(descriptor.metadata());
+            prepareDeps.add(descriptor.manifests());
+            sub.addStep("prepare", new Prepare(), prepareDeps);
             sub.addModule("java", java,
                     "prepare",
                     descriptor.sources(),
@@ -70,27 +72,52 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
             String main = null;
+            String version = null;
             for (BuildStepArgument argument : arguments.values()) {
-                Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
-                if (!Files.isRegularFile(moduleFile)) {
-                    continue;
+                if (main == null) {
+                    Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
+                    if (Files.isRegularFile(moduleFile)) {
+                        Properties module = new SequencedProperties();
+                        try (Reader reader = Files.newBufferedReader(moduleFile)) {
+                            module.load(reader);
+                        }
+                        String value = module.getProperty("main");
+                        if (value != null && !value.isEmpty()) {
+                            main = value;
+                        }
+                    }
                 }
-                Properties module = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                    module.load(reader);
-                }
-                String value = module.getProperty("main");
-                if (value != null && !value.isEmpty()) {
-                    main = value;
-                    break;
+                if (version == null) {
+                    Path metadataFile = argument.folder().resolve(BuildStep.METADATA);
+                    if (Files.isRegularFile(metadataFile)) {
+                        Properties metadata = new SequencedProperties();
+                        try (Reader reader = Files.newBufferedReader(metadataFile)) {
+                            metadata.load(reader);
+                        }
+                        String value = metadata.getProperty("version");
+                        if (value != null && !value.isEmpty()) {
+                            version = value;
+                        }
+                    }
                 }
             }
+            Path processFolder = null;
             if (main != null) {
-                Path target = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+                processFolder = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
                 Properties jar = new SequencedProperties();
                 jar.setProperty("--main-class", main);
-                try (BufferedWriter writer = Files.newBufferedWriter(target.resolve("jar.properties"))) {
+                try (BufferedWriter writer = Files.newBufferedWriter(processFolder.resolve("jar.properties"))) {
                     jar.store(writer, null);
+                }
+            }
+            if (version != null) {
+                if (processFolder == null) {
+                    processFolder = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+                }
+                Properties javac = new SequencedProperties();
+                javac.setProperty("--module-version", version);
+                try (BufferedWriter writer = Files.newBufferedWriter(processFolder.resolve("javac.properties"))) {
+                    javac.store(writer, null);
                 }
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));

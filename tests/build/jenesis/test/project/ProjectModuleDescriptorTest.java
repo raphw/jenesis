@@ -14,7 +14,7 @@ public class ProjectModuleDescriptorTest {
     @Test
     public void carries_the_flags_unchanged() {
         ModuleDescriptor base = new MavenModuleDescriptor("module-foo", new LinkedHashSet<>());
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, true);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, true, new LinkedHashSet<>());
         assertThat(descriptor.tests()).isTrue();
         assertThat(descriptor.source()).isFalse();
         assertThat(descriptor.javadoc()).isTrue();
@@ -24,7 +24,7 @@ public class ProjectModuleDescriptorTest {
     public void delegates_module_descriptor_accessors_to_base() {
         LinkedHashSet<String> dependencies = new LinkedHashSet<>(List.of("module-bar"));
         ModuleDescriptor base = new MavenModuleDescriptor("module-foo", dependencies);
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, false, false, false);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, false, false, false, new LinkedHashSet<>());
         assertThat(descriptor.name()).isEqualTo(base.name());
         assertThat(descriptor.dependencies()).isEqualTo(base.dependencies());
         assertThat(descriptor.sources()).isEqualTo(base.sources());
@@ -38,7 +38,7 @@ public class ProjectModuleDescriptorTest {
     @Test
     public void to_inherited_prepends_one_parent_segment_per_call() {
         ModuleDescriptor base = new MavenModuleDescriptor("module-foo", new LinkedHashSet<>());
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, true, true);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, true, true, new LinkedHashSet<>());
         ProjectModuleDescriptor inherited = descriptor.toInherited();
         assertThat(inherited.name()).isEqualTo(base.name());
         assertThat(inherited.dependencies()).isEqualTo(base.dependencies());

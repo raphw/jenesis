@@ -9,22 +9,33 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     private final boolean tests;
     private final boolean source;
     private final boolean javadoc;
+    private final SequencedSet<String> metadata;
     private final int depth;
 
-    public ProjectModuleDescriptor(ModuleDescriptor base, boolean tests, boolean source, boolean javadoc) {
-        this(base, tests, source, javadoc, 0);
+    public ProjectModuleDescriptor(ModuleDescriptor base,
+                                   boolean tests,
+                                   boolean source,
+                                   boolean javadoc,
+                                   SequencedSet<String> metadata) {
+        this(base, tests, source, javadoc, metadata, 0);
     }
 
-    private ProjectModuleDescriptor(ModuleDescriptor base, boolean tests, boolean source, boolean javadoc, int depth) {
+    private ProjectModuleDescriptor(ModuleDescriptor base,
+                                    boolean tests,
+                                    boolean source,
+                                    boolean javadoc,
+                                    SequencedSet<String> metadata,
+                                    int depth) {
         this.base = base;
         this.tests = tests;
         this.source = source;
         this.javadoc = javadoc;
+        this.metadata = metadata;
         this.depth = depth;
     }
 
     public ProjectModuleDescriptor toInherited() {
-        return new ProjectModuleDescriptor(base, tests, source, javadoc, depth + 1);
+        return new ProjectModuleDescriptor(base, tests, source, javadoc, metadata, depth + 1);
     }
 
     public boolean tests() {
@@ -37,6 +48,18 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
 
     public boolean javadoc() {
         return javadoc;
+    }
+
+    public SequencedSet<String> metadata() {
+        if (depth == 0) {
+            return Collections.unmodifiableSequencedSet(metadata);
+        }
+        String prefix = BuildExecutorModule.PREVIOUS.repeat(depth);
+        SequencedSet<String> result = new LinkedHashSet<>();
+        for (String ref : metadata) {
+            result.add(prefix + ref);
+        }
+        return Collections.unmodifiableSequencedSet(result);
     }
 
     @Override

@@ -145,7 +145,7 @@ public class JavaMultiProjectAssemblerTest {
                 return BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts";
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, javadoc);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, javadoc, new LinkedHashSet<>());
         BuildExecutorModule assembled = new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
