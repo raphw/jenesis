@@ -99,9 +99,19 @@ public record Project(
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
                         (descriptor, mergedRepos, mergedResolvers) -> (modSub, modInherited) -> {
-                            SequencedSet<String> available = resolveMetadata(
-                                    references,
-                                    modInherited.sequencedKeySet());
+                            SequencedSet<String> available = new LinkedHashSet<>();
+                            for (String reference : references) {
+                                String prefix = reference + "/";
+                                for (String key : modInherited.sequencedKeySet()) {
+                                    String stripped = key;
+                                    while (stripped.startsWith(BuildExecutorModule.PREVIOUS)) {
+                                        stripped = stripped.substring(BuildExecutorModule.PREVIOUS.length());
+                                    }
+                                    if (stripped.startsWith(prefix)) {
+                                        available.add(key);
+                                    }
+                                }
+                            }
                             BuildExecutorModule delegate = assembler.apply(
                                     new ProjectModuleDescriptor(descriptor,
                                             project.tests(),
@@ -335,22 +345,6 @@ public record Project(
         }
     }
 
-    private static SequencedSet<String> resolveMetadata(SequencedSet<String> references, Set<String> inheritedKeys) {
-        SequencedSet<String> available = new LinkedHashSet<>();
-        for (String reference : references) {
-            String prefix = reference + "/";
-            for (String key : inheritedKeys) {
-                String stripped = key;
-                while (stripped.startsWith(BuildExecutorModule.PREVIOUS)) {
-                    stripped = stripped.substring(BuildExecutorModule.PREVIOUS.length());
-                }
-                if (stripped.startsWith(prefix)) {
-                    available.add(key);
-                }
-            }
-        }
-        return available;
-    }
 
     public Project() {
         this(Path.of("."),

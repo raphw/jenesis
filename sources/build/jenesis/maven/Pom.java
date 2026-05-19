@@ -14,7 +14,6 @@ public class Pom implements BuildStep {
 
     private final Function<String, String> resolver;
     private final Map<String, String> shared;
-    private final String buildVersion;
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
@@ -22,10 +21,6 @@ public class Pom implements BuildStep {
     }
 
     public Pom(Map<String, String> shared) {
-        this(shared, System.getProperty("jenesis.buildVersion"));
-    }
-
-    public Pom(Map<String, String> shared, String buildVersion) {
         this.resolver = (Function<String, String> & Serializable) (coordinate -> {
             int separator = coordinate.indexOf('/');
             if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
@@ -40,7 +35,6 @@ public class Pom implements BuildStep {
             return "maven/" + groupId + "/" + name + "/0-SNAPSHOT";
         });
         this.shared = Map.copyOf(shared);
-        this.buildVersion = buildVersion;
     }
 
     public <F extends Function<String, String> & Serializable> Pom(F resolver) {
@@ -48,15 +42,8 @@ public class Pom implements BuildStep {
     }
 
     public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
-        this(resolver, shared, System.getProperty("jenesis.buildVersion"));
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver,
-                                                                   Map<String, String> shared,
-                                                                   String buildVersion) {
         this.resolver = resolver;
         this.shared = Map.copyOf(shared);
-        this.buildVersion = buildVersion;
     }
 
     @Override
@@ -185,7 +172,8 @@ public class Pom implements BuildStep {
                     null,
                     null));
         }
-        String version = buildVersion != null && !buildVersion.isEmpty() ? buildVersion : self.version();
+        String metadataVersion = metadata.getProperty("version");
+        String version = metadataVersion != null ? metadataVersion : self.version();
         MavenPomEmitter.Metadata parsed = null;
         if (!metadata.isEmpty()) {
             List<MavenPomEmitter.Metadata.License> licenses = List.of();

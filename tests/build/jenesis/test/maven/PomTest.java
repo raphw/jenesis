@@ -207,7 +207,7 @@ public class PomTest {
     }
 
     @Test
-    public void buildVersion_overrides_self_version_in_emitted_pom() throws IOException {
+    public void metadata_version_overrides_self_version_in_emitted_pom() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/0-SNAPSHOT", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
@@ -218,13 +218,19 @@ public class PomTest {
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
             dependencies.store(writer, null);
         }
-        BuildStepResult result = new Pom(Map.of(), "2.7.1").apply(Runnable::run,
+        Properties metadata = new SequencedProperties();
+        metadata.setProperty("version", "2.7.1");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+            metadata.store(writer, null);
+        }
+        BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -234,17 +240,23 @@ public class PomTest {
     }
 
     @Test
-    public void buildVersion_overrides_default_resolver_snapshot_version() throws IOException {
+    public void metadata_version_overrides_default_resolver_snapshot_version() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("module/build.jenesis.test", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        BuildStepResult result = new Pom(Map.of(), "9.0.0").apply(Runnable::run,
+        Properties metadata = new SequencedProperties();
+        metadata.setProperty("version", "9.0.0");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+            metadata.store(writer, null);
+        }
+        BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -252,13 +264,13 @@ public class PomTest {
     }
 
     @Test
-    public void empty_buildVersion_falls_back_to_self_version() throws IOException {
+    public void missing_metadata_version_falls_back_to_self_version() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
-        BuildStepResult result = new Pom(Map.of(), "").apply(Runnable::run,
+        BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
@@ -270,18 +282,24 @@ public class PomTest {
     }
 
     @Test
-    public void buildVersion_propagates_through_export_layout() throws IOException {
+    public void metadata_version_propagates_through_export_layout() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/com.example/foo/jar/0-SNAPSHOT", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
+        Properties metadata = new SequencedProperties();
+        metadata.setProperty("version", "2.7.1");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
+            metadata.store(writer, null);
+        }
         Path exported = Files.createDirectory(root.resolve("repository"));
-        new Pom(Map.of(), "2.7.1").apply(Runnable::run,
+        new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         Files.writeString(next.resolve("classes.jar"), "jar bytes");
