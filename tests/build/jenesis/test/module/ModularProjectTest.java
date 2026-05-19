@@ -12,6 +12,7 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.step.FilePlacement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -309,17 +310,18 @@ public class ModularProjectTest {
     }
 
     @Test
-    public void artifactsByModule_links_classes_sources_and_javadoc_under_sub_module_folder() {
-        Function<Path, Optional<Path>> placement = ModularProject.artifactsByModule();
+    public void artifactsByModule_links_classes_sources_and_javadoc_under_sub_module_folder() throws IOException {
+        FilePlacement placement = ModularProject.artifactsByModule();
         Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");
         Path sources = Path.of("/wrap/build/module/module-foo/produce/sources/output/artifacts/sources.jar");
         Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");
         Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
         Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        assertThat(placement.apply(classes)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(sources)).contains(Path.of("module-foo", "sources.jar"));
-        assertThat(placement.apply(javadoc)).contains(Path.of("module-foo", "javadoc.jar"));
-        assertThat(placement.apply(pom)).isEmpty();
-        assertThat(placement.apply(other)).isEmpty();
+        Properties metadata = new Properties();
+        assertThat(placement.apply(classes, metadata)).contains(Path.of("module-foo", "classes.jar"));
+        assertThat(placement.apply(sources, metadata)).contains(Path.of("module-foo", "sources.jar"));
+        assertThat(placement.apply(javadoc, metadata)).contains(Path.of("module-foo", "javadoc.jar"));
+        assertThat(placement.apply(pom, metadata)).isEmpty();
+        assertThat(placement.apply(other, metadata)).isEmpty();
     }
 }

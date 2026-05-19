@@ -3,10 +3,10 @@ package build.jenesis.maven;
 import module java.base;
 import module java.xml;
 import build.jenesis.BuildStep;
-import build.jenesis.SequencedProperties;
 import build.jenesis.step.Export;
+import build.jenesis.step.FilePlacement;
 
-public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>, Serializable {
+public class MavenRepositoryPlacement implements FilePlacement {
 
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter
             .ofPattern("yyyyMMddHHmmss")
@@ -21,7 +21,7 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
     }
 
     @Override
-    public Optional<Path> apply(Path file) {
+    public Optional<Path> apply(Path file, Properties metadata) throws IOException {
         Path filename = file.getFileName();
         if (filename == null) {
             return Optional.empty();
@@ -30,7 +30,7 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         if (parent == null) {
             return Optional.empty();
         }
-        boolean test = isTest(parent.resolve(BuildStep.MODULE));
+        boolean test = metadata.getProperty("tests") != null;
         String suffix = switch (filename.toString()) {
             case "classes.jar" -> test ? "-tests.jar" : ".jar";
             case "sources.jar" -> test ? "-tests-sources.jar" : "-sources.jar";
@@ -50,17 +50,6 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
                 coordinates.artifactId(),
                 coordinates.version(),
                 coordinates.artifactId() + "-" + coordinates.version() + suffix));
-    }
-
-    private static boolean isTest(Path module) {
-        if (!Files.isRegularFile(module)) {
-            return false;
-        }
-        try {
-            return SequencedProperties.ofFiles(module).getProperty("tests") != null;
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     @SuppressWarnings("unchecked")

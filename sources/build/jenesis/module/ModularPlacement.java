@@ -1,10 +1,9 @@
 package build.jenesis.module;
 
 import module java.base;
-import build.jenesis.BuildStep;
-import build.jenesis.SequencedProperties;
+import build.jenesis.step.FilePlacement;
 
-public class ModularPlacement implements Function<Path, Optional<Path>>, Serializable {
+public class ModularPlacement implements FilePlacement {
 
     private final String version;
     private final boolean includeTests;
@@ -27,7 +26,7 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
     }
 
     @Override
-    public Optional<Path> apply(Path file) {
+    public Optional<Path> apply(Path file, Properties metadata) throws IOException {
         Path filename = file.getFileName();
         if (filename == null) {
             return Optional.empty();
@@ -41,24 +40,13 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         if (suffix == null) {
             return Optional.empty();
         }
-        Path parent = file.getParent();
-        if (parent == null) {
+        if (!includeTests && metadata.getProperty("tests") != null) {
             return Optional.empty();
         }
-        Properties module = null;
-        if (!Files.isRegularFile(file)) {
-            try {
-                module = SequencedProperties.ofFiles(file);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-        if (!includeTests && module != null && module.getProperty("tests") != null) {
-            return Optional.empty();
-        }
-        String moduleName = module == null ? null : module.getProperty("module");
+        String moduleName = metadata.getProperty("module");
         if (moduleName == null) {
-            Path dir = parent.getFileName();
+            Path parent = file.getParent();
+            Path dir = parent == null ? null : parent.getFileName();
             if (dir == null) {
                 return Optional.empty();
             }

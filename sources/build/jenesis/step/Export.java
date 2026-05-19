@@ -5,21 +5,21 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.SequencedProperties;
 
 public class Export implements BuildStep {
 
     private final Path target;
-    private final Function<Path, Optional<Path>> placement;
+    private final FilePlacement placement;
     private final Consumer<Path> finalizer;
 
-    public <F extends Function<Path, Optional<Path>> & Serializable> Export(Path target, F placement) {
+    public Export(Path target, FilePlacement placement) {
         this(target, placement, _ -> {
         });
     }
 
-    public <F extends Function<Path, Optional<Path>> & Serializable,
-            C extends Consumer<Path> & Serializable> Export(Path target,
-                                                            F placement,
+    public <C extends Consumer<Path> & Serializable> Export(Path target,
+                                                            FilePlacement placement,
                                                             C finalizer) {
         this.target = target;
         this.placement = placement;
@@ -44,12 +44,24 @@ public class Export implements BuildStep {
             Files.walkFileTree(folder, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    Optional<Path> sub = placement.apply(file);
+                    Properties metadata = new SequencedProperties();
+                    Path parent = file.getParent();
+                    if (parent != null) {
+                        Path moduleFile = parent.resolve(BuildStep.MODULE);
+                        if (Files.isRegularFile(moduleFile)) {
+                            metadata.putAll(SequencedProperties.ofFiles(moduleFile));
+                        }
+                        Path metadataFile = parent.resolve(BuildStep.METADATA);
+                        if (Files.isRegularFile(metadataFile)) {
+                            metadata.putAll(SequencedProperties.ofFiles(metadataFile));
+                        }
+                    }
+                    Optional<Path> sub = placement.apply(file, metadata);
                     if (sub.isPresent()) {
                         Path destination = target.resolve(sub.get());
-                        Path parent = destination.getParent();
-                        if (parent != null) {
-                            Files.createDirectories(parent);
+                        Path destinationParent = destination.getParent();
+                        if (destinationParent != null) {
+                            Files.createDirectories(destinationParent);
                         }
                         Files.copy(file, destination, StandardCopyOption.REPLACE_EXISTING);
                     }

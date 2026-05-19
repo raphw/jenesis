@@ -5,6 +5,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.FilePlacement;
 import build.jenesis.step.Group;
 
 public class MultiProjectModule implements BuildExecutorModule {
@@ -38,10 +39,9 @@ public class MultiProjectModule implements BuildExecutorModule {
         this.factory = factory;
     }
 
-    @SuppressWarnings("unchecked")
-    public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {
+    public static FilePlacement linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);
-        return (F) (Function<Path, Optional<Path>> & Serializable) (file -> {
+        return (file, metadata) -> {
             Path filename = file.getFileName();
             if (filename == null || !allowed.contains(filename.toString())) {
                 return Optional.empty();
@@ -59,7 +59,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                 }
             }
             return Optional.empty();
-        });
+        };
     }
 
     @Override

@@ -9,6 +9,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.step.FilePlacement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -203,48 +204,48 @@ public class MultiProjectModuleTest {
     }
 
     @Test
-    public void linkBySubModule_returns_target_for_matching_filename() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
+    public void linkBySubModule_returns_target_for_matching_filename() throws IOException {
+        FilePlacement placement = MultiProjectModule.linkBySubModule("classes.jar");
         Path file = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
-        assertThat(placement.apply(file)).contains(Path.of("module-foo", "classes.jar"));
+        assertThat(placement.apply(file, new Properties())).contains(Path.of("module-foo", "classes.jar"));
     }
 
     @Test
-    public void linkBySubModule_returns_empty_for_unmatched_filename() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
+    public void linkBySubModule_returns_empty_for_unmatched_filename() throws IOException {
+        FilePlacement placement = MultiProjectModule.linkBySubModule("classes.jar");
         Path file = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/readme.txt");
-        assertThat(placement.apply(file)).isEmpty();
+        assertThat(placement.apply(file, new Properties())).isEmpty();
     }
 
     @Test
-    public void linkBySubModule_returns_empty_when_no_module_segment() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
-        assertThat(placement.apply(Path.of("/wrap/some/other/place/classes.jar"))).isEmpty();
+    public void linkBySubModule_returns_empty_when_no_module_segment() throws IOException {
+        FilePlacement placement = MultiProjectModule.linkBySubModule("classes.jar");
+        assertThat(placement.apply(Path.of("/wrap/some/other/place/classes.jar"), new Properties())).isEmpty();
     }
 
     @Test
-    public void linkBySubModule_uses_segment_directly_under_module() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
+    public void linkBySubModule_uses_segment_directly_under_module() throws IOException {
+        FilePlacement placement = MultiProjectModule.linkBySubModule("classes.jar");
         Path nested = Path.of("/a/build/module/outer/build/module/inner/classes.jar");
-        assertThat(placement.apply(nested)).contains(Path.of("inner", "classes.jar"));
+        assertThat(placement.apply(nested, new Properties())).contains(Path.of("inner", "classes.jar"));
     }
 
     @Test
-    public void linkBySubModule_accepts_multiple_filenames() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
+    public void linkBySubModule_accepts_multiple_filenames() throws IOException {
+        FilePlacement placement = MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
         Path jar = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
         Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
         Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        assertThat(placement.apply(jar)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(pom)).contains(Path.of("module-foo", "pom.xml"));
-        assertThat(placement.apply(other)).isEmpty();
+        assertThat(placement.apply(jar, new Properties())).contains(Path.of("module-foo", "classes.jar"));
+        assertThat(placement.apply(pom, new Properties())).contains(Path.of("module-foo", "pom.xml"));
+        assertThat(placement.apply(other, new Properties())).isEmpty();
     }
 
     @Test
-    public void linkBySubModule_returns_empty_when_no_filenames_configured() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule();
+    public void linkBySubModule_returns_empty_when_no_filenames_configured() throws IOException {
+        FilePlacement placement = MultiProjectModule.linkBySubModule();
         Path file = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
-        assertThat(placement.apply(file)).isEmpty();
+        assertThat(placement.apply(file, new Properties())).isEmpty();
     }
 
 }

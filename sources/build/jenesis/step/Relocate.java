@@ -5,17 +5,18 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.SequencedProperties;
 
 public class Relocate implements BuildStep {
 
-    private final Function<Path, Optional<Path>> placement;
+    private final FilePlacement placement;
     private final Set<Path> prefixes;
 
-    public <F extends Function<Path, Optional<Path>> & Serializable> Relocate(F placement) {
+    public Relocate(FilePlacement placement) {
         this(placement, null);
     }
 
-    public <F extends Function<Path, Optional<Path>> & Serializable> Relocate(F placement, Set<Path> prefixes) {
+    public Relocate(FilePlacement placement, Set<Path> prefixes) {
         this.placement = placement;
         this.prefixes = prefixes;
     }
@@ -54,12 +55,24 @@ public class Relocate implements BuildStep {
                 Files.walkFileTree(root, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        Optional<Path> target = placement.apply(file);
+                        Properties metadata = new SequencedProperties();
+                        Path parent = file.getParent();
+                        if (parent != null) {
+                            Path moduleFile = parent.resolve(BuildStep.MODULE);
+                            if (Files.isRegularFile(moduleFile)) {
+                                metadata.putAll(SequencedProperties.ofFiles(moduleFile));
+                            }
+                            Path metadataFile = parent.resolve(BuildStep.METADATA);
+                            if (Files.isRegularFile(metadataFile)) {
+                                metadata.putAll(SequencedProperties.ofFiles(metadataFile));
+                            }
+                        }
+                        Optional<Path> target = placement.apply(file, metadata);
                         if (target.isPresent()) {
                             Path resolved = context.next().resolve(target.get());
-                            Path parent = resolved.getParent();
-                            if (parent != null) {
-                                Files.createDirectories(parent);
+                            Path resolvedParent = resolved.getParent();
+                            if (resolvedParent != null) {
+                                Files.createDirectories(resolvedParent);
                             }
                             if (!Files.exists(resolved)) {
                                 Files.createLink(resolved, file);

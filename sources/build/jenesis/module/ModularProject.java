@@ -18,6 +18,7 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
+import build.jenesis.step.FilePlacement;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 
@@ -43,7 +44,7 @@ public class ModularProject implements BuildExecutorModule {
         this.filter = filter;
     }
 
-    public static <F extends Function<Path, Optional<Path>> & Serializable> F artifactsByModule() {
+    public static FilePlacement artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar",
                 BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
     }
