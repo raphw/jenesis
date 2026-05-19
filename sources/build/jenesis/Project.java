@@ -51,8 +51,8 @@ public record Project(
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, project, assembler) -> {
-            SequencedSet<String> references = MetadataModule.register(executor, project);
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, references);
+            MetadataModule.register(executor, project);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
                 SequencedSet<String> mavenDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
@@ -63,8 +63,7 @@ public record Project(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
-                                                project.javadoc(),
-                                                mavenDeps),
+                                                project.javadoc()),
                                         repositories, resolvers)),
                         mavenDeps);
             }, METADATA);
@@ -79,7 +78,7 @@ public record Project(
         };
 
         Layout MODULAR = (executor, project, assembler) -> {
-            SequencedSet<String> references = MetadataModule.register(executor, project);
+            MetadataModule.register(executor, project);
             executor.addStep("download", new DownloadModuleUris());
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(Repository.ofProperties(
@@ -99,30 +98,13 @@ public record Project(
                 sub.addModule("modules", ModularProject.make(project.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
-                        (descriptor, mergedRepos, mergedResolvers) -> (modSub, modInherited) -> {
-                            SequencedSet<String> available = new LinkedHashSet<>();
-                            for (String reference : references) {
-                                String prefix = reference + "/";
-                                for (String key : modInherited.sequencedKeySet()) {
-                                    String stripped = key;
-                                    while (stripped.startsWith(BuildExecutorModule.PREVIOUS)) {
-                                        stripped = stripped.substring(BuildExecutorModule.PREVIOUS.length());
-                                    }
-                                    if (stripped.startsWith(prefix)) {
-                                        available.add(key);
-                                    }
-                                }
-                            }
-                            BuildExecutorModule delegate = assembler.apply(
-                                    new ProjectModuleDescriptor(descriptor,
-                                            project.tests(),
-                                            project.sources(),
-                                            project.javadoc(),
-                                            available),
-                                    mergedRepos,
-                                    mergedResolvers);
-                            delegate.accept(modSub, modInherited);
-                        }),
+                        (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
+                                new ProjectModuleDescriptor(descriptor,
+                                        project.tests(),
+                                        project.sources(),
+                                        project.javadoc()),
+                                mergedRepos,
+                                mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
@@ -142,8 +124,8 @@ public record Project(
 
         Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
             MavenPomResolver resolver = new MavenPomResolver();
-            SequencedSet<String> references = MetadataModule.register(executor, project);
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, references);
+            MetadataModule.register(executor, project);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, inherited) -> {
                 Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
@@ -169,8 +151,7 @@ public record Project(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
-                                                project.javadoc(),
-                                                modulesDeps),
+                                                project.javadoc()),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
@@ -222,8 +203,6 @@ public record Project(
 
     private static final class MetadataModule implements BuildExecutorModule {
 
-        private static final String VERSION_STEP = "version";
-
         private final SequencedMap<String, Path> files;
         private final String version;
 
@@ -232,7 +211,7 @@ public record Project(
             this.version = version;
         }
 
-        static SequencedSet<String> register(BuildExecutor executor, Project project) {
+        static void register(BuildExecutor executor, Project project) {
             Path root = project.root().toAbsolutePath().normalize();
             SequencedMap<String, Path> files = new LinkedHashMap<>();
             for (Path file : project.metadata()) {
@@ -241,16 +220,15 @@ public record Project(
                 files.put(METADATA + "-" + BuildExecutorModule.encode(relative.toString()), relative);
             }
             executor.addModule(METADATA, new MetadataModule(files, project.version()));
-            return Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(METADATA)));
         }
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-            files.forEach((name, file) -> buildExecutor.addSource(name, Bind.asMetadata(), file));
+            files.forEach((name, file) -> buildExecutor.addSource("file-" + name, Bind.asMetadata(), file));
             if (version != null && !version.isEmpty()) {
                 SequencedMap<String, String> values = new LinkedHashMap<>();
                 values.put("version", version);
-                buildExecutor.addStep(VERSION_STEP, new MetadataValues(values));
+                buildExecutor.addStep("command", new MetadataValues(values));
             }
         }
     }
@@ -310,12 +288,9 @@ public record Project(
     private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         private final MultiProjectAssembler<? super ProjectModuleDescriptor> base;
-        private final SequencedSet<String> references;
 
-        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base,
-                                  SequencedSet<String> references) {
+        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base) {
             this.base = base;
-            this.references = references;
         }
 
         @Override
@@ -325,22 +300,9 @@ public record Project(
             BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
             return (sub, inherited) -> {
                 sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
-                SequencedSet<String> available = descriptor.metadata();
-                SequencedSet<String> describeOuterDeps = new LinkedHashSet<>();
-                describeOuterDeps.add(descriptor.sources());
-                describeOuterDeps.add(descriptor.manifests());
-                describeOuterDeps.add(descriptor.coordinates());
-                describeOuterDeps.addAll(available);
-                sub.addModule("describe", (describe, _) -> {
-                    SequencedSet<String> describeInnerDeps = new LinkedHashSet<>();
-                    describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.sources());
-                    describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.manifests());
-                    describeInnerDeps.add(BuildExecutorModule.PREVIOUS + descriptor.coordinates());
-                    for (String key : available) {
-                        describeInnerDeps.add(BuildExecutorModule.PREVIOUS + key);
-                    }
-                    describe.addStep("pom", new Pom(), describeInnerDeps);
-                }, describeOuterDeps);
+                sub.addModule("describe", (describe, describeInherited) ->
+                                describe.addStep("pom", new Pom(), describeInherited.sequencedKeySet().stream()),
+                        inherited.sequencedKeySet().stream());
             };
         }
     }

@@ -30,9 +30,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
             } else {
                 java = new JavaModule();
             }
-            SequencedSet<String> prepareDeps = new LinkedHashSet<>(descriptor.metadata());
-            prepareDeps.add(descriptor.manifests());
-            sub.addStep("prepare", new Prepare(), prepareDeps);
+            sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
             sub.addModule("java", java,
                     "prepare",
                     descriptor.sources(),
