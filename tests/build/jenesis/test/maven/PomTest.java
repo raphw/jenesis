@@ -267,6 +267,8 @@ public class PomTest {
                 .toCompletableFuture()
                 .join();
         Files.writeString(next.resolve("classes.jar"), "jar bytes");
+        Files.writeString(next.resolve(BuildStep.METADATA),
+                "project=com.example\nartifact=foo\nversion=2.7.1\n");
         MavenRepositoryPlacement.toRepository(exported).apply(Runnable::run,
                         new BuildStepContext(previous, Files.createDirectory(root.resolve("next2")), supplement),
                         new LinkedHashMap<>(Map.of("pom-and-jar", new BuildStepArgument(
@@ -320,12 +322,12 @@ public class PomTest {
     }
 
     @Test
-    public void metadata_project_mismatch_skips_emission() throws IOException {
+    public void metadata_artifact_mismatch_skips_emission() throws IOException {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties metadata = new SequencedProperties();
-        metadata.setProperty("project", "other.module");
+        metadata.setProperty("artifact", "other.module");
         metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),

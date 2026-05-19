@@ -38,6 +38,8 @@ public class MavenRepositoryPlacementTest {
                     <version>1.2.3</version>
                 </project>
                 """);
+        Files.writeString(module.resolve("metadata.properties"),
+                "project=com.example\nartifact=foo\nversion=1.2.3\n");
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
         BuildStep export = MavenRepositoryPlacement.toRepository(target);
@@ -66,6 +68,8 @@ public class MavenRepositoryPlacementTest {
                     <version>1.2.3</version>
                 </project>
                 """);
+        Files.writeString(module.resolve("metadata.properties"),
+                "project=com.example\nartifact=foo\nversion=1.2.3\n");
         Files.writeString(module.resolve("sources.jar"), "sources bytes");
         Files.writeString(module.resolve("javadoc.jar"), "javadoc bytes");
 
@@ -96,6 +100,8 @@ public class MavenRepositoryPlacementTest {
                     <version>1.2.3</version>
                 </project>
                 """);
+        Files.writeString(module.resolve("metadata.properties"),
+                "project=com.example\nartifact=foo\nversion=1.2.3\n");
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
         MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
@@ -129,6 +135,8 @@ public class MavenRepositoryPlacementTest {
                     <version>1.2.3</version>
                 </project>
                 """);
+        Files.writeString(module.resolve("metadata.properties"),
+                "project=com.example\nartifact=foo\nversion=1.2.3\n");
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
         MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
@@ -159,6 +167,8 @@ public class MavenRepositoryPlacementTest {
                     <version>2.0-SNAPSHOT</version>
                 </project>
                 """);
+        Files.writeString(module.resolve("metadata.properties"),
+                "project=com.example\nartifact=foo\nversion=2.0-SNAPSHOT\n");
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
 
         MavenRepositoryPlacement.toRepository(target).apply(Runnable::run,
@@ -199,6 +209,8 @@ public class MavenRepositoryPlacementTest {
                         <version>%s</version>
                     </project>
                     """.formatted(version));
+            Files.writeString(module.resolve("metadata.properties"),
+                    "project=com.example\nartifact=multi\nversion=" + version + "\n");
             Files.writeString(module.resolve("classes.jar"), "jar bytes");
         }
 
@@ -237,6 +249,8 @@ public class MavenRepositoryPlacementTest {
                     <version>1.2.3</version>
                 </project>
                 """);
+        Files.writeString(module.resolve("metadata.properties"),
+                "project=com.example\nartifact=foo\nversion=1.2.3\n");
         Files.writeString(module.resolve("classes.jar"), "jar bytes");
         LinkedHashMap<String, BuildStepArgument> arguments = new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                 source,

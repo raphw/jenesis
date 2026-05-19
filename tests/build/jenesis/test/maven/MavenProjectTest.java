@@ -669,6 +669,9 @@ public class MavenProjectTest {
         assertThat(metadataFile).exists();
         SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);
         assertThat(metadata).containsOnly(
+                Map.entry("project", "group"),
+                Map.entry("artifact", "artifact"),
+                Map.entry("version", "1"),
                 Map.entry("name", "Project Name"),
                 Map.entry("description", "Project description."),
                 Map.entry("url", "https://example.com/project"),

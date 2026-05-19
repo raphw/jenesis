@@ -103,9 +103,9 @@ public class Pom implements BuildStep {
             throw new IllegalStateException(
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
-        String targetProject = metadata.getProperty("project");
+        String targetArtifact = metadata.getProperty("artifact");
         boolean test = module.getProperty("tests") != null;
-        if (targetProject != null && !targetProject.equals(self.key().artifactId()) && !test) {
+        if (targetArtifact != null && !targetArtifact.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();

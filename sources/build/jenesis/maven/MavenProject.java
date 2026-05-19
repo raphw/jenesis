@@ -252,10 +252,12 @@ public class MavenProject implements BuildExecutorModule {
                                     descriptor.setProperty("main", mainClass);
                                 }
                                 descriptor.store(context.next().resolve(BuildStep.MODULE));
-                                SequencedProperties metadata = extractMetadata(pomFile);
-                                if (!metadata.isEmpty()) {
-                                    metadata.store(context.next().resolve(BuildStep.METADATA));
-                                }
+                                SequencedProperties metadata = new SequencedProperties();
+                                metadata.setProperty("project", properties.getProperty("groupId"));
+                                metadata.setProperty("artifact", properties.getProperty("artifactId"));
+                                metadata.setProperty("version", properties.getProperty("version"));
+                                extractMetadata(pomFile).forEach(metadata::put);
+                                metadata.store(context.next().resolve(BuildStep.METADATA));
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
                         }
@@ -471,6 +473,9 @@ public class MavenProject implements BuildExecutorModule {
                 testModule.setProperty("coordinate", testSelfKey.coordinate(prefix, entry.getValue().version()));
                 testModule.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
                 testModule.setProperty("path", relativePath);
+                testModule.setProperty("groupId", entry.getValue().groupId());
+                testModule.setProperty("artifactId", entry.getValue().artifactId());
+                testModule.setProperty("version", entry.getValue().version());
                 if (entry.getValue().release() != null) {
                     testModule.setProperty("release", entry.getValue().release());
                 }

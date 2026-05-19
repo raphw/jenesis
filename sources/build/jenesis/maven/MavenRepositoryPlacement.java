@@ -36,16 +36,29 @@ public class MavenRepositoryPlacement implements FilePlacement {
         if (suffix == null) {
             return Optional.empty();
         }
-        Path pom = file.getParent().resolve("pom.xml");
-        if (!Files.exists(pom)) {
+        if (!Files.exists(file.getParent().resolve("pom.xml"))) {
             return Optional.empty();
         }
-        // TODO: Should this info not be available from metadata?
-        return PomCoordinates.of(pom).map(coordinates -> Path.of(
-                coordinates.groupId().replace('.', '/'),
-                coordinates.artifactId(),
-                coordinates.version(),
-                coordinates.artifactId() + "-" + coordinates.version() + suffix));
+        String groupId = metadata.getProperty("project");
+        String artifactId = metadata.getProperty("artifact");
+        String version = metadata.getProperty("version");
+        if (groupId == null || artifactId == null || version == null) {
+            throw new IllegalStateException(
+                    "Missing maven coordinates in metadata.properties for "
+                            + file
+                            + " (expected 'project', 'artifact' and 'version'; got project="
+                            + groupId
+                            + ", artifact="
+                            + artifactId
+                            + ", version="
+                            + version
+                            + ")");
+        }
+        return Optional.of(Path.of(
+                groupId.replace('.', '/'),
+                artifactId,
+                version,
+                artifactId + "-" + version + suffix));
     }
 
     @SuppressWarnings("unchecked")
