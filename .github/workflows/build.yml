@@ -85,7 +85,7 @@ jobs:
           java -Djenesis.buildVersion=0.0.0-TEST \
                -Djenesis.project.sources=true \
                -Djenesis.project.skipTests=true \
-               -Djenesis.project.metadata=project.properties \
+               -Djenesis.project.metadata=metadata.properties \
                build/jenesis/Project.java stage
 
       - name: Populate SDK layout

@@ -22,16 +22,16 @@ public class Bind implements BuildStep {
         return new Bind(Map.of(Path.of("."), Path.of(RESOURCES)));
     }
 
-    public static Bind asIdentityProperties(String name) {
+    public static Bind asIdentity(String name) {
         return new Bind(Map.of(Path.of(name == null ? IDENTITY : name), Path.of(IDENTITY)));
     }
 
-    public static Bind asRequiresProperties(String name) {
+    public static Bind asRequires(String name) {
         return new Bind(Map.of(Path.of(name), Path.of(REQUIRES)));
     }
 
-    public static Bind asProjectProperties() {
-        return new Bind(Map.of(Path.of(""), Path.of(PROJECT)));
+    public static Bind asMetadata() {
+        return new Bind(Map.of(Path.of(""), Path.of(METADATA)));
     }
 
     @Override

@@ -220,7 +220,7 @@ public class PomTest {
         }
         Properties metadata = new SequencedProperties();
         metadata.setProperty("version", "2.7.1");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.PROJECT))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -230,7 +230,7 @@ public class PomTest {
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.PROJECT), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -248,7 +248,7 @@ public class PomTest {
         }
         Properties metadata = new SequencedProperties();
         metadata.setProperty("version", "9.0.0");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.PROJECT))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -256,7 +256,7 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.PROJECT), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -290,7 +290,7 @@ public class PomTest {
         }
         Properties metadata = new SequencedProperties();
         metadata.setProperty("version", "2.7.1");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.PROJECT))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         Path exported = Files.createDirectory(root.resolve("repository"));
@@ -299,7 +299,7 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.PROJECT), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         Files.writeString(next.resolve("classes.jar"), "jar bytes");
@@ -334,7 +334,7 @@ public class PomTest {
         metadata.setProperty("developer.bob.email", "bob@example.com");
         metadata.setProperty("scm.connection", "scm:git:https://example.com/jenesis.git");
         metadata.setProperty("scm.url", "https://example.com/jenesis");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.PROJECT))) {
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -343,7 +343,7 @@ public class PomTest {
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.PROJECT), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -360,15 +360,15 @@ public class PomTest {
     }
 
     @Test
-    public void project_module_mismatch_skips_emission() throws IOException {
+    public void metadata_project_mismatch_skips_emission() throws IOException {
         Properties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
             coordinates.store(writer, null);
         }
         Properties metadata = new SequencedProperties();
-        metadata.setProperty("module", "other.module");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.PROJECT))) {
+        metadata.setProperty("project", "other.module");
+        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
             metadata.store(writer, null);
         }
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -377,7 +377,7 @@ public class PomTest {
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.PROJECT), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();

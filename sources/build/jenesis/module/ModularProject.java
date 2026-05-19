@@ -46,7 +46,7 @@ public class ModularProject implements BuildExecutorModule {
 
     public static FilePlacement artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar",
-                BuildStep.MODULE, BuildStep.PROJECT, BuildStep.IDENTITY);
+                BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -227,7 +227,7 @@ public class ModularProject implements BuildExecutorModule {
                 metadata.setProperty("description", info.description());
             }
             if (!metadata.isEmpty()) {
-                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.PROJECT))) {
+                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
                     metadata.store(writer, null);
                 }
             }

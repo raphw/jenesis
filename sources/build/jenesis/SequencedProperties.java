@@ -29,6 +29,12 @@ public class SequencedProperties extends Properties {
         return properties;
     }
 
+    public void store(Path file) throws IOException {
+        try (Writer writer = Files.newBufferedWriter(file)) {
+            store(writer, null);
+        }
+    }
+
     @Override
     public void store(Writer writer, String comments) throws IOException {
         super.store(new CommentSuppressingWriter(writer), comments);

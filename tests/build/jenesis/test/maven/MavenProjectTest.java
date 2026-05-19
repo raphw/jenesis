@@ -734,7 +734,7 @@ public class MavenProjectTest {
         }
         assertThat(moduleProperties).containsOnly(
                 Map.entry("path", ""));
-        Path metadataFile = module.resolve(BuildStep.PROJECT);
+        Path metadataFile = module.resolve(BuildStep.METADATA);
         assertThat(metadataFile).exists();
         Properties metadata = new Properties();
         try (Reader reader = Files.newBufferedReader(metadataFile)) {

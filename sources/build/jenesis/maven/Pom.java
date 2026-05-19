@@ -56,7 +56,7 @@ public class Pom implements BuildStep {
         Properties requires = SequencedProperties.ofFolders(folders, REQUIRES);
         Properties scopes = SequencedProperties.ofFolders(folders, SCOPES);
         Properties module = SequencedProperties.ofFolders(folders, MODULE);
-        Properties metadata = SequencedProperties.ofFolders(folders, PROJECT);
+        Properties metadata = SequencedProperties.ofFolders(folders, METADATA);
         boolean scoped = !scopes.isEmpty();
         Properties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
@@ -103,9 +103,9 @@ public class Pom implements BuildStep {
             throw new IllegalStateException(
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
-        String targetModule = metadata.getProperty("module");
+        String targetProject = metadata.getProperty("project");
         boolean test = module.getProperty("tests") != null;
-        if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
+        if (targetProject != null && !targetProject.equals(self.key().artifactId()) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();

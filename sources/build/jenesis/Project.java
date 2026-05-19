@@ -126,7 +126,7 @@ public record Project(
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addModule(STAGE, (sub, inherited) -> {
-                Properties metadata = SequencedProperties.ofFolders(inherited.values(), BuildStep.PROJECT);
+                Properties metadata = SequencedProperties.ofFolders(inherited.values(), BuildStep.METADATA);
                 sub.addStep("output",
                         new Relocate(new ModularPlacement(metadata.getProperty("version"), project.stageTests())),
                         BuildExecutorModule.PREVIOUS + COLLECT);
@@ -246,7 +246,7 @@ public record Project(
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-            files.forEach((name, file) -> buildExecutor.addSource(name, Bind.asProjectProperties(), file));
+            files.forEach((name, file) -> buildExecutor.addSource(name, Bind.asMetadata(), file));
             if (version != null && !version.isEmpty()) {
                 SequencedMap<String, String> values = new LinkedHashMap<>();
                 values.put("version", version);
@@ -264,7 +264,7 @@ public record Project(
                 throws IOException {
             Properties properties = new SequencedProperties();
             values.forEach(properties::setProperty);
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.PROJECT))) {
+            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
                 properties.store(writer, null);
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));

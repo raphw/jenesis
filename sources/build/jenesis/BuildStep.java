@@ -14,7 +14,7 @@ public interface BuildStep extends Serializable {
             REQUIRES = "requires.properties",
             VERSIONS = "versions.properties",
             MODULE = "module.properties",
-            PROJECT = "project.properties",
+            METADATA = "metadata.properties",
             SCOPES = "scopes.properties";
 
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
