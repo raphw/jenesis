@@ -9,11 +9,11 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
     private final boolean includeTests;
 
     public ModularPlacement() {
-        this(System.getProperty("jenesis.buildVersion"), false);
+        this(null, false);
     }
 
     public ModularPlacement(boolean includeTests) {
-        this(System.getProperty("jenesis.buildVersion"), includeTests);
+        this(null, includeTests);
     }
 
     public ModularPlacement(String version) {
@@ -21,7 +21,7 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
     }
 
     public ModularPlacement(String version, boolean includeTests) {
-        this.version = version == null || version.isEmpty() ? null : version;
+        this.version = version;
         this.includeTests = includeTests;
     }
 

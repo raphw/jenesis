@@ -125,7 +125,26 @@ public record Project(
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new Relocate(new ModularPlacement(project.stageTests())), COLLECT);
+            executor.addModule(STAGE, (sub, inherited) -> {
+                String version = null;
+                for (Path folder : inherited.values()) {
+                    Path metadataFile = folder.resolve(BuildStep.METADATA);
+                    if (Files.isRegularFile(metadataFile)) {
+                        Properties metadata = new SequencedProperties();
+                        try (Reader reader = Files.newBufferedReader(metadataFile)) {
+                            metadata.load(reader);
+                        }
+                        String value = metadata.getProperty("version");
+                        if (value != null) {
+                            version = value;
+                            break;
+                        }
+                    }
+                }
+                sub.addStep("output",
+                        new Relocate(new ModularPlacement(version, project.stageTests())),
+                        BuildExecutorModule.PREVIOUS + COLLECT);
+            }, COLLECT, METADATA);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));

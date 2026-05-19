@@ -17,7 +17,7 @@ public class ModularPlacementTest {
     @TempDir
     private Path root;
 
-    private final ModularPlacement layout = new ModularPlacement(null, false);
+    private final ModularPlacement layout = new ModularPlacement();
 
     @Test
     public void maps_classes_jar_to_module_named_jar() {
@@ -105,9 +105,7 @@ public class ModularPlacementTest {
     }
 
     @Test
-    public void treats_empty_version_as_unset() {
-        assertThat(new ModularPlacement("").apply(Path.of("build.jenesis/classes.jar")))
-                .contains(Path.of("build.jenesis/build.jenesis.jar"));
+    public void null_version_is_treated_as_unset() {
         assertThat(new ModularPlacement(null).apply(Path.of("build.jenesis/classes.jar")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
