@@ -77,20 +77,20 @@ public class ModularPlacementTest {
     }
 
     @Test
-    public void inserts_version_segment_when_version_is_set() throws IOException {
-        ModularPlacement versioned = new ModularPlacement("1.0.0");
+    public void inserts_version_segment_when_metadata_version_is_set() throws IOException {
         SequencedProperties module = properties("module", "build.jenesis");
-        assertThat(versioned.apply(Path.of("module-sources/classes.jar"), module, properties()))
+        SequencedProperties metadata = properties("version", "1.0.0");
+        assertThat(layout.apply(Path.of("module-sources/classes.jar"), module, metadata))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis.jar"));
-        assertThat(versioned.apply(Path.of("module-sources/sources.jar"), module, properties()))
+        assertThat(layout.apply(Path.of("module-sources/sources.jar"), module, metadata))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis-sources.jar"));
-        assertThat(versioned.apply(Path.of("module-sources/javadoc.jar"), module, properties()))
+        assertThat(layout.apply(Path.of("module-sources/javadoc.jar"), module, metadata))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis-javadoc.jar"));
     }
 
     @Test
-    public void null_version_is_treated_as_unset() throws IOException {
-        assertThat(new ModularPlacement(null).apply(Path.of("module-sources/classes.jar"),
+    public void missing_metadata_version_omits_version_segment() throws IOException {
+        assertThat(layout.apply(Path.of("module-sources/classes.jar"),
                 properties("module", "build.jenesis"),
                 properties()))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));

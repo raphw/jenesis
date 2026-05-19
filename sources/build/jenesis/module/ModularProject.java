@@ -213,6 +213,12 @@ public class ModularProject implements BuildExecutorModule {
             if (info.description() != null) {
                 metadata.setProperty("description", info.description());
             }
+            for (BuildStepArgument argument : arguments.values()) {
+                Path upstream = argument.folder().resolve(BuildStep.METADATA);
+                if (Files.isRegularFile(upstream)) {
+                    SequencedProperties.ofFiles(upstream).forEach(metadata::put);
+                }
+            }
             if (!metadata.isEmpty()) {
                 metadata.store(context.next().resolve(BuildStep.METADATA));
             }
@@ -229,11 +235,14 @@ public class ModularProject implements BuildExecutorModule {
                     Path parent = file.getParent(), location = root.relativize(parent);
                     if (filter.test(location)) {
                         String relative = location.toString().replace(File.separatorChar, '/');
-                        buildExecutor.addModule(SIBLING_MODULE_PREFIX + BuildExecutorModule.encode(relative), (module, _) -> {
+                        buildExecutor.addModule(SIBLING_MODULE_PREFIX + BuildExecutorModule.encode(relative), (module, modInherited) -> {
                             module.addSource("sources", Bind.asSources(), parent);
-                            module.addStep(MANIFESTS, new Manifests(prefix, relative), "sources");
+                            SequencedSet<String> manifestDeps = new LinkedHashSet<>();
+                            manifestDeps.add("sources");
+                            manifestDeps.addAll(modInherited.sequencedKeySet());
+                            module.addStep(MANIFESTS, new Manifests(prefix, relative), manifestDeps);
                             module.addStep(COORDINATES, new Coordinates(prefix), MANIFESTS);
-                        });
+                        }, inherited.sequencedKeySet().stream());
                     }
                 }
                 return FileVisitResult.CONTINUE;

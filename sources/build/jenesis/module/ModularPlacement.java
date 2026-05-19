@@ -6,23 +6,13 @@ import build.jenesis.step.FilePlacement;
 
 public class ModularPlacement implements FilePlacement {
 
-    private final String version;
     private final boolean includeTests;
 
     public ModularPlacement() {
-        this(null, false);
+        this(false);
     }
 
     public ModularPlacement(boolean includeTests) {
-        this(null, includeTests);
-    }
-
-    public ModularPlacement(String version) {
-        this(version, false);
-    }
-
-    public ModularPlacement(String version, boolean includeTests) {
-        this.version = version;
         this.includeTests = includeTests;
     }
 
@@ -46,6 +36,7 @@ public class ModularPlacement implements FilePlacement {
         if (moduleName == null) {
             throw new IllegalStateException("Missing 'module' property in module.properties for " + file);
         }
+        String version = metadata.getProperty("version");
         if (version != null) {
             return Optional.of(Path.of(moduleName, version, moduleName + suffix));
         }

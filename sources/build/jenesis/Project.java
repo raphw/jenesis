@@ -51,7 +51,7 @@ public record Project(
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, project, assembler) -> {
-            MetadataModule.register(executor, project);
+            executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
                 SequencedSet<String> mavenDeps = new LinkedHashSet<>();
@@ -78,7 +78,7 @@ public record Project(
         };
 
         Layout MODULAR = (executor, project, assembler) -> {
-            MetadataModule.register(executor, project);
+            executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             executor.addStep("download", new DownloadModuleUris());
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(Repository.ofProperties(
@@ -108,12 +108,9 @@ public record Project(
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
-            executor.addModule(STAGE, (sub, inherited) -> {
-                SequencedProperties metadata = SequencedProperties.ofFolders(inherited.values(), BuildStep.METADATA);
-                sub.addStep("output",
-                        new Relocate(new ModularPlacement(metadata.getProperty("version"), project.stageTests())),
-                        BuildExecutorModule.PREVIOUS + COLLECT);
-            }, COLLECT, METADATA);
+            executor.addStep(STAGE,
+                    new Relocate(new ModularPlacement(project.stageTests())),
+                    COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
@@ -123,8 +120,8 @@ public record Project(
         };
 
         Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
+            executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MavenPomResolver resolver = new MavenPomResolver();
-            MetadataModule.register(executor, project);
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, inherited) -> {
@@ -211,7 +208,7 @@ public record Project(
             this.version = version;
         }
 
-        static void register(BuildExecutor executor, Project project) {
+        static BuildExecutorModule toMetadataModule(Project project) {
             Path root = project.root().toAbsolutePath().normalize();
             SequencedMap<String, Path> files = new LinkedHashMap<>();
             for (Path file : project.metadata()) {
@@ -219,7 +216,7 @@ public record Project(
                 Path relative = root.relativize(absolute);
                 files.put(METADATA + "-" + BuildExecutorModule.encode(relative.toString()), relative);
             }
-            executor.addModule(METADATA, new MetadataModule(files, project.version()));
+            return new MetadataModule(files, project.version());
         }
 
         @Override
