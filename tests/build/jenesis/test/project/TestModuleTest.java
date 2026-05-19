@@ -79,7 +79,11 @@ public class TestModuleTest {
                 "test",
                 new TestModule(null,
                         candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
                         Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
@@ -101,7 +105,11 @@ public class TestModuleTest {
                 "test",
                 new TestModule(null,
                         candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
                         Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
                 "dependencies", "classes");
         executor.execute();
@@ -123,7 +131,11 @@ public class TestModuleTest {
                 "test",
                 new TestModule(new JUnit5(),
                         candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
                         Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
@@ -144,7 +156,11 @@ public class TestModuleTest {
         executor.addModule(
                 "test",
                 new TestModule(new JUnit5(),
-                        Map.of("maven", new MavenDefaultRepository()),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
                         Map.of("maven", new MavenPomResolver())).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();

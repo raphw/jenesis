@@ -54,7 +54,7 @@ public class RepositoryTest {
     @Test
     public void ofUris_without_version_resolver_does_not_attempt_fallback() throws IOException {
         URI bare = URI.create("https://example.test/other/foo.jar");
-        Repository repository = Repository.ofUris(Map.of("foo", bare));
+        Repository repository = Repository.ofUris(Map.of("foo", bare), null, _ -> {});
         assertThat(repository.fetch(Runnable::run, "foo/9.9")).isEmpty();
     }
 
@@ -62,7 +62,8 @@ public class RepositoryTest {
     public void ofUris_with_version_resolver_falls_back_via_supplied_substitution() throws IOException {
         URI bare = URI.create("https://example.test/other/foo.jar");
         Repository repository = Repository.ofUris(Map.of("foo", bare),
-                (BiFunction<URI, String, Optional<URI>> & Serializable) (uri, _) -> Optional.of(uri));
+                (BiFunction<URI, String, Optional<URI>> & Serializable) (uri, _) -> Optional.of(uri),
+                _ -> {});
         Optional<RepositoryItem> item = repository.fetch(Runnable::run, "foo/9.9");
         assertThat(item).isPresent();
     }

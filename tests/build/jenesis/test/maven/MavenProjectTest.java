@@ -30,7 +30,8 @@ public class MavenProjectTest {
     public void setUp() throws Exception {
         mavenRepository = new MavenDefaultRepository(repository.toUri(),
                 null,
-                Map.of());
+                Map.of(),
+                _ -> {});
         mavenPomResolver = new MavenPomResolver(MavenDefaultVersionNegotiator.maven());
     }
 
@@ -492,7 +493,7 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         root.addModule("maven", MavenProject.make(project,
                 "maven",
-                new MavenDefaultRepository(repository.toUri(), null, Map.of()),
+                new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {}),
                 new MavenPomResolver(),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {

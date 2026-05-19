@@ -3,6 +3,9 @@ package build.jenesis.test;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildStepHashFunction;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.Project;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
@@ -172,7 +175,13 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Project project = new Project().root(root).target(target);
         Function<String, String> resolver = Project.Layout.MAVEN.apply(
-                BuildExecutor.of(target), project, new JavaMultiProjectAssembler());
+                BuildExecutor.of(target,
+                        Duration.ZERO,
+                        new HashDigestFunction("MD5"),
+                        BuildStepHashFunction.ofSerializationDigest("MD5"),
+                        BuildExecutorCallback.nop()),
+                project,
+                new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-");
     }
@@ -182,7 +191,13 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Project project = new Project().root(root).target(target);
         Function<String, String> resolver = Project.Layout.MODULAR.apply(
-                BuildExecutor.of(target), project, new JavaMultiProjectAssembler());
+                BuildExecutor.of(target,
+                        Duration.ZERO,
+                        new HashDigestFunction("MD5"),
+                        BuildStepHashFunction.ofSerializationDigest("MD5"),
+                        BuildExecutorCallback.nop()),
+                project,
+                new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
@@ -192,7 +207,13 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Project project = new Project().root(root).target(target);
         Function<String, String> resolver = Project.Layout.MODULAR_TO_MAVEN.apply(
-                BuildExecutor.of(target), project, new JavaMultiProjectAssembler());
+                BuildExecutor.of(target,
+                        Duration.ZERO,
+                        new HashDigestFunction("MD5"),
+                        BuildStepHashFunction.ofSerializationDigest("MD5"),
+                        BuildExecutorCallback.nop()),
+                project,
+                new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
