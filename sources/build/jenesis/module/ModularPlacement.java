@@ -45,12 +45,8 @@ public class ModularPlacement implements FilePlacement {
         }
         String moduleName = metadata.getProperty("module");
         if (moduleName == null) {
-            Path parent = file.getParent();
-            Path dir = parent == null ? null : parent.getFileName();
-            if (dir == null) {
-                return Optional.empty();
-            }
-            moduleName = dir.toString();
+            throw new IllegalStateException(
+                    "Missing 'module' property in metadata for " + file);
         }
         if (version != null) {
             return Optional.of(Path.of(moduleName, version, moduleName + suffix));

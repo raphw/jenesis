@@ -2,6 +2,7 @@ package build.jenesis.test.module;
 
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
@@ -10,6 +11,7 @@ import build.jenesis.module.ModularPlacement;
 import build.jenesis.step.Relocate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ModularPlacementTest {
 
@@ -28,19 +30,19 @@ public class ModularPlacementTest {
 
     @Test
     public void maps_classes_jar_to_module_named_jar() throws IOException {
-        assertThat(layout.apply(Path.of("build.jenesis/classes.jar"), metadata()))
+        assertThat(layout.apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
     @Test
     public void maps_sources_jar_to_module_named_sources_jar() throws IOException {
-        assertThat(layout.apply(Path.of("build.jenesis/sources.jar"), metadata()))
+        assertThat(layout.apply(Path.of("module-sources/sources.jar"), metadata("module", "build.jenesis")))
                 .contains(Path.of("build.jenesis/build.jenesis-sources.jar"));
     }
 
     @Test
     public void maps_javadoc_jar_to_module_named_javadoc_jar() throws IOException {
-        assertThat(layout.apply(Path.of("build.jenesis/javadoc.jar"), metadata()))
+        assertThat(layout.apply(Path.of("module-sources/javadoc.jar"), metadata("module", "build.jenesis")))
                 .contains(Path.of("build.jenesis/build.jenesis-javadoc.jar"));
     }
 
@@ -56,32 +58,18 @@ public class ModularPlacementTest {
     }
 
     @Test
-    public void returns_empty_when_file_has_no_parent_directory() throws IOException {
-        assertThat(layout.apply(Path.of("classes.jar"), metadata())).isEmpty();
+    public void throws_when_module_property_is_missing() {
+        assertThatThrownBy(() -> layout.apply(Path.of("module-sources/classes.jar"), metadata()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing 'module' property");
     }
 
     @Test
-    public void falls_back_to_immediate_parent_directory_when_metadata_is_absent() throws IOException {
-        assertThat(layout.apply(Path.of("collect/output/com.example.foo/classes.jar"), metadata()))
-                .contains(Path.of("com.example.foo/com.example.foo.jar"));
-    }
-
-    @Test
-    public void uses_module_from_metadata() throws IOException {
-        Properties module = metadata("module", "build.jenesis");
-        assertThat(layout.apply(Path.of("module-sources/classes.jar"), module))
-                .contains(Path.of("build.jenesis/build.jenesis.jar"));
-        assertThat(layout.apply(Path.of("module-sources/sources.jar"), module))
-                .contains(Path.of("build.jenesis/build.jenesis-sources.jar"));
-        assertThat(layout.apply(Path.of("module-sources/javadoc.jar"), module))
-                .contains(Path.of("build.jenesis/build.jenesis-javadoc.jar"));
-    }
-
-    @Test
-    public void falls_back_when_metadata_lacks_module() throws IOException {
+    public void throws_when_metadata_only_has_unrelated_keys() {
         Properties metadata = metadata("name", "Sample");
-        assertThat(layout.apply(Path.of("module-sources/classes.jar"), metadata))
-                .contains(Path.of("module-sources/module-sources.jar"));
+        assertThatThrownBy(() -> layout.apply(Path.of("module-sources/classes.jar"), metadata))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing 'module' property");
     }
 
     @Test
@@ -92,24 +80,18 @@ public class ModularPlacementTest {
     @Test
     public void inserts_version_segment_when_version_is_set() throws IOException {
         ModularPlacement versioned = new ModularPlacement("1.0.0");
-        assertThat(versioned.apply(Path.of("build.jenesis/classes.jar"), metadata()))
+        Properties metadata = metadata("module", "build.jenesis");
+        assertThat(versioned.apply(Path.of("module-sources/classes.jar"), metadata))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis.jar"));
-        assertThat(versioned.apply(Path.of("build.jenesis/sources.jar"), metadata()))
+        assertThat(versioned.apply(Path.of("module-sources/sources.jar"), metadata))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis-sources.jar"));
-        assertThat(versioned.apply(Path.of("build.jenesis/javadoc.jar"), metadata()))
+        assertThat(versioned.apply(Path.of("module-sources/javadoc.jar"), metadata))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis-javadoc.jar"));
     }
 
     @Test
-    public void inserts_version_segment_with_module_name_from_metadata() throws IOException {
-        ModularPlacement versioned = new ModularPlacement("2.5.1");
-        assertThat(versioned.apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
-                .contains(Path.of("build.jenesis/2.5.1/build.jenesis.jar"));
-    }
-
-    @Test
     public void null_version_is_treated_as_unset() throws IOException {
-        assertThat(new ModularPlacement(null).apply(Path.of("build.jenesis/classes.jar"), metadata()))
+        assertThat(new ModularPlacement(null).apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
@@ -146,7 +128,7 @@ public class ModularPlacementTest {
             restored = ois.readObject();
         }
         assertThat(restored).isInstanceOf(ModularPlacement.class);
-        assertThat(((ModularPlacement) restored).apply(Path.of("build.jenesis/classes.jar"), metadata()))
+        assertThat(((ModularPlacement) restored).apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
@@ -158,6 +140,7 @@ public class ModularPlacementTest {
         Files.writeString(module.resolve("sources.jar"), "sources-bytes");
         Files.writeString(module.resolve("javadoc.jar"), "javadoc-bytes");
         Files.writeString(module.resolve("readme.txt"), "ignored");
+        Files.writeString(module.resolve(BuildStep.MODULE), "module=build.jenesis\n");
 
         Path next = Files.createDirectory(root.resolve("next"));
         Path supplement = Files.createDirectory(root.resolve("supplement"));
@@ -186,8 +169,10 @@ public class ModularPlacementTest {
         Path source = Files.createDirectory(root.resolve("source"));
         Path moduleA = Files.createDirectory(source.resolve("com.example.foo"));
         Files.writeString(moduleA.resolve("classes.jar"), "foo-bytes");
+        Files.writeString(moduleA.resolve(BuildStep.MODULE), "module=com.example.foo\n");
         Path moduleB = Files.createDirectory(source.resolve("com.example.bar"));
         Files.writeString(moduleB.resolve("classes.jar"), "bar-bytes");
+        Files.writeString(moduleB.resolve(BuildStep.MODULE), "module=com.example.bar\n");
 
         Path next = Files.createDirectory(root.resolve("next"));
         Path supplement = Files.createDirectory(root.resolve("supplement"));
