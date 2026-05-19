@@ -69,6 +69,9 @@ public class DockerizedJavaTest {
     }
 
     static boolean dockerAvailable() {
+        if (System.getProperty("os.name", "").toLowerCase().contains("win")) {
+            return false;
+        }
         try {
             Process process = new ProcessBuilder("docker", "info")
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
