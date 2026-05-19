@@ -3,6 +3,7 @@ package build.jenesis.maven;
 import module java.base;
 import module java.xml;
 import build.jenesis.BuildStep;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Export;
 import build.jenesis.step.FilePlacement;
 
@@ -21,7 +22,7 @@ public class MavenRepositoryPlacement implements FilePlacement {
     }
 
     @Override
-    public Optional<Path> apply(Path file, Properties metadata) throws IOException {
+    public Optional<Path> apply(Path file, SequencedProperties module, SequencedProperties metadata) throws IOException {
         Path filename = file.getFileName();
         if (filename == null) {
             return Optional.empty();
@@ -30,7 +31,7 @@ public class MavenRepositoryPlacement implements FilePlacement {
         if (parent == null) {
             return Optional.empty();
         }
-        boolean test = metadata.getProperty("tests") != null;
+        boolean test = module.getProperty("tests") != null;
         String suffix = switch (filename.toString()) {
             case "classes.jar" -> test ? "-tests.jar" : ".jar";
             case "sources.jar" -> test ? "-tests-sources.jar" : "-sources.jar";

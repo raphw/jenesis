@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularPlacement;
 import build.jenesis.step.Relocate;
 
@@ -20,8 +21,8 @@ public class ModularPlacementTest {
 
     private final ModularPlacement layout = new ModularPlacement();
 
-    private static Properties metadata(String... pairs) {
-        Properties properties = new Properties();
+    private static SequencedProperties properties(String... pairs) {
+        SequencedProperties properties = new SequencedProperties();
         for (int i = 0; i < pairs.length; i += 2) {
             properties.setProperty(pairs[i], pairs[i + 1]);
         }
@@ -30,88 +31,88 @@ public class ModularPlacementTest {
 
     @Test
     public void maps_classes_jar_to_module_named_jar() throws IOException {
-        assertThat(layout.apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
+        assertThat(layout.apply(Path.of("module-sources/classes.jar"),
+                properties("module", "build.jenesis"),
+                properties()))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
     @Test
     public void maps_sources_jar_to_module_named_sources_jar() throws IOException {
-        assertThat(layout.apply(Path.of("module-sources/sources.jar"), metadata("module", "build.jenesis")))
+        assertThat(layout.apply(Path.of("module-sources/sources.jar"),
+                properties("module", "build.jenesis"),
+                properties()))
                 .contains(Path.of("build.jenesis/build.jenesis-sources.jar"));
     }
 
     @Test
     public void maps_javadoc_jar_to_module_named_javadoc_jar() throws IOException {
-        assertThat(layout.apply(Path.of("module-sources/javadoc.jar"), metadata("module", "build.jenesis")))
+        assertThat(layout.apply(Path.of("module-sources/javadoc.jar"),
+                properties("module", "build.jenesis"),
+                properties()))
                 .contains(Path.of("build.jenesis/build.jenesis-javadoc.jar"));
     }
 
     @Test
     public void returns_empty_for_pom_xml() throws IOException {
-        assertThat(layout.apply(Path.of("build.jenesis/pom.xml"), metadata())).isEmpty();
+        assertThat(layout.apply(Path.of("build.jenesis/pom.xml"), properties(), properties())).isEmpty();
     }
 
     @Test
     public void returns_empty_for_unknown_filenames() throws IOException {
-        assertThat(layout.apply(Path.of("build.jenesis/readme.txt"), metadata())).isEmpty();
-        assertThat(layout.apply(Path.of("build.jenesis/random.dat"), metadata())).isEmpty();
+        assertThat(layout.apply(Path.of("build.jenesis/readme.txt"), properties(), properties())).isEmpty();
+        assertThat(layout.apply(Path.of("build.jenesis/random.dat"), properties(), properties())).isEmpty();
     }
 
     @Test
     public void throws_when_module_property_is_missing() {
-        assertThatThrownBy(() -> layout.apply(Path.of("module-sources/classes.jar"), metadata()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Missing 'module' property");
-    }
-
-    @Test
-    public void throws_when_metadata_only_has_unrelated_keys() {
-        Properties metadata = metadata("name", "Sample");
-        assertThatThrownBy(() -> layout.apply(Path.of("module-sources/classes.jar"), metadata))
+        assertThatThrownBy(() -> layout.apply(Path.of("module-sources/classes.jar"), properties(), properties()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing 'module' property");
     }
 
     @Test
     public void filters_out_module_properties_itself_so_it_is_not_staged() throws IOException {
-        assertThat(layout.apply(Path.of("build.jenesis/module.properties"), metadata())).isEmpty();
+        assertThat(layout.apply(Path.of("build.jenesis/module.properties"), properties(), properties())).isEmpty();
     }
 
     @Test
     public void inserts_version_segment_when_version_is_set() throws IOException {
         ModularPlacement versioned = new ModularPlacement("1.0.0");
-        Properties metadata = metadata("module", "build.jenesis");
-        assertThat(versioned.apply(Path.of("module-sources/classes.jar"), metadata))
+        SequencedProperties module = properties("module", "build.jenesis");
+        assertThat(versioned.apply(Path.of("module-sources/classes.jar"), module, properties()))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis.jar"));
-        assertThat(versioned.apply(Path.of("module-sources/sources.jar"), metadata))
+        assertThat(versioned.apply(Path.of("module-sources/sources.jar"), module, properties()))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis-sources.jar"));
-        assertThat(versioned.apply(Path.of("module-sources/javadoc.jar"), metadata))
+        assertThat(versioned.apply(Path.of("module-sources/javadoc.jar"), module, properties()))
                 .contains(Path.of("build.jenesis/1.0.0/build.jenesis-javadoc.jar"));
     }
 
     @Test
     public void null_version_is_treated_as_unset() throws IOException {
-        assertThat(new ModularPlacement(null).apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
+        assertThat(new ModularPlacement(null).apply(Path.of("module-sources/classes.jar"),
+                properties("module", "build.jenesis"),
+                properties()))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 
     @Test
     public void default_omits_files_from_test_modules() throws IOException {
-        Properties metadata = metadata("module", "foo.test", "tests", "foo");
-        assertThat(layout.apply(Path.of("module-test/classes.jar"), metadata)).isEmpty();
-        assertThat(layout.apply(Path.of("module-test/sources.jar"), metadata)).isEmpty();
-        assertThat(layout.apply(Path.of("module-test/javadoc.jar"), metadata)).isEmpty();
+        SequencedProperties module = properties("module", "foo.test", "tests", "foo");
+        assertThat(layout.apply(Path.of("module-test/classes.jar"), module, properties())).isEmpty();
+        assertThat(layout.apply(Path.of("module-test/sources.jar"), module, properties())).isEmpty();
+        assertThat(layout.apply(Path.of("module-test/javadoc.jar"), module, properties())).isEmpty();
     }
 
     @Test
     public void include_tests_emits_test_module_files_under_their_module_name() throws IOException {
         ModularPlacement layoutWithTests = new ModularPlacement(true);
-        Properties metadata = metadata("module", "foo.test", "tests", "foo");
-        assertThat(layoutWithTests.apply(Path.of("module-test/classes.jar"), metadata))
+        SequencedProperties module = properties("module", "foo.test", "tests", "foo");
+        assertThat(layoutWithTests.apply(Path.of("module-test/classes.jar"), module, properties()))
                 .contains(Path.of("foo.test/foo.test.jar"));
-        assertThat(layoutWithTests.apply(Path.of("module-test/sources.jar"), metadata))
+        assertThat(layoutWithTests.apply(Path.of("module-test/sources.jar"), module, properties()))
                 .contains(Path.of("foo.test/foo.test-sources.jar"));
-        assertThat(layoutWithTests.apply(Path.of("module-test/javadoc.jar"), metadata))
+        assertThat(layoutWithTests.apply(Path.of("module-test/javadoc.jar"), module, properties()))
                 .contains(Path.of("foo.test/foo.test-javadoc.jar"));
     }
 
@@ -128,7 +129,9 @@ public class ModularPlacementTest {
             restored = ois.readObject();
         }
         assertThat(restored).isInstanceOf(ModularPlacement.class);
-        assertThat(((ModularPlacement) restored).apply(Path.of("module-sources/classes.jar"), metadata("module", "build.jenesis")))
+        assertThat(((ModularPlacement) restored).apply(Path.of("module-sources/classes.jar"),
+                properties("module", "build.jenesis"),
+                properties()))
                 .contains(Path.of("build.jenesis/build.jenesis.jar"));
     }
 

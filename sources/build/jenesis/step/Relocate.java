@@ -55,19 +55,20 @@ public class Relocate implements BuildStep {
                 Files.walkFileTree(root, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        Properties metadata = new SequencedProperties();
+                        SequencedProperties module = new SequencedProperties();
+                        SequencedProperties metadata = new SequencedProperties();
                         Path parent = file.getParent();
                         if (parent != null) {
                             Path moduleFile = parent.resolve(BuildStep.MODULE);
                             if (Files.isRegularFile(moduleFile)) {
-                                metadata.putAll(SequencedProperties.ofFiles(moduleFile));
+                                module.putAll(SequencedProperties.ofFiles(moduleFile));
                             }
                             Path metadataFile = parent.resolve(BuildStep.METADATA);
                             if (Files.isRegularFile(metadataFile)) {
                                 metadata.putAll(SequencedProperties.ofFiles(metadataFile));
                             }
                         }
-                        Optional<Path> target = placement.apply(file, metadata);
+                        Optional<Path> target = placement.apply(file, module, metadata);
                         if (target.isPresent()) {
                             Path resolved = context.next().resolve(target.get());
                             Path resolvedParent = resolved.getParent();

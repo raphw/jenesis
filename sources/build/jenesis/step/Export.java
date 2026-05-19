@@ -44,19 +44,20 @@ public class Export implements BuildStep {
             Files.walkFileTree(folder, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    Properties metadata = new SequencedProperties();
+                    SequencedProperties module = new SequencedProperties();
+                    SequencedProperties metadata = new SequencedProperties();
                     Path parent = file.getParent();
                     if (parent != null) {
                         Path moduleFile = parent.resolve(BuildStep.MODULE);
                         if (Files.isRegularFile(moduleFile)) {
-                            metadata.putAll(SequencedProperties.ofFiles(moduleFile));
+                            module.putAll(SequencedProperties.ofFiles(moduleFile));
                         }
                         Path metadataFile = parent.resolve(BuildStep.METADATA);
                         if (Files.isRegularFile(metadataFile)) {
                             metadata.putAll(SequencedProperties.ofFiles(metadataFile));
                         }
                     }
-                    Optional<Path> sub = placement.apply(file, metadata);
+                    Optional<Path> sub = placement.apply(file, module, metadata);
                     if (sub.isPresent()) {
                         Path destination = target.resolve(sub.get());
                         Path destinationParent = destination.getParent();

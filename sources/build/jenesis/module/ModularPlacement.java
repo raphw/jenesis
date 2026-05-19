@@ -1,6 +1,7 @@
 package build.jenesis.module;
 
 import module java.base;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.FilePlacement;
 
 public class ModularPlacement implements FilePlacement {
@@ -26,7 +27,7 @@ public class ModularPlacement implements FilePlacement {
     }
 
     @Override
-    public Optional<Path> apply(Path file, Properties metadata) throws IOException {
+    public Optional<Path> apply(Path file, SequencedProperties module, SequencedProperties metadata) throws IOException {
         Path filename = file.getFileName();
         if (filename == null) {
             return Optional.empty();
@@ -40,13 +41,13 @@ public class ModularPlacement implements FilePlacement {
         if (suffix == null) {
             return Optional.empty();
         }
-        if (!includeTests && metadata.getProperty("tests") != null) {
+        if (!includeTests && module.getProperty("tests") != null) {
             return Optional.empty();
         }
-        String moduleName = metadata.getProperty("module");
+        String moduleName = module.getProperty("module");
         if (moduleName == null) {
             throw new IllegalStateException(
-                    "Missing 'module' property in metadata for " + file);
+                    "Missing 'module' property in module.properties for " + file);
         }
         if (version != null) {
             return Optional.of(Path.of(moduleName, version, moduleName + suffix));

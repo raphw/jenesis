@@ -317,11 +317,12 @@ public class ModularProjectTest {
         Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");
         Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
         Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        Properties metadata = new Properties();
-        assertThat(placement.apply(classes, metadata)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(sources, metadata)).contains(Path.of("module-foo", "sources.jar"));
-        assertThat(placement.apply(javadoc, metadata)).contains(Path.of("module-foo", "javadoc.jar"));
-        assertThat(placement.apply(pom, metadata)).isEmpty();
-        assertThat(placement.apply(other, metadata)).isEmpty();
+        SequencedProperties module = new SequencedProperties();
+        SequencedProperties metadata = new SequencedProperties();
+        assertThat(placement.apply(classes, module, metadata)).contains(Path.of("module-foo", "classes.jar"));
+        assertThat(placement.apply(sources, module, metadata)).contains(Path.of("module-foo", "sources.jar"));
+        assertThat(placement.apply(javadoc, module, metadata)).contains(Path.of("module-foo", "javadoc.jar"));
+        assertThat(placement.apply(pom, module, metadata)).isEmpty();
+        assertThat(placement.apply(other, module, metadata)).isEmpty();
     }
 }

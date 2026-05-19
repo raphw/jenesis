@@ -41,7 +41,7 @@ public class MultiProjectModule implements BuildExecutorModule {
 
     public static FilePlacement linkBySubModule(String... names) {
         Set<String> allowed = Set.of(names);
-        return (file, metadata) -> {
+        return (file, module, metadata) -> {
             Path filename = file.getFileName();
             if (filename == null || !allowed.contains(filename.toString())) {
                 return Optional.empty();

@@ -30,7 +30,7 @@ public class ExportTest {
         Files.writeString(source.resolve("kept.jar"), "kept");
         Files.writeString(source.resolve("ignored.txt"), "ignored");
 
-        Export export = new Export(target, (file, metadata) -> {
+        Export export = new Export(target, (file, module, metadata) -> {
             String name = file.getFileName().toString();
             return name.endsWith(".jar")
                     ? Optional.of(Path.of("staged", name))
@@ -54,7 +54,7 @@ public class ExportTest {
         Files.writeString(target.resolve("artifact.jar"), "stale");
 
         Export export = new Export(target,
-                (file, metadata) -> Optional.of(Path.of(file.getFileName().toString())));
+                (file, module, metadata) -> Optional.of(Path.of(file.getFileName().toString())));
         export.apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
@@ -67,7 +67,7 @@ public class ExportTest {
 
     @Test
     public void should_run_returns_true() {
-        Export export = new Export(target, (_, _) -> Optional.empty());
+        Export export = new Export(target, (_, _, _) -> Optional.empty());
         assertThat(export.shouldRun(new LinkedHashMap<>())).isTrue();
     }
 
@@ -77,7 +77,7 @@ public class ExportTest {
 
         Path marker = root.resolve("finalizer-called.txt");
         Export export = new Export(target,
-                (file, metadata) -> Optional.of(Path.of(file.getFileName().toString())),
+                (file, module, metadata) -> Optional.of(Path.of(file.getFileName().toString())),
                 (Consumer<Path> & Serializable) (received -> {
                     try {
                         Files.writeString(marker, received.toString());
@@ -101,7 +101,7 @@ public class ExportTest {
         Path absentTarget = root.resolve("missing");
         AtomicBoolean called = new AtomicBoolean();
         Export export = new Export(absentTarget,
-                (_, _) -> Optional.empty(),
+                (_, _, _) -> Optional.empty(),
                 (Consumer<Path> & Serializable) (_ -> called.set(true)));
         export.apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
