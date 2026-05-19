@@ -30,10 +30,7 @@ public class MultiProjectDependencies implements BuildStep {
                 Path scopesFile = entry.getValue().folder().resolve(SCOPES);
                 Set<String> filtered = new LinkedHashSet<>();
                 if (Files.exists(scopesFile)) {
-                    Properties scopesProperties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(scopesFile)) {
-                        scopesProperties.load(reader);
-                    }
+                    SequencedProperties scopesProperties = SequencedProperties.ofFiles(scopesFile);
                     for (String property : scopesProperties.stringPropertyNames()) {
                         if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope.name())) {
                             filtered.add(property);
@@ -42,7 +39,7 @@ public class MultiProjectDependencies implements BuildStep {
                 }
                 Path requiresPath = entry.getValue().folder().resolve(REQUIRES);
                 if (Files.exists(requiresPath)) {
-                    Properties properties = SequencedProperties.ofFiles(requiresPath);
+                    SequencedProperties properties = SequencedProperties.ofFiles(requiresPath);
                     properties.stringPropertyNames().forEach(property -> {
                         if (filtered.isEmpty() || filtered.contains(property)) {
                             dependencies.put(property, properties.getProperty(property));
@@ -51,7 +48,7 @@ public class MultiProjectDependencies implements BuildStep {
                 }
                 Path versionsPath = entry.getValue().folder().resolve(VERSIONS);
                 if (Files.exists(versionsPath)) {
-                    Properties properties = SequencedProperties.ofFiles(versionsPath);
+                    SequencedProperties properties = SequencedProperties.ofFiles(versionsPath);
                     properties.stringPropertyNames().forEach(property -> versions.putIfAbsent(
                             property,
                             properties.getProperty(property)));
@@ -59,7 +56,7 @@ public class MultiProjectDependencies implements BuildStep {
             } else {
                 Path file = entry.getValue().folder().resolve(IDENTITY);
                 if (Files.exists(file)) {
-                    Properties properties = SequencedProperties.ofFiles(file);
+                    SequencedProperties properties = SequencedProperties.ofFiles(file);
                     Path folder = entry.getValue().folder();
                     for (String property : properties.stringPropertyNames()) {
                         String value = properties.getProperty(property);
@@ -71,21 +68,17 @@ public class MultiProjectDependencies implements BuildStep {
                 }
             }
         }
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         for (Map.Entry<String, String> entry : dependencies.entrySet()) {
             String candidate = coordinates.get(entry.getKey());
             properties.setProperty(entry.getKey(),
                     candidate != null && !candidate.isEmpty() ? "" : entry.getValue());
         }
-        try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(context.next().resolve(REQUIRES));
         if (!versions.isEmpty()) {
-            Properties versionProperties = new SequencedProperties();
+            SequencedProperties versionProperties = new SequencedProperties();
             versions.forEach(versionProperties::setProperty);
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(VERSIONS))) {
-                versionProperties.store(writer, null);
-            }
+            versionProperties.store(context.next().resolve(VERSIONS));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

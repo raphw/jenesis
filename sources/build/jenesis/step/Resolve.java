@@ -22,13 +22,13 @@ public class Resolve implements DependencyProcessingBuildStep {
     }
 
     @Override
-    public CompletionStage<Properties> transform(Executor executor,
-                                                 BuildStepContext context,
-                                                 SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, SequencedMap<String, String>> groups,
-                                                 SequencedMap<String, SequencedMap<String, String>> versions)
+    public CompletionStage<SequencedProperties> transform(Executor executor,
+                                                          BuildStepContext context,
+                                                          SequencedMap<String, BuildStepArgument> arguments,
+                                                          SequencedMap<String, SequencedMap<String, String>> groups,
+                                                          SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             for (Map.Entry<String, String> entry : requireNonNull(
                     resolvers.get(group.getKey()),

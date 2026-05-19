@@ -8,6 +8,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.ModuleDescriptor;
@@ -26,7 +27,7 @@ public class JavaMultiProjectAssemblerTest {
     public void main_in_module_properties_yields_main_class_argument_for_jar() throws IOException {
         Fixture fixture = setUp("main=com.example.Entry\n", false, false, false);
         Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
-        Properties jarArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jar.properties"));
+        SequencedProperties jarArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jar.properties"));
         assertThat(jarArguments.getProperty("--main-class")).isEqualTo("com.example.Entry");
     }
 
@@ -172,12 +173,8 @@ public class JavaMultiProjectAssemblerTest {
         }
     }
 
-    private static Properties readProperties(Path path) throws IOException {
+    private static SequencedProperties readProperties(Path path) throws IOException {
         assertThat(path).exists();
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(path)) {
-            properties.load(reader);
-        }
-        return properties;
+        return SequencedProperties.ofFiles(path);
     }
 }

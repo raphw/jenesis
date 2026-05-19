@@ -27,10 +27,7 @@ public interface DependencyProcessingBuildStep extends BuildStep {
                 if (!Files.exists(file)) {
                     continue;
                 }
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(file)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String property : properties.stringPropertyNames()) {
                     int index = property.indexOf('/');
                     source.getValue().computeIfAbsent(property.substring(0, index), _ -> new LinkedHashMap<>()).merge(
@@ -40,19 +37,19 @@ public interface DependencyProcessingBuildStep extends BuildStep {
                 }
             }
         }
-        CompletionStage<Properties> requiresStage = transform(executor, context, arguments, groups, versions);
-        CompletionStage<Properties> versionsStage = transformVersions(executor, context, arguments, versions);
+        CompletionStage<SequencedProperties> requiresStage = transform(executor, context, arguments, groups, versions);
+        CompletionStage<SequencedProperties> versionsStage = transformVersions(executor, context, arguments, versions);
         return requiresStage.thenCombineAsync(versionsStage, (requiresProperties, versionsProperties) -> {
             if (requiresProperties != null) {
-                try (Writer writer = Files.newBufferedWriter(context.next().resolve(REQUIRES))) {
-                    requiresProperties.store(writer, null);
+                try {
+                    requiresProperties.store(context.next().resolve(REQUIRES));
                 } catch (IOException e) {
                     throw new CompletionException(e);
                 }
             }
             if (versionsProperties != null) {
-                try (Writer writer = Files.newBufferedWriter(context.next().resolve(VERSIONS))) {
-                    versionsProperties.store(writer, null);
+                try {
+                    versionsProperties.store(context.next().resolve(VERSIONS));
                 } catch (IOException e) {
                     throw new CompletionException(e);
                 }
@@ -61,16 +58,16 @@ public interface DependencyProcessingBuildStep extends BuildStep {
         }, executor);
     }
 
-    CompletionStage<Properties> transform(Executor executor,
-                                          BuildStepContext context,
-                                          SequencedMap<String, BuildStepArgument> arguments,
-                                          SequencedMap<String, SequencedMap<String, String>> groups,
-                                          SequencedMap<String, SequencedMap<String, String>> versions) throws IOException;
+    CompletionStage<SequencedProperties> transform(Executor executor,
+                                                   BuildStepContext context,
+                                                   SequencedMap<String, BuildStepArgument> arguments,
+                                                   SequencedMap<String, SequencedMap<String, String>> groups,
+                                                   SequencedMap<String, SequencedMap<String, String>> versions) throws IOException;
 
-    default CompletionStage<Properties> transformVersions(Executor executor,
-                                                          BuildStepContext context,
-                                                          SequencedMap<String, BuildStepArgument> arguments,
-                                                          SequencedMap<String, SequencedMap<String, String>> versions)
+    default CompletionStage<SequencedProperties> transformVersions(Executor executor,
+                                                                   BuildStepContext context,
+                                                                   SequencedMap<String, BuildStepArgument> arguments,
+                                                                   SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         return CompletableFuture.completedStage(null);
     }

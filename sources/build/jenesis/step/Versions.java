@@ -21,10 +21,7 @@ public class Versions implements BuildStep {
             if (!Files.exists(requires)) {
                 continue;
             }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(requires)) {
-                properties.load(reader);
-            }
+            SequencedProperties properties = SequencedProperties.ofFiles(requires);
             for (String property : properties.stringPropertyNames()) {
                 int firstSlash = property.indexOf('/');
                 if (firstSlash < 0) {

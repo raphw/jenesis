@@ -4,6 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.SequencedProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,11 +17,9 @@ public class RepositoryTest {
     public void ofProperties_passes_folder_to_resolver_for_relative_values() throws IOException {
         Path target = folder.resolve("artifact.jar");
         Files.writeString(target, "bytes");
-        Properties identity = new Properties();
+        SequencedProperties identity = new SequencedProperties();
         identity.setProperty("module/foo", "artifact.jar");
-        try (Writer writer = Files.newBufferedWriter(folder.resolve("identity.properties"))) {
-            identity.store(writer, null);
-        }
+        identity.store(folder.resolve("identity.properties"));
 
         Map<String, Repository> repositories = Repository.ofProperties("identity.properties",
                 List.of(folder),
@@ -35,11 +34,9 @@ public class RepositoryTest {
 
     @Test
     public void ofProperties_lets_resolver_pass_through_absolute_uris_unchanged() throws IOException {
-        Properties uris = new Properties();
+        SequencedProperties uris = new SequencedProperties();
         uris.setProperty("module/foo", "https://example.test/foo.jar");
-        try (Writer writer = Files.newBufferedWriter(folder.resolve("uris.properties"))) {
-            uris.store(writer, null);
-        }
+        uris.store(folder.resolve("uris.properties"));
 
         Map<String, Repository> repositories = Repository.ofProperties("uris.properties",
                 List.of(folder),

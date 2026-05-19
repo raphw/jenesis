@@ -8,6 +8,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Javac;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,10 +52,7 @@ public class JavacTest {
         Javac.writeRelease(folder, "21");
         Path file = folder.resolve("process/javac.properties");
         assertThat(file).exists();
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(file)) {
-            properties.load(reader);
-        }
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
         assertThat(properties).containsEntry("--release", "21");
     }
 
@@ -95,12 +93,10 @@ public class JavacTest {
             writer.append("module sample { }");
             writer.newLine();
         }
-        Properties javac = new Properties();
+        SequencedProperties javac = new SequencedProperties();
         javac.setProperty("--module-version", "1.2.3");
         Path processFolder = Files.createDirectories(sources.resolve("process"));
-        try (BufferedWriter writer = Files.newBufferedWriter(processFolder.resolve("javac.properties"))) {
-            javac.store(writer, null);
-        }
+        javac.store(processFolder.resolve("javac.properties"));
         BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(

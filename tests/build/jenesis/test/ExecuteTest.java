@@ -186,7 +186,7 @@ public class ExecuteTest {
     }
 
     private void writeInventoryFile(Path folder, String path, String mainClass, String module, String runtime) throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         String prefix = (path == null || path.isEmpty()) ? "" : path + ".";
         if (runtime != null) {
             properties.setProperty(prefix + "runtime", runtime);
@@ -197,9 +197,7 @@ public class ExecuteTest {
         if (module != null) {
             properties.setProperty(prefix + "module", module);
         }
-        try (Writer writer = Files.newBufferedWriter(folder.resolve("inventory.properties"))) {
-            properties.store(writer, null);
-        }
+        properties.store(folder.resolve("inventory.properties"));
     }
 
     private Path packageSample(Path jar) throws IOException {

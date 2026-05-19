@@ -32,24 +32,18 @@ public class MultiProjectModuleTest {
     @Test
     public void can_resolve_project() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
-            Properties coordinates1 = new Properties();
+            SequencedProperties coordinates1 = new SequencedProperties();
             coordinates1.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.IDENTITY))) {
-                coordinates1.store(writer, null);
-            }
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
             buildExecutor.addSource("1-module", module1);
             buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
-            Properties coordinates2 = new Properties();
+            SequencedProperties coordinates2 = new SequencedProperties();
             coordinates2.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.IDENTITY))) {
-                coordinates2.store(writer, null);
-            }
-            Properties dependencies2 = new Properties();
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
             dependencies2.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.REQUIRES))) {
-                dependencies2.store(writer, null);
-            }
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
@@ -102,37 +96,27 @@ public class MultiProjectModuleTest {
     @Test
     public void can_resolve_project_transitives() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
-            Properties coordinates1 = new Properties();
+            SequencedProperties coordinates1 = new SequencedProperties();
             coordinates1.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.IDENTITY))) {
-                coordinates1.store(writer, null);
-            }
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
             buildExecutor.addSource("1-module", module1);
             buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
-            Properties coordinates2 = new Properties();
+            SequencedProperties coordinates2 = new SequencedProperties();
             coordinates2.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.IDENTITY))) {
-                coordinates2.store(writer, null);
-            }
-            Properties dependencies2 = new Properties();
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
             dependencies2.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.REQUIRES))) {
-                dependencies2.store(writer, null);
-            }
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-            Properties coordinates3 = new Properties();
+            SequencedProperties coordinates3 = new SequencedProperties();
             coordinates3.put("foo/baz", "");
-            try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.IDENTITY))) {
-                coordinates3.store(writer, null);
-            }
-            Properties dependencies3 = new Properties();
+            coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies3 = new SequencedProperties();
             dependencies3.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.REQUIRES))) {
-                dependencies3.store(writer, null);
-            }
+            dependencies3.store(module3.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));

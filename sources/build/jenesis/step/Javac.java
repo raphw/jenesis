@@ -24,11 +24,9 @@ public class Javac extends JdkProcessBuildStep {
             return;
         }
         Path target = Files.createDirectories(folder.resolve(ProcessBuildStep.PROCESS));
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("--release", release);
-        try (BufferedWriter writer = Files.newBufferedWriter(target.resolve("javac.properties"))) {
-            properties.store(writer, null);
-        }
+        properties.store(target.resolve("javac.properties"));
     }
 
     @Override

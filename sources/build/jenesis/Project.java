@@ -126,7 +126,7 @@ public record Project(
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addModule(STAGE, (sub, inherited) -> {
-                Properties metadata = SequencedProperties.ofFolders(inherited.values(), BuildStep.METADATA);
+                SequencedProperties metadata = SequencedProperties.ofFolders(inherited.values(), BuildStep.METADATA);
                 sub.addStep("output",
                         new Relocate(new ModularPlacement(metadata.getProperty("version"), project.stageTests())),
                         BuildExecutorModule.PREVIOUS + COLLECT);
@@ -262,11 +262,9 @@ public record Project(
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             values.forEach(properties::setProperty);
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
-                properties.store(writer, null);
-            }
+            properties.store(context.next().resolve(BuildStep.METADATA));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
@@ -291,10 +289,7 @@ public record Project(
                 if (!Files.isRegularFile(moduleFile)) {
                     continue;
                 }
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(moduleFile);
                 String path = properties.getProperty("path");
                 if (path != null) {
                     paths.add(path);

@@ -31,20 +31,16 @@ public class PomTest {
 
     @Test
     public void can_emit_pom_from_files() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.setProperty("maven/build.jenesis/jenesis/pom/1.0.0", "/somewhere/pom.xml");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties dependencies = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("maven/org.example/lib/1.2.3", "");
         dependencies.setProperty("maven/org.example/other/jar/4.5.6", "");
         dependencies.setProperty("maven/org.example/zip/zip/7.8.9", "");
         dependencies.setProperty("module/com.example.foo", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
+        dependencies.store(argument.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -86,23 +82,17 @@ public class PomTest {
 
     @Test
     public void compile_only_dependency_is_emitted_with_provided_scope() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties requires = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties requires = new SequencedProperties();
         requires.setProperty("maven/org.example/lib/1.2.3", "");
         requires.setProperty("maven/org.example/static-lib/4.5.6", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
-            requires.store(writer, null);
-        }
-        Properties scopes = new SequencedProperties();
+        requires.store(argument.resolve(BuildStep.REQUIRES));
+        SequencedProperties scopes = new SequencedProperties();
         scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
         scopes.setProperty("maven/org.example/static-lib/4.5.6", DependencyScope.COMPILE.name());
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.SCOPES))) {
-            scopes.store(writer, null);
-        }
+        scopes.store(argument.resolve(BuildStep.SCOPES));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -127,23 +117,17 @@ public class PomTest {
 
     @Test
     public void runtime_only_dependency_is_emitted_with_runtime_scope() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties requires = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties requires = new SequencedProperties();
         requires.setProperty("maven/org.example/lib/1.2.3", "");
         requires.setProperty("maven/org.example/runtime-only/4.5.6", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
-            requires.store(writer, null);
-        }
-        Properties scopes = new SequencedProperties();
+        requires.store(argument.resolve(BuildStep.REQUIRES));
+        SequencedProperties scopes = new SequencedProperties();
         scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
         scopes.setProperty("maven/org.example/runtime-only/4.5.6", DependencyScope.RUNTIME.name());
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.SCOPES))) {
-            scopes.store(writer, null);
-        }
+        scopes.store(argument.resolve(BuildStep.SCOPES));
         new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -167,17 +151,13 @@ public class PomTest {
 
     @Test
     public void default_resolver_translates_module_self_coordinate_to_maven() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("module/build.jenesis.test", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties dependencies = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("maven/build.jenesis/jenesis/0-SNAPSHOT", "");
         dependencies.setProperty("module/some.other.module", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
+        dependencies.store(argument.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -208,21 +188,15 @@ public class PomTest {
 
     @Test
     public void metadata_version_overrides_self_version_in_emitted_pom() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/0-SNAPSHOT", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties dependencies = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("maven/org.example/lib/1.2.3", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
-        Properties metadata = new SequencedProperties();
+        dependencies.store(argument.resolve(BuildStep.REQUIRES));
+        SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("version", "2.7.1");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
-            metadata.store(writer, null);
-        }
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -241,16 +215,12 @@ public class PomTest {
 
     @Test
     public void metadata_version_overrides_default_resolver_snapshot_version() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("module/build.jenesis.test", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties metadata = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("version", "9.0.0");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
-            metadata.store(writer, null);
-        }
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -265,11 +235,9 @@ public class PomTest {
 
     @Test
     public void missing_metadata_version_falls_back_to_self_version() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -283,16 +251,12 @@ public class PomTest {
 
     @Test
     public void metadata_version_propagates_through_export_layout() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/com.example/foo/jar/0-SNAPSHOT", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties metadata = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("version", "2.7.1");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
-            metadata.store(writer, null);
-        }
+        metadata.store(argument.resolve(BuildStep.METADATA));
         Path exported = Files.createDirectory(root.resolve("repository"));
         new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
@@ -317,12 +281,10 @@ public class PomTest {
 
     @Test
     public void metadata_properties_populate_emitted_pom() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties metadata = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("name", "Jenesis");
         metadata.setProperty("description", "A build tool.");
         metadata.setProperty("url", "https://example.com/jenesis");
@@ -334,9 +296,7 @@ public class PomTest {
         metadata.setProperty("developer.bob.email", "bob@example.com");
         metadata.setProperty("scm.connection", "scm:git:https://example.com/jenesis.git");
         metadata.setProperty("scm.url", "https://example.com/jenesis");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
-            metadata.store(writer, null);
-        }
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -361,16 +321,12 @@ public class PomTest {
 
     @Test
     public void metadata_project_mismatch_skips_emission() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        Properties metadata = new SequencedProperties();
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "other.module");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.METADATA))) {
-            metadata.store(writer, null);
-        }
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
@@ -386,11 +342,9 @@ public class PomTest {
 
     @Test
     public void fails_when_no_self_coordinate_is_present() throws IOException {
-        Properties coordinates = new SequencedProperties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "/already/resolved.jar");
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
         assertThatThrownBy(() -> new Pom().apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(

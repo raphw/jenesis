@@ -52,13 +52,13 @@ public class Pom implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
-        Properties coordinates = SequencedProperties.ofFolders(folders, IDENTITY);
-        Properties requires = SequencedProperties.ofFolders(folders, REQUIRES);
-        Properties scopes = SequencedProperties.ofFolders(folders, SCOPES);
-        Properties module = SequencedProperties.ofFolders(folders, MODULE);
-        Properties metadata = SequencedProperties.ofFolders(folders, METADATA);
+        SequencedProperties coordinates = SequencedProperties.ofFolders(folders, IDENTITY);
+        SequencedProperties requires = SequencedProperties.ofFolders(folders, REQUIRES);
+        SequencedProperties scopes = SequencedProperties.ofFolders(folders, SCOPES);
+        SequencedProperties module = SequencedProperties.ofFolders(folders, MODULE);
+        SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         boolean scoped = !scopes.isEmpty();
-        Properties compileRequires = new SequencedProperties();
+        SequencedProperties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
         for (String name : requires.stringPropertyNames()) {
             String scope = scopes.getProperty(name);

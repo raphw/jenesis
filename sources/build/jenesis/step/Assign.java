@@ -30,7 +30,7 @@ public class Assign implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         // TODO: improve incremental resolve
-        Properties assignments = new SequencedProperties();
+        SequencedProperties assignments = new SequencedProperties();
         SequencedSet<Path> files = new LinkedHashSet<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path artifacts = argument.folder().resolve(ARTIFACTS);
@@ -43,10 +43,7 @@ public class Assign implements BuildStep {
             }
             Path coordinates = argument.folder().resolve(IDENTITY);
             if (Files.exists(coordinates)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(coordinates)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(coordinates);
                 for (String name : properties.stringPropertyNames()) {
                     String value = properties.getProperty(name);
                     if (value.isEmpty()) {
@@ -73,9 +70,7 @@ public class Assign implements BuildStep {
                     .toString()
                     .replace(File.separatorChar, '/'));
         });
-        try (Writer writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
-            assignments.store(writer, null);
-        }
+        assignments.store(context.next().resolve(IDENTITY));
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 }

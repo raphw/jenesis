@@ -81,7 +81,7 @@ public class ExternalModule implements BuildExecutorModule {
         buildExecutor.addStep(EXTERNAL, new ExtractExternal(coordinate), EXTERNAL_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
-            Properties properties = SequencedProperties.ofFiles(
+            SequencedProperties properties = SequencedProperties.ofFiles(
                     delegated.get(PREVIOUS + EXTERNAL).resolve(EXTERNAL_PROPERTIES));
             String name = properties.getProperty(JENESIS_MODULE);
             List<URL> urls = new ArrayList<>();
@@ -131,13 +131,11 @@ public class ExternalModule implements BuildExecutorModule {
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             for (String coordinate : coordinates) {
                 properties.setProperty(coordinate, "");
             }
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                properties.store(writer, null);
-            }
+            properties.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
@@ -162,11 +160,9 @@ public class ExternalModule implements BuildExecutorModule {
                     throw new IllegalStateException("Missing Jenesis module manifest entry in artifact: " + coordinate);
                 }
             }
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             properties.setProperty(JENESIS_MODULE, name);
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(EXTERNAL_PROPERTIES))) {
-                properties.store(writer, null);
-            }
+            properties.store(context.next().resolve(EXTERNAL_PROPERTIES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }

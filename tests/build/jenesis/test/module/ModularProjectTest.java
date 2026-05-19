@@ -66,18 +66,12 @@ public class ModularProjectTest {
         Path module = results.get("module/module-/manifests");
         assertThat(module.resolve(BuildStep.IDENTITY)).doesNotExist();
         Path coordinatesFolder = results.get("module/module-/coordinates");
-        Properties coordinates = new Properties();
-        try (Reader reader = Files.newBufferedReader(coordinatesFolder.resolve(BuildStep.IDENTITY))) {
-            coordinates.load(reader);
-        }
+        SequencedProperties coordinates = SequencedProperties.ofFiles(coordinatesFolder.resolve(BuildStep.IDENTITY));
         assertThat(coordinates).containsOnlyKeys("module/foo");
         assertThat(coordinates.getProperty("module/foo")).isEmpty();
         Path moduleRequires = module.resolve(BuildStep.REQUIRES);
         assertThat(moduleRequires).exists();
-        Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(moduleRequires)) {
-            dependencies.load(reader);
-        }
+        SequencedProperties dependencies = SequencedProperties.ofFiles(moduleRequires);
         assertThat(dependencies).containsOnlyKeys("module/bar");
         assertThat(dependencies.getProperty("module/bar")).isEmpty();
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
@@ -103,21 +97,15 @@ public class ModularProjectTest {
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
-        Properties compileVersions = new Properties();
         Path compileVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(compileVersionsFile).exists();
-        try (Reader reader = Files.newBufferedReader(compileVersionsFile)) {
-            compileVersions.load(reader);
-        }
+        SequencedProperties compileVersions = SequencedProperties.ofFiles(compileVersionsFile);
         assertThat(compileVersions).containsOnly(
                 Map.entry("module/bar", "1.2.3"),
                 Map.entry("module/transitive.pin", "9.9.9"));
-        Properties runtimeVersions = new Properties();
         Path runtimeVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(runtimeVersionsFile).exists();
-        try (Reader reader = Files.newBufferedReader(runtimeVersionsFile)) {
-            runtimeVersions.load(reader);
-        }
+        SequencedProperties runtimeVersions = SequencedProperties.ofFiles(runtimeVersionsFile);
         assertThat(runtimeVersions).containsOnly(
                 Map.entry("module/bar", "1.2.3"),
                 Map.entry("module/transitive.pin", "9.9.9"));
@@ -219,43 +207,31 @@ public class ModularProjectTest {
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
-        Properties foo = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(results
+        SequencedProperties foo = SequencedProperties.ofFiles(results
                 .get("modules/module-foo/assign")
-                .resolve(BuildStep.IDENTITY))) {
-            foo.load(reader);
-        }
+                .resolve(BuildStep.IDENTITY));
         assertThat(foo.stringPropertyNames()).containsExactly("module/foo");
         assertThat(foo.getProperty("module/foo"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
-        Properties bar = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(results
+        SequencedProperties bar = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/assign")
-                .resolve(BuildStep.IDENTITY))) {
-            bar.load(reader);
-        }
+                .resolve(BuildStep.IDENTITY));
         assertThat(bar.stringPropertyNames()).containsExactly("module/bar");
         assertThat(bar.getProperty("module/bar"))
                 .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
         assertThat(results.keySet())
                 .contains("modules/module-foo/inventory", "modules/module-bar/inventory")
                 .doesNotContain("modules/module-foo/coordinates", "modules/module-bar/coordinates");
-        Properties fooInventory = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(results
+        SequencedProperties fooInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-foo/inventory")
-                .resolve("inventory.properties"))) {
-            fooInventory.load(reader);
-        }
+                .resolve("inventory.properties"));
         assertThat(fooInventory).containsOnlyKeys("foo.runtime", "foo.module");
         assertThat(fooInventory.getProperty("foo.module")).isEqualTo("foo");
         assertThat(fooInventory.getProperty("foo.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
-        Properties barInventory = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(results
+        SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/inventory")
-                .resolve("inventory.properties"))) {
-            barInventory.load(reader);
-        }
+                .resolve("inventory.properties"));
         assertThat(barInventory).containsOnlyKeys("bar.runtime", "bar.module");
         assertThat(barInventory.getProperty("bar.module")).isEqualTo("bar");
         assertThat(barInventory.getProperty("bar.runtime").split(","))
@@ -279,11 +255,8 @@ public class ModularProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        Properties module = new Properties();
-        try (Reader reader = Files.newBufferedReader(
-                results.get("module/module-/manifests").resolve(BuildStep.MODULE))) {
-            module.load(reader);
-        }
+        SequencedProperties module = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.MODULE));
         assertThat(module.getProperty("main")).isEqualTo("com.example.Entry");
     }
 
@@ -301,11 +274,8 @@ public class ModularProjectTest {
                 BuildExecutorCallback.nop());
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
-        Properties module = new Properties();
-        try (Reader reader = Files.newBufferedReader(
-                results.get("module/module-/manifests").resolve(BuildStep.MODULE))) {
-            module.load(reader);
-        }
+        SequencedProperties module = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.MODULE));
         assertThat(module.getProperty("main")).isNull();
     }
 

@@ -95,7 +95,7 @@ public class PinModuleInfo implements BuildStep {
             if (!Files.exists(requiresFile)) {
                 continue;
             }
-            Properties properties = SequencedProperties.ofFiles(requiresFile);
+            SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
             for (String coordinate : properties.stringPropertyNames()) {
                 if (internal.contains(coordinate)) {
                     continue;
@@ -149,7 +149,7 @@ public class PinModuleInfo implements BuildStep {
         for (BuildStepArgument argument : arguments.values()) {
             Path versionsFile = argument.folder().resolve(VERSIONS);
             if (Files.exists(versionsFile)) {
-                Properties properties = SequencedProperties.ofFiles(versionsFile);
+                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
                 for (String key : properties.stringPropertyNames()) {
                     if (internal.contains(key)) {
                         continue;
@@ -169,7 +169,7 @@ public class PinModuleInfo implements BuildStep {
             }
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
-                Properties properties = SequencedProperties.ofFiles(requiresFile);
+                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
                 for (String key : properties.stringPropertyNames()) {
                     if (internal.contains(key)) {
                         continue;
@@ -202,7 +202,7 @@ public class PinModuleInfo implements BuildStep {
             if (!Files.exists(identityFile)) {
                 continue;
             }
-            Properties properties = SequencedProperties.ofFiles(identityFile);
+            SequencedProperties properties = SequencedProperties.ofFiles(identityFile);
             for (String coord : properties.stringPropertyNames()) {
                 internal.add(coord);
                 int firstSlash = coord.indexOf('/');

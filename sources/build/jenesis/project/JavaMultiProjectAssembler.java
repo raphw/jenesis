@@ -72,10 +72,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                 if (main == null) {
                     Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
                     if (Files.isRegularFile(moduleFile)) {
-                        Properties module = new SequencedProperties();
-                        try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                            module.load(reader);
-                        }
+                        SequencedProperties module = SequencedProperties.ofFiles(moduleFile);
                         String value = module.getProperty("main");
                         if (value != null && !value.isEmpty()) {
                             main = value;
@@ -85,10 +82,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                 if (version == null) {
                     Path metadataFile = argument.folder().resolve(BuildStep.METADATA);
                     if (Files.isRegularFile(metadataFile)) {
-                        Properties metadata = new SequencedProperties();
-                        try (Reader reader = Files.newBufferedReader(metadataFile)) {
-                            metadata.load(reader);
-                        }
+                        SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);
                         String value = metadata.getProperty("version");
                         if (value != null && !value.isEmpty()) {
                             version = value;
@@ -99,21 +93,17 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
             Path processFolder = null;
             if (main != null) {
                 processFolder = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
-                Properties jar = new SequencedProperties();
+                SequencedProperties jar = new SequencedProperties();
                 jar.setProperty("--main-class", main);
-                try (BufferedWriter writer = Files.newBufferedWriter(processFolder.resolve("jar.properties"))) {
-                    jar.store(writer, null);
-                }
+                jar.store(processFolder.resolve("jar.properties"));
             }
             if (version != null) {
                 if (processFolder == null) {
                     processFolder = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
                 }
-                Properties javac = new SequencedProperties();
+                SequencedProperties javac = new SequencedProperties();
                 javac.setProperty("--module-version", version);
-                try (BufferedWriter writer = Files.newBufferedWriter(processFolder.resolve("javac.properties"))) {
-                    javac.store(writer, null);
-                }
+                javac.store(processFolder.resolve("javac.properties"));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

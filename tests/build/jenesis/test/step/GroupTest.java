@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,25 +29,17 @@ public class GroupTest {
 
     @Test
     public void can_link_related_groups() throws IOException {
-        Properties leftCoordinates = new Properties(), rightCoordinates = new Properties();
+        SequencedProperties leftCoordinates = new SequencedProperties(), rightCoordinates = new SequencedProperties();
         leftCoordinates.setProperty("foo", "");
         rightCoordinates.setProperty("bar", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.IDENTITY))) {
-            leftCoordinates.store(writer, null);
-        }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.IDENTITY))) {
-            rightCoordinates.store(writer, null);
-        }
-        Properties leftDependencies = new Properties(), rightDependencies = new Properties();
+        leftCoordinates.store(left.resolve(BuildStep.IDENTITY));
+        rightCoordinates.store(right.resolve(BuildStep.IDENTITY));
+        SequencedProperties leftDependencies = new SequencedProperties(), rightDependencies = new SequencedProperties();
         leftDependencies.setProperty("qux", "");
         rightDependencies.setProperty("foo", "");
         rightDependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.REQUIRES))) {
-            leftDependencies.store(writer, null);
-        }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.REQUIRES))) {
-            rightDependencies.store(writer, null);
-        }
+        leftDependencies.store(left.resolve(BuildStep.REQUIRES));
+        rightDependencies.store(right.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Group(Optional::of).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -61,13 +54,8 @@ public class GroupTest {
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-        Properties leftGroup = new Properties(), rightGroup = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(Group.GROUPS + "left.properties"))) {
-            leftGroup.load(reader);
-        }
-        try (Reader reader = Files.newBufferedReader(next.resolve(Group.GROUPS + "right.properties"))) {
-            rightGroup.load(reader);
-        }
+        SequencedProperties leftGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "left.properties"));
+        SequencedProperties rightGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "right.properties"));
         assertThat(leftGroup.stringPropertyNames()).isEmpty();
         assertThat(rightGroup.stringPropertyNames()).containsExactly("left");
         assertThat(result.next()).isTrue();
@@ -75,24 +63,16 @@ public class GroupTest {
 
     @Test
     public void does_not_link_unrelated_groups() throws IOException {
-        Properties leftCoordinates = new Properties(), rightCoordinates = new Properties();
+        SequencedProperties leftCoordinates = new SequencedProperties(), rightCoordinates = new SequencedProperties();
         leftCoordinates.setProperty("foo", "");
         rightCoordinates.setProperty("bar", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.IDENTITY))) {
-            leftCoordinates.store(writer, null);
-        }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.IDENTITY))) {
-            rightCoordinates.store(writer, null);
-        }
-        Properties leftDependencies = new Properties(), rightDependencies = new Properties();
+        leftCoordinates.store(left.resolve(BuildStep.IDENTITY));
+        rightCoordinates.store(right.resolve(BuildStep.IDENTITY));
+        SequencedProperties leftDependencies = new SequencedProperties(), rightDependencies = new SequencedProperties();
         leftDependencies.setProperty("qux", "");
         rightDependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(left.resolve(BuildStep.REQUIRES))) {
-            leftDependencies.store(writer, null);
-        }
-        try (Writer writer = Files.newBufferedWriter(right.resolve(BuildStep.REQUIRES))) {
-            rightDependencies.store(writer, null);
-        }
+        leftDependencies.store(left.resolve(BuildStep.REQUIRES));
+        rightDependencies.store(right.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Group(Optional::of).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -107,13 +87,8 @@ public class GroupTest {
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-        Properties leftGroup = new Properties(), rightGroup = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(Group.GROUPS + "left.properties"))) {
-            leftGroup.load(reader);
-        }
-        try (Reader reader = Files.newBufferedReader(next.resolve(Group.GROUPS + "right.properties"))) {
-            rightGroup.load(reader);
-        }
+        SequencedProperties leftGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "left.properties"));
+        SequencedProperties rightGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "right.properties"));
         assertThat(leftGroup.stringPropertyNames()).isEmpty();
         assertThat(rightGroup.stringPropertyNames()).isEmpty();
         assertThat(result.next()).isTrue();

@@ -24,10 +24,7 @@ public class Inventory implements BuildStep {
         for (BuildStepArgument argument : arguments.values()) {
             Path moduleFile = argument.folder().resolve(MODULE);
             if (Files.isRegularFile(moduleFile)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(moduleFile);
                 if (path == null) {
                     path = properties.getProperty("path");
                 }
@@ -40,10 +37,7 @@ public class Inventory implements BuildStep {
             }
             Path identityFile = argument.folder().resolve(IDENTITY);
             if (mainArtifact == null && Files.isRegularFile(identityFile)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(identityFile)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(identityFile);
                 boolean complete = true;
                 for (String name : properties.stringPropertyNames()) {
                     if (properties.getProperty(name).isEmpty()) {
@@ -71,7 +65,7 @@ public class Inventory implements BuildStep {
             }
         }
         String prefix = (path == null || path.isEmpty()) ? "" : path + ".";
-        Properties inventory = new SequencedProperties();
+        SequencedProperties inventory = new SequencedProperties();
         SequencedSet<Path> runtime = new LinkedHashSet<>();
         if (mainArtifact != null) {
             runtime.add(mainArtifact);
@@ -89,9 +83,7 @@ public class Inventory implements BuildStep {
             inventory.setProperty(prefix + "module", module);
         }
         if (!inventory.isEmpty()) {
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(INVENTORY))) {
-                inventory.store(writer, null);
-            }
+            inventory.store(context.next().resolve(INVENTORY));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

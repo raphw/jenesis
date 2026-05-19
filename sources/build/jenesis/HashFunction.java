@@ -33,7 +33,7 @@ public interface HashFunction {
 
     static Map<Path, byte[]> read(Path file) throws IOException {
         Map<Path, byte[]> checksums = new LinkedHashMap<>();
-        Properties properties = SequencedProperties.ofFiles(file);
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
         for (String name : properties.stringPropertyNames()) {
             checksums.put(Path.of(name), HexFormat.of().parseHex(properties.getProperty(name)));
         }
@@ -57,15 +57,13 @@ public interface HashFunction {
     }
 
     static void write(Path file, Map<Path, byte[]> checksums) throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         for (Map.Entry<Path, byte[]> entry : checksums.entrySet()) {
             properties.setProperty(
                     entry.getKey().toString().replace(File.separatorChar, '/'),
                     HexFormat.of().formatHex(entry.getValue()));
         }
-        try (Writer writer = Files.newBufferedWriter(file)) {
-            properties.store(writer, null);
-        }
+        properties.store(file);
     }
 
     static boolean areConsistent(Path folder, Map<Path, byte[]> checksums, HashFunction hash) throws IOException {

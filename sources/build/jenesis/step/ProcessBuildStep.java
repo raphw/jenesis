@@ -52,7 +52,7 @@ public abstract class ProcessBuildStep implements BuildStep {
             SequencedMap<String, String> folderMap = new LinkedHashMap<>();
             Path file = entry.getValue().folder().resolve(PROCESS + command + ".properties");
             if (Files.exists(file)) {
-                Properties loaded = SequencedProperties.ofFiles(file);
+                SequencedProperties loaded = SequencedProperties.ofFiles(file);
                 for (String key : loaded.stringPropertyNames()) {
                     folderMap.put(key, loaded.getProperty(key));
                 }

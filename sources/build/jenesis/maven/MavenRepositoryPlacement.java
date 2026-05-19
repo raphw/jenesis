@@ -22,17 +22,11 @@ public class MavenRepositoryPlacement implements FilePlacement {
     }
 
     @Override
-    public Optional<Path> apply(Path file, SequencedProperties module, SequencedProperties metadata) throws IOException {
-        Path filename = file.getFileName();
-        if (filename == null) {
-            return Optional.empty();
-        }
-        Path parent = file.getParent();
-        if (parent == null) {
-            return Optional.empty();
-        }
+    public Optional<Path> apply(Path file,
+                                SequencedProperties module,
+                                SequencedProperties metadata) throws IOException {
         boolean test = module.getProperty("tests") != null;
-        String suffix = switch (filename.toString()) {
+        String suffix = switch (file.getFileName().toString()) {
             case "classes.jar" -> test ? "-tests.jar" : ".jar";
             case "sources.jar" -> test ? "-tests-sources.jar" : "-sources.jar";
             case "javadoc.jar" -> test ? "-tests-javadoc.jar" : "-javadoc.jar";
@@ -42,10 +36,11 @@ public class MavenRepositoryPlacement implements FilePlacement {
         if (suffix == null) {
             return Optional.empty();
         }
-        Path pom = parent.resolve("pom.xml");
+        Path pom = file.getParent().resolve("pom.xml");
         if (!Files.exists(pom)) {
             return Optional.empty();
         }
+        // TODO: Should this info not be available from metadata?
         return PomCoordinates.of(pom).map(coordinates -> Path.of(
                 coordinates.groupId().replace('.', '/'),
                 coordinates.artifactId(),

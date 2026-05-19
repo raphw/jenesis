@@ -27,12 +27,10 @@ public class ModularPlacement implements FilePlacement {
     }
 
     @Override
-    public Optional<Path> apply(Path file, SequencedProperties module, SequencedProperties metadata) throws IOException {
-        Path filename = file.getFileName();
-        if (filename == null) {
-            return Optional.empty();
-        }
-        String suffix = switch (filename.toString()) {
+    public Optional<Path> apply(Path file,
+                                SequencedProperties module,
+                                SequencedProperties metadata) throws IOException {
+        String suffix = switch (file.getFileName().toString()) {
             case "classes.jar" -> ".jar";
             case "sources.jar" -> "-sources.jar";
             case "javadoc.jar" -> "-javadoc.jar";
@@ -46,8 +44,7 @@ public class ModularPlacement implements FilePlacement {
         }
         String moduleName = module.getProperty("module");
         if (moduleName == null) {
-            throw new IllegalStateException(
-                    "Missing 'module' property in module.properties for " + file);
+            throw new IllegalStateException("Missing 'module' property in module.properties for " + file);
         }
         if (version != null) {
             return Optional.of(Path.of(moduleName, version, moduleName + suffix));

@@ -28,14 +28,12 @@ public class AssignTest {
 
     @Test
     public void can_assign_all_dependencies() throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo", "");
         Path passthroughArtifact = argument.resolve("passthrough.jar");
         Files.writeString(passthroughArtifact, "other");
         properties.setProperty("bar", argument.relativize(passthroughArtifact).toString());
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            properties.store(writer, null);
-        }
+        properties.store(argument.resolve(BuildStep.IDENTITY));
         Files.writeString(Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("artifact"), "baz");
         BuildStepResult result = new Assign().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
@@ -47,10 +45,7 @@ public class AssignTest {
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
-        Properties coordinates = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.IDENTITY))) {
-            coordinates.load(reader);
-        }
+        SequencedProperties coordinates = SequencedProperties.ofFiles(next.resolve(BuildStep.IDENTITY));
         assertThat(coordinates).containsExactly(
                 Map.entry("foo", next.relativize(argument.resolve(BuildStep.ARTIFACTS).resolve("artifact")).toString().replace(File.separatorChar, '/')),
                 Map.entry("bar", next.relativize(passthroughArtifact).toString().replace(File.separatorChar, '/')));
@@ -60,14 +55,12 @@ public class AssignTest {
 
     @Test
     public void can_assign_dependencies() throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo", "");
         Path passthroughArtifact = argument.resolve("passthrough.jar");
         Files.writeString(passthroughArtifact, "other");
         properties.setProperty("bar", argument.relativize(passthroughArtifact).toString());
-        try (Writer writer = Files.newBufferedWriter(argument.resolve(BuildStep.IDENTITY))) {
-            properties.store(writer, null);
-        }
+        properties.store(argument.resolve(BuildStep.IDENTITY));
         Files.writeString(Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("artifact"), "baz");
         BuildStepResult result = new Assign((coordinates, files) -> {
             assertThat(coordinates).containsExactly("foo");
@@ -85,10 +78,7 @@ public class AssignTest {
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
-        Properties coordinates = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.IDENTITY))) {
-            coordinates.load(reader);
-        }
+        SequencedProperties coordinates = SequencedProperties.ofFiles(next.resolve(BuildStep.IDENTITY));
         Path artifact = argument.resolve(BuildStep.ARTIFACTS).resolve("artifact");
         assertThat(coordinates).containsExactly(
                 Map.entry("foo", next.relativize(artifact).toString().replace(File.separatorChar, '/')),

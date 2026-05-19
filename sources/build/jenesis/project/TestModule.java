@@ -147,7 +147,7 @@ public class TestModule implements BuildExecutorModule {
                 throws IOException {
             List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
             TestEngine resolved = engine != null ? engine : TestEngine.of(folders).orElse(null);
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             String selectedPrefix = null;
             if (resolved != null
                     && !resolved.coordinates().isEmpty()
@@ -162,20 +162,15 @@ public class TestModule implements BuildExecutorModule {
                     }
                 }
             }
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                properties.store(writer, null);
-            }
+            properties.store(context.next().resolve(BuildStep.REQUIRES));
             if (resolved != null && selectedPrefix != null) {
-                Properties versions = new SequencedProperties();
+                SequencedProperties versions = new SequencedProperties();
                 for (BuildStepArgument argument : arguments.values()) {
                     Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
                     if (!Files.exists(versionsFile)) {
                         continue;
                     }
-                    Properties upstream = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(versionsFile)) {
-                        upstream.load(reader);
-                    }
+                    SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
                     for (String key : upstream.stringPropertyNames()) {
                         int index = key.indexOf('/');
                         if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
@@ -192,9 +187,7 @@ public class TestModule implements BuildExecutorModule {
                     }
                 }
                 if (!versions.isEmpty()) {
-                    try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
-                        versions.store(writer, null);
-                    }
+                    versions.store(context.next().resolve(BuildStep.VERSIONS));
                 }
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));

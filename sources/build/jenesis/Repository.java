@@ -144,7 +144,7 @@ public interface Repository {
         for (Path folder : folders) {
             Path file = folder.resolve(suffix);
             if (Files.exists(file)) {
-                Properties properties = SequencedProperties.ofFiles(file);
+                SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String coordinate : properties.stringPropertyNames()) {
                     String location = properties.getProperty(coordinate);
                     if (!location.isEmpty()) {

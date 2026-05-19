@@ -45,14 +45,12 @@ public class Group implements BuildStep {
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));
         for (Map.Entry<String, Set<String>> entry : to.entrySet()) {
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             entry.getValue().stream()
                     .flatMap(dependency -> from.getOrDefault(dependency, Set.of()).stream())
                     .distinct()
                     .forEach(name -> properties.setProperty(name, ""));
-            try (Writer writer = Files.newBufferedWriter(folder.resolve(BuildExecutorModule.encode(entry.getKey()) + ".properties"))) {
-                properties.store(writer, null);
-            }
+            properties.store(folder.resolve(BuildExecutorModule.encode(entry.getKey()) + ".properties"));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

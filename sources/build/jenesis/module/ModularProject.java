@@ -148,17 +148,12 @@ public class ModularProject implements BuildExecutorModule {
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            Properties module = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(arguments.get(MANIFESTS)
+            SequencedProperties module = SequencedProperties.ofFiles(arguments.get(MANIFESTS)
                     .folder()
-                    .resolve(BuildStep.MODULE))) {
-                module.load(reader);
-            }
-            Properties coordinates = new SequencedProperties();
+                    .resolve(BuildStep.MODULE));
+            SequencedProperties coordinates = new SequencedProperties();
             coordinates.setProperty(prefix + "/" + module.getProperty("module"), "");
-            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.IDENTITY))) {
-                coordinates.store(writer, null);
-            }
+            coordinates.store(context.next().resolve(BuildStep.IDENTITY));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
@@ -184,8 +179,8 @@ public class ModularProject implements BuildExecutorModule {
                         + info.requires()
                         + ")");
             }
-            Properties requires = new SequencedProperties();
-            Properties scopes = new SequencedProperties();
+            SequencedProperties requires = new SequencedProperties();
+            SequencedProperties scopes = new SequencedProperties();
             for (String dependency : info.requires()) {
                 String key = prefix + "/" + dependency;
                 requires.setProperty(key, "");
@@ -193,21 +188,15 @@ public class ModularProject implements BuildExecutorModule {
                         ? DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name()
                         : DependencyScope.COMPILE.name());
             }
-            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                requires.store(writer, null);
-            }
-            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.SCOPES))) {
-                scopes.store(writer, null);
-            }
+            requires.store(context.next().resolve(BuildStep.REQUIRES));
+            scopes.store(context.next().resolve(BuildStep.SCOPES));
             if (!info.versions().isEmpty()) {
-                Properties properties = new SequencedProperties();
+                SequencedProperties properties = new SequencedProperties();
                 info.versions().forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
-                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
-                    properties.store(writer, null);
-                }
+                properties.store(context.next().resolve(BuildStep.VERSIONS));
             }
             Javac.writeRelease(context.next(), info.release());
-            Properties module = new SequencedProperties();
+            SequencedProperties module = new SequencedProperties();
             module.setProperty("path", path);
             module.setProperty("module", info.coordinate());
             if (info.testOf() != null) {
@@ -216,10 +205,8 @@ public class ModularProject implements BuildExecutorModule {
             if (info.main() != null) {
                 module.setProperty("main", info.main());
             }
-            try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
-                module.store(writer, null);
-            }
-            Properties metadata = new SequencedProperties();
+            module.store(context.next().resolve(BuildStep.MODULE));
+            SequencedProperties metadata = new SequencedProperties();
             if (info.name() != null) {
                 metadata.setProperty("name", info.name());
             }
@@ -227,9 +214,7 @@ public class ModularProject implements BuildExecutorModule {
                 metadata.setProperty("description", info.description());
             }
             if (!metadata.isEmpty()) {
-                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
-                    metadata.store(writer, null);
-                }
+                metadata.store(context.next().resolve(BuildStep.METADATA));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

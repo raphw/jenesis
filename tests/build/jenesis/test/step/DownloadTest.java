@@ -8,6 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.RepositoryItem;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Download;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,12 +30,10 @@ public class DownloadTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException, NoSuchAlgorithmException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8))))).apply(
@@ -49,12 +48,10 @@ public class DownloadTest {
 
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, NoSuchAlgorithmException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
@@ -80,12 +77,10 @@ public class DownloadTest {
 
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -107,12 +102,10 @@ public class DownloadTest {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
                 .resolve("foo-bar.jar"), "other");
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -129,11 +122,9 @@ public class DownloadTest {
 
     @Test
     public void can_resolve_dependencies_without_hash() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -149,11 +140,9 @@ public class DownloadTest {
 
     @Test
     public void can_resolve_dependencies_from_file_without_hash() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
@@ -182,11 +171,9 @@ public class DownloadTest {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
                 .resolve("foo-bar.jar"), "other");
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -203,11 +190,9 @@ public class DownloadTest {
 
     @Test
     public void fails_when_requireChecksums_is_true_and_hash_is_missing() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -224,11 +209,9 @@ public class DownloadTest {
 
     @Test
     public void permits_missing_hash_when_requireChecksums_is_false() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))

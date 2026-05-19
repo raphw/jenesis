@@ -27,27 +27,21 @@ public class PinModuleInfoTest {
     }
 
     private void writeVersions(Map<String, String> entries) throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         entries.forEach(properties::setProperty);
-        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.VERSIONS))) {
-            properties.store(writer, null);
-        }
+        properties.store(input.resolve(BuildStep.VERSIONS));
     }
 
     private void writeRequires(Map<String, String> entries) throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         entries.forEach(properties::setProperty);
-        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(input.resolve(BuildStep.REQUIRES));
     }
 
     private void writeIdentity(Map<String, String> entries) throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         entries.forEach(properties::setProperty);
-        try (Writer writer = Files.newBufferedWriter(input.resolve(BuildStep.IDENTITY))) {
-            properties.store(writer, null);
-        }
+        properties.store(input.resolve(BuildStep.IDENTITY));
     }
 
     private Path writeAutomaticJar(Path artifacts, String filename, String moduleName) throws IOException {

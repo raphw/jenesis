@@ -24,11 +24,11 @@ public class Download implements DependencyProcessingBuildStep {
     }
 
     @Override
-    public CompletionStage<Properties> transform(Executor executor,
-                                                 BuildStepContext context,
-                                                 SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, SequencedMap<String, String>> groups,
-                                                 SequencedMap<String, SequencedMap<String, String>> versions)
+    public CompletionStage<SequencedProperties> transform(Executor executor,
+                                                          BuildStepContext context,
+                                                          SequencedMap<String, BuildStepArgument> arguments,
+                                                          SequencedMap<String, SequencedMap<String, String>> groups,
+                                                          SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         Path libs = Files.createDirectory(context.next().resolve(ARTIFACTS));

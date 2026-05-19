@@ -144,9 +144,7 @@ public class BuildExecutorTest implements Serializable {
         SequencedProperties stepProperties = new SequencedProperties();
         stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
-        try (Writer writer = Files.newBufferedWriter(checksum.resolve("step.properties"))) {
-            stepProperties.store(writer, null);
-        }
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -177,9 +175,7 @@ public class BuildExecutorTest implements Serializable {
         SequencedProperties stepProperties = new SequencedProperties();
         stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
-        try (Writer writer = Files.newBufferedWriter(checksum.resolve("step.properties"))) {
-            stepProperties.store(writer, null);
-        }
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -221,9 +217,7 @@ public class BuildExecutorTest implements Serializable {
         SequencedProperties stepProperties = new SequencedProperties();
         stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
-        try (Writer writer = Files.newBufferedWriter(checksum.resolve("step.properties"))) {
-            stepProperties.store(writer, null);
-        }
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -254,9 +248,7 @@ public class BuildExecutorTest implements Serializable {
         SequencedProperties stepProperties = new SequencedProperties();
         stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
-        try (Writer writer = Files.newBufferedWriter(checksum.resolve("step.properties"))) {
-            stepProperties.store(writer, null);
-        }
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();

@@ -155,7 +155,7 @@ public class MavenProject implements BuildExecutorModule {
                 for (Path file : files) {
                     String name = file.getFileName().toString();
                     modules.addModule(name.substring(0, name.length() - 11), (module, _) -> {
-                        Properties properties = SequencedProperties.ofFiles(file);
+                        SequencedProperties properties = SequencedProperties.ofFiles(file);
                         boolean active = false;
                         Path base = root.resolve(properties.getProperty("path"));
                         if (!properties.getProperty("sources").isEmpty()) {
@@ -177,7 +177,7 @@ public class MavenProject implements BuildExecutorModule {
                         }
                         if (active) {
                             module.addStep(COORDINATES, (_, context, _) -> {
-                                Properties coordinates = new SequencedProperties();
+                                SequencedProperties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
                                 Path pomFile = paths.get(PREVIOUS + SCAN)
                                         .resolve(POM)
@@ -185,9 +185,7 @@ public class MavenProject implements BuildExecutorModule {
                                         .resolve("pom.xml");
                                 coordinates.setProperty(properties.getProperty("pom"),
                                         context.next().relativize(pomFile).toString().replace(File.separatorChar, '/'));
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
-                                    coordinates.store(writer, null);
-                                }
+                                coordinates.store(context.next().resolve(IDENTITY));
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
                             module.addStep(MANIFESTS, (_, context, _) -> {
@@ -199,8 +197,8 @@ public class MavenProject implements BuildExecutorModule {
                                 String testsOf = coordinateParts.length == 6 && "tests".equals(coordinateParts[4])
                                         ? coordinateParts[2]
                                         : null;
-                                Properties requires = new SequencedProperties();
-                                Properties scopes = new SequencedProperties();
+                                SequencedProperties requires = new SequencedProperties();
+                                SequencedProperties scopes = new SequencedProperties();
                                 String compile = properties.getProperty("dependencies.compile", "");
                                 String provided = properties.getProperty("dependencies.provided", "");
                                 String runtime = properties.getProperty("dependencies.runtime", "");
@@ -230,13 +228,9 @@ public class MavenProject implements BuildExecutorModule {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, compileAndRuntime);
                                 }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                                    requires.store(writer, null);
-                                }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.SCOPES))) {
-                                    scopes.store(writer, null);
-                                }
-                                Properties versions = new SequencedProperties();
+                                requires.store(context.next().resolve(BuildStep.REQUIRES));
+                                scopes.store(context.next().resolve(BuildStep.SCOPES));
+                                SequencedProperties versions = new SequencedProperties();
                                 String managed = properties.getProperty("managedDependencies", "");
                                 if (!managed.isEmpty()) {
                                     for (String entry : managed.split(",")) {
@@ -245,12 +239,10 @@ public class MavenProject implements BuildExecutorModule {
                                     }
                                 }
                                 if (!versions.isEmpty()) {
-                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
-                                        versions.store(writer, null);
-                                    }
+                                    versions.store(context.next().resolve(BuildStep.VERSIONS));
                                 }
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));
-                                Properties descriptor = new SequencedProperties();
+                                SequencedProperties descriptor = new SequencedProperties();
                                 descriptor.setProperty("path", properties.getProperty("path"));
                                 if (testsOf != null) {
                                     descriptor.setProperty("tests", testsOf);
@@ -259,14 +251,10 @@ public class MavenProject implements BuildExecutorModule {
                                 if (mainClass != null && testsOf == null) {
                                     descriptor.setProperty("main", mainClass);
                                 }
-                                try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.MODULE))) {
-                                    descriptor.store(writer, null);
-                                }
-                                Properties metadata = extractMetadata(pomFile);
+                                descriptor.store(context.next().resolve(BuildStep.MODULE));
+                                SequencedProperties metadata = extractMetadata(pomFile);
                                 if (!metadata.isEmpty()) {
-                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
-                                        metadata.store(writer, null);
-                                    }
+                                    metadata.store(context.next().resolve(BuildStep.METADATA));
                                 }
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
@@ -277,8 +265,8 @@ public class MavenProject implements BuildExecutorModule {
         }, SCAN, PREPARE);
     }
 
-    private static Properties extractMetadata(Path pomFile) throws IOException {
-        Properties result = new SequencedProperties();
+    private static SequencedProperties extractMetadata(Path pomFile) throws IOException {
+        SequencedProperties result = new SequencedProperties();
         if (!Files.isRegularFile(pomFile)) {
             return result;
         }
@@ -356,7 +344,7 @@ public class MavenProject implements BuildExecutorModule {
         return null;
     }
 
-    private static void copyChildText(Node parent, String localName, Properties target, String key) {
+    private static void copyChildText(Node parent, String localName, SequencedProperties target, String key) {
         Element child = firstChild(parent, localName);
         if (child != null) {
             target.setProperty(key, child.getTextContent().trim());
@@ -435,7 +423,7 @@ public class MavenProject implements BuildExecutorModule {
                 MavenDependencyKey selfPom = new MavenDependencyKey(
                         entry.getValue().groupId(), entry.getValue().artifactId(), "pom", null);
                 String relativePath = entry.getKey().toString().replace(File.separatorChar, '/');
-                Properties module = new SequencedProperties();
+                SequencedProperties module = new SequencedProperties();
                 module.setProperty("coordinate", coordinate);
                 module.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
                 module.setProperty("path", relativePath);
@@ -476,10 +464,8 @@ public class MavenProject implements BuildExecutorModule {
                 module.setProperty("resources", entry.getValue().resourceDirectories() == null
                         ? "src/main/resources"
                         : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("module-" + BuildExecutorModule.encode(relativePath) + ".properties"))) {
-                    module.store(writer, null);
-                }
-                Properties testModule = new SequencedProperties();
+                module.store(maven.resolve("module-" + BuildExecutorModule.encode(relativePath) + ".properties"));
+                SequencedProperties testModule = new SequencedProperties();
                 MavenDependencyKey testSelfKey = new MavenDependencyKey(
                         entry.getValue().groupId(), entry.getValue().artifactId(), packaging, "tests");
                 testModule.setProperty("coordinate", testSelfKey.coordinate(prefix, entry.getValue().version()));
@@ -512,9 +498,7 @@ public class MavenProject implements BuildExecutorModule {
                 testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
                         ? "src/test/resources"
                         : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                try (Writer writer = Files.newBufferedWriter(maven.resolve("test-module-" + BuildExecutorModule.encode(relativePath) + ".properties"))) {
-                    testModule.store(writer, null);
-                }
+                testModule.store(maven.resolve("test-module-" + BuildExecutorModule.encode(relativePath) + ".properties"));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

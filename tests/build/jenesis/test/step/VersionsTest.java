@@ -160,16 +160,12 @@ public class VersionsTest {
     public void merges_versions_from_multiple_requires_files() throws IOException {
         writeModuleInfo("foo", null, false, require("bar"), require("qux"));
         Path otherRequires = Files.createDirectory(root.resolve("other-requires"));
-        Properties first = new SequencedProperties();
+        SequencedProperties first = new SequencedProperties();
         first.setProperty("module/bar/1.0", "");
-        try (Writer writer = Files.newBufferedWriter(requiresInput.resolve(BuildStep.REQUIRES))) {
-            first.store(writer, null);
-        }
-        Properties second = new SequencedProperties();
+        first.store(requiresInput.resolve(BuildStep.REQUIRES));
+        SequencedProperties second = new SequencedProperties();
         second.setProperty("module/qux/2.0", "");
-        try (Writer writer = Files.newBufferedWriter(otherRequires.resolve(BuildStep.REQUIRES))) {
-            second.store(writer, null);
-        }
+        second.store(otherRequires.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Versions().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -317,11 +313,9 @@ public class VersionsTest {
     }
 
     private void writeRequires(Map<String, String> entries) throws IOException {
-        Properties properties = new SequencedProperties();
+        SequencedProperties properties = new SequencedProperties();
         entries.forEach(properties::setProperty);
-        try (Writer writer = Files.newBufferedWriter(requiresInput.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(requiresInput.resolve(BuildStep.REQUIRES));
     }
 
     private void runStep() throws IOException {

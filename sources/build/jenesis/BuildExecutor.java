@@ -154,10 +154,7 @@ public class BuildExecutor {
                 Path stepFile = checksum.resolve("step.properties");
                 boolean consistent;
                 if (exists && Files.exists(stepFile)) {
-                    Properties stepProperties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(stepFile)) {
-                        stepProperties.load(reader);
-                    }
+                    SequencedProperties stepProperties = SequencedProperties.ofFiles(stepFile);
                     String serialization = stepProperties.getProperty("serialization");
                     consistent = serialization != null
                             && Arrays.equals(currentStepHash, HexFormat.of().parseHex(serialization))
@@ -210,11 +207,9 @@ public class BuildExecutor {
                             }
                             Map<Path, byte[]> checksums = HashFunction.read(output, hash);
                             HashFunction.write(checksum.resolve("output.properties"), checksums);
-                            Properties stepProperties = new SequencedProperties();
+                            SequencedProperties stepProperties = new SequencedProperties();
                             stepProperties.setProperty("serialization", HexFormat.of().formatHex(currentStepHash));
-                            try (Writer writer = Files.newBufferedWriter(checksum.resolve("step.properties"))) {
-                                stepProperties.store(writer, null);
-                            }
+                            stepProperties.store(checksum.resolve("step.properties"));
                             completion.accept(result.next(), null);
                             return CompletableFuture.completedStage(Map.of(
                                     identity,

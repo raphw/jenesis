@@ -8,6 +8,7 @@ import build.jenesis.BuildExecutorException;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.TestModule;
@@ -50,7 +51,7 @@ public class TestModuleTest {
                      .resolve("TestSample.class"))) {
             requireNonNull(input).transferTo(output);
         }
-        Properties versions = new Properties();
+        SequencedProperties versions = new SequencedProperties();
         versions.setProperty("maven/org.junit.platform/junit-platform-console",
                 "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
         versions.setProperty("maven/org.junit.platform/junit-platform-reporting",
@@ -65,9 +66,7 @@ public class TestModuleTest {
                 "1.3.0 SHA-256/48e2df636cab6563ced64dcdff8abb2355627cb236ef0bf37598682ddf742f1b");
         versions.setProperty("maven/org.apiguardian/apiguardian-api",
                 "1.1.2 SHA-256/b509448ac506d607319f182537f0b35d71007582ec741832a1f111e5b5b70b38");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.VERSIONS))) {
-            versions.store(writer, null);
-        }
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
     }
 
     @Test
@@ -253,7 +252,7 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
                 .containsExactly("maven/org.junit.platform/junit-platform-console/1.11.4");
     }
@@ -273,7 +272,7 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
                 .containsExactly("module/org.junit.platform.console");
     }
@@ -293,7 +292,7 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties).isEmpty();
     }
 
@@ -311,7 +310,7 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties).isEmpty();
     }
 
@@ -329,7 +328,7 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties).isEmpty();
     }
 
@@ -347,7 +346,7 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        Properties properties = readRequires(root.resolve("test").resolve("resolved"));
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties).isEmpty();
     }
 
@@ -359,12 +358,7 @@ public class TestModuleTest {
                 BuildExecutorCallback.nop());
     }
 
-    private static Properties readRequires(Path stepFolder) throws IOException {
-        Path file = stepFolder.resolve("output").resolve(BuildStep.REQUIRES);
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(file)) {
-            properties.load(reader);
-        }
-        return properties;
+    private static SequencedProperties readRequires(Path stepFolder) throws IOException {
+        return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.REQUIRES));
     }
 }

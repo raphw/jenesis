@@ -40,10 +40,7 @@ public record Execute(Project project, String mainClass, String module) {
             if (!Files.isRegularFile(inv)) {
                 continue;
             }
-            Properties loaded = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(inv)) {
-                loaded.load(reader);
-            }
+            SequencedProperties loaded = SequencedProperties.ofFiles(inv);
             for (String key : loaded.stringPropertyNames()) {
                 merged.setProperty(key, loaded.getProperty(key));
                 int dot = key.indexOf('.');
