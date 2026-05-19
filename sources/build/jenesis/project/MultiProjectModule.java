@@ -103,10 +103,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                 SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();
                 Path groups = paths.get(PREVIOUS + GROUP).resolve(Group.GROUPS);
                 for (Map.Entry<String, SequencedSet<String>> entry : identifiers.entrySet()) {
-                    Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(groups.resolve(entry.getKey() + ".properties"))) {
-                        properties.load(reader);
-                    }
+                    Properties properties = SequencedProperties.ofFiles(groups.resolve(entry.getKey() + ".properties"));
                     projects.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
                 MultiProject project = factory.apply(projects);

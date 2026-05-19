@@ -81,11 +81,8 @@ public class ExternalModule implements BuildExecutorModule {
         buildExecutor.addStep(EXTERNAL, new ExtractExternal(coordinate), EXTERNAL_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(delegated.get(PREVIOUS + EXTERNAL)
-                    .resolve(EXTERNAL_PROPERTIES))) {
-                properties.load(reader);
-            }
+            Properties properties = SequencedProperties.ofFiles(
+                    delegated.get(PREVIOUS + EXTERNAL).resolve(EXTERNAL_PROPERTIES));
             String name = properties.getProperty(JENESIS_MODULE);
             List<URL> urls = new ArrayList<>();
             try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {

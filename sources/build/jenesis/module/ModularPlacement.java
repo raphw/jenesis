@@ -2,6 +2,7 @@ package build.jenesis.module;
 
 import module java.base;
 import build.jenesis.BuildStep;
+import build.jenesis.SequencedProperties;
 
 public class ModularPlacement implements Function<Path, Optional<Path>>, Serializable {
 
@@ -66,12 +67,10 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         if (!Files.isRegularFile(file)) {
             return null;
         }
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(file)) {
-            properties.load(reader);
-        } catch (IOException _) {
-            return null;
+        try {
+            return SequencedProperties.ofFiles(file);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
-        return properties;
     }
 }

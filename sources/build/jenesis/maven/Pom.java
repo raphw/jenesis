@@ -51,58 +51,26 @@ public class Pom implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        Properties coordinates = new SequencedProperties();
+        List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
+        Properties coordinates = SequencedProperties.ofFolders(folders, IDENTITY);
+        Properties requires = SequencedProperties.ofFolders(folders, REQUIRES);
+        Properties scopes = SequencedProperties.ofFolders(folders, SCOPES);
+        Properties module = SequencedProperties.ofFolders(folders, MODULE);
+        Properties metadata = SequencedProperties.ofFolders(folders, METADATA);
+        boolean scoped = !scopes.isEmpty();
         Properties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
-        boolean scoped = false;
-        Properties module = new SequencedProperties();
-        Properties metadata = new SequencedProperties();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path coordinatesFile = argument.folder().resolve(IDENTITY);
-            if (Files.exists(coordinatesFile)) {
-                try (Reader reader = Files.newBufferedReader(coordinatesFile)) {
-                    coordinates.load(reader);
+        for (String name : requires.stringPropertyNames()) {
+            String scope = scopes.getProperty(name);
+            if (scope == null) {
+                compileRequires.setProperty(name, requires.getProperty(name));
+            } else {
+                List<String> parts = List.of(scope.split(","));
+                if (parts.contains(DependencyScope.COMPILE.name())) {
+                    compileRequires.setProperty(name, requires.getProperty(name));
                 }
-            }
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            Path scopesFile = argument.folder().resolve(SCOPES);
-            if (Files.exists(requiresFile)) {
-                Properties requiresLoaded = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(requiresFile)) {
-                    requiresLoaded.load(reader);
-                }
-                Properties scopesLoaded = new SequencedProperties();
-                if (Files.exists(scopesFile)) {
-                    scoped = true;
-                    try (Reader reader = Files.newBufferedReader(scopesFile)) {
-                        scopesLoaded.load(reader);
-                    }
-                }
-                for (String name : requiresLoaded.stringPropertyNames()) {
-                    String scope = scopesLoaded.getProperty(name);
-                    if (scope == null) {
-                        compileRequires.setProperty(name, requiresLoaded.getProperty(name));
-                    } else {
-                        List<String> parts = List.of(scope.split(","));
-                        if (parts.contains(DependencyScope.COMPILE.name())) {
-                            compileRequires.setProperty(name, requiresLoaded.getProperty(name));
-                        }
-                        if (parts.contains(DependencyScope.RUNTIME.name())) {
-                            runtimeRequires.add(name);
-                        }
-                    }
-                }
-            }
-            Path moduleFile = argument.folder().resolve(MODULE);
-            if (Files.exists(moduleFile)) {
-                try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                    module.load(reader);
-                }
-            }
-            Path metadataFile = argument.folder().resolve(METADATA);
-            if (Files.exists(metadataFile)) {
-                try (Reader reader = Files.newBufferedReader(metadataFile)) {
-                    metadata.load(reader);
+                if (parts.contains(DependencyScope.RUNTIME.name())) {
+                    runtimeRequires.add(name);
                 }
             }
         }

@@ -33,10 +33,7 @@ public interface HashFunction {
 
     static Map<Path, byte[]> read(Path file) throws IOException {
         Map<Path, byte[]> checksums = new LinkedHashMap<>();
-        Properties properties = new SequencedProperties();
-        try (Reader reader = Files.newBufferedReader(file)) {
-            properties.load(reader);
-        }
+        Properties properties = SequencedProperties.ofFiles(file);
         for (String name : properties.stringPropertyNames()) {
             checksums.put(Path.of(name), HexFormat.of().parseHex(properties.getProperty(name)));
         }

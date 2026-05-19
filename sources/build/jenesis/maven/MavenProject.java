@@ -154,10 +154,7 @@ public class MavenProject implements BuildExecutorModule {
                 for (Path file : files) {
                     String name = file.getFileName().toString();
                     modules.addModule(name.substring(0, name.length() - 11), (module, _) -> {
-                        Properties properties = new SequencedProperties();
-                        try (Reader reader = Files.newBufferedReader(file)) {
-                            properties.load(reader);
-                        }
+                        Properties properties = SequencedProperties.ofFiles(file);
                         boolean active = false;
                         Path base = root.resolve(properties.getProperty("path"));
                         if (!properties.getProperty("sources").isEmpty()) {

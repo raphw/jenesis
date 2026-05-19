@@ -3,6 +3,7 @@ package build.jenesis.maven;
 import module java.base;
 import module java.xml;
 import build.jenesis.BuildStep;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Export;
 
 public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>, Serializable {
@@ -55,13 +56,11 @@ public class MavenRepositoryPlacement implements Function<Path, Optional<Path>>,
         if (!Files.isRegularFile(module)) {
             return false;
         }
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(module)) {
-            properties.load(reader);
-        } catch (IOException _) {
-            return false;
+        try {
+            return SequencedProperties.ofFiles(module).getProperty("tests") != null;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
-        return properties.getProperty("tests") != null;
     }
 
     @SuppressWarnings("unchecked")

@@ -23,14 +23,9 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
         return (sub, outerInherited) -> {
             BuildExecutorModule java;
             if (descriptor.tests()) {
-                Properties module = new Properties();
                 Path moduleFile = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
-                if (Files.isRegularFile(moduleFile)) {
-                    try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                        module.load(reader);
-                    }
-                }
-                boolean test = module.getProperty("tests") != null;
+                boolean test = Files.isRegularFile(moduleFile)
+                        && SequencedProperties.ofFiles(moduleFile).getProperty("tests") != null;
                 java = new JavaModule().test(test, null, repositories, resolvers);
             } else {
                 java = new JavaModule();

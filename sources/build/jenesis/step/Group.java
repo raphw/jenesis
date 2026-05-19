@@ -59,11 +59,7 @@ public class Group implements BuildStep {
 
     private static Set<String> toProperties(Path file) throws IOException {
         if (Files.exists(file)) {
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(file)) {
-                properties.load(reader);
-            }
-            return properties.stringPropertyNames();
+            return SequencedProperties.ofFiles(file).stringPropertyNames();
         } else {
             return Set.of();
         }

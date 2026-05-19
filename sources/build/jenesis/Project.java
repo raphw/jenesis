@@ -126,23 +126,9 @@ public record Project(
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
             executor.addModule(STAGE, (sub, inherited) -> {
-                String version = null;
-                for (Path folder : inherited.values()) {
-                    Path metadataFile = folder.resolve(BuildStep.METADATA);
-                    if (Files.isRegularFile(metadataFile)) {
-                        Properties metadata = new SequencedProperties();
-                        try (Reader reader = Files.newBufferedReader(metadataFile)) {
-                            metadata.load(reader);
-                        }
-                        String value = metadata.getProperty("version");
-                        if (value != null) {
-                            version = value;
-                            break;
-                        }
-                    }
-                }
+                Properties metadata = SequencedProperties.ofFolders(inherited.values(), BuildStep.METADATA);
                 sub.addStep("output",
-                        new Relocate(new ModularPlacement(version, project.stageTests())),
+                        new Relocate(new ModularPlacement(metadata.getProperty("version"), project.stageTests())),
                         BuildExecutorModule.PREVIOUS + COLLECT);
             }, COLLECT, METADATA);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;

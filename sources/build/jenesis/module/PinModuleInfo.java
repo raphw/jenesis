@@ -95,10 +95,7 @@ public class PinModuleInfo implements BuildStep {
             if (!Files.exists(requiresFile)) {
                 continue;
             }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(requiresFile)) {
-                properties.load(reader);
-            }
+            Properties properties = SequencedProperties.ofFiles(requiresFile);
             for (String coordinate : properties.stringPropertyNames()) {
                 if (internal.contains(coordinate)) {
                     continue;
@@ -152,10 +149,7 @@ public class PinModuleInfo implements BuildStep {
         for (BuildStepArgument argument : arguments.values()) {
             Path versionsFile = argument.folder().resolve(VERSIONS);
             if (Files.exists(versionsFile)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(versionsFile)) {
-                    properties.load(reader);
-                }
+                Properties properties = SequencedProperties.ofFiles(versionsFile);
                 for (String key : properties.stringPropertyNames()) {
                     if (internal.contains(key)) {
                         continue;
@@ -175,10 +169,7 @@ public class PinModuleInfo implements BuildStep {
             }
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(requiresFile)) {
-                    properties.load(reader);
-                }
+                Properties properties = SequencedProperties.ofFiles(requiresFile);
                 for (String key : properties.stringPropertyNames()) {
                     if (internal.contains(key)) {
                         continue;
@@ -211,10 +202,7 @@ public class PinModuleInfo implements BuildStep {
             if (!Files.exists(identityFile)) {
                 continue;
             }
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(identityFile)) {
-                properties.load(reader);
-            }
+            Properties properties = SequencedProperties.ofFiles(identityFile);
             for (String coord : properties.stringPropertyNames()) {
                 internal.add(coord);
                 int firstSlash = coord.indexOf('/');

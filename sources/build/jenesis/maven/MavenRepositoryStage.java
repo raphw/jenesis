@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.SequencedProperties;
 
 public class MavenRepositoryStage implements BuildStep {
 
@@ -39,14 +40,9 @@ public class MavenRepositoryStage implements BuildStep {
                         continue;
                     }
                     Path module = moduleDir.resolve(BuildStep.MODULE);
-                    String testOf = null;
-                    if (Files.isRegularFile(module)) {
-                        Properties properties = new Properties();
-                        try (Reader reader = Files.newBufferedReader(module)) {
-                            properties.load(reader);
-                        }
-                        testOf = properties.getProperty("tests");
-                    }
+                    String testOf = Files.isRegularFile(module)
+                            ? SequencedProperties.ofFiles(module).getProperty("tests")
+                            : null;
                     if (testOf != null) {
                         if (includeTests) {
                             testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));

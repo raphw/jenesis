@@ -42,10 +42,7 @@ public class MultiProjectDependencies implements BuildStep {
                 }
                 Path requiresPath = entry.getValue().folder().resolve(REQUIRES);
                 if (Files.exists(requiresPath)) {
-                    Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(requiresPath)) {
-                        properties.load(reader);
-                    }
+                    Properties properties = SequencedProperties.ofFiles(requiresPath);
                     properties.stringPropertyNames().forEach(property -> {
                         if (filtered.isEmpty() || filtered.contains(property)) {
                             dependencies.put(property, properties.getProperty(property));
@@ -54,10 +51,7 @@ public class MultiProjectDependencies implements BuildStep {
                 }
                 Path versionsPath = entry.getValue().folder().resolve(VERSIONS);
                 if (Files.exists(versionsPath)) {
-                    Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(versionsPath)) {
-                        properties.load(reader);
-                    }
+                    Properties properties = SequencedProperties.ofFiles(versionsPath);
                     properties.stringPropertyNames().forEach(property -> versions.putIfAbsent(
                             property,
                             properties.getProperty(property)));
@@ -65,10 +59,7 @@ public class MultiProjectDependencies implements BuildStep {
             } else {
                 Path file = entry.getValue().folder().resolve(IDENTITY);
                 if (Files.exists(file)) {
-                    Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(file)) {
-                        properties.load(reader);
-                    }
+                    Properties properties = SequencedProperties.ofFiles(file);
                     Path folder = entry.getValue().folder();
                     for (String property : properties.stringPropertyNames()) {
                         String value = properties.getProperty(property);
