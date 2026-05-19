@@ -51,7 +51,7 @@ public class Export implements BuildStep {
                         if (Files.isRegularFile(moduleFile)) {
                             metadata.putAll(SequencedProperties.ofFiles(moduleFile));
                         }
-                        Path metadataFile = parent.resolve(BuildStep.METADATA);
+                        Path metadataFile = parent.resolve(BuildStep.PROJECT);
                         if (Files.isRegularFile(metadataFile)) {
                             metadata.putAll(SequencedProperties.ofFiles(metadataFile));
                         }

@@ -25,7 +25,7 @@ public class Manual {
         root.addSource("deps", Path.of("dependencies"));
 
         root.addModule("main-deps", (module, _) -> {
-            module.addStep("properties", Bind.asRequires("main.properties"), "../deps");
+            module.addStep("properties", Bind.asRequiresProperties("main.properties"), "../deps");
             module.addStep("resolved", new Resolve(repositories, resolvers, true), "properties");
             module.addStep("artifacts", new Download(repositories), "resolved");
         }, "deps");
@@ -36,7 +36,7 @@ public class Manual {
         }, "main-deps");
 
         root.addModule("test-deps", (module, _) -> {
-            module.addStep("properties", Bind.asRequires("test.properties"), "../deps");
+            module.addStep("properties", Bind.asRequiresProperties("test.properties"), "../deps");
             module.addStep("resolved", new Resolve(repositories, resolvers, true), "properties");
             module.addStep("artifacts", new Download(repositories), "resolved");
         }, "deps");

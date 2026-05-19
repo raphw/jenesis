@@ -54,7 +54,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public static FilePlacement artifactsByModule() {
         return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", Pom.POM,
-                BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
+                BuildStep.MODULE, BuildStep.PROJECT, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
@@ -264,7 +264,7 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 Properties metadata = extractMetadata(pomFile);
                                 if (!metadata.isEmpty()) {
-                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.METADATA))) {
+                                    try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(BuildStep.PROJECT))) {
                                         metadata.store(writer, null);
                                     }
                                 }

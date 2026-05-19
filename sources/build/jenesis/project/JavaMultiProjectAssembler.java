@@ -83,7 +83,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                     }
                 }
                 if (version == null) {
-                    Path metadataFile = argument.folder().resolve(BuildStep.METADATA);
+                    Path metadataFile = argument.folder().resolve(BuildStep.PROJECT);
                     if (Files.isRegularFile(metadataFile)) {
                         Properties metadata = new SequencedProperties();
                         try (Reader reader = Files.newBufferedReader(metadataFile)) {

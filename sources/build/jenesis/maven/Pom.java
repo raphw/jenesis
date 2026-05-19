@@ -56,7 +56,7 @@ public class Pom implements BuildStep {
         Properties requires = SequencedProperties.ofFolders(folders, REQUIRES);
         Properties scopes = SequencedProperties.ofFolders(folders, SCOPES);
         Properties module = SequencedProperties.ofFolders(folders, MODULE);
-        Properties metadata = SequencedProperties.ofFolders(folders, METADATA);
+        Properties metadata = SequencedProperties.ofFolders(folders, PROJECT);
         boolean scoped = !scopes.isEmpty();
         Properties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
