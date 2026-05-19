@@ -45,7 +45,14 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
         if (parent == null) {
             return Optional.empty();
         }
-        Properties module = readProperties(parent.resolve(BuildStep.MODULE));
+        Properties module = null;
+        if (!Files.isRegularFile(file)) {
+            try {
+                module = SequencedProperties.ofFiles(file);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
         if (!includeTests && module != null && module.getProperty("tests") != null) {
             return Optional.empty();
         }
@@ -61,16 +68,5 @@ public class ModularPlacement implements Function<Path, Optional<Path>>, Seriali
             return Optional.of(Path.of(moduleName, version, moduleName + suffix));
         }
         return Optional.of(Path.of(moduleName, moduleName + suffix));
-    }
-
-    private static Properties readProperties(Path file) {
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-        try {
-            return SequencedProperties.ofFiles(file);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 }
