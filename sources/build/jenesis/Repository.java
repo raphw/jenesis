@@ -15,10 +15,19 @@ public interface Repository {
     }
 
     default Repository cached(Path folder) {
+        boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        return cached(folder, verbose ? target -> System.out.printf("%s%-11s%s %s%n",
+                BuildExecutorCallback.YELLOW,
+                "[FETCHED]",
+                BuildExecutorCallback.RESET,
+                target.toAbsolutePath().toUri()) : _ -> {
+        });
+    }
+
+    default Repository cached(Path folder, Consumer<Path> callback) {
         if (folder == null) {
             return this;
         }
-        boolean verbose = Boolean.getBoolean("jenesis.verbose");
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
         return (executor, coordinate) -> {
             try {
@@ -46,10 +55,8 @@ public interface Repository {
                         throw new UncheckedIOException(e);
                     }
                 });
-                if (verbose && preexisting && target != null) {
-                    System.out.printf("%s%-11s%s %s%n",
-                            BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET,
-                            target.toAbsolutePath().toUri());
+                if (preexisting && target != null) {
+                    callback.accept(target);
                 }
                 return target == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(target));
             } catch (UncheckedIOException e) {
@@ -70,6 +77,18 @@ public interface Repository {
             Map<String, URI> uris,
             F versionResolver) {
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        return ofUris(uris, versionResolver, verbose ? uri -> System.out.printf("%s%-11s%s %s%n",
+                BuildExecutorCallback.YELLOW,
+                "[FETCHED]",
+                BuildExecutorCallback.RESET,
+                uri) : _ -> {
+        });
+    }
+
+    static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> Repository ofUris(
+            Map<String, URI> uris,
+            F versionResolver,
+            Consumer<URI> callback) {
         return (_, coordinate) -> {
             URI candidate = uris.get(coordinate);
             if (candidate == null && versionResolver != null) {
@@ -85,10 +104,7 @@ public interface Repository {
                 return Optional.empty();
             }
             URI uri = candidate;
-            if (verbose) {
-                System.out.printf("%s%-11s%s %s%n",
-                        BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, uri);
-            }
+            callback.accept(uri);
             if (Objects.equals("file", uri.getScheme())) {
                 return Optional.of(RepositoryItem.ofFile(Path.of(uri)));
             } else {

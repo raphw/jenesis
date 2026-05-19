@@ -9,7 +9,7 @@ public class MavenDefaultRepository implements MavenRepository {
     private final URI repository;
     private final Path local;
     private final Map<String, URI> validations;
-    private final boolean verbose = Boolean.getBoolean("jenesis.verbose");
+    private final Consumer<String> callback;
 
     public MavenDefaultRepository() {
         String environment = System.getenv("MAVEN_REPOSITORY_URI");
@@ -20,12 +20,20 @@ public class MavenDefaultRepository implements MavenRepository {
         Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
         this.local = Files.isDirectory(local) ? local : null;
         validations = Map.of("SHA1", repository);
+        boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        callback = verbose ? path -> System.out.printf("%s%-11s%s %s%n",
+                BuildExecutorCallback.YELLOW,
+                "[FETCHED]",
+                BuildExecutorCallback.RESET,
+                repository.resolve(path)) : _ -> {
+        };
     }
 
-    public MavenDefaultRepository(URI repository, Path local, Map<String, URI> validations) {
+    public MavenDefaultRepository(URI repository, Path local, Map<String, URI> validations, Consumer<String> callback) {
         this.repository = repository;
         this.local = local;
         this.validations = validations;
+        this.callback = callback;
     }
 
     @SuppressWarnings("unchecked")
@@ -95,10 +103,7 @@ public class MavenDefaultRepository implements MavenRepository {
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
                 + "." + type + (checksum == null ? "" : ("." + checksum));
-        if (verbose) {
-            System.out.printf("%s%-11s%s %s%n",
-                    BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, repository.resolve(path));
-        }
+        callback.accept(path);
         return fetch(repository, path, checksum == null).materialize();
     }
 
@@ -110,10 +115,7 @@ public class MavenDefaultRepository implements MavenRepository {
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum);
-        if (verbose) {
-            System.out.printf("%s%-11s%s %s%n",
-                    BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, repository.resolve(path));
-        }
+        callback.accept(path);
         return fetch(repository, path, checksum == null).materialize();
     }
 
