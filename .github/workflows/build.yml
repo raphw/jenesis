@@ -26,6 +26,15 @@ jobs:
         shell: bash
         run: java build/${{ matrix.build }}.java
 
+      - name: Upload target on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-manual-${{ matrix.os }}-${{ matrix.build }}
+          path: target/
+          retention-days: 3
+          if-no-files-found: ignore
+
   project:
     strategy:
       fail-fast: false
@@ -45,6 +54,15 @@ jobs:
       - name: Project layout ${{ matrix.layout }}
         shell: bash
         run: java -Djenesis.project.layout=${{ matrix.layout }} build/jenesis/Project.java stage
+
+      - name: Upload target on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-project-${{ matrix.os }}-${{ matrix.layout }}
+          path: target/
+          retention-days: 3
+          if-no-files-found: ignore
 
   sdk:
     strategy:
@@ -85,3 +103,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: sdk-tests\test.bat
+
+      - name: Upload target on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-sdk-${{ matrix.os }}
+          path: target/
+          retention-days: 3
+          if-no-files-found: ignore
