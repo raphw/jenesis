@@ -21,7 +21,7 @@ public abstract class ProcessBuildStep implements BuildStep {
         }
     }
 
-    private final transient Function<List<String>, ? extends ProcessHandler> factory;
+    protected final transient Function<List<String>, ? extends ProcessHandler> factory;
     private final String command;
 
     protected ProcessBuildStep(String command, Function<List<String>, ? extends ProcessHandler> factory) {

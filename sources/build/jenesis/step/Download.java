@@ -12,9 +12,19 @@ public class Download implements DependencyProcessingBuildStep {
     public static final String REQUIRE_CHECKSUMS_PROPERTY = "jenesis.requireChecksums";
 
     private final transient Map<String, Repository> repositories;
+    private final boolean requireChecksums;
 
     public Download(Map<String, Repository> repositories) {
+        this(repositories, Boolean.getBoolean(REQUIRE_CHECKSUMS_PROPERTY));
+    }
+
+    public Download(Map<String, Repository> repositories, boolean requireChecksums) {
         this.repositories = repositories;
+        this.requireChecksums = requireChecksums;
+    }
+
+    public Download requireChecksums(boolean requireChecksums) {
+        return new Download(repositories, requireChecksums);
     }
 
     @Override
@@ -32,7 +42,7 @@ public class Download implements DependencyProcessingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(ARTIFACTS + name);
                 if (entry.getValue().isEmpty()) {
-                    if (Boolean.getBoolean(REQUIRE_CHECKSUMS_PROPERTY)) {
+                    if (requireChecksums) {
                         throw new IllegalStateException(
                                 "No checksum pinned for " + dependency + " (-D" + REQUIRE_CHECKSUMS_PROPERTY + " is set)");
                     }

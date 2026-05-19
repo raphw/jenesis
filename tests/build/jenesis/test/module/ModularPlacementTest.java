@@ -17,7 +17,7 @@ public class ModularPlacementTest {
     @TempDir
     private Path root;
 
-    private final ModularPlacement layout = new ModularPlacement();
+    private final ModularPlacement layout = new ModularPlacement(null, false);
 
     @Test
     public void maps_classes_jar_to_module_named_jar() {

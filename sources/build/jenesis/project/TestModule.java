@@ -28,20 +28,21 @@ public class TestModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final boolean jarsOnly;
     private final boolean modular;
+    private final String filter;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true);
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
                                                                    P isTest,
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers) {
-        this(engine, isTest, null, repositories, resolvers, true, true);
+        this(engine, isTest, null, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
@@ -50,7 +51,7 @@ public class TestModule implements BuildExecutorModule {
             P isTest,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers) {
-        this(engine, isTest, factory, repositories, resolvers, true, true);
+        this(engine, isTest, factory, repositories, resolvers, true, true, System.getProperty("jenesis.test"));
     }
 
     private TestModule(TestEngine engine,
@@ -59,7 +60,8 @@ public class TestModule implements BuildExecutorModule {
                        Map<String, Repository> repositories,
                        Map<String, Resolver> resolvers,
                        boolean jarsOnly,
-                       boolean modular) {
+                       boolean modular,
+                       String filter) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -67,6 +69,7 @@ public class TestModule implements BuildExecutorModule {
         this.resolvers = resolvers;
         this.jarsOnly = jarsOnly;
         this.modular = modular;
+        this.filter = filter;
     }
 
     private static Predicate<String> defaultIsTest() {
@@ -78,11 +81,15 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
     }
 
     public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
+    }
+
+    public TestModule filter(String filter) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
     }
 
     @Override
@@ -95,8 +102,8 @@ public class TestModule implements BuildExecutorModule {
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories), REQUIRED);
         Run run = factory == null
-                ? new Run(engine, isTest, jarsOnly, modular)
-                : new Run(factory, engine, isTest, jarsOnly, modular);
+                ? new Run(engine, isTest, jarsOnly, modular, filter)
+                : new Run(factory, engine, isTest, jarsOnly, modular, filter);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
@@ -173,25 +180,28 @@ public class TestModule implements BuildExecutorModule {
 
         private final TestEngine engine;
         private final Predicate<String> isTest;
-        private final String filter = System.getProperty("jenesis.test");
+        private final String filter;
 
-        private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
+        private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular, String filter) {
             this.engine = engine;
             this.isTest = isTest;
             this.jarsOnly = jarsOnly;
             this.modular = modular;
+            this.filter = filter;
         }
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
                     TestEngine engine,
                     Predicate<String> isTest,
                     boolean jarsOnly,
-                    boolean modular) {
+                    boolean modular,
+                    String filter) {
             super(factory);
             this.engine = engine;
             this.isTest = isTest;
             this.jarsOnly = jarsOnly;
             this.modular = modular;
+            this.filter = filter;
         }
 
         @Override

@@ -7,10 +7,15 @@ import build.jenesis.SequencedProperties;
 
 public class Javac extends JdkProcessBuildStep {
 
-    private final String buildVersion = System.getProperty("jenesis.buildVersion");
+    private final String buildVersion;
 
     protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
+        this(factory, System.getProperty("jenesis.buildVersion"));
+    }
+
+    protected Javac(Function<List<String>, ? extends ProcessHandler> factory, String buildVersion) {
         super("javac", factory);
+        this.buildVersion = buildVersion;
     }
 
     public static Javac tool() {
@@ -19,6 +24,10 @@ public class Javac extends JdkProcessBuildStep {
 
     public static Javac process() {
         return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"));
+    }
+
+    public Javac buildVersion(String buildVersion) {
+        return new Javac(factory, buildVersion);
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {

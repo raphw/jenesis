@@ -170,6 +170,56 @@ public class TestModuleTest {
     }
 
     @Test
+    public void filter_pattern_selects_test_class_bypassing_isTest_predicate() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(new JUnit5(),
+                        (Predicate<String> & Serializable) _ -> false,
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
+                        Map.of("maven", new MavenPomResolver()))
+                        .jarsOnly(false)
+                        .filter("sample\\.TestSample"),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
+        assertThat(supplement.resolve("output")).content().contains("Hello world!");
+        assertThat(supplement.resolve("command")).content().contains("-select-class=sample.TestSample");
+    }
+
+    @Test
+    public void filter_with_method_selector_targets_specific_method() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(new JUnit5(),
+                        (Predicate<String> & Serializable) _ -> false,
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
+                        Map.of("maven", new MavenPomResolver()))
+                        .jarsOnly(false)
+                        .filter("sample\\.TestSample#test"),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
+        assertThat(supplement.resolve("output")).content().contains("Hello world!");
+        assertThat(supplement.resolve("command")).content().contains("-select-method=sample.TestSample#test");
+    }
+
+    @Test
     public void throws_when_no_engine_found() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("dependencies", emptyDependencies);

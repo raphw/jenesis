@@ -89,60 +89,42 @@ public class JavacTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void stamps_module_version_when_jenesis_buildVersion_is_set(boolean process) throws IOException {
+    public void stamps_module_version_when_buildVersion_is_set(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("module-info.java"))) {
             writer.append("module sample { }");
             writer.newLine();
         }
-        String previous = System.getProperty("jenesis.buildVersion");
-        System.setProperty("jenesis.buildVersion", "1.2.3");
-        try {
-            BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
-                    new BuildStepContext(this.previous, next, supplement),
-                    new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
-                            sources,
-                            Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-            assertThat(result.next()).isTrue();
-            Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
-            assertThat(moduleInfo).isNotEmptyFile();
-            ModuleDescriptor descriptor = ModuleDescriptor.read(Files.newInputStream(moduleInfo));
-            assertThat(descriptor.rawVersion()).contains("1.2.3");
-        } finally {
-            if (previous == null) {
-                System.clearProperty("jenesis.buildVersion");
-            } else {
-                System.setProperty("jenesis.buildVersion", previous);
-            }
-        }
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).buildVersion("1.2.3").apply(Runnable::run,
+                new BuildStepContext(this.previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
+        assertThat(moduleInfo).isNotEmptyFile();
+        ModuleDescriptor descriptor = ModuleDescriptor.read(Files.newInputStream(moduleInfo));
+        assertThat(descriptor.rawVersion()).contains("1.2.3");
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void does_not_stamp_module_version_when_jenesis_buildVersion_is_absent(boolean process) throws IOException {
+    public void does_not_stamp_module_version_when_buildVersion_is_absent(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("module-info.java"))) {
             writer.append("module sample { }");
             writer.newLine();
         }
-        String previous = System.getProperty("jenesis.buildVersion");
-        System.clearProperty("jenesis.buildVersion");
-        try {
-            BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
-                    new BuildStepContext(this.previous, next, supplement),
-                    new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
-                            sources,
-                            Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-            assertThat(result.next()).isTrue();
-            Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
-            assertThat(moduleInfo).isNotEmptyFile();
-            ModuleDescriptor descriptor = ModuleDescriptor.read(Files.newInputStream(moduleInfo));
-            assertThat(descriptor.rawVersion()).isEmpty();
-        } finally {
-            if (previous != null) {
-                System.setProperty("jenesis.buildVersion", previous);
-            }
-        }
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).buildVersion(null).apply(Runnable::run,
+                new BuildStepContext(this.previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
+        assertThat(moduleInfo).isNotEmptyFile();
+        ModuleDescriptor descriptor = ModuleDescriptor.read(Files.newInputStream(moduleInfo));
+        assertThat(descriptor.rawVersion()).isEmpty();
     }
 
     @ParameterizedTest

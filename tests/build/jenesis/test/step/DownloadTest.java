@@ -202,43 +202,37 @@ public class DownloadTest {
     }
 
     @Test
-    public void fails_when_require_checksums_property_is_set_and_hash_is_missing() throws IOException {
+    public void fails_when_requireChecksums_is_true_and_hash_is_missing() throws IOException {
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "");
         try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
-        System.setProperty(Download.REQUIRE_CHECKSUMS_PROPERTY, "true");
-        try {
-            assertThatThrownBy(() -> new Download(Map.of(
-                    "foo",
-                    (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-            )).apply(
-                    Runnable::run,
-                    new BuildStepContext(previous, next, supplement),
-                    new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
-                            dependencies,
-                            Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No checksum pinned for foo/bar")
-                    .hasMessageContaining(Download.REQUIRE_CHECKSUMS_PROPERTY);
-        } finally {
-            System.clearProperty(Download.REQUIRE_CHECKSUMS_PROPERTY);
-        }
+        assertThatThrownBy(() -> new Download(Map.of(
+                "foo",
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        )).requireChecksums(true).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No checksum pinned for foo/bar")
+                .hasMessageContaining(Download.REQUIRE_CHECKSUMS_PROPERTY);
     }
 
     @Test
-    public void permits_missing_hash_when_require_checksums_property_is_unset() throws IOException {
+    public void permits_missing_hash_when_requireChecksums_is_false() throws IOException {
         Properties properties = new Properties();
         properties.setProperty("foo/bar", "");
         try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
             properties.store(writer, null);
         }
-        System.clearProperty(Download.REQUIRE_CHECKSUMS_PROPERTY);
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-        )).apply(
+        )).requireChecksums(false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
