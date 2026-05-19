@@ -5,6 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.project.DependencyScope;
@@ -147,7 +148,9 @@ public class JavaMultiProjectAssemblerTest {
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, javadoc);
         BuildExecutorModule assembled = new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addSource("manifests", manifests);
         executor.addSource("sources", sources);

@@ -5,6 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -54,7 +55,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -146,7 +149,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -219,7 +224,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(subproject.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(subproject.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -308,7 +315,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/main/resources")).resolve("resource"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -341,7 +350,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("resources-1")).resolve("resource1"), "bar");
         Files.writeString(Files.createDirectories(project.resolve("resources-2")).resolve("resource2"), "qux");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -368,7 +379,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/resources")).resolve("resource"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -401,7 +414,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("resources-1")).resolve("resource1"), "bar");
         Files.writeString(Files.createDirectories(project.resolve("resources-2")).resolve("resource2"), "qux");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -471,7 +486,9 @@ public class MavenProjectTest {
                 public class Bar extends Foo { }
                 """);
         BuildExecutor root = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         root.addModule("maven", MavenProject.make(project,
                 "maven",
@@ -600,7 +617,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -644,7 +663,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -696,7 +717,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -753,7 +776,9 @@ public class MavenProjectTest {
                 """);
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -793,7 +818,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -846,7 +873,9 @@ public class MavenProjectTest {
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -877,7 +906,9 @@ public class MavenProjectTest {
                 """);
         Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
         BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();

@@ -5,6 +5,7 @@ import module java.compiler;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
@@ -25,7 +26,9 @@ public class ExternalModuleTest {
     @BeforeEach
     public void setUp() throws Exception {
         buildExecutor = BuildExecutor.of(root,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop());
     }
 

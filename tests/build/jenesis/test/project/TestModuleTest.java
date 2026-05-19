@@ -6,6 +6,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorException;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
@@ -287,7 +288,11 @@ public class TestModuleTest {
     }
 
     private BuildExecutor newExecutor() throws IOException {
-        return BuildExecutor.of(root, new HashDigestFunction("MD5"), BuildExecutorCallback.nop());
+        return BuildExecutor.of(root,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop());
     }
 
     private static Properties readRequires(Path stepFolder) throws IOException {

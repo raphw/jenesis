@@ -28,7 +28,11 @@ public class BuildExecutorTest implements Serializable {
     @BeforeEach
     public void setUp() throws Exception {
         hash = new HashDigestFunction("MD5");
-        buildExecutor = BuildExecutor.of(root, hash, BuildExecutorCallback.nop());
+        buildExecutor = BuildExecutor.of(root,
+                Duration.ZERO,
+                hash,
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop());
     }
 
     @Test

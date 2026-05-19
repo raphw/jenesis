@@ -11,6 +11,7 @@ public class BuildExecutor {
             VALIDATE_RESOLVED = Pattern.compile("[a-zA-Z0-9./_%-]+");
 
     private final Path target;
+    private final Duration timeout;
     private final HashFunction hash;
     private final BuildStepHashFunction stepHash;
     private final BuildExecutorCallback callback;
@@ -19,13 +20,16 @@ public class BuildExecutor {
     private final Map<String, StepSummary> inherited;
     private final SequencedMap<String, Registration> registrations = new LinkedHashMap<>();
 
+
     private BuildExecutor(Path target,
+                          Duration timeout,
                           HashFunction hash,
                           BuildStepHashFunction stepHash,
                           BuildExecutorCallback callback,
                           String location,
                           Map<String, StepSummary> inherited) throws IOException {
         this.target = Files.isDirectory(target) ? target : Files.createDirectory(target);
+        this.timeout = timeout;
         this.hash = hash;
         this.stepHash = stepHash;
         this.callback = callback;
@@ -34,21 +38,20 @@ public class BuildExecutor {
     }
 
     public static BuildExecutor of(Path target) throws IOException {
+        String algorithm = System.getProperty("jenesis.digest", "MD5");
         return of(target,
-                new HashDigestFunction("MD5"),
-                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                Duration.parse(System.getProperty("jenesis.timeout", "PT0S")),
+                new HashDigestFunction(algorithm),
+                BuildStepHashFunction.ofSerializationDigest(algorithm),
                 BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target));
     }
 
-    public static BuildExecutor of(Path target, HashFunction hash, BuildExecutorCallback callback) throws IOException {
-        return of(target, hash, BuildStepHashFunction.ofSerializationDigest("MD5"), callback);
-    }
-
     public static BuildExecutor of(Path target,
+                                   Duration timeout,
                                    HashFunction hash,
                                    BuildStepHashFunction stepHash,
                                    BuildExecutorCallback callback) throws IOException {
-        BuildExecutor executor = new BuildExecutor(target, hash, stepHash, callback, "", Map.of());
+        BuildExecutor executor = new BuildExecutor(target, timeout, hash, stepHash, callback, "", Map.of());
         if (!Files.exists(target.resolve(BUILD_MARKER))) {
             Files.createFile(target.resolve(BUILD_MARKER));
         }
@@ -176,12 +179,18 @@ public class BuildExecutor {
                         new LinkedHashSet<>(summaries.keySet()));
                 if (!consistent || step.shouldRun(arguments)) {
                     Path next = Files.createTempDirectory(target, BuildExecutorModule.encode(identity));
-                    return step.apply(executor,
+                    CompletionStage<BuildStepResult> stepStage = step.apply(executor,
                             new BuildStepContext(
                                     consistent ? output : null,
                                     Files.createDirectory(next.resolve("output")),
                                     Files.createDirectory(next.resolve("supplement"))),
-                            arguments).thenComposeAsync(result -> {
+                            arguments);
+                    if (!timeout.isZero()) {
+                        stepStage = stepStage.toCompletableFuture().orTimeout(
+                                timeout.toNanos(),
+                                TimeUnit.NANOSECONDS);
+                    }
+                    return stepStage.thenComposeAsync(result -> {
                         try {
                             if (result.next()) {
                                 Files.move(next, exists
@@ -337,6 +346,7 @@ public class BuildExecutor {
                         inherited.put(identity, entry.getValue());
                     }
                     BuildExecutor buildExecutor = new BuildExecutor(target.resolve(prefix),
+                            timeout,
                             hash,
                             stepHash,
                             callback,
