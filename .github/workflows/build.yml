@@ -82,10 +82,10 @@ jobs:
       - name: Stage Jenesis
         shell: bash
         run: |
-          java -Djenesis.buildVersion=0.0.0-TEST \
+          java -Djenesis.project.version=0.0.0-TEST \
                -Djenesis.project.sources=true \
                -Djenesis.project.skipTests=true \
-               -Djenesis.project.metadata=metadata.properties \
+               -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
 
       - name: Populate SDK layout

@@ -52,10 +52,10 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          java -Djenesis.buildVersion=${VERSION} \
+          java -Djenesis.project.version=${VERSION} \
                -Djenesis.project.sources=true \
                -Djenesis.project.docs=true \
-               -Djenesis.project.metadata=metadata.properties \
+               -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
 
       - name: Package SDKMAN archive

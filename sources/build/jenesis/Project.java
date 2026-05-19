@@ -31,6 +31,7 @@ public record Project(
         boolean javadoc,
         boolean stageTests,
         List<Path> metadata,
+        String version,
         SequencedSet<String> defaultTarget,
         MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
         Map<String, Repository> repositories,
@@ -239,8 +240,7 @@ public record Project(
                 Path relative = root.relativize(absolute);
                 files.put(METADATA + "-" + BuildExecutorModule.encode(relative.toString()), relative);
             }
-            String version = System.getProperty("jenesis.project.version");
-            executor.addModule(METADATA, new MetadataModule(files, version));
+            executor.addModule(METADATA, new MetadataModule(files, project.version()));
             return Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(METADATA)));
         }
 
@@ -356,6 +356,7 @@ public record Project(
                 false,
                 false,
                 List.of(),
+                null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 new JavaMultiProjectAssembler(),
                 Map.of(),
@@ -372,6 +373,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -388,6 +390,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -404,6 +407,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -420,6 +424,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -436,6 +441,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -452,6 +458,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -468,6 +475,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -484,6 +492,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -500,6 +509,24 @@ public record Project(
                 javadoc,
                 stageTests,
                 List.of(metadata),
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project version(String version) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                javadoc,
+                stageTests,
+                metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -516,6 +543,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                 assembler,
                 repositories,
@@ -532,6 +560,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -548,6 +577,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -564,6 +594,7 @@ public record Project(
                 javadoc,
                 stageTests,
                 metadata,
+                version,
                 defaultTarget,
                 assembler,
                 repositories,
@@ -580,6 +611,7 @@ public record Project(
         boolean resolvedJavadoc = javadoc;
         boolean resolvedStageTests = stageTests;
         List<Path> resolvedMetadata = metadata;
+        String resolvedVersion = version;
         String rootOverride = System.getProperty("jenesis.project.root");
         if (rootOverride != null) {
             resolvedRoot = Path.of(rootOverride);
@@ -623,6 +655,10 @@ public record Project(
                     .map(Path::of)
                     .toList();
         }
+        String versionOverride = System.getProperty("jenesis.project.version");
+        if (versionOverride != null) {
+            resolvedVersion = versionOverride;
+        }
         if (resolvedRoot.isAbsolute()) {
             Path absoluteCwd = Path.of("").toAbsolutePath().normalize();
             Path absoluteRoot = resolvedRoot.normalize();
@@ -640,6 +676,7 @@ public record Project(
                 resolvedJavadoc,
                 resolvedStageTests,
                 resolvedMetadata,
+                resolvedVersion,
                 defaultTarget,
                 assembler,
                 repositories,
