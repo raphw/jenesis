@@ -12,6 +12,16 @@ public class Inventory implements BuildStep {
     public static final String INVENTORY = "inventory.properties";
     public static final String POM = "pom.xml";
 
+    private final boolean modular;
+
+    public Inventory() {
+        this(true);
+    }
+
+    public Inventory(boolean modular) {
+        this.modular = modular;
+    }
+
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
@@ -99,7 +109,7 @@ public class Inventory implements BuildStep {
         if (mainClass != null) {
             inventory.setProperty(prefix + "mainClass", mainClass);
         }
-        if (module != null) {
+        if (modular && module != null) {
             inventory.setProperty(prefix + "module", module);
         }
         if (!runtime.isEmpty()) {

@@ -39,7 +39,7 @@ public class ModularToMaven {
                     (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
                         buildExecutor.addModule("java", new JavaModule(),
                                 descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
-                        buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers),
+                        buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers).requireEngine(false),
                                 "java", descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
                         buildExecutor.addStep("pom", new Pom(),
                                 descriptor.sources(), descriptor.manifests(), descriptor.coordinates(), descriptor.resolved(DependencyScope.COMPILE));

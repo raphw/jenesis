@@ -65,12 +65,22 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            boolean strictPinning,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
+        return make(root, repositories, resolvers, strictPinning, true, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           boolean strictPinning,
+                                           boolean modular,
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 "module",
                 _ -> true,
                 repositories,
                 resolvers,
                 strictPinning,
+                modular,
                 assembler);
     }
 
@@ -89,6 +99,17 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            boolean strictPinning,
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
+        return make(root, prefix, filter, repositories, resolvers, strictPinning, true, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           String prefix,
+                                           Predicate<Path> filter,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           boolean strictPinning,
+                                           boolean modular,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
@@ -139,7 +160,7 @@ public class ModularProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
                             PRODUCE);
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
-                            new Inventory(),
+                            new Inventory(modular),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,

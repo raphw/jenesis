@@ -23,7 +23,7 @@ public class Maven {
                 (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
                     buildExecutor.addModule("java", new JavaModule(),
                             descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
-                    buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers),
+                    buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers).requireEngine(false),
                             "java", descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
                 }));
 
