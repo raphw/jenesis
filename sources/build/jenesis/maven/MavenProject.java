@@ -154,7 +154,7 @@ public class MavenProject implements BuildExecutorModule {
                     "*.properties")) {
                 for (Path file : files) {
                     String name = file.getFileName().toString();
-                    modules.addModule(name.substring(0, name.length() - 11), (module, _) -> {
+                    modules.addModule(name.substring(0, name.length() - 11), (module, modInherited) -> {
                         SequencedProperties properties = SequencedProperties.ofFiles(file);
                         boolean active = false;
                         Path base = root.resolve(properties.getProperty("path"));
@@ -188,7 +188,7 @@ public class MavenProject implements BuildExecutorModule {
                                 coordinates.store(context.next().resolve(IDENTITY));
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
                             });
-                            module.addStep(MANIFESTS, (_, context, _) -> {
+                            module.addStep(MANIFESTS, (_, context, manifestArgs) -> {
                                 Path pomFile = paths.get(PREVIOUS + SCAN)
                                         .resolve(POM)
                                         .resolve(properties.getProperty("path"))
@@ -257,14 +257,20 @@ public class MavenProject implements BuildExecutorModule {
                                 metadata.setProperty("artifact", properties.getProperty("artifactId"));
                                 metadata.setProperty("version", properties.getProperty("version"));
                                 extractMetadata(pomFile).forEach(metadata::put);
+                                for (BuildStepArgument argument : manifestArgs.values()) {
+                                    Path upstream = argument.folder().resolve(BuildStep.METADATA);
+                                    if (Files.isRegularFile(upstream)) {
+                                        SequencedProperties.ofFiles(upstream).forEach(metadata::put);
+                                    }
+                                }
                                 metadata.store(context.next().resolve(BuildStep.METADATA));
                                 return CompletableFuture.completedStage(new BuildStepResult(true));
-                            });
+                            }, modInherited.sequencedKeySet());
                         }
-                    });
+                    }, paths.sequencedKeySet().stream());
                 }
             }
-        }, SCAN, PREPARE);
+        }, Stream.concat(Stream.of(SCAN, PREPARE), inherited.sequencedKeySet().stream()));
     }
 
     private static SequencedProperties extractMetadata(Path pomFile) throws IOException {

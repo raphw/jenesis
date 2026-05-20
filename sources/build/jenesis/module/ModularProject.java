@@ -208,6 +208,11 @@ public class ModularProject implements BuildExecutorModule {
             }
             module.store(context.next().resolve(BuildStep.MODULE));
             SequencedProperties metadata = new SequencedProperties();
+            String moduleName = info.coordinate();
+            String[] segments = moduleName.split("\\.");
+            metadata.setProperty("project", segments.length >= 2 ? segments[0] + "." + segments[1] : moduleName);
+            metadata.setProperty("artifact", moduleName);
+            metadata.setProperty("version", "0-SNAPSHOT");
             if (info.name() != null) {
                 metadata.setProperty("name", info.name());
             }
@@ -220,9 +225,7 @@ public class ModularProject implements BuildExecutorModule {
                     SequencedProperties.ofFiles(upstream).forEach(metadata::put);
                 }
             }
-            if (!metadata.isEmpty()) {
-                metadata.store(context.next().resolve(BuildStep.METADATA));
-            }
+            metadata.store(context.next().resolve(BuildStep.METADATA));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
