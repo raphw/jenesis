@@ -38,9 +38,9 @@ public class BuildExecutor {
     }
 
     public static BuildExecutor of(Path target) throws IOException {
-        String algorithm = System.getProperty("jenesis.digest", "MD5");
+        String algorithm = System.getProperty("jenesis.executor.digest", "MD5");
         return of(target,
-                Duration.parse(System.getProperty("jenesis.timeout", "PT0S")),
+                Duration.parse(System.getProperty("jenesis.executor.timeout", "PT0S")),
                 new HashDigestFunction(algorithm),
                 BuildStepHashFunction.ofSerializationDigest(algorithm),
                 BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target));
