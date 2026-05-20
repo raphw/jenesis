@@ -115,17 +115,7 @@ public class ModularProject implements BuildExecutorModule {
                                     resolvers),
                             produceDeps);
                     buildExecutor.addStep(ASSIGN,
-                            new Assign((BiFunction<Set<String>, SequencedSet<Path>, Map<String, Path>> & Serializable) ((coordinates, files) -> {
-                                Path resolved = files.stream()
-                                        .filter(file -> file.getFileName() != null
-                                                && "classes.jar".equals(file.getFileName().toString()))
-                                        .findFirst()
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                "Expected a classes.jar artifact: " + files));
-                                return coordinates.stream().collect(Collectors.toMap(
-                                        Function.identity(),
-                                        _ -> resolved));
-                            })),
+                            new Assign(),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
                             PRODUCE);
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
