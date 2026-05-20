@@ -453,17 +453,19 @@ public class MavenProject implements BuildExecutorModule {
                                     .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
                                     .collect(Collectors.joining(",")));
                 }
-                module.setProperty("managedDependencies", entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
-                        .map(dep -> dep.getKey().coordinate(prefix, null)
-                                + "=" + dep.getValue().version()
-                                + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
-                        .collect(Collectors.joining(",")));
-                module.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                        .filter(dep -> dep.getValue().checksum() != null
-                                && dep.getValue().scope() != MavenDependencyScope.TEST)
-                        .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
-                                + "=" + dep.getValue().checksum())
-                        .collect(Collectors.joining(",")));
+                module.setProperty("managedDependencies",
+                        entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
+                                .map(dep -> dep.getKey().coordinate(prefix, null)
+                                        + "=" + dep.getValue().version()
+                                        + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
+                                .collect(Collectors.joining(",")));
+                module.setProperty("checksums",
+                        entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                                .filter(dep -> dep.getValue().checksum() != null
+                                        && dep.getValue().scope() != MavenDependencyScope.TEST)
+                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
+                                        + "=" + dep.getValue().checksum())
+                                .collect(Collectors.joining(",")));
                 module.setProperty("sources", entry.getValue().sourceDirectory() == null
                         ? "src/main/java"
                         : entry.getValue().sourceDirectory());
@@ -483,24 +485,28 @@ public class MavenProject implements BuildExecutorModule {
                 if (entry.getValue().release() != null) {
                     testModule.setProperty("release", entry.getValue().release());
                 }
-                String testDependencies = entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                        .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
-                        .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
-                        .collect(Collectors.joining(","));
+                String testDependencies = entry.getValue().dependencies() == null
+                        ? ""
+                        : entry.getValue().dependencies().entrySet().stream()
+                                .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
+                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
+                                .collect(Collectors.joining(","));
                 testModule.setProperty("dependencies.test", testDependencies.isEmpty()
                         ? coordinate
                         : testDependencies + "," + coordinate);
-                testModule.setProperty("managedDependencies", entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
-                        .map(dep -> dep.getKey().coordinate(prefix, null)
-                                + "=" + dep.getValue().version()
-                                + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
-                        .collect(Collectors.joining(",")));
-                testModule.setProperty("checksums", entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                        .filter(dep -> dep.getValue().checksum() != null
-                                && dep.getValue().scope() == MavenDependencyScope.TEST)
-                        .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
-                                + "=" + dep.getValue().checksum())
-                        .collect(Collectors.joining(",")));
+                testModule.setProperty("managedDependencies",
+                        entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
+                                .map(dep -> dep.getKey().coordinate(prefix, null)
+                                        + "=" + dep.getValue().version()
+                                        + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
+                                .collect(Collectors.joining(",")));
+                testModule.setProperty("checksums",
+                        entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                                .filter(dep -> dep.getValue().checksum() != null
+                                        && dep.getValue().scope() == MavenDependencyScope.TEST)
+                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
+                                        + "=" + dep.getValue().checksum())
+                                .collect(Collectors.joining(",")));
                 testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
                         ? "src/test/java"
                         : entry.getValue().testSourceDirectory());

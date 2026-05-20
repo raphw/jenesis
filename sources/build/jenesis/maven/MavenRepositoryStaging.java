@@ -40,9 +40,12 @@ public class MavenRepositoryStaging implements BuildStep {
                 continue;
             }
             Coordinates coordinates = parseCoordinates(pom);
-            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
-            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
-            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
+            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"),
+                    prefix, "artifacts", true, inventoryFile);
+            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"),
+                    prefix, "sources", false, inventoryFile);
+            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"),
+                    prefix, "documentation", false, inventoryFile);
             String testsOf = inventory.getProperty(prefix + ".test");
             Module module = new Module(prefix, coordinates, artifact, sources, javadoc, pom, testsOf);
             if (testsOf == null) {

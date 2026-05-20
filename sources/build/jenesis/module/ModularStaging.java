@@ -40,9 +40,12 @@ public class ModularStaging implements BuildStep {
             if (moduleName == null) {
                 throw new IllegalStateException("Missing 'module' in inventory: " + inventoryFile);
             }
-            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
-            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
-            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
+            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"),
+                    prefix, "artifacts", true, inventoryFile);
+            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"),
+                    prefix, "sources", false, inventoryFile);
+            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"),
+                    prefix, "documentation", false, inventoryFile);
             String version = inventory.getProperty(prefix + ".version");
             Path target = version == null
                     ? context.next().resolve(moduleName)

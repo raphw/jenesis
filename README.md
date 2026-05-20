@@ -11,11 +11,26 @@ a Maven-shaped project that does not lean on plugin lifecycles can be built with
 project root containing a `module-info.java`, a `pom.xml`, or both, Jenesis discovers the multi-project graph
 automatically and wires the matching compile, package, and (where sources are present) test pipeline.
 
-The design goal is to ship the build *with* the project as plain Java source, never as a binary. The Jenesis
+One design goal is to ship the build *with* the project as plain Java source, and not as a binary. The Jenesis
 sources sit inside your repository under `build/jenesis/`, the launcher is the JVM's single-file mode
 (`java build/jenesis/Project.java`), and the build is reproducible from a clone plus a JDK. There is no opaque
 wrapper, no fetched plugin tree, no fetched daemon - which closes the supply-chain surface that wrappers and
-plugin resolvers otherwise expose.
+plugin resolvers otherwise expose. Shipping the build as plain source also keeps it fully modifiable where
+needed: humans (and AI agents) can adjust how a project is built by implementing build steps in ordinary Java,
+without a large API to learn first.
+
+A second design goal is that the build is naturally incremental at every step and naturally produces reproducible
+outputs. Each build step's inputs, outputs, and configuration are content-hashed, so unchanged work is reused
+unchanged from the previous run, and identical inputs always reproduce identical outputs. That same posture is
+what makes Jenesis strongly security-focused: dependencies can be pinned not only by version number but also by
+the checksum of every downloaded artifact, so a build is naturally resistant to supply-chain attacks on its
+inputs. Pinning at that level of detail is itself a consequence of embedding the build tool inside the project,
+since the pin set lives in the same committed sources as everything else. The combination of plain-Java
+sources and content-hashed steps also lays a foundation for optimising complex builds: a non-trivial custom
+build can itself be compiled ahead of time, or shipped as a native image for environments that run the same
+build at high frequency (a CI server, for example), and step outputs - being pure functions of their
+content-hashed inputs - are easy to share between builds as a cache. A Jenesis build requires a JVM of
+version 25 or newer, but nothing else.
 
 ### Installing
 

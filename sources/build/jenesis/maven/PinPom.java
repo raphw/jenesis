@@ -207,21 +207,21 @@ public class PinPom implements BuildStep {
             int space = value.indexOf(' ');
             String version = space < 0 ? value : value.substring(0, space);
             String checksum = space < 0 ? null : value.substring(space + 1).trim();
-            String dep = indent + indent + indent;
-            sb.append(dep).append("<dependency>\n");
-            sb.append(dep).append(indent).append("<groupId>").append(groupId).append("</groupId>\n");
-            sb.append(dep).append(indent).append("<artifactId>").append(artifactId).append("</artifactId>\n");
-            sb.append(dep).append(indent).append("<version>").append(version).append("</version>\n");
+            String prefix = indent + indent + indent;
+            sb.append(prefix).append("<dependency>\n");
+            sb.append(prefix).append(indent).append("<groupId>").append(groupId).append("</groupId>\n");
+            sb.append(prefix).append(indent).append("<artifactId>").append(artifactId).append("</artifactId>\n");
+            sb.append(prefix).append(indent).append("<version>").append(version).append("</version>\n");
             if (type != null && !"jar".equals(type)) {
-                sb.append(dep).append(indent).append("<type>").append(type).append("</type>\n");
+                sb.append(prefix).append(indent).append("<type>").append(type).append("</type>\n");
             }
             if (classifier != null) {
-                sb.append(dep).append(indent).append("<classifier>").append(classifier).append("</classifier>\n");
+                sb.append(prefix).append(indent).append("<classifier>").append(classifier).append("</classifier>\n");
             }
             if (checksum != null) {
-                sb.append(dep).append(indent).append("<!--Checksum/").append(checksum).append("-->\n");
+                sb.append(prefix).append(indent).append("<!--Checksum/").append(checksum).append("-->\n");
             }
-            sb.append(dep).append("</dependency>\n");
+            sb.append(prefix).append("</dependency>\n");
         }
         sb.append(indent).append(indent).append("</dependencies>\n");
         sb.append(indent).append("</dependencyManagement>\n");

@@ -258,9 +258,10 @@ public class TestModule implements BuildExecutorModule {
                                                          BuildStepContext context,
                                                          SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            TestEngine resolved = engine == null ? TestEngine
-                                                   .of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
-                                                   .orElseThrow(() -> new IllegalArgumentException("No test engine found")) : engine;
+            TestEngine resolved = engine != null
+                    ? engine
+                    : TestEngine.of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
+                            .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
             List<TestSelector> selectors = TestSelector.parse(filter);
             List<String> commands = new ArrayList<>();
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {

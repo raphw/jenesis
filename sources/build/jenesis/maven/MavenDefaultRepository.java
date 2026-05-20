@@ -84,7 +84,7 @@ public class MavenDefaultRepository implements MavenRepository {
                         newPath,
                         uri.getQuery(),
                         uri.getFragment()));
-            } catch (URISyntaxException e) {
+            } catch (URISyntaxException _) {
                 return Optional.empty();
             }
         };
