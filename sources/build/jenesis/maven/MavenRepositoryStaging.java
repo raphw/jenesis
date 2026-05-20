@@ -33,17 +33,17 @@ public class MavenRepositoryStaging implements BuildStep {
             if (!Files.isRegularFile(inventoryFile)) {
                 continue;
             }
-            SequencedProperties inv = SequencedProperties.ofFiles(inventoryFile);
-            String prefix = inventoryPrefix(inv, inventoryFile);
-            Path pom = resolve(argument.folder(), inv.getProperty(prefix + ".pom"));
+            SequencedProperties inventory = SequencedProperties.ofFiles(inventoryFile);
+            String prefix = inventoryPrefix(inventory, inventoryFile);
+            Path pom = resolve(argument.folder(), inventory.getProperty(prefix + ".pom"));
             if (pom == null) {
                 continue;
             }
             Coordinates coordinates = parseCoordinates(pom);
-            Path artifact = singleJar(argument.folder(), inv.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
-            Path sources = singleJar(argument.folder(), inv.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
-            Path javadoc = singleJar(argument.folder(), inv.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
-            String testsOf = inv.getProperty(prefix + ".tests");
+            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
+            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
+            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
+            String testsOf = inventory.getProperty(prefix + ".tests");
             Module module = new Module(prefix, coordinates, artifact, sources, javadoc, pom, testsOf);
             if (testsOf == null) {
                 Module previous = mainsByArtifactId.putIfAbsent(coordinates.artifactId(), module);

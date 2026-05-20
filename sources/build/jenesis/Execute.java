@@ -36,11 +36,11 @@ public record Execute(Project project, String mainClass, String module) {
         SequencedProperties merged = new SequencedProperties();
         SequencedMap<String, Path> sourceByPrefix = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : outputs.entrySet()) {
-            Path inv = entry.getValue().resolve(Inventory.INVENTORY);
-            if (!Files.isRegularFile(inv)) {
+            Path inventory = entry.getValue().resolve(Inventory.INVENTORY);
+            if (!Files.isRegularFile(inventory)) {
                 continue;
             }
-            SequencedProperties loaded = SequencedProperties.ofFiles(inv);
+            SequencedProperties loaded = SequencedProperties.ofFiles(inventory);
             for (String key : loaded.stringPropertyNames()) {
                 merged.setProperty(key, loaded.getProperty(key));
                 int dot = key.indexOf('.');

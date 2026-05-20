@@ -30,20 +30,20 @@ public class ModularStaging implements BuildStep {
             if (!Files.isRegularFile(inventoryFile)) {
                 continue;
             }
-            SequencedProperties inv = SequencedProperties.ofFiles(inventoryFile);
-            String prefix = inventoryPrefix(inv, inventoryFile);
-            String testsOf = inv.getProperty(prefix + ".tests");
+            SequencedProperties inventory = SequencedProperties.ofFiles(inventoryFile);
+            String prefix = inventoryPrefix(inventory, inventoryFile);
+            String testsOf = inventory.getProperty(prefix + ".tests");
             if (!includeTests && testsOf != null) {
                 continue;
             }
-            String moduleName = inv.getProperty(prefix + ".module");
+            String moduleName = inventory.getProperty(prefix + ".module");
             if (moduleName == null) {
                 throw new IllegalStateException("Missing 'module' in inventory: " + inventoryFile);
             }
-            Path artifact = singleJar(argument.folder(), inv.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
-            Path sources = singleJar(argument.folder(), inv.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
-            Path javadoc = singleJar(argument.folder(), inv.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
-            String version = inv.getProperty(prefix + ".version");
+            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
+            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
+            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
+            String version = inventory.getProperty(prefix + ".version");
             Path target = version == null
                     ? context.next().resolve(moduleName)
                     : context.next().resolve(moduleName).resolve(version);
