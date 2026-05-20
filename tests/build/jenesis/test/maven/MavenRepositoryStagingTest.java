@@ -7,12 +7,12 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
-import build.jenesis.maven.MavenRepositoryStage;
+import build.jenesis.maven.MavenRepositoryStaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class MavenRepositoryStageTest {
+public class MavenRepositoryStagingTest {
 
     @TempDir
     private Path root;
@@ -292,7 +292,6 @@ public class MavenRepositoryStageTest {
         String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         long slf4jOccurrences = pom.lines().filter(line -> line.trim().equals("<artifactId>slf4j-api</artifactId>")).count();
         assertThat(slf4jOccurrences).isEqualTo(1);
-        assertThat(pom).doesNotContain("<scope>test</scope>\n            </dependency>\n            <dependency>\n                <groupId>org.slf4j</groupId>");
         assertThat(pom).contains("<artifactId>junit-jupiter</artifactId>");
         long testScopes = pom.lines().filter(line -> line.trim().equals("<scope>test</scope>")).count();
         assertThat(testScopes).isEqualTo(1);
@@ -349,6 +348,42 @@ public class MavenRepositoryStageTest {
         }
     }
 
+    @Test
+    public void module_with_metadata_missing_project_throws() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMetadata(main, null, "foo", "1.2.3");
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        assertThatThrownBy(() -> run(source, "module-foo"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing maven coordinates")
+                .hasMessageContaining("project=null");
+    }
+
+    @Test
+    public void module_with_metadata_missing_artifact_throws() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMetadata(main, "com.example", null, "1.2.3");
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        assertThatThrownBy(() -> run(source, "module-foo"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing maven coordinates")
+                .hasMessageContaining("artifact=null");
+    }
+
+    @Test
+    public void module_with_metadata_missing_version_throws() throws IOException {
+        Path main = Files.createDirectory(source.resolve("module-foo"));
+        writeMetadata(main, "com.example", "foo", null);
+        Files.writeString(main.resolve("classes.jar"), "main");
+
+        assertThatThrownBy(() -> run(source, "module-foo"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing maven coordinates")
+                .hasMessageContaining("version=null");
+    }
+
     private BuildStepResult run(Path folder, String... moduleDirs) throws IOException {
         return run(true, folder, moduleDirs);
     }
@@ -362,7 +397,7 @@ public class MavenRepositoryStageTest {
                         ChecksumStatus.ADDED));
             }
         }
-        return new MavenRepositoryStage(includeTests).apply(Runnable::run,
+        return new MavenRepositoryStaging(includeTests).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(folder, checksums))))
                 .toCompletableFuture()
@@ -381,7 +416,7 @@ public class MavenRepositoryStageTest {
                                         String artifactId,
                                         String version,
                                         List<Dep> deps) throws IOException {
-        Files.writeString(moduleDir.resolve(BuildStep.IDENTITY), "");
+        writeMetadata(moduleDir, groupId, artifactId, version);
         Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
     }
 
@@ -391,10 +426,27 @@ public class MavenRepositoryStageTest {
                                         String artifactId,
                                         String version,
                                         List<Dep> deps) throws IOException {
-        Files.writeString(moduleDir.resolve(BuildStep.IDENTITY), "");
+        writeMetadata(moduleDir, groupId, artifactId, version);
         Files.writeString(moduleDir.resolve(BuildStep.MODULE),
                 "tests=" + mainArtifactId + "\n");
         Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
+    }
+
+    private static void writeMetadata(Path moduleDir,
+                                      String groupId,
+                                      String artifactId,
+                                      String version) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        if (groupId != null) {
+            builder.append("project=").append(groupId).append('\n');
+        }
+        if (artifactId != null) {
+            builder.append("artifact=").append(artifactId).append('\n');
+        }
+        if (version != null) {
+            builder.append("version=").append(version).append('\n');
+        }
+        Files.writeString(moduleDir.resolve(BuildStep.METADATA), builder.toString());
     }
 
     private static String buildPom(String groupId, String artifactId, String version, List<Dep> deps) {

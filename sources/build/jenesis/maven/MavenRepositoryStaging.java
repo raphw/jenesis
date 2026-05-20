@@ -8,17 +8,17 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
 
-public class MavenRepositoryStage implements BuildStep {
+public class MavenRepositoryStaging implements BuildStep {
 
     private static final String POM = "pom.xml";
 
     private final boolean includeTests;
 
-    public MavenRepositoryStage() {
+    public MavenRepositoryStaging() {
         this(false);
     }
 
-    public MavenRepositoryStage(boolean includeTests) {
+    public MavenRepositoryStaging(boolean includeTests) {
         this.includeTests = includeTests;
     }
 
@@ -27,71 +27,83 @@ public class MavenRepositoryStage implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        Map<String, Path> mainModules = new LinkedHashMap<>();
-        Map<String, TestModule> testModules = new LinkedHashMap<>();
+        SequencedMap<String, Module> mainsByDir = new LinkedHashMap<>();
+        SequencedMap<String, TestModule> testsByDir = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(argument.folder())) {
                 for (Path moduleDir : stream) {
                     if (!Files.isDirectory(moduleDir)) {
                         continue;
                     }
-                    Path identity = moduleDir.resolve(BuildStep.IDENTITY);
-                    if (!Files.isRegularFile(identity)) {
+                    Path metadataFile = moduleDir.resolve(BuildStep.METADATA);
+                    if (!Files.isRegularFile(metadataFile)) {
                         continue;
                     }
-                    Path module = moduleDir.resolve(BuildStep.MODULE);
-                    String testOf = Files.isRegularFile(module)
-                            ? SequencedProperties.ofFiles(module).getProperty("tests")
+                    SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);
+                    String groupId = metadata.getProperty("project");
+                    String artifactId = metadata.getProperty("artifact");
+                    String version = metadata.getProperty("version");
+                    if (groupId == null || artifactId == null || version == null) {
+                        throw new IllegalStateException(
+                                "Missing maven coordinates in metadata.properties for "
+                                        + moduleDir
+                                        + " (expected 'project', 'artifact' and 'version'; got project="
+                                        + groupId
+                                        + ", artifact="
+                                        + artifactId
+                                        + ", version="
+                                        + version
+                                        + ")");
+                    }
+                    Coordinates coordinates = new Coordinates(groupId, artifactId, version);
+                    Path moduleFile = moduleDir.resolve(BuildStep.MODULE);
+                    String testOf = Files.isRegularFile(moduleFile)
+                            ? SequencedProperties.ofFiles(moduleFile).getProperty("tests")
                             : null;
                     if (testOf != null) {
                         if (includeTests) {
-                            testModules.put(moduleDir.getFileName().toString(), new TestModule(moduleDir, testOf));
+                            testsByDir.put(moduleDir.getFileName().toString(),
+                                    new TestModule(moduleDir, coordinates, testOf));
                         }
                     } else {
-                        mainModules.put(moduleDir.getFileName().toString(), moduleDir);
+                        mainsByDir.put(moduleDir.getFileName().toString(),
+                                new Module(moduleDir, coordinates));
                     }
                 }
             }
         }
-        Map<String, Coordinates> mainsByArtifactId = new LinkedHashMap<>();
-        Map<String, Coordinates> mainsByDir = new LinkedHashMap<>();
-        Map<String, String> mainDirByArtifactId = new LinkedHashMap<>();
-        for (Map.Entry<String, Path> entry : mainModules.entrySet()) {
-            Coordinates coordinates = readCoordinates(entry.getValue().resolve(POM));
-            if (coordinates != null) {
-                mainsByDir.put(entry.getKey(), coordinates);
-                String previousDir = mainDirByArtifactId.putIfAbsent(coordinates.artifactId(), entry.getKey());
-                if (previousDir != null) {
-                    Coordinates previous = mainsByArtifactId.get(coordinates.artifactId());
-                    throw new IllegalStateException("Duplicate main artifactId '"
-                            + coordinates.artifactId()
-                            + "' declared by modules '"
-                            + previousDir
-                            + "' ("
-                            + previous.groupId()
-                            + ":"
-                            + previous.artifactId()
-                            + ":"
-                            + previous.version()
-                            + ") and '"
-                            + entry.getKey()
-                            + "' ("
-                            + coordinates.groupId()
-                            + ":"
-                            + coordinates.artifactId()
-                            + ":"
-                            + coordinates.version()
-                            + ")");
-                }
-                mainsByArtifactId.put(coordinates.artifactId(), coordinates);
+        SequencedMap<String, Module> mainsByArtifactId = new LinkedHashMap<>();
+        for (Map.Entry<String, Module> entry : mainsByDir.entrySet()) {
+            Module module = entry.getValue();
+            Module previous = mainsByArtifactId.putIfAbsent(module.coordinates().artifactId(), module);
+            if (previous != null) {
+                throw new IllegalStateException("Duplicate main artifactId '"
+                        + module.coordinates().artifactId()
+                        + "' declared by modules '"
+                        + previous.dir().getFileName()
+                        + "' ("
+                        + previous.coordinates().groupId()
+                        + ":"
+                        + previous.coordinates().artifactId()
+                        + ":"
+                        + previous.coordinates().version()
+                        + ") and '"
+                        + entry.getKey()
+                        + "' ("
+                        + module.coordinates().groupId()
+                        + ":"
+                        + module.coordinates().artifactId()
+                        + ":"
+                        + module.coordinates().version()
+                        + ")");
             }
         }
-        Map<String, List<DependencyEntry>> testDepsByMain = new LinkedHashMap<>();
-        Map<String, List<TestModule>> testsByMain = new LinkedHashMap<>();
+        SequencedMap<String, List<TestModule>> testsByMain = new LinkedHashMap<>();
+        SequencedMap<String, List<DependencyEntry>> testDepsByMain = new LinkedHashMap<>();
         Set<String> allMainArtifactIds = mainsByArtifactId.keySet();
-        for (Map.Entry<String, TestModule> entry : testModules.entrySet()) {
+        for (Map.Entry<String, TestModule> entry : testsByDir.entrySet()) {
             TestModule test = entry.getValue();
-            Coordinates main;
+            Module main;
             if (test.testOf().isEmpty()) {
                 if (mainsByArtifactId.isEmpty()) {
                     throw new IllegalStateException("Test module '"
@@ -121,10 +133,10 @@ public class MavenRepositoryStage implements BuildStep {
                             + ")");
                 }
             }
-            testsByMain.computeIfAbsent(main.artifactId(), _ -> new ArrayList<>()).add(test);
+            testsByMain.computeIfAbsent(main.coordinates().artifactId(), _ -> new ArrayList<>()).add(test);
             collectDependencies(test.dir().resolve(POM),
                     allMainArtifactIds,
-                    testDepsByMain.computeIfAbsent(main.artifactId(), _ -> new ArrayList<>()));
+                    testDepsByMain.computeIfAbsent(main.coordinates().artifactId(), _ -> new ArrayList<>()));
         }
         for (Map.Entry<String, List<TestModule>> entry : testsByMain.entrySet()) {
             if (entry.getValue().size() > 1) {
@@ -137,18 +149,15 @@ public class MavenRepositoryStage implements BuildStep {
                         + dirs);
             }
         }
-        for (Map.Entry<String, Path> entry : mainModules.entrySet()) {
-            Coordinates coordinates = mainsByDir.get(entry.getKey());
-            if (coordinates == null) {
-                continue;
-            }
+        for (Module main : mainsByDir.values()) {
+            Coordinates coordinates = main.coordinates();
             Path baseDir = context.next()
                     .resolve(coordinates.groupId().replace('.', '/'))
                     .resolve(coordinates.artifactId())
                     .resolve(coordinates.version());
             Files.createDirectories(baseDir);
             String prefix = coordinates.artifactId() + "-" + coordinates.version();
-            Path mainDir = entry.getValue();
+            Path mainDir = main.dir();
             link(mainDir.resolve("classes.jar"), baseDir.resolve(prefix + ".jar"));
             link(mainDir.resolve("sources.jar"), baseDir.resolve(prefix + "-sources.jar"));
             link(mainDir.resolve("javadoc.jar"), baseDir.resolve(prefix + "-javadoc.jar"));
@@ -171,28 +180,21 @@ public class MavenRepositoryStage implements BuildStep {
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private record TestModule(Path dir, String testOf) {
+    private record Module(Path dir, Coordinates coordinates) {
+    }
+
+    private record TestModule(Path dir, Coordinates coordinates, String testOf) {
+    }
+
+    private record Coordinates(String groupId, String artifactId, String version) {
+    }
+
+    private record DependencyEntry(String groupId, String artifactId, String version) {
     }
 
     private static void link(Path source, Path target) throws IOException {
         if (Files.isRegularFile(source) && !Files.exists(target)) {
             Files.createLink(target, source);
-        }
-    }
-
-    private static Coordinates readCoordinates(Path pom) throws IOException {
-        if (!Files.isRegularFile(pom)) {
-            return null;
-        }
-        try (InputStream in = Files.newInputStream(pom)) {
-            Element project = parse(in).getDocumentElement();
-            String groupId = childText(project, "groupId");
-            String artifactId = childText(project, "artifactId");
-            String version = childText(project, "version");
-            if (groupId == null || artifactId == null || version == null) {
-                return null;
-            }
-            return new Coordinates(groupId, artifactId, version);
         }
     }
 
@@ -311,11 +313,5 @@ public class MavenRepositoryStage implements BuildStep {
                 : document.createElementNS(namespace, localName);
         child.setTextContent(value);
         parent.appendChild(child);
-    }
-
-    private record Coordinates(String groupId, String artifactId, String version) {
-    }
-
-    private record DependencyEntry(String groupId, String artifactId, String version) {
     }
 }
