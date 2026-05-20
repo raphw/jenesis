@@ -103,16 +103,21 @@ public class Pom implements BuildStep {
             throw new IllegalStateException(
                     "No own Maven coordinate (with empty value) found in coordinates.properties");
         }
-        String selfGroupId = self.key().groupId();
         String selfArtifactId = self.key().artifactId();
-        String metadataGroupId = metadata.getProperty("project");
-        String metadataArtifactId = metadata.getProperty("artifact");
+        String groupId = metadata.getProperty("project");
+        if (groupId == null) {
+            throw new IllegalStateException(
+                    "Missing 'project' (groupId) in metadata.properties for " + selfArtifactId);
+        }
+        String artifactId = metadata.getProperty("artifact");
+        if (artifactId == null) {
+            throw new IllegalStateException(
+                    "Missing 'artifact' (artifactId) in metadata.properties for " + selfArtifactId);
+        }
         boolean test = module.getProperty("tests") != null;
-        if (metadataArtifactId != null && !metadataArtifactId.equals(selfArtifactId) && !test) {
+        if (!artifactId.equals(selfArtifactId) && !test) {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
-        String groupId = metadataGroupId != null ? metadataGroupId : selfGroupId;
-        String artifactId = metadataArtifactId != null ? metadataArtifactId : selfArtifactId;
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
         SequencedSet<String> allRequires = new LinkedHashSet<>(compileRequires.stringPropertyNames());
         if (scoped) {
@@ -145,8 +150,11 @@ public class Pom implements BuildStep {
                     null,
                     null));
         }
-        String metadataVersion = metadata.getProperty("version");
-        String version = metadataVersion != null ? metadataVersion : self.version();
+        String version = metadata.getProperty("version");
+        if (version == null) {
+            throw new IllegalStateException(
+                    "Missing 'version' in metadata.properties for " + selfArtifactId);
+        }
         MavenPomEmitter.Metadata parsed = null;
         if (!metadata.isEmpty()) {
             List<MavenPomEmitter.Metadata.License> licenses = List.of();
@@ -204,7 +212,6 @@ public class Pom implements BuildStep {
                     groupId,
                     artifactId,
                     version,
-                    "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps,
                     parsed).accept(writer);
         }

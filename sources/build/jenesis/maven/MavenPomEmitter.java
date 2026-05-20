@@ -17,15 +17,13 @@ public class MavenPomEmitter {
     public IOConsumer emit(String groupId,
                            String artifactId,
                            String version,
-                           String packaging,
                            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) {
-        return emit(groupId, artifactId, version, packaging, dependencies, null);
+        return emit(groupId, artifactId, version, dependencies, null);
     }
 
     public IOConsumer emit(String groupId,
                            String artifactId,
                            String version,
-                           String packaging,
                            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
                            Metadata metadata) {
         Document document;
@@ -42,9 +40,6 @@ public class MavenPomEmitter {
         project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(groupId);
         project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(artifactId);
         project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "version")).setTextContent(version);
-        if (packaging != null) {
-            project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "packaging")).setTextContent(packaging);
-        }
         if (metadata != null) {
             if (metadata.name() != null) {
                 project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(metadata.name());

@@ -415,12 +415,11 @@ public class MavenProject implements BuildExecutorModule {
                     arguments.get(SCAN)
                             .folder()
                             .resolve(POM)).entrySet()) {
-                if (Objects.equals("pom", entry.getValue().packaging())) {
+                if (entry.getValue().packaging() != null && !"jar".equals(entry.getValue().packaging())) {
                     continue;
                 }
-                String packaging = entry.getValue().packaging() == null ? "jar" : entry.getValue().packaging();
                 MavenDependencyKey selfKey = new MavenDependencyKey(
-                        entry.getValue().groupId(), entry.getValue().artifactId(), packaging, null);
+                        entry.getValue().groupId(), entry.getValue().artifactId(), "jar", null);
                 String coordinate = selfKey.coordinate(prefix, entry.getValue().version());
                 MavenDependencyKey selfPom = new MavenDependencyKey(
                         entry.getValue().groupId(), entry.getValue().artifactId(), "pom", null);
@@ -432,7 +431,6 @@ public class MavenProject implements BuildExecutorModule {
                 module.setProperty("groupId", entry.getValue().groupId());
                 module.setProperty("artifactId", entry.getValue().artifactId());
                 module.setProperty("version", entry.getValue().version());
-                module.setProperty("type", packaging);
                 if (entry.getValue().release() != null) {
                     module.setProperty("release", entry.getValue().release());
                 }
@@ -469,7 +467,7 @@ public class MavenProject implements BuildExecutorModule {
                 module.store(maven.resolve("module-" + BuildExecutorModule.encode(relativePath) + ".properties"));
                 SequencedProperties testModule = new SequencedProperties();
                 MavenDependencyKey testSelfKey = new MavenDependencyKey(
-                        entry.getValue().groupId(), entry.getValue().artifactId(), packaging, "tests");
+                        entry.getValue().groupId(), entry.getValue().artifactId(), "jar", "tests");
                 testModule.setProperty("coordinate", testSelfKey.coordinate(prefix, entry.getValue().version()));
                 testModule.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
                 testModule.setProperty("path", relativePath);

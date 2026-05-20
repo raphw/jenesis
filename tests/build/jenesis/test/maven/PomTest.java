@@ -41,13 +41,19 @@ public class PomTest {
         dependencies.setProperty("maven/org.example/zip/zip/7.8.9", "");
         dependencies.setProperty("module/com.example.foo", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.setProperty("version", "1.0.0");
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -93,13 +99,19 @@ public class PomTest {
         scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
         scopes.setProperty("maven/org.example/static-lib/4.5.6", DependencyScope.COMPILE.name());
         scopes.store(argument.resolve(BuildStep.SCOPES));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.setProperty("version", "1.0.0");
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -128,13 +140,19 @@ public class PomTest {
         scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
         scopes.setProperty("maven/org.example/runtime-only/4.5.6", DependencyScope.RUNTIME.name());
         scopes.store(argument.resolve(BuildStep.SCOPES));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.setProperty("version", "1.0.0");
+        metadata.store(argument.resolve(BuildStep.METADATA));
         new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         String pom = Files.readString(next.resolve(Pom.POM));
@@ -158,13 +176,19 @@ public class PomTest {
         dependencies.setProperty("maven/build.jenesis/jenesis/0-SNAPSHOT", "");
         dependencies.setProperty("module/some.other.module", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "build.jenesis.test");
+        metadata.setProperty("version", "0-SNAPSHOT");
+        metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
                                         Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -195,6 +219,8 @@ public class PomTest {
         dependencies.setProperty("maven/org.example/lib/1.2.3", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
         metadata.setProperty("version", "2.7.1");
         metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -219,6 +245,8 @@ public class PomTest {
         coordinates.setProperty("module/build.jenesis.test", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "build.jenesis.test");
         metadata.setProperty("version", "9.0.0");
         metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
@@ -234,19 +262,22 @@ public class PomTest {
     }
 
     @Test
-    public void missing_metadata_version_falls_back_to_self_version() throws IOException {
+    public void missing_metadata_version_throws() throws IOException {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
-        BuildStepResult result = new Pom().apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        assertThat(result.next()).isTrue();
-        assertThat(Files.readString(next.resolve(Pom.POM))).contains("<version>1.0.0</version>");
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.store(argument.resolve(BuildStep.METADATA));
+        assertThatThrownBy(() -> new Pom().apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                        argument,
+                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED))))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing 'version'");
     }
 
     @Test
@@ -255,6 +286,8 @@ public class PomTest {
         coordinates.setProperty("maven/com.example/foo/jar/0-SNAPSHOT", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "com.example");
+        metadata.setProperty("artifact", "foo");
         metadata.setProperty("version", "2.7.1");
         metadata.store(argument.resolve(BuildStep.METADATA));
         Path exported = Files.createDirectory(root.resolve("repository"));
@@ -287,6 +320,9 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.setProperty("version", "1.0.0");
         metadata.setProperty("name", "Jenesis");
         metadata.setProperty("description", "A build tool.");
         metadata.setProperty("url", "https://example.com/jenesis");
@@ -327,7 +363,9 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
         metadata.setProperty("artifact", "other.module");
+        metadata.setProperty("version", "1.0.0");
         metadata.store(argument.resolve(BuildStep.METADATA));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
