@@ -14,7 +14,6 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.DependencyScope;
-import build.jenesis.step.Relocate;
 
 public class ModularToMaven {
 
@@ -43,8 +42,6 @@ public class ModularToMaven {
                                 descriptor.sources(), descriptor.manifests(), descriptor.coordinates(), descriptor.resolved(DependencyScope.COMPILE));
                     }));
         }, "download");
-
-        root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
 
         root.execute(args);
     }

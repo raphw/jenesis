@@ -9,7 +9,6 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.DependencyScope;
-import build.jenesis.step.Relocate;
 
 public class Maven {
 
@@ -23,8 +22,6 @@ public class Maven {
                 (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> buildExecutor.addModule("java",
                         new JavaModule().testIfAvailable(mergedRepos, mergedResolvers),
                         descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME))));
-
-        root.addStep("collect", new Relocate(MavenProject.artifactsByModule()), "build");
 
         root.execute(args);
     }
