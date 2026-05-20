@@ -5,6 +5,7 @@ import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
+import build.jenesis.maven.MavenRepositoryExport;
 import build.jenesis.maven.MavenRepositoryStage;
 import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.PinPom;
@@ -40,6 +41,7 @@ public record Project(
     public static final String BUILD = "build",
             COLLECT = "collect",
             STAGE = "stage",
+            EXPORT = "export",
             PIN = "pin",
             METADATA = "metadata";
 
@@ -69,6 +71,7 @@ public record Project(
             }, METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(project.stageTests()), COLLECT);
+            executor.addStep(EXPORT, new MavenRepositoryExport(), STAGE);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
@@ -154,6 +157,7 @@ public record Project(
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
             executor.addStep(STAGE, new MavenRepositoryStage(project.stageTests()), COLLECT);
+            executor.addStep(EXPORT, new MavenRepositoryExport(), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
