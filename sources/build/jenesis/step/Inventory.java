@@ -42,7 +42,7 @@ public class Inventory implements BuildStep {
                     module = properties.getProperty("module");
                 }
                 if (tests == null) {
-                    tests = properties.getProperty("tests");
+                    tests = properties.getProperty("test");
                 }
             }
             Path metadataFile = folder.resolve(METADATA);
@@ -82,7 +82,7 @@ public class Inventory implements BuildStep {
             inventory.setProperty(prefix + "version", version);
         }
         if (tests != null) {
-            inventory.setProperty(prefix + "tests", tests);
+            inventory.setProperty(prefix + "test", tests);
         }
         if (mainClass != null) {
             inventory.setProperty(prefix + "mainClass", mainClass);

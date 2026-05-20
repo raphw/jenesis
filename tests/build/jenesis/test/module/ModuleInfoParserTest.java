@@ -56,7 +56,7 @@ public class ModuleInfoParserTest {
     public void single_requires_tag_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.2.3
+                 * @pin bar 1.2.3
                  */
                 module foo {
                   requires bar;
@@ -70,7 +70,7 @@ public class ModuleInfoParserTest {
     public void requires_tag_carries_optional_checksum_after_version() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.2.3 SHA256/cafebabe
+                 * @pin bar 1.2.3 SHA256/cafebabe
                  */
                 module foo {
                   requires bar;
@@ -84,9 +84,9 @@ public class ModuleInfoParserTest {
     public void multiple_requires_tags_preserve_order() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.0
-                 * @requires qux 2.0
-                 * @requires baz 3.0
+                 * @pin bar 1.0
+                 * @pin qux 2.0
+                 * @pin baz 3.0
                  */
                 module foo {
                   requires bar;
@@ -103,7 +103,7 @@ public class ModuleInfoParserTest {
     public void pin_for_non_declared_module_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires transitive.pin 9.9.9
+                 * @pin transitive.pin 9.9.9
                  */
                 module foo {
                   requires bar;
@@ -118,9 +118,9 @@ public class ModuleInfoParserTest {
     public void malformed_requires_tag_is_skipped() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar
-                 * @requires
-                 * @requires qux 1.0
+                 * @pin bar
+                 * @pin
+                 * @pin qux 1.0
                  */
                 module foo {
                   requires bar;
@@ -134,9 +134,9 @@ public class ModuleInfoParserTest {
     public void java_and_jdk_pins_are_ignored() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires java.base 21
-                 * @requires jdk.compiler 21
-                 * @requires bar 1.0
+                 * @pin java.base 21
+                 * @pin jdk.compiler 21
+                 * @pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -154,7 +154,7 @@ public class ModuleInfoParserTest {
                  *
                  * @author someone
                  * @since 1.0
-                 * @requires bar 1.0
+                 * @pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -169,7 +169,7 @@ public class ModuleInfoParserTest {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @release 25
-                 * @requires bar 1.0
+                 * @pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -198,7 +198,7 @@ public class ModuleInfoParserTest {
     public void no_release_tag_yields_null_release() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.0
+                 * @pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -212,7 +212,7 @@ public class ModuleInfoParserTest {
     public void open_module_with_javadoc_pins() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.0
+                 * @pin bar 1.0
                  */
                 open module foo {
                   requires bar;
@@ -277,7 +277,7 @@ public class ModuleInfoParserTest {
     public void bare_tests_tag_marks_module_with_empty_main_name() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @tests
+                 * @test
                  */
                 module foo {
                   requires bar;
@@ -291,7 +291,7 @@ public class ModuleInfoParserTest {
     public void tests_tag_with_argument_marks_main_module() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @tests build.jenesis
+                 * @test build.jenesis
                  */
                 module foo {
                   requires bar;

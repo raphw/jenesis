@@ -368,7 +368,7 @@ public class MavenRepositoryStagingTest {
             }
         }
         if (testsOf != null) {
-            inventory.setProperty(prefix + ".tests", testsOf);
+            inventory.setProperty(prefix + ".test", testsOf);
         }
         inventory.store(folder.resolve(Inventory.INVENTORY));
         return folder;

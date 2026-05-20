@@ -177,7 +177,7 @@ public class ModularProject implements BuildExecutorModule {
             if (info.testOf() != null && !info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
                 throw new IllegalStateException("Test module '"
                         + info.coordinate()
-                        + "' declares @tests "
+                        + "' declares @test "
                         + info.testOf()
                         + " but does not 'requires "
                         + info.testOf()
@@ -206,7 +206,7 @@ public class ModularProject implements BuildExecutorModule {
             module.setProperty("path", path);
             module.setProperty("module", info.coordinate());
             if (info.testOf() != null) {
-                module.setProperty("tests", info.testOf());
+                module.setProperty("test", info.testOf());
             }
             if (info.main() != null) {
                 module.setProperty("main", info.main());

@@ -150,7 +150,7 @@ public class ModularStagingTest {
         String prefix = "module-" + path;
         inventory.setProperty(prefix + ".module", moduleName);
         if (testsOf != null) {
-            inventory.setProperty(prefix + ".tests", testsOf);
+            inventory.setProperty(prefix + ".test", testsOf);
         }
         if (version != null) {
             inventory.setProperty(prefix + ".version", version);

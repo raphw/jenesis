@@ -43,7 +43,7 @@ public class MavenRepositoryStaging implements BuildStep {
             Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
             Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
             Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
-            String testsOf = inventory.getProperty(prefix + ".tests");
+            String testsOf = inventory.getProperty(prefix + ".test");
             Module module = new Module(prefix, coordinates, artifact, sources, javadoc, pom, testsOf);
             if (testsOf == null) {
                 Module previous = mainsByArtifactId.putIfAbsent(coordinates.artifactId(), module);
@@ -81,15 +81,15 @@ public class MavenRepositoryStaging implements BuildStep {
                 if (mainsByArtifactId.isEmpty()) {
                     throw new IllegalStateException("Test module '"
                             + test.prefix()
-                            + "' does not name the main module it tests (bare @tests) "
+                            + "' does not name the main module it tests (bare @test) "
                             + "but no main module is present to attach it to");
                 }
                 if (mainsByArtifactId.size() > 1) {
                     throw new IllegalStateException("Test module '"
                             + test.prefix()
-                            + "' does not name the main module it tests (bare @tests) "
+                            + "' does not name the main module it tests (bare @test) "
                             + "but multiple main modules are present; "
-                            + "specify an explicit @tests <artifactId> (known mains: "
+                            + "specify an explicit @test <artifactId> (known mains: "
                             + mainsByArtifactId.keySet()
                             + ")");
                 }

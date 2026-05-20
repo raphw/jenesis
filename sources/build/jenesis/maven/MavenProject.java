@@ -245,7 +245,7 @@ public class MavenProject implements BuildExecutorModule {
                                 SequencedProperties descriptor = new SequencedProperties();
                                 descriptor.setProperty("path", properties.getProperty("path"));
                                 if (testsOf != null) {
-                                    descriptor.setProperty("tests", testsOf);
+                                    descriptor.setProperty("test", testsOf);
                                 }
                                 String mainClass = properties.getProperty("mainClass");
                                 if (mainClass != null && testsOf == null) {

@@ -84,7 +84,7 @@ public class JavaMultiProjectAssemblerTest {
 
     @Test
     public void tests_flag_enabled_for_test_variant_without_engine_in_dependencies_fails_resolution() throws IOException {
-        Fixture fixture = setUp("path=\ntests=main_artifact\n", true, false, false);
+        Fixture fixture = setUp("path=\ntest=main_artifact\n", true, false, false);
         Files.writeString(
                 Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES)).resolve("Sample.java"),
                 "public class Sample {}");

@@ -38,7 +38,7 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
                 Path module = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
                 if (Files.isRegularFile(module) && SequencedProperties
                         .ofFiles(module)
-                        .getProperty("tests") != null) {
+                        .getProperty("test") != null) {
                     sub.addModule("test", new TestModule(repositories, resolvers, filter).strictPinning(descriptor.strictPinning()),
                             "java",
                             "prepare",

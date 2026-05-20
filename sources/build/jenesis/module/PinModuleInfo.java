@@ -12,7 +12,7 @@ public class PinModuleInfo implements BuildStep {
 
     private static final Pattern MODULE_DECLARATION = Pattern.compile("(?m)^(open\\s+)?module\\s+");
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
-    private static final Pattern REQUIRES_TAG = Pattern.compile("^\\s*\\*\\s*@requires\\s+\\S+.*$");
+    private static final Pattern REQUIRES_TAG = Pattern.compile("^\\s*\\*\\s*@pin\\s+\\S+.*$");
 
     private final String prefix;
     private final List<Path> moduleInfoFiles;
@@ -267,7 +267,7 @@ public class PinModuleInfo implements BuildStep {
         }
         List<String> requires = new ArrayList<>();
         for (Map.Entry<String, String> entry : entries.entrySet()) {
-            requires.add(" * @requires " + entry.getKey() + " " + entry.getValue());
+            requires.add(" * @pin " + entry.getKey() + " " + entry.getValue());
         }
         lines.addAll(insertAt, requires);
         return String.join("\n", lines);
@@ -276,7 +276,7 @@ public class PinModuleInfo implements BuildStep {
     private static String renderJavadoc(SequencedMap<String, String> entries) {
         StringBuilder sb = new StringBuilder("/**\n");
         for (Map.Entry<String, String> entry : entries.entrySet()) {
-            sb.append(" * @requires ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+            sb.append(" * @pin ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
         }
         sb.append(" */");
         return sb.toString();

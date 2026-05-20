@@ -88,7 +88,7 @@ public class MavenProjectTest {
                 "maven/group/artifact/pom/1");
         assertThat(testCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
         SequencedProperties testModuleProperties = SequencedProperties.ofFiles(testModule.resolve(BuildStep.MODULE));
-        assertThat(testModuleProperties.getProperty("tests")).isEqualTo("artifact");
+        assertThat(testModuleProperties.getProperty("test")).isEqualTo("artifact");
         Path testModuleRequires = testModule.resolve(BuildStep.REQUIRES);
         assertThat(testModuleRequires).exists();
         SequencedProperties testDependencies = SequencedProperties.ofFiles(testModuleRequires);
@@ -226,7 +226,7 @@ public class MavenProjectTest {
                 "maven/parent/artifact/pom/1");
         assertThat(parentTestCoordinates.getProperty("maven/parent/artifact/jar/tests/1")).isEmpty();
         SequencedProperties parentTestModule = SequencedProperties.ofFiles(parentTests.resolve(BuildStep.MODULE));
-        assertThat(parentTestModule.getProperty("tests")).isEqualTo("artifact");
+        assertThat(parentTestModule.getProperty("test")).isEqualTo("artifact");
         SequencedProperties parentTestDependencies = SequencedProperties.ofFiles(parentTests.resolve(BuildStep.REQUIRES));
         assertThat(parentTestDependencies).containsOnlyKeys("maven/parent/artifact/1");
         assertThat(parentTestDependencies.getProperty("maven/parent/artifact/1")).isEmpty();
@@ -248,7 +248,7 @@ public class MavenProjectTest {
                 "maven/group/artifact/pom/1");
         assertThat(childTestCoordinates.getProperty("maven/group/artifact/jar/tests/1")).isEmpty();
         SequencedProperties childTestModule = SequencedProperties.ofFiles(childTests.resolve(BuildStep.MODULE));
-        assertThat(childTestModule.getProperty("tests")).isEqualTo("artifact");
+        assertThat(childTestModule.getProperty("test")).isEqualTo("artifact");
         SequencedProperties childTestDependencies = SequencedProperties.ofFiles(childTests.resolve(BuildStep.REQUIRES));
         assertThat(childTestDependencies).containsOnlyKeys("maven/group/artifact/1");
         assertThat(childTestDependencies.getProperty("maven/group/artifact/1")).isEmpty();

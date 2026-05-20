@@ -69,7 +69,7 @@ public class ModuleInfoParser {
                                 .collect(Collectors.joining())
                                 .trim();
                         switch (unknown.getTagName()) {
-                            case "requires" -> {
+                            case "pin" -> {
                                 int split = content.indexOf(' ');
                                 if (split < 1 || split == content.length() - 1) {
                                     continue;
@@ -86,7 +86,7 @@ public class ModuleInfoParser {
                                     release = content;
                                 }
                             }
-                            case "tests" -> testOf = content;
+                            case "test" -> testOf = content;
                             case "main" -> {
                                 if (!content.isEmpty()) {
                                     main = content;

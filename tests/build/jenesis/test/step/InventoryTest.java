@@ -121,7 +121,7 @@ public class InventoryTest {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();
         module.setProperty("path", "foo-test");
-        module.setProperty("tests", "foo");
+        module.setProperty("test", "foo");
         module.store(manifests.resolve(BuildStep.MODULE));
         Path produce = Files.createDirectory(root.resolve("produce"));
         Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
@@ -130,7 +130,7 @@ public class InventoryTest {
         run(args("manifests", manifests, "produce", produce));
 
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("module-foo-test.tests")).isEqualTo("foo");
+        assertThat(inventory.getProperty("module-foo-test.test")).isEqualTo("foo");
     }
 
     @Test

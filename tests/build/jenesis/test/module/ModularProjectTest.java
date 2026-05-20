@@ -26,7 +26,7 @@ public class ModularProjectTest {
     public void at_tests_with_argument_not_in_requires_fails_validation() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**
-                 * @tests other.module
+                 * @test other.module
                  */
                 module foo {
                   requires bar;
@@ -40,7 +40,7 @@ public class ModularProjectTest {
         executor.addModule("module", new ModularProject("module", project, _ -> true));
         assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
-                .hasRootCauseMessage("Test module 'foo' declares @tests other.module but does not"
+                .hasRootCauseMessage("Test module 'foo' declares @test other.module but does not"
                         + " 'requires other.module;' (declared requires: [bar])");
     }
 
@@ -81,8 +81,8 @@ public class ModularProjectTest {
     public void emits_versions_properties_from_javadoc_pins() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.2.3
-                 * @requires transitive.pin 9.9.9
+                 * @pin bar 1.2.3
+                 * @pin transitive.pin 9.9.9
                  */
                 module foo {
                   requires bar;
