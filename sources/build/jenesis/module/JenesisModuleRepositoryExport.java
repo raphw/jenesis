@@ -11,7 +11,10 @@ public class JenesisModuleRepositoryExport implements BuildStep {
     private final Path target;
 
     public JenesisModuleRepositoryExport() {
-        this(Path.of(System.getProperty("user.home")).resolve(".jenesis"));
+        String override = System.getenv("JENESIS_MODULE_REPOSITORY");
+        target = override == null
+                ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
+                : Path.of(override);
     }
 
     public JenesisModuleRepositoryExport(Path target) {
