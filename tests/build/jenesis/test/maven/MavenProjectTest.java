@@ -665,7 +665,8 @@ public class MavenProjectTest {
         assertThat(moduleFile).exists();
         SequencedProperties moduleProperties = SequencedProperties.ofFiles(moduleFile);
         assertThat(moduleProperties).containsOnly(
-                Map.entry("path", ""));
+                Map.entry("path", ""),
+                Map.entry("modular", "false"));
         Path metadataFile = module.resolve(BuildStep.METADATA);
         assertThat(metadataFile).exists();
         SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);

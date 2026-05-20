@@ -244,6 +244,7 @@ public class MavenProject implements BuildExecutorModule {
                                 Javac.writeRelease(context.next(), properties.getProperty("release"));
                                 SequencedProperties descriptor = new SequencedProperties();
                                 descriptor.setProperty("path", properties.getProperty("path"));
+                                descriptor.setProperty("modular", "false");
                                 if (testsOf != null) {
                                     descriptor.setProperty("test", testsOf);
                                 }

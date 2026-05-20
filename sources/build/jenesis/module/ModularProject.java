@@ -36,11 +36,17 @@ public class ModularProject implements BuildExecutorModule {
     private final String prefix;
     private final Path root;
     private final Predicate<Path> filter;
+    private final boolean modular;
 
     public ModularProject(String prefix, Path root, Predicate<Path> filter) {
+        this(prefix, root, filter, true);
+    }
+
+    public ModularProject(String prefix, Path root, Predicate<Path> filter, boolean modular) {
         this.prefix = prefix;
         this.root = root;
         this.filter = filter;
+        this.modular = modular;
     }
 
     public static BuildExecutorModule make(Path root,
@@ -111,7 +117,7 @@ public class ModularProject implements BuildExecutorModule {
                                            boolean strictPinning,
                                            boolean modular,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return new MultiProjectModule(new ModularProject(prefix, root, filter),
+        return new MultiProjectModule(new ModularProject(prefix, root, filter, modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
@@ -160,7 +166,7 @@ public class ModularProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
                             PRODUCE);
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
-                            new Inventory(modular),
+                            new Inventory(),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
@@ -185,7 +191,7 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
-    private record Manifests(String prefix, String path) implements BuildStep {
+    private record Manifests(String prefix, String path, boolean modular) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -226,6 +232,7 @@ public class ModularProject implements BuildExecutorModule {
             SequencedProperties module = new SequencedProperties();
             module.setProperty("path", path);
             module.setProperty("module", info.coordinate());
+            module.setProperty("modular", Boolean.toString(modular));
             if (info.testOf() != null) {
                 module.setProperty("test", info.testOf());
             }
@@ -270,7 +277,7 @@ public class ModularProject implements BuildExecutorModule {
                             SequencedSet<String> manifestDeps = new LinkedHashSet<>();
                             manifestDeps.add("sources");
                             manifestDeps.addAll(modInherited.sequencedKeySet());
-                            module.addStep(MANIFESTS, new Manifests(prefix, relative), manifestDeps);
+                            module.addStep(MANIFESTS, new Manifests(prefix, relative, modular), manifestDeps);
                             module.addStep(COORDINATES, new Coordinates(prefix), MANIFESTS);
                         }, inherited.sequencedKeySet().stream());
                     }

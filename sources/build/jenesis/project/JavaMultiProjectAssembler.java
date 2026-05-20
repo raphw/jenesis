@@ -36,19 +36,21 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
                     descriptor.artifacts(DependencyScope.RUNTIME));
             if (descriptor.tests()) {
                 Path module = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
-                if (Files.isRegularFile(module) && SequencedProperties
-                        .ofFiles(module)
-                        .getProperty("test") != null) {
-                    sub.addModule("test", new TestModule(repositories, resolvers, filter).strictPinning(descriptor.strictPinning()),
-                            "java",
-                            "prepare",
-                            descriptor.sources(),
-                            descriptor.manifests(),
-                            descriptor.resolved(DependencyScope.COMPILE),
-                            descriptor.resolved(DependencyScope.RUNTIME),
-                            descriptor.artifacts(DependencyScope.COMPILE),
-                            descriptor.artifacts(DependencyScope.RUNTIME));
-
+                if (Files.isRegularFile(module)) {
+                    SequencedProperties properties = SequencedProperties.ofFiles(module);
+                    if (properties.getProperty("test") != null) {
+                        sub.addModule("test", new TestModule(repositories, resolvers, filter)
+                                        .modular(Boolean.parseBoolean(properties.getProperty("modular", "false")))
+                                        .strictPinning(descriptor.strictPinning()),
+                                "java",
+                                "prepare",
+                                descriptor.sources(),
+                                descriptor.manifests(),
+                                descriptor.resolved(DependencyScope.COMPILE),
+                                descriptor.resolved(DependencyScope.RUNTIME),
+                                descriptor.artifacts(DependencyScope.COMPILE),
+                                descriptor.artifacts(DependencyScope.RUNTIME));
+                    }
                 }
             }
             if (descriptor.source()) {

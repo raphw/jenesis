@@ -31,6 +31,7 @@ public class InventoryTest {
         module.setProperty("path", "foo");
         module.setProperty("main", "com.example.Foo");
         module.setProperty("module", "com.example.foo");
+        module.setProperty("modular", "true");
         module.store(manifests.resolve(BuildStep.MODULE));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("version", "1.2.3");
