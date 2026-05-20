@@ -36,13 +36,13 @@ public class JenesisModuleRepositoryExportTest {
     }
 
     @Test
-    public void exports_versioned_module_under_version_directory() throws IOException {
+    public void exports_versioned_module_under_version_directory_and_at_root() throws IOException {
         stage("build.jenesis", "1.0.0", "build.jenesis.jar", "classes");
 
         run();
 
         assertThat(target.resolve("build.jenesis/1.0.0/build.jenesis.jar")).hasContent("classes");
-        assertThat(target.resolve("build.jenesis/build.jenesis.jar")).doesNotExist();
+        assertThat(target.resolve("build.jenesis/build.jenesis.jar")).hasContent("classes");
     }
 
     @Test
@@ -56,6 +56,9 @@ public class JenesisModuleRepositoryExportTest {
         assertThat(target.resolve("build.jenesis/1.0.0/build.jenesis.jar")).hasContent("classes");
         assertThat(target.resolve("build.jenesis/1.0.0/build.jenesis-sources.jar")).hasContent("sources");
         assertThat(target.resolve("build.jenesis/1.0.0/build.jenesis-javadoc.jar")).hasContent("javadoc");
+        assertThat(target.resolve("build.jenesis/build.jenesis.jar")).hasContent("classes");
+        assertThat(target.resolve("build.jenesis/build.jenesis-sources.jar")).hasContent("sources");
+        assertThat(target.resolve("build.jenesis/build.jenesis-javadoc.jar")).hasContent("javadoc");
     }
 
     @Test
@@ -67,6 +70,21 @@ public class JenesisModuleRepositoryExportTest {
 
         assertThat(target.resolve("com.example.foo/com.example.foo.jar")).hasContent("foo-bytes");
         assertThat(target.resolve("com.example.bar/2.1/com.example.bar.jar")).hasContent("bar-bytes");
+        assertThat(target.resolve("com.example.bar/com.example.bar.jar")).hasContent("bar-bytes");
+    }
+
+    @Test
+    public void versioned_export_replaces_stale_root_mirror() throws IOException {
+        Files.createDirectories(target.resolve("build.jenesis"));
+        Files.writeString(target.resolve("build.jenesis/build.jenesis.jar"), "older");
+        Files.writeString(target.resolve("build.jenesis/build.jenesis-javadoc.jar"), "older-javadoc");
+        stage("build.jenesis", "2.0.0", "build.jenesis.jar", "newer");
+
+        run();
+
+        assertThat(target.resolve("build.jenesis/2.0.0/build.jenesis.jar")).hasContent("newer");
+        assertThat(target.resolve("build.jenesis/build.jenesis.jar")).hasContent("newer");
+        assertThat(target.resolve("build.jenesis/build.jenesis-javadoc.jar")).doesNotExist();
     }
 
     @Test
@@ -103,6 +121,7 @@ public class JenesisModuleRepositoryExportTest {
 
         assertThat(target.resolve("build.jenesis/1.0.0/build.jenesis.jar")).hasContent("fresh");
         assertThat(target.resolve("build.jenesis/0.9/build.jenesis.jar")).hasContent("older");
+        assertThat(target.resolve("build.jenesis/build.jenesis.jar")).hasContent("fresh");
     }
 
     @Test

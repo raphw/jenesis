@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Project;
+import build.jenesis.module.JenesisModuleRepositoryExport;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -200,6 +201,24 @@ public class ProjectTest {
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
+    }
+
+    @Test
+    public void modular_layout_registers_export_step() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project project = new Project().root(root).target(target);
+        BuildExecutor executor = BuildExecutor.of(target,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop());
+
+        Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler());
+
+        // replaceStep throws IllegalArgumentException("Unknown step: ...") if no step is registered
+        // at the given identity, so a successful no-throw call proves the layout wired up an
+        // `export` step. The replacement step is a no-op stand-in for the assertion.
+        executor.replaceStep(Project.EXPORT, new JenesisModuleRepositoryExport(target.resolve("module-repository")));
     }
 
     @Test

@@ -41,30 +41,41 @@ public class JenesisModuleRepositoryExport implements BuildStep {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
                     Path relative = folder.relativize(file);
-                    Path destination = target.resolve(relative.toString());
-                    Path parent = destination.getParent();
-                    if (parent != null) {
-                        Files.createDirectories(parent);
-                        if (cleaned.add(parent)) {
-                            try (DirectoryStream<Path> existing = Files.newDirectoryStream(parent)) {
-                                for (Path child : existing) {
-                                    if (Files.isRegularFile(child)) {
-                                        Files.delete(child);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Files.deleteIfExists(destination);
-                    try {
-                        Files.createLink(destination, file);
-                    } catch (UnsupportedOperationException | FileSystemException _) {
-                        Files.copy(file, destination, StandardCopyOption.REPLACE_EXISTING);
+                    link(file, target.resolve(relative.toString()), cleaned);
+                    if (relative.getNameCount() == 3) {
+                        // Versioned shape <module>/<version>/<file>: also mirror to <module>/<file>
+                        // so the module root always reflects the most recently built version.
+                        link(file,
+                                target.resolve(relative.getName(0).toString())
+                                        .resolve(relative.getName(2).toString()),
+                                cleaned);
                     }
                     return FileVisitResult.CONTINUE;
                 }
             });
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static void link(Path file, Path destination, Set<Path> cleaned) throws IOException {
+        Path parent = destination.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+            if (cleaned.add(parent)) {
+                try (DirectoryStream<Path> existing = Files.newDirectoryStream(parent)) {
+                    for (Path child : existing) {
+                        if (Files.isRegularFile(child)) {
+                            Files.delete(child);
+                        }
+                    }
+                }
+            }
+        }
+        Files.deleteIfExists(destination);
+        try {
+            Files.createLink(destination, file);
+        } catch (UnsupportedOperationException | FileSystemException _) {
+            Files.copy(file, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 }
