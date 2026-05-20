@@ -28,6 +28,7 @@ public class TestModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final boolean jarsOnly;
     private final boolean modular;
+    private final boolean requireEngine;
     private final String filter;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -35,7 +36,7 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true, filter);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, true, filter);
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -46,7 +47,7 @@ public class TestModule implements BuildExecutorModule {
                       Map<String, Repository> repositories,
                       Map<String, Resolver> resolvers,
                       String filter) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, filter);
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, true, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
@@ -61,7 +62,7 @@ public class TestModule implements BuildExecutorModule {
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers,
                                                                    String filter) {
-        this(engine, isTest, null, repositories, resolvers, true, true, filter);
+        this(engine, isTest, null, repositories, resolvers, true, true, true, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
@@ -80,7 +81,7 @@ public class TestModule implements BuildExecutorModule {
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers,
             String filter) {
-        this(engine, isTest, factory, repositories, resolvers, true, true, filter);
+        this(engine, isTest, factory, repositories, resolvers, true, true, true, filter);
     }
 
     private TestModule(TestEngine engine,
@@ -90,6 +91,7 @@ public class TestModule implements BuildExecutorModule {
                        Map<String, Resolver> resolvers,
                        boolean jarsOnly,
                        boolean modular,
+                       boolean requireEngine,
                        String filter) {
         this.engine = engine;
         this.isTest = isTest;
@@ -98,6 +100,7 @@ public class TestModule implements BuildExecutorModule {
         this.resolvers = resolvers;
         this.jarsOnly = jarsOnly;
         this.modular = modular;
+        this.requireEngine = requireEngine;
         this.filter = filter;
     }
 
@@ -110,25 +113,41 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, filter);
     }
 
     public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, filter);
+    }
+
+    public TestModule requireEngine(boolean requireEngine) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, filter);
     }
 
     @Override
-    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        TestEngine resolved = engine;
+        if (resolved == null) {
+            resolved = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
+            if (resolved == null) {
+                if (requireEngine) {
+                    throw new IllegalStateException(
+                            "No test engine could be resolved from inherited dependencies: "
+                                    + inherited.sequencedKeySet());
+                }
+                return;
+            }
+        }
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
+        buildExecutor.addStep(RESOLVED, new Requires(resolved, Set.copyOf(resolvers.keySet())), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories), REQUIRED);
         Run run = factory == null
-                ? new Run(engine, isTest, jarsOnly, modular, filter)
-                : new Run(factory, engine, isTest, jarsOnly, modular, filter);
+                ? new Run(resolved, isTest, jarsOnly, modular, filter)
+                : new Run(factory, resolved, isTest, jarsOnly, modular, filter);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }

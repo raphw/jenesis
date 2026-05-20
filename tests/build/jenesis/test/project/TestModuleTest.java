@@ -226,15 +226,13 @@ public class TestModuleTest {
                 new TestModule(null,
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
-                        Map.of()).jarsOnly(false),
+                        Map.of()).jarsOnly(false).requireEngine(true),
                 "dependencies", "classes");
 
         assertThatThrownBy(executor::execute)
-                .isInstanceOf(BuildExecutorException.class)
-                .hasMessage("Failed to execute test/" + "executed")
-                .cause()
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("No test engine found");
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
+                .hasMessageContaining("No test engine could be resolved from inherited dependencies");
     }
 
     @Test
@@ -333,7 +331,7 @@ public class TestModuleTest {
     }
 
     @Test
-    public void requires_step_emits_nothing_when_no_engine_detected() throws IOException {
+    public void registers_no_sub_steps_when_no_engine_detected() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("dependencies", emptyDependencies);
         executor.addSource("classes", classes);
@@ -342,12 +340,11 @@ public class TestModuleTest {
                 new TestModule(null,
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
-                        Map.of()).jarsOnly(false),
+                        Map.of()).jarsOnly(false).requireEngine(false),
                 "dependencies", "classes");
-        executor.execute("test/" + "resolved");
+        SequencedMap<String, Path> outputs = executor.execute();
 
-        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
-        assertThat(properties).isEmpty();
+        assertThat(outputs).doesNotContainKeys("test/resolved", "test/required", "test/artifacts", "test/executed");
     }
 
     private BuildExecutor newExecutor() throws IOException {

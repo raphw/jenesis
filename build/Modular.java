@@ -9,6 +9,7 @@ import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
+import build.jenesis.project.TestModule;
 import build.jenesis.project.DependencyScope;
 
 public class Modular {
@@ -29,14 +30,23 @@ public class Modular {
                     Path.of("."),
                     repositories,
                     resolvers,
-                    (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> buildExecutor.addModule("java",
-                            new JavaModule().testIfAvailable(mergedRepos, mergedResolvers),
-                            descriptor.sources(),
-                            descriptor.manifests(),
-                            descriptor.resolved(DependencyScope.COMPILE),
-                            descriptor.resolved(DependencyScope.RUNTIME),
-                            descriptor.artifacts(DependencyScope.COMPILE),
-                            descriptor.artifacts(DependencyScope.RUNTIME))));
+                    (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
+                        buildExecutor.addModule("java", new JavaModule(),
+                                descriptor.sources(),
+                                descriptor.manifests(),
+                                descriptor.resolved(DependencyScope.COMPILE),
+                                descriptor.resolved(DependencyScope.RUNTIME),
+                                descriptor.artifacts(DependencyScope.COMPILE),
+                                descriptor.artifacts(DependencyScope.RUNTIME));
+                        buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers),
+                                "java",
+                                descriptor.sources(),
+                                descriptor.manifests(),
+                                descriptor.resolved(DependencyScope.COMPILE),
+                                descriptor.resolved(DependencyScope.RUNTIME),
+                                descriptor.artifacts(DependencyScope.COMPILE),
+                                descriptor.artifacts(DependencyScope.RUNTIME));
+                    }));
         }, "download");
 
         root.execute(args);

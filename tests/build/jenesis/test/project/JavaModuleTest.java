@@ -10,6 +10,7 @@ import build.jenesis.HashDigestFunction;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.JavaModule;
+import build.jenesis.project.TestModule;
 import sample.Sample;
 
 import static java.util.Objects.requireNonNull;
@@ -79,7 +80,8 @@ public class JavaModuleTest {
             writer.newLine();
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().test(true, null, Map.of(), Map.of()), "input");
+        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output-test", new TestModule(Map.of(), Map.of()).requireEngine(true), "output", "input");
         assertThatThrownBy(() -> buildExecutor.execute())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
@@ -96,10 +98,11 @@ public class JavaModuleTest {
             writer.newLine();
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().test(false, null, Map.of(), Map.of()), "input");
+        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output-test", new TestModule(Map.of(), Map.of()).requireEngine(false), "output", "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts");
-        assertThat(steps).doesNotContainKey("output/test/executed");
+        assertThat(steps).doesNotContainKey("output-test/executed");
     }
 
     @Test
@@ -137,15 +140,16 @@ public class JavaModuleTest {
             }
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule().testIfAvailable(
+        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output-test", new TestModule(
                 Map.of("maven", new MavenDefaultRepository(
                         URI.create("https://repo1.maven.org/maven2/"),
                         null,
                         Map.of(),
                         _ -> {})),
-                Map.of("maven", new MavenPomResolver())), "input");
+                Map.of("maven", new MavenPomResolver())), "output", "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/test/executed");
+        assertThat(steps).containsKeys("output/classes", "output/artifacts", "output-test/executed");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/SampleTest.class")).exists();
         try (JarInputStream inputStream = new JarInputStream(Files.newInputStream(steps.get("output/artifacts")
                 .resolve(BuildStep.ARTIFACTS)

@@ -85,7 +85,10 @@ public class JavaMultiProjectAssemblerTest {
     @Test
     public void tests_flag_enabled_for_test_variant_without_engine_in_dependencies_fails_resolution() throws IOException {
         Fixture fixture = setUp("path=\ntests=main_artifact\n", true, false, false);
-        assertThatThrownBy(() -> fixture.execute("sub/java"))
+        Files.writeString(
+                Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES)).resolve("Sample.java"),
+                "public class Sample {}");
+        assertThatThrownBy(() -> fixture.execute("sub/test/resolved"))
                 .rootCause()
                 .hasMessageContaining("No test engine could be resolved");
     }
@@ -93,7 +96,7 @@ public class JavaMultiProjectAssemblerTest {
     @Test
     public void tests_flag_disabled_omits_test_sub_module() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false);
-        assertThatThrownBy(() -> fixture.execute("sub/java/test/resolved"))
+        assertThatThrownBy(() -> fixture.execute("sub/test/resolved"))
                 .rootCause()
                 .hasMessage("Unknown selector: test/resolved");
     }

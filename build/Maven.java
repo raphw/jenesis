@@ -8,6 +8,7 @@ import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaModule;
+import build.jenesis.project.TestModule;
 import build.jenesis.project.DependencyScope;
 
 public class Maven {
@@ -19,9 +20,12 @@ public class Maven {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
         root.addModule("build", MavenProject.make(Path.of("."),
-                (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> buildExecutor.addModule("java",
-                        new JavaModule().testIfAvailable(mergedRepos, mergedResolvers),
-                        descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME))));
+                (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
+                    buildExecutor.addModule("java", new JavaModule(),
+                            descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
+                    buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers),
+                            "java", descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
+                }));
 
         root.execute(args);
     }

@@ -21,17 +21,8 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                                      Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers) {
         return (sub, outerInherited) -> {
-            BuildExecutorModule java;
-            if (descriptor.tests()) {
-                Path moduleFile = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
-                boolean test = Files.isRegularFile(moduleFile)
-                        && SequencedProperties.ofFiles(moduleFile).getProperty("tests") != null;
-                java = new JavaModule().test(test, null, repositories, resolvers);
-            } else {
-                java = new JavaModule();
-            }
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
-            sub.addModule("java", java,
+            sub.addModule("java", new JavaModule(),
                     "prepare",
                     descriptor.sources(),
                     descriptor.manifests(),
@@ -39,6 +30,23 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                     descriptor.resolved(DependencyScope.RUNTIME),
                     descriptor.artifacts(DependencyScope.COMPILE),
                     descriptor.artifacts(DependencyScope.RUNTIME));
+            if (descriptor.tests()) {
+                Path module = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
+                if (Files.isRegularFile(module) && SequencedProperties
+                        .ofFiles(module)
+                        .getProperty("tests") != null) {
+                    sub.addModule("test", new TestModule(repositories, resolvers),
+                            "java",
+                            "prepare",
+                            descriptor.sources(),
+                            descriptor.manifests(),
+                            descriptor.resolved(DependencyScope.COMPILE),
+                            descriptor.resolved(DependencyScope.RUNTIME),
+                            descriptor.artifacts(DependencyScope.COMPILE),
+                            descriptor.artifacts(DependencyScope.RUNTIME));
+
+                }
+            }
             if (descriptor.source()) {
                 sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
             }
