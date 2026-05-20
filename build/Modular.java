@@ -38,7 +38,7 @@ public class Modular {
                                 descriptor.resolved(DependencyScope.RUNTIME),
                                 descriptor.artifacts(DependencyScope.COMPILE),
                                 descriptor.artifacts(DependencyScope.RUNTIME));
-                        buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers).requireEngine(false),
+                        buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers).modular(true).requireEngine(false),
                                 "java",
                                 descriptor.sources(),
                                 descriptor.manifests(),

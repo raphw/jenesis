@@ -1019,6 +1019,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which the `MODULAR` layout stores `modules/<encoded-coordinate>.jar` for each downloaded module jar (see *The `cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `MAVEN_LOCAL_REPOSITORY`| environment variable| Overrides the local Maven repository directory that `MavenDefaultRepository` reads from and hardlinks downloaded jars into (default `~/.m2/repository`). When set, the directory must exist or `MavenDefaultRepository` throws on construction. When unset, a missing default `~/.m2/repository` silently disables the local cache layer and every fetch streams directly from upstream. |
+| `MAVEN_REPOSITORY_TOKEN`| environment variable| When set, `MavenDefaultRepository` sends the value verbatim as an `Authorization` header on every HTTP fetch (artifact bytes and `.sha1` sidecars). Useful for upstreams that require token-based auth: set the full header value, e.g. `Bearer <token>` for OAuth-style endpoints or `Basic <base64(user:pass)>` for HTTP Basic. Ignored for `file://` URIs and any non-HTTP scheme. |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
 Properties are passed on the JVM command line, e.g.
@@ -1160,7 +1161,10 @@ and hardlinks fetched bytes through the user's **local Maven repository**, defau
 and overridable via the `MAVEN_LOCAL_REPOSITORY` environment variable (this is **not** the project's
 `cache/` folder). When `MAVEN_LOCAL_REPOSITORY` is set explicitly, the directory must exist or the
 constructor throws; the default `~/.m2/repository` is permissive in the other direction, silently bypassing
-the local cache layer when absent. Each download is validated against its `.sha1` sidecar; a mismatch
+the local cache layer when absent. For upstreams that require authentication, `MAVEN_REPOSITORY_TOKEN` is
+sent verbatim as the `Authorization` header on every HTTP fetch (set the full value including the scheme,
+e.g. `Bearer <token>` or `Basic <base64(user:pass)>`); the token is also threaded through to `.sha1` sidecar
+fetches and ignored for `file://` URIs. Each download is validated against its `.sha1` sidecar; a mismatch
 deletes the cached file and any cached digests so the next request re-downloads from upstream.
 
 `Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
@@ -1298,8 +1302,10 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   Implementations: `MavenDefaultRepository` (HTTP, with on-disk cache in the user's local Maven repository,
   default `~/.m2/repository`; the project's `cache/` folder is **not** used here) and any user-supplied
   subclass (e.g. an internal Nexus mirror). The `MAVEN_REPOSITORY_URI` environment variable overrides the
-  default upstream URL; `MAVEN_LOCAL_REPOSITORY` overrides the local repository directory. See the
-  *Repositories and resolvers* section above for the generic interface and its factories.
+  default upstream URL; `MAVEN_LOCAL_REPOSITORY` overrides the local repository directory; and
+  `MAVEN_REPOSITORY_TOKEN`, when set, is sent verbatim as an `Authorization` header on every HTTP fetch
+  (e.g. `Bearer <token>`). See the *Repositories and resolvers* section above for the generic interface
+  and its factories.
 - **`Pom`** is a `BuildStep` that emits or transforms `pom.xml` files in the build graph (used by
   `MavenProject`'s scan/prepare flow).
 - **`MavenPomEmitter`** is a stateless serializer: takes a `Pom` model and writes a `pom.xml`. Used both for

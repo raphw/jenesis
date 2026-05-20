@@ -10,6 +10,7 @@ public class MavenDefaultRepository implements MavenRepository {
     private final Path local;
     private final Map<String, URI> validations;
     private final Consumer<String> callback;
+    private final String token;
 
     public MavenDefaultRepository() {
         String environment = System.getenv("MAVEN_REPOSITORY_URI");
@@ -28,6 +29,7 @@ public class MavenDefaultRepository implements MavenRepository {
             }
             this.local = local;
         }
+        token = System.getenv("MAVEN_REPOSITORY_TOKEN");
         validations = Map.of("SHA1", repository);
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
         callback = verbose ? path -> System.out.printf("%s%-11s%s %s%n",
@@ -39,10 +41,19 @@ public class MavenDefaultRepository implements MavenRepository {
     }
 
     public MavenDefaultRepository(URI repository, Path local, Map<String, URI> validations, Consumer<String> callback) {
+        this(repository, local, validations, callback, null);
+    }
+
+    public MavenDefaultRepository(URI repository,
+                                  Path local,
+                                  Map<String, URI> validations,
+                                  Consumer<String> callback,
+                                  String token) {
         this.repository = repository;
         this.local = local;
         this.validations = validations;
         this.callback = callback;
+        this.token = token;
     }
 
     @SuppressWarnings("unchecked")
@@ -204,16 +215,26 @@ public class MavenDefaultRepository implements MavenRepository {
                 uri,
                 digests,
                 path.substring(dash + 1, dot),
-                path.substring(dot));
+                path.substring(dot),
+                token);
+    }
+
+    private static InputStream openStream(URI uri, String token) throws IOException {
+        URLConnection connection = uri.toURL().openConnection();
+        if (token != null && connection instanceof HttpURLConnection http) {
+            http.setRequestProperty("Authorization", token);
+        }
+        return connection.getInputStream();
     }
 
     private static Optional<Path> download(URI uri,
                                            Map<LazyRepositoryItem, MessageDigest> digests,
                                            String prefix,
-                                           String suffix) throws IOException {
+                                           String suffix,
+                                           String token) throws IOException {
         InputStream stream;
         try {
-            stream = uri.toURL().openStream();
+            stream = openStream(uri, token);
         } catch (FileNotFoundException _) {
             return Optional.empty();
         }
@@ -314,7 +335,8 @@ public class MavenDefaultRepository implements MavenRepository {
                                 URI uri,
                                 Map<LazyRepositoryItem, MessageDigest> digests,
                                 String prefix,
-                                String suffix) implements LazyRepositoryItem {
+                                String suffix,
+                                String token) implements LazyRepositoryItem {
 
         @Override
         public void storeIfNotPresent(byte[] bytes) throws IOException {
@@ -333,7 +355,7 @@ public class MavenDefaultRepository implements MavenRepository {
 
         @Override
         public Optional<InputStream> toLazyInputStream() throws IOException {
-            Optional<Path> temporary = download(uri, digests, prefix, suffix);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix, token);
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }
@@ -362,7 +384,7 @@ public class MavenDefaultRepository implements MavenRepository {
             if (path == null) {
                 return LazyRepositoryItem.super.materialize();
             }
-            Optional<Path> temporary = download(uri, digests, prefix, suffix);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix, token);
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }
