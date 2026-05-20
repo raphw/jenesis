@@ -96,7 +96,10 @@ public interface Repository {
                 if (slash > 0) {
                     URI base = uris.get(coordinate.substring(0, slash));
                     if (base != null) {
-                        candidate = versionResolver.apply(base, coordinate.substring(slash + 1)).orElse(base);
+                        // For a versioned request, the rewriter must produce a version-specific URL.
+                        // If it can't (e.g. the registered URL isn't in Maven layout), treat it as a
+                        // miss rather than silently serving whichever version the bare-name URL points at.
+                        candidate = versionResolver.apply(base, coordinate.substring(slash + 1)).orElse(null);
                     }
                 }
             }

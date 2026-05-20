@@ -7,6 +7,7 @@ import build.jenesis.RepositoryItem;
 public class JenesisModuleRepository implements Repository {
 
     private final URI root;
+    private final String token;
 
     public JenesisModuleRepository() {
         String override = System.getenv("JENESIS_MODULE_REPOSITORY");
@@ -14,10 +15,16 @@ public class JenesisModuleRepository implements Repository {
                 ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
                 : Path.of(override);
         root = withTrailingSlash(path.toUri());
+        token = null;
     }
 
     public JenesisModuleRepository(URI root) {
+        this(root, null);
+    }
+
+    public JenesisModuleRepository(URI root, String token) {
         this.root = withTrailingSlash(root);
+        this.token = token;
     }
 
     private static URI withTrailingSlash(URI uri) {
@@ -42,10 +49,18 @@ public class JenesisModuleRepository implements Repository {
         }
         InputStream stream;
         try {
-            stream = uri.toURL().openStream();
+            stream = openStream(uri, token);
         } catch (FileNotFoundException _) {
             return Optional.empty();
         }
         return Optional.of(() -> stream);
+    }
+
+    private static InputStream openStream(URI uri, String token) throws IOException {
+        URLConnection connection = uri.toURL().openConnection();
+        if (token != null && connection instanceof HttpURLConnection http) {
+            http.setRequestProperty("Authorization", token);
+        }
+        return connection.getInputStream();
     }
 }

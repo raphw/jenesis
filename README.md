@@ -532,7 +532,7 @@ others are declared next to the step that emits them.
 | `module.properties`        | `BuildStep.MODULE`               | Per-module **graph-state** descriptor written by every `Manifests` step. Carries only keys the framework manages, never the user. Always present with `path=<directory-relative-to-project-root>` (the source folder housing this module's `pom.xml` / `module-info.java`). `ModularProject.Manifests` also writes `module=<java-module-name>`. Test variants additionally carry `test=<artifactId>` (or the empty string for the deprecated bare `@test` form); the key is absent on main modules, and consumers (`Pom`, `JavaMultiProjectAssembler`, `Inventory`) use that absence/presence as the test-variant signal, with `Inventory` mirroring the value into `inventory.properties` as `prefix.test` so `MavenRepositoryStaging` and `ModularStaging` can route test modules at staging time. Modules with an entry point carry `main=<class>` on the **main** variant (omitted on test variants): `ModularProject.Manifests` populates it from an `@main <class>` Javadoc tag on `module-info.java`, `MavenProject`'s per-module manifests step populates it from a `<properties><mainClass>...</mainClass></properties>` entry in the module's `pom.xml`. `JavaMultiProjectAssembler` runs a `prepare` step that translates `main` into a `process/jar.properties` file with a `--main-class=<class>` flag; the existing `ProcessBuildStep` plumbing then prepends that flag to the `jar` command line, which makes the produced `classes.jar` carry both a manifest `Main-Class:` entry and a `ModuleMainClass` attribute on the bundled `module-info.class`. `Project.PinModule` reads `path` from every input folder that carries this file to discover which source files to pin without pattern-matching graph paths. |
 | `metadata.properties`      | `BuildStep.METADATA`             | Per-module **POM coordinates and descriptive metadata** written by every `Manifests` step. Always carries the three coordinate keys `project=<groupId>`, `artifact=<artifactId>`, `version=<version>`: `MavenProject`'s per-module manifests step copies them straight from the `pom.xml`, while `ModularProject.Manifests` derives them from the Java module system module name (first two dot-separated segments for `project`, the full name for `artifact`) and defaults `version` to `0-SNAPSHOT`. On top of the coordinates the step adds whatever descriptive metadata is available: `ModularProject.Manifests` parses `name` and `description` from the module-info Javadoc; `MavenProject`'s manifests step lifts `<name>`, `<description>`, `<url>`, the first `<license>` (as `license.name` / `license.url`), every `<developer>` (as `developer.<id>.name` / `developer.<id>.email`), and the `<scm>` block (`scm.connection`, `scm.developerConnection`, `scm.url`) from the module's `pom.xml`. After the framework's own defaults are written, the step folds any upstream `metadata.properties` from its input folders on top (later puts win), which is how user-supplied overrides take precedence over both the framework defaults and the POM-extracted values. `Pom` consumes the file as the single source of truth for the emitted pom and throws if any of `project` / `artifact` / `version` is missing. The optional project-root override file (conventionally `project.properties`, pointed at via `-Djenesis.project.metadata=<path>`) uses the same key schema and is bound into the executor's `metadata` module so its entries reach every per-module `metadata.properties` as upstream input; `-Djenesis.project.version=<v>` is appended last and overrides any `version` from either layer. |
 | `inventory.properties`     | `Inventory.INVENTORY`            | Per-module **launchable and stageable summary** written by `Inventory`. Each module produces one file whose keys carry a single-segment prefix derived from the module's path: `module` for the root module (empty `path`), `module-<path>` otherwise (e.g. `module-core`). Keeping the prefix dot-free lets a consumer recover the prefix from any key by taking the substring up to the first `.`. The three folder-listing keys each carry a comma-separated list of files found in the matching folder among the inventory's predecessors: `prefix.artifacts` (the contents of every `artifacts/` folder, i.e. the module's produced binary jars; the staging steps require exactly one entry ending in `.jar`), `prefix.sources` (the contents of every `sources/` folder, typically just the produced `sources.jar`; the staging steps require at most one entry ending in `.jar`), `prefix.documentation` (the contents of every `documentation/` folder, typically just the produced `javadoc.jar`; same at-most-one-jar rule). Plus the existing scalar keys: `prefix.pom` (path to the generated `pom.xml` when the layout emits one), `prefix.version` (mirror of `metadata.properties`' `version`), `prefix.test` (mirror of `module.properties`' `test`, set only on test modules), `prefix.module` (mirror of `module.properties`' `module`, omitted under `MODULAR_TO_MAVEN` because that layout publishes via Maven coordinates and consumers may not place the artifact on the module path), `prefix.mainClass` (mirror of `module.properties`' `main`), and `prefix.runtime` (comma-separated jar paths: the binary artifact followed by every file in any `dependencies/` folder — the runtime classpath that `Execute` uses). All path values are **self-anchored**: written relative to the inventory file's own folder, and consumers resolve them with `<inventory's parent>.resolve(value).normalize()`. Any key whose value would be empty is omitted entirely. A consumer that reads several modules' inventories can `putAll` them into one `Properties` map without key collisions, then group by prefix to recover per-module records. Consumers: `Execute` picks candidates with `prefix.mainClass` set and assembles the classpath/modulepath from `prefix.runtime`; `MavenRepositoryStaging` parses `prefix.pom` for coordinates, routes by `prefix.test`, validates the folder-listing keys, and hardlinks the single jars into the Maven repository layout; `ModularStaging` reads `prefix.module` plus optional `prefix.version`, validates the folder-listing keys, and hardlinks the single jars under `<moduleName>/[<version>/]`. |
-| `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<java-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a Java module name into a download URL. When a versioned coordinate is requested (e.g. `org.assertj.core/3.27.0`) and the bare name is mapped to a URL whose final path segments follow the Maven repository layout (`.../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`), an opt-in version-resolver function (`MavenDefaultRepository.versionResolver()`) supplied by the caller rewrites the path's version segment and the filename's version segment to the pinned value, so a single-URL registry still satisfies version pins. Without that function, `Repository.ofUris` performs strict literal lookup only; URLs not matching the Maven layout always fall back to the bare-name URL. The `MODULAR` layout passes this resolver explicitly when wiring `Repository.ofProperties`, since the dominant Java module URL registries (sormuras/modules and most internal mirrors) point at Maven Central -- making the Maven layout assumption visible at the use site rather than baked into the generic `Repository` infrastructure. |
+| `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<java-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a Java module name into a download URL. When a versioned coordinate is requested (e.g. `org.assertj.core/3.27.0`) and the bare name is mapped to a URL whose final path segments follow the Maven repository layout (`.../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`), an opt-in version-resolver function (`MavenDefaultRepository.versionResolver()`) supplied by the caller rewrites the path's version segment and the filename's version segment to the pinned value, so a single-URL registry still satisfies version pins. Without that function, `Repository.ofUris` performs strict literal lookup only; if the version resolver is supplied but returns `Optional.empty()` for a versioned coordinate (e.g. the registered URL is not in Maven layout), the fetch is a clean miss - the bare-name URL is **not** silently substituted, so a build that asked for `foo/1.2.3` will never quietly receive the registry's default version. The `MODULAR` layout passes this resolver explicitly when wiring `Repository.ofProperties`, since the dominant Java module URL registries (sormuras/modules and most internal mirrors) point at Maven Central -- making the Maven layout assumption visible at the use site rather than baked into the generic `Repository` infrastructure. |
 | `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value emitting the same flag once per piece. Each input folder's file is processed independently and its entries are appended to the command line in folder order, so the same key in two folders becomes two flag instances. Values that name filesystem paths are written relative to the file's containing folder (paths are not resolved until the consumer step needs them), which keeps the on-disk content position-independent so build outputs can be relocated or shared between caches without rewriting.                                                                                          |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
@@ -1181,7 +1181,12 @@ deletes the cached file and any cached digests so the next request re-downloads 
 jars from a tree shaped by the export step (`<root>/<module>[/<version>]/<module>.jar`). The no-arg constructor
 defaults to `~/.jenesis` (overridable via the `JENESIS_MODULE_REPOSITORY` environment variable, same one the
 export honours); a `URI` constructor accepts any root, so a `file://`, `http://`, or `https://` URL pointing
-at a published Jenesis module repository works the same way. A bare-name coordinate (`<module>`) fetches the
+at a published Jenesis module repository works the same way. A `(URI, String token)` overload accepts an
+explicit auth token for use with custom remote repositories: when non-null, the value is sent verbatim as
+an `Authorization` header on every HTTP fetch (e.g. `Bearer <token>` or `Basic <base64(user:pass)>`). The
+token is ignored for `file://` roots and any non-HTTP scheme. The no-arg constructor does not pick up a
+token from the environment - tokens are an opt-in only used when wiring a custom `JenesisModuleRepository`
+explicitly through `Project.repositories(...)`. A bare-name coordinate (`<module>`) fetches the
 unversioned `<root>/<module>/<module>.jar`; a coordinate with a version (`<module>/<version>`) fetches
 `<root>/<module>/<version>/<module>.jar`. For `file://` URIs the returned `RepositoryItem` exposes the
 underlying `Path` so downstream caches can hardlink instead of copy; for HTTP URIs the stream is opened
@@ -1213,6 +1218,71 @@ new prefixes - or override the layout's defaults on the same prefix - by passing
 `Project.resolvers(...)`; the user maps are `putAll`-merged *after* the layout defaults, so a user entry
 under the same key wins, and the merged maps are forwarded through `JavaMultiProjectAssembler` into every
 per-module `JavaModule` / `TestModule`.
+
+### Jenesis Repository layout for Java modules
+
+The Jenesis Repository for Java modules is the on-disk format that `JenesisModuleRepositoryExport` writes
+and `JenesisModuleRepository` reads - the persistent, cross-project home for built modules, analogous to
+`~/.m2/repository` for the Maven layout. The default location is `~/.jenesis` (overridable via the
+`JENESIS_MODULE_REPOSITORY` environment variable, honoured by both the export and the repository's no-arg
+constructor); a `URI`-arg constructor on `JenesisModuleRepository` accepts any root, so a `file://`,
+`http://`, or `https://` URL pointing at a publication of the same shape works equally well.
+
+**On-disk shape.** Each module owns a directory at the root named after its Java module name. Versioned
+builds live under one extra path segment named after the version; unversioned builds live directly at the
+module root. Inside either, the produced jars are named after the module, with optional `-sources.jar`
+and `-javadoc.jar` siblings when the build emits them:
+
+```
+<root>/
+  com.example.foo/                   # unversioned export
+    com.example.foo.jar
+    com.example.foo-sources.jar
+  com.example.bar/                   # versioned export
+    com.example.bar.jar              # root mirror of the most recently built bar
+    com.example.bar-sources.jar
+    1.0.0/
+      com.example.bar.jar            # immutable version slot
+      com.example.bar-sources.jar
+    2.0.0/
+      com.example.bar.jar
+      com.example.bar-sources.jar
+```
+
+**Writes.** `JenesisModuleRepositoryExport` walks the `ModularStaging` output tree and hardlinks every
+file into the matching slot under the root (copy fallback when the filesystem refuses the link). Each
+target directory (module root or version subdirectory) is cleaned of pre-existing regular files on the
+first write to it per run, so a build that no longer produces a `-javadoc.jar` does not leave a stale one
+behind. Sibling version directories under the same module root are non-recursively untouched: exporting
+`<module>/2.0.0/` cleans `<module>/` and `<module>/2.0.0/` but leaves `<module>/0.9/`, `<module>/1.0.0/`,
+etc. exactly as they were. When the module is versioned, the export *also* mirrors each jar to the module
+root, so `<root>/<module>/<module>.jar` always reflects the most recently built version regardless of
+which version that was.
+
+**Reads.** `JenesisModuleRepository.fetch(executor, coordinate)` parses the coordinate as
+`<module>[/<version>]` and maps it to the file path:
+
+- `<module>` (no version) -> `<root>/<module>/<module>.jar` (the root mirror).
+- `<module>/<version>` -> `<root>/<module>/<version>/<module>.jar`.
+
+A missing file produces `Optional.empty()` so resolvers can fall back. For `file://` roots the returned
+`RepositoryItem` exposes the underlying `Path`, letting downstream caches hardlink instead of copy; for
+HTTP roots the stream is opened eagerly and an HTTP 404 surfaces as `Optional.empty()` the same way.
+
+**Versioned versus unversioned interplay.** Version subdirectories are *immutable points in history*:
+once `<module>/<version>/` is populated, exporting any other version of the same module never touches
+those files. A consumer that pins `@pin <module> <version>` always reads from the versioned subdirectory
+and is therefore unaffected by later re-exports of the same module at different versions. The root
+mirror, by contrast, is *rolling latest*: every export of the module overwrites it, so an unversioned
+fetch returns whichever build was most recently exported. The resolver pipeline funnels coordinates
+through the versioned path after pinning - once a `@pin <module> <version>` lands in source, downstream
+`Resolve` and `Download` always ask for `<module>/<version>`, never the bare name - so the root mirror's
+volatility cannot leak into a checksum-pinned build.
+
+The shape is identical to the tree `ModularStaging` produces in `target/`, so the export is a straight
+hardlink mirror with no format transformation. Republishing the local repository elsewhere (uploading it
+to an HTTP server, copying it onto another machine, mounting a network share) is also a straight
+file-tree mirror; the resulting URL or path is a valid `JenesisModuleRepository` root.
 
 ### The `cache/` folder
 

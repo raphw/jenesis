@@ -64,4 +64,13 @@ public class RepositoryTest {
         Optional<RepositoryItem> item = repository.fetch(Runnable::run, "foo/9.9");
         assertThat(item).isPresent();
     }
+
+    @Test
+    public void ofUris_with_version_resolver_returning_empty_misses_instead_of_serving_bare_url() throws IOException {
+        URI bare = URI.create("https://example.test/other/foo.jar");
+        Repository repository = Repository.ofUris(Map.of("foo", bare),
+                (BiFunction<URI, String, Optional<URI>> & Serializable) (_, _) -> Optional.empty(),
+                _ -> {});
+        assertThat(repository.fetch(Runnable::run, "foo/9.9")).isEmpty();
+    }
 }
