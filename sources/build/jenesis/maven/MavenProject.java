@@ -421,101 +421,89 @@ public class MavenProject implements BuildExecutorModule {
                     arguments.get(SCAN)
                             .folder()
                             .resolve(POM)).entrySet()) {
-                if (entry.getValue().packaging() != null && !"jar".equals(entry.getValue().packaging())) {
+                MavenLocalPom value = entry.getValue();
+                if (value.packaging() != null && !"jar".equals(value.packaging())) {
                     continue;
                 }
-                MavenDependencyKey selfKey = new MavenDependencyKey(
-                        entry.getValue().groupId(), entry.getValue().artifactId(), "jar", null);
-                String coordinate = selfKey.coordinate(prefix, entry.getValue().version());
-                MavenDependencyKey selfPom = new MavenDependencyKey(
-                        entry.getValue().groupId(), entry.getValue().artifactId(), "pom", null);
+                String coordinate = new MavenDependencyKey(value.groupId(), value.artifactId(), "jar", null)
+                        .coordinate(prefix, value.version());
+                MavenDependencyKey selfPom = new MavenDependencyKey(value.groupId(), value.artifactId(), "pom", null);
                 String relativePath = entry.getKey().toString().replace(File.separatorChar, '/');
-                SequencedProperties module = new SequencedProperties();
-                module.setProperty("coordinate", coordinate);
-                module.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
-                module.setProperty("path", relativePath);
-                module.setProperty("groupId", entry.getValue().groupId());
-                module.setProperty("artifactId", entry.getValue().artifactId());
-                module.setProperty("version", entry.getValue().version());
-                if (entry.getValue().release() != null) {
-                    module.setProperty("release", entry.getValue().release());
-                }
-                if (entry.getValue().mainClass() != null) {
-                    module.setProperty("mainClass", entry.getValue().mainClass());
-                }
+                writeModule(maven, value, relativePath, coordinate, selfPom, false);
+                writeModule(maven, value, relativePath, coordinate, selfPom, true);
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+
+        private void writeModule(Path maven,
+                                 MavenLocalPom value,
+                                 String relativePath,
+                                 String coordinate,
+                                 MavenDependencyKey selfPom,
+                                 boolean test) throws IOException {
+            SequencedProperties properties = new SequencedProperties();
+            properties.setProperty("coordinate", test
+                    ? new MavenDependencyKey(value.groupId(), value.artifactId(), "jar", "tests")
+                            .coordinate(prefix, value.version())
+                    : coordinate);
+            properties.setProperty("pom", selfPom.coordinate(prefix, value.version()));
+            properties.setProperty("path", relativePath);
+            properties.setProperty("groupId", value.groupId());
+            properties.setProperty("artifactId", value.artifactId());
+            properties.setProperty("version", value.version());
+            if (value.release() != null) {
+                properties.setProperty("release", value.release());
+            }
+            if (!test && value.mainClass() != null) {
+                properties.setProperty("mainClass", value.mainClass());
+            }
+            if (test) {
+                String testDependencies = value.dependencies() == null
+                        ? ""
+                        : value.dependencies().entrySet().stream()
+                                .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
+                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
+                                .collect(Collectors.joining(","));
+                properties.setProperty("dependencies.test", testDependencies.isEmpty()
+                        ? coordinate
+                        : testDependencies + "," + coordinate);
+            } else {
                 for (MavenDependencyScope scope : List.of(
                         MavenDependencyScope.COMPILE,
                         MavenDependencyScope.PROVIDED,
                         MavenDependencyScope.RUNTIME)) {
-                    module.setProperty("dependencies." + scope.name().toLowerCase(Locale.ROOT),
-                            entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
+                    properties.setProperty("dependencies." + scope.name().toLowerCase(Locale.ROOT),
+                            value.dependencies() == null ? "" : value.dependencies().entrySet().stream()
                                     .filter(dep -> dep.getValue().scope() == scope)
                                     .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
                                     .collect(Collectors.joining(",")));
                 }
-                module.setProperty("managedDependencies",
-                        entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
-                                .map(dep -> dep.getKey().coordinate(prefix, null)
-                                        + "=" + dep.getValue().version()
-                                        + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
-                                .collect(Collectors.joining(",")));
-                module.setProperty("checksums",
-                        entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                                .filter(dep -> dep.getValue().checksum() != null
-                                        && dep.getValue().scope() != MavenDependencyScope.TEST)
-                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
-                                        + "=" + dep.getValue().checksum())
-                                .collect(Collectors.joining(",")));
-                module.setProperty("sources", entry.getValue().sourceDirectory() == null
-                        ? "src/main/java"
-                        : entry.getValue().sourceDirectory());
-                module.setProperty("resources", entry.getValue().resourceDirectories() == null
-                        ? "src/main/resources"
-                        : entry.getValue().resourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                module.store(maven.resolve("module-" + BuildExecutorModule.encode(relativePath) + ".properties"));
-                SequencedProperties testModule = new SequencedProperties();
-                MavenDependencyKey testSelfKey = new MavenDependencyKey(
-                        entry.getValue().groupId(), entry.getValue().artifactId(), "jar", "tests");
-                testModule.setProperty("coordinate", testSelfKey.coordinate(prefix, entry.getValue().version()));
-                testModule.setProperty("pom", selfPom.coordinate(prefix, entry.getValue().version()));
-                testModule.setProperty("path", relativePath);
-                testModule.setProperty("groupId", entry.getValue().groupId());
-                testModule.setProperty("artifactId", entry.getValue().artifactId());
-                testModule.setProperty("version", entry.getValue().version());
-                if (entry.getValue().release() != null) {
-                    testModule.setProperty("release", entry.getValue().release());
-                }
-                String testDependencies = entry.getValue().dependencies() == null
-                        ? ""
-                        : entry.getValue().dependencies().entrySet().stream()
-                                .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
-                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
-                                .collect(Collectors.joining(","));
-                testModule.setProperty("dependencies.test", testDependencies.isEmpty()
-                        ? coordinate
-                        : testDependencies + "," + coordinate);
-                testModule.setProperty("managedDependencies",
-                        entry.getValue().managedDependencies() == null ? "" : entry.getValue().managedDependencies().entrySet().stream()
-                                .map(dep -> dep.getKey().coordinate(prefix, null)
-                                        + "=" + dep.getValue().version()
-                                        + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
-                                .collect(Collectors.joining(",")));
-                testModule.setProperty("checksums",
-                        entry.getValue().dependencies() == null ? "" : entry.getValue().dependencies().entrySet().stream()
-                                .filter(dep -> dep.getValue().checksum() != null
-                                        && dep.getValue().scope() == MavenDependencyScope.TEST)
-                                .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
-                                        + "=" + dep.getValue().checksum())
-                                .collect(Collectors.joining(",")));
-                testModule.setProperty("sources", entry.getValue().testSourceDirectory() == null
-                        ? "src/test/java"
-                        : entry.getValue().testSourceDirectory());
-                testModule.setProperty("resources", entry.getValue().testResourceDirectories() == null
-                        ? "src/test/resources"
-                        : entry.getValue().testResourceDirectories().stream().sorted().collect(Collectors.joining(",")));
-                testModule.store(maven.resolve("test-module-" + BuildExecutorModule.encode(relativePath) + ".properties"));
             }
-            return CompletableFuture.completedStage(new BuildStepResult(true));
+            properties.setProperty("managedDependencies",
+                    value.managedDependencies() == null ? "" : value.managedDependencies().entrySet().stream()
+                            .map(dep -> dep.getKey().coordinate(prefix, null)
+                                    + "=" + dep.getValue().version()
+                                    + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
+                            .collect(Collectors.joining(",")));
+            properties.setProperty("checksums",
+                    value.dependencies() == null ? "" : value.dependencies().entrySet().stream()
+                            .filter(dep -> dep.getValue().checksum() != null
+                                    && (test
+                                            ? dep.getValue().scope() == MavenDependencyScope.TEST
+                                            : dep.getValue().scope() != MavenDependencyScope.TEST))
+                            .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version())
+                                    + "=" + dep.getValue().checksum())
+                            .collect(Collectors.joining(",")));
+            String sourceDirectory = test ? value.testSourceDirectory() : value.sourceDirectory();
+            properties.setProperty("sources", sourceDirectory == null
+                    ? (test ? "src/test/java" : "src/main/java")
+                    : sourceDirectory);
+            List<String> resourceDirectories = test ? value.testResourceDirectories() : value.resourceDirectories();
+            properties.setProperty("resources", resourceDirectories == null
+                    ? (test ? "src/test/resources" : "src/main/resources")
+                    : resourceDirectories.stream().sorted().collect(Collectors.joining(",")));
+            properties.store(maven.resolve((test ? "test-module-" : "module-")
+                    + BuildExecutorModule.encode(relativePath) + ".properties"));
         }
     }
 
