@@ -12,7 +12,6 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.step.Placement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -225,17 +224,19 @@ public class ModularProjectTest {
         SequencedProperties fooInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-foo/inventory")
                 .resolve("inventory.properties"));
-        assertThat(fooInventory).containsOnlyKeys("foo.runtime", "foo.module");
-        assertThat(fooInventory.getProperty("foo.module")).isEqualTo("foo");
-        assertThat(fooInventory.getProperty("foo.runtime").split(","))
+        assertThat(fooInventory.getProperty("module-foo.module")).isEqualTo("foo");
+        assertThat(fooInventory.getProperty("module-foo.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
+        assertThat(fooInventory.getProperty("module-foo.artifact"))
+                .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/inventory")
                 .resolve("inventory.properties"));
-        assertThat(barInventory).containsOnlyKeys("bar.runtime", "bar.module");
-        assertThat(barInventory.getProperty("bar.module")).isEqualTo("bar");
-        assertThat(barInventory.getProperty("bar.runtime").split(","))
+        assertThat(barInventory.getProperty("module-bar.module")).isEqualTo("bar");
+        assertThat(barInventory.getProperty("module-bar.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
+        assertThat(barInventory.getProperty("module-bar.artifact"))
+                .endsWith("/classes.jar");
     }
 
     @Test
@@ -279,20 +280,4 @@ public class ModularProjectTest {
         assertThat(module.getProperty("main")).isNull();
     }
 
-    @Test
-    public void artifactsByModule_links_classes_sources_and_javadoc_under_sub_module_folder() throws IOException {
-        Placement placement = ModularProject.artifactsByModule();
-        Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");
-        Path sources = Path.of("/wrap/build/module/module-foo/produce/sources/output/artifacts/sources.jar");
-        Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");
-        Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
-        Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        SequencedProperties module = new SequencedProperties();
-        SequencedProperties metadata = new SequencedProperties();
-        assertThat(placement.apply(classes, module, metadata)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(sources, module, metadata)).contains(Path.of("module-foo", "sources.jar"));
-        assertThat(placement.apply(javadoc, module, metadata)).contains(Path.of("module-foo", "javadoc.jar"));
-        assertThat(placement.apply(pom, module, metadata)).isEmpty();
-        assertThat(placement.apply(other, module, metadata)).isEmpty();
-    }
 }

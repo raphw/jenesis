@@ -5,7 +5,6 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
-import build.jenesis.step.Placement;
 import build.jenesis.step.Group;
 
 public class MultiProjectModule implements BuildExecutorModule {
@@ -37,29 +36,6 @@ public class MultiProjectModule implements BuildExecutorModule {
         this.identifier = identifier;
         this.resolver = resolver;
         this.factory = factory;
-    }
-
-    public static Placement linkBySubModule(String... names) {
-        Set<String> allowed = Set.of(names);
-        return (file, module, metadata) -> {
-            Path filename = file.getFileName();
-            if (filename == null || !allowed.contains(filename.toString())) {
-                return Optional.empty();
-            }
-            for (Path probe = file.getParent(); probe != null; probe = probe.getParent()) {
-                Path parent = probe.getParent();
-                if (parent == null || parent.getFileName() == null || probe.getFileName() == null) {
-                    continue;
-                }
-                String parentName = parent.getFileName().toString();
-                String probeName = probe.getFileName().toString();
-                if (MODULE.equals(parentName)
-                        || (IDENTIFIER.equals(parentName) && probeName.startsWith(MODULE + "-"))) {
-                    return Optional.of(Path.of(probeName, filename.toString()));
-                }
-            }
-            return Optional.empty();
-        };
     }
 
     @Override

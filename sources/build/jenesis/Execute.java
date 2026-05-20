@@ -44,25 +44,30 @@ public record Execute(Project project, String mainClass, String module) {
             for (String key : loaded.stringPropertyNames()) {
                 merged.setProperty(key, loaded.getProperty(key));
                 int dot = key.indexOf('.');
-                String prefix = dot < 0 ? "" : key.substring(0, dot);
-                sourceByPrefix.put(prefix, entry.getValue());
+                if (dot > 0) {
+                    sourceByPrefix.put(key.substring(0, dot), entry.getValue());
+                }
             }
         }
-        if (module != null && !sourceByPrefix.containsKey(module)) {
+        String selectedPrefix = module == null
+                ? null
+                : (module.isEmpty() ? "module" : "module-" + module);
+        if (selectedPrefix != null && !sourceByPrefix.containsKey(selectedPrefix)) {
             throw new IllegalStateException("No module at path: " + (module.isEmpty() ? "<root>" : module));
         }
         SequencedMap<String, Candidate> candidates = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : sourceByPrefix.entrySet()) {
             String prefix = entry.getKey();
-            if (module != null && !module.equals(prefix)) {
+            if (selectedPrefix != null && !selectedPrefix.equals(prefix)) {
                 continue;
             }
-            String prefixDot = prefix.isEmpty() ? "" : prefix + ".";
+            String prefixDot = prefix + ".";
             String resolvedMainClass = mainClass != null ? mainClass : merged.getProperty(prefixDot + "mainClass");
             if (resolvedMainClass == null) {
                 continue;
             }
-            candidates.put(prefix, new Candidate(prefix,
+            String userPath = "module".equals(prefix) ? "" : prefix.substring("module-".length());
+            candidates.put(prefix, new Candidate(userPath,
                     resolvedMainClass,
                     merged.getProperty(prefixDot + "module"),
                     merged.getProperty(prefixDot + "runtime"),

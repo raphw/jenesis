@@ -2,12 +2,13 @@ package build.jenesis.test.maven;
 
 import module java.base;
 import module org.junit.jupiter.api;
-import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenRepositoryStaging;
+import build.jenesis.step.Inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,13 +29,14 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void stages_main_module_jars_and_pom_at_canonical_path() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
-        Files.writeString(main.resolve("classes.jar"), "classes-bytes");
-        Files.writeString(main.resolve("sources.jar"), "sources-bytes");
-        Files.writeString(main.resolve("javadoc.jar"), "javadoc-bytes");
+        Path inv = mainInventory("foo", "com.example", "foo", "1.2.3",
+                "classes.jar", "sources.jar", "javadoc.jar");
+        Files.writeString(inv.resolve("classes.jar"), "classes-bytes");
+        Files.writeString(inv.resolve("sources.jar"), "sources-bytes");
+        Files.writeString(inv.resolve("javadoc.jar"), "javadoc-bytes");
 
-        BuildStepResult result = run(source, "module-foo");
+        BuildStepResult result = run(true, inv);
+
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3.jar")).hasContent("classes-bytes");
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-sources.jar")).hasContent("sources-bytes");
@@ -43,12 +45,23 @@ public class MavenRepositoryStagingTest {
     }
 
     @Test
-    public void main_pom_is_unchanged_when_no_test_variants_exist() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
-        Files.writeString(main.resolve("classes.jar"), "x");
+    public void only_existing_artifacts_are_linked() throws IOException {
+        Path inv = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
+        Files.writeString(inv.resolve("classes.jar"), "c");
 
-        run(source, "module-foo");
+        run(true, inv);
+
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3.jar")).hasContent("c");
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-sources.jar")).doesNotExist();
+        assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-javadoc.jar")).doesNotExist();
+    }
+
+    @Test
+    public void main_pom_is_unchanged_when_no_test_variants_exist() throws IOException {
+        Path inv = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
+        Files.writeString(inv.resolve("classes.jar"), "c");
+
+        run(true, inv);
 
         String staged = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         assertThat(staged).doesNotContain("<dependency>");
@@ -57,19 +70,16 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void merges_test_variant_dependencies_into_main_pom_with_scope_test() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo",
-                "com.example", "foo.test", "1.2.3",
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(
                         new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3"),
-                        new Dep("org.assertj", "assertj-core", "3.27.0")));
+                        new Dep("org.assertj", "assertj-core", "3.27.0")),
+                "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        run(source, "module-foo", "module-foo-test");
+        run(true, main, test);
 
         String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         assertThat(pom).contains("<artifactId>junit-jupiter</artifactId>");
@@ -80,19 +90,16 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void self_referencing_test_dependency_is_excluded_from_merge() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo",
-                "com.example", "foo.test", "1.2.3",
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(
                         new Dep("com.example", "foo", "1.2.3"),
-                        new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+                        new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")),
+                "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        run(source, "module-foo", "module-foo-test");
+        run(true, main, test);
 
         String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         long fooDeps = pom.lines().filter(line -> line.trim().equals("<artifactId>foo</artifactId>")).count();
@@ -102,17 +109,16 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void test_variant_jars_are_routed_to_main_coordinate_with_test_classifier() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo", "com.example", "foo.test", "1.2.3", List.of());
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
+                List.of(),
+                "classes.jar", "sources.jar", "javadoc.jar");
         Files.writeString(test.resolve("classes.jar"), "test-classes");
         Files.writeString(test.resolve("sources.jar"), "test-sources");
         Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
 
-        run(source, "module-foo", "module-foo-test");
+        run(true, main, test);
 
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests.jar")).hasContent("test-classes");
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests-sources.jar")).hasContent("test-sources");
@@ -121,15 +127,13 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void test_variant_does_not_emit_a_separate_pom() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo", "com.example", "foo.test", "1.2.3", List.of());
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
+                List.of(), "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        run(source, "module-foo", "module-foo-test");
+        run(true, main, test);
 
         try (Stream<Path> stream = Files.walk(next)) {
             List<String> poms = stream
@@ -143,25 +147,18 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void test_variants_are_routed_to_their_declared_main() throws IOException {
-        Path mainA = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(mainA, "com.example", "foo", "1.2.3");
+        Path mainA = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(mainA.resolve("classes.jar"), "foo-main");
-
-        Path mainB = Files.createDirectory(source.resolve("module-bar"));
-        writeMainModule(mainB, "com.example", "bar", "1.2.3");
+        Path mainB = mainInventory("bar", "com.example", "bar", "1.2.3", "classes.jar");
         Files.writeString(mainB.resolve("classes.jar"), "bar-main");
-
-        Path testA = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(testA, "foo", "com.example", "foo.test", "1.2.3",
-                List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+        Path testA = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
+                List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")), "classes.jar");
         Files.writeString(testA.resolve("classes.jar"), "foo-test");
-
-        Path testB = Files.createDirectory(source.resolve("module-bar-test"));
-        writeTestModule(testB, "bar", "com.example", "bar.test", "1.2.3",
-                List.of(new Dep("org.assertj", "assertj-core", "3.27.0")));
+        Path testB = testInventory("bar-test", "com.example", "bar.test", "1.2.3", "bar",
+                List.of(new Dep("org.assertj", "assertj-core", "3.27.0")), "classes.jar");
         Files.writeString(testB.resolve("classes.jar"), "bar-test");
 
-        run(source, "module-foo", "module-bar", "module-foo-test", "module-bar-test");
+        run(true, mainA, mainB, testA, testB);
 
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests.jar")).hasContent("foo-test");
         assertThat(next.resolve("com/example/bar/1.2.3/bar-1.2.3-tests.jar")).hasContent("bar-test");
@@ -175,20 +172,16 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void two_tests_for_the_same_main_fail_loudly() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path testA = Files.createDirectory(source.resolve("module-foo-test-a"));
-        writeTestModule(testA, "foo", "com.example", "foo.test.a", "1.2.3", List.of());
+        Path testA = testInventory("foo-test-a", "com.example", "foo.test.a", "1.2.3", "foo",
+                List.of(), "classes.jar");
         Files.writeString(testA.resolve("classes.jar"), "test-a");
-
-        Path testB = Files.createDirectory(source.resolve("module-foo-test-b"));
-        writeTestModule(testB, "foo", "com.example", "foo.test.b", "1.2.3", List.of());
+        Path testB = testInventory("foo-test-b", "com.example", "foo.test.b", "1.2.3", "foo",
+                List.of(), "classes.jar");
         Files.writeString(testB.resolve("classes.jar"), "test-b");
 
-        assertThatThrownBy(
-                        () -> run(source, "module-foo", "module-foo-test-a", "module-foo-test-b"))
+        assertThatThrownBy(() -> run(true, main, testA, testB))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Multiple test modules name main 'foo'")
                 .hasMessageContaining("'-tests' classifier")
@@ -198,16 +191,13 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void test_referencing_unknown_main_fails_loudly() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "typo", "com.example", "foo.test", "1.2.3", List.of());
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "typo",
+                List.of(), "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        assertThatThrownBy(
-                        () -> run(source, "module-foo", "module-foo-test"))
+        assertThatThrownBy(() -> run(true, main, test))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")
                 .hasMessageContaining("references unknown main 'typo'")
@@ -216,12 +206,11 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void bare_test_with_no_main_present_fails_loudly() throws IOException {
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "", "com.example", "foo.test", "1.2.3", List.of());
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "",
+                List.of(), "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        assertThatThrownBy(
-                        () -> run(source, "module-foo-test"))
+        assertThatThrownBy(() -> run(true, test))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")
                 .hasMessageContaining("does not name the main module it tests")
@@ -230,20 +219,15 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void bare_test_with_multiple_mains_fails_loudly() throws IOException {
-        Path mainA = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(mainA, "com.example", "foo", "1.2.3");
+        Path mainA = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(mainA.resolve("classes.jar"), "foo-main");
-
-        Path mainB = Files.createDirectory(source.resolve("module-bar"));
-        writeMainModule(mainB, "com.example", "bar", "1.2.3");
+        Path mainB = mainInventory("bar", "com.example", "bar", "1.2.3", "classes.jar");
         Files.writeString(mainB.resolve("classes.jar"), "bar-main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "", "com.example", "foo.test", "1.2.3", List.of());
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "",
+                List.of(), "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        assertThatThrownBy(
-                        () -> run(source, "module-foo", "module-bar", "module-foo-test"))
+        assertThatThrownBy(() -> run(true, mainA, mainB, test))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Test module 'module-foo-test'")
                 .hasMessageContaining("does not name the main module it tests")
@@ -254,16 +238,12 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void duplicate_main_artifact_ids_fail_loudly() throws IOException {
-        Path mainA = Files.createDirectory(source.resolve("module-foo-a"));
-        writeMainModule(mainA, "com.example.a", "foo", "1.2.3");
+        Path mainA = mainInventory("foo-a", "com.example.a", "foo", "1.2.3", "classes.jar");
         Files.writeString(mainA.resolve("classes.jar"), "foo-a");
-
-        Path mainB = Files.createDirectory(source.resolve("module-foo-b"));
-        writeMainModule(mainB, "com.example.b", "foo", "1.2.3");
+        Path mainB = mainInventory("foo-b", "com.example.b", "foo", "1.2.3", "classes.jar");
         Files.writeString(mainB.resolve("classes.jar"), "foo-b");
 
-        assertThatThrownBy(
-                        () -> run(source, "module-foo-a", "module-foo-b"))
+        assertThatThrownBy(() -> run(true, mainA, mainB))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Duplicate main artifactId 'foo'")
                 .hasMessageContaining("module-foo-a")
@@ -274,20 +254,17 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void test_dependency_already_declared_in_main_pom_is_not_re_added_with_test_scope() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3",
-                List.of(new Dep("org.slf4j", "slf4j-api", "2.0.9")));
+        Path main = mainInventoryWithDeps("foo", "com.example", "foo", "1.2.3",
+                List.of(new Dep("org.slf4j", "slf4j-api", "2.0.9")), "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo",
-                "com.example", "foo.test", "1.2.3",
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(
                         new Dep("org.slf4j", "slf4j-api", "2.0.9"),
-                        new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+                        new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")),
+                "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        run(source, "module-foo", "module-foo-test");
+        run(true, main, test);
 
         String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         long slf4jOccurrences = pom.lines().filter(line -> line.trim().equals("<artifactId>slf4j-api</artifactId>")).count();
@@ -299,17 +276,15 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void default_does_not_stage_test_artifacts() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo", "com.example", "foo.test", "1.2.3", List.of());
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
+                List.of(), "classes.jar", "sources.jar", "javadoc.jar");
         Files.writeString(test.resolve("classes.jar"), "test-classes");
         Files.writeString(test.resolve("sources.jar"), "test-sources");
         Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
 
-        run(false, source, "module-foo", "module-foo-test");
+        run(false, main, test);
 
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3.jar")).exists();
         assertThat(next.resolve("com/example/foo/1.2.3/foo-1.2.3-tests.jar")).doesNotExist();
@@ -319,17 +294,13 @@ public class MavenRepositoryStagingTest {
 
     @Test
     public void default_does_not_merge_test_dependencies_into_main_pom() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMainModule(main, "com.example", "foo", "1.2.3");
+        Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeTestModule(test, "foo",
-                "com.example", "foo.test", "1.2.3",
-                List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")));
+        Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
+                List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")), "classes.jar");
         Files.writeString(test.resolve("classes.jar"), "test");
 
-        run(false, source, "module-foo", "module-foo-test");
+        run(false, main, test);
 
         String pom = Files.readString(next.resolve("com/example/foo/1.2.3/foo-1.2.3.pom"));
         assertThat(pom).doesNotContain("junit-jupiter");
@@ -337,116 +308,88 @@ public class MavenRepositoryStagingTest {
     }
 
     @Test
-    public void modules_without_metadata_are_skipped() throws IOException {
-        Path stray = Files.createDirectory(source.resolve("module-stray"));
+    public void arguments_without_inventory_are_skipped() throws IOException {
+        Path stray = Files.createDirectory(source.resolve("stray"));
         Files.writeString(stray.resolve("classes.jar"), "stray");
 
-        BuildStepResult result = run(source, "module-stray");
+        BuildStepResult result = run(true, stray);
+
         assertThat(result.next()).isTrue();
         try (Stream<Path> stream = Files.walk(next)) {
             assertThat(stream.filter(Files::isRegularFile)).isEmpty();
         }
     }
 
-    @Test
-    public void module_with_metadata_missing_project_throws() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMetadata(main, null, "foo", "1.2.3");
-        Files.writeString(main.resolve("classes.jar"), "main");
-
-        assertThatThrownBy(() -> run(source, "module-foo"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Missing maven coordinates")
-                .hasMessageContaining("project=null");
+    private Path mainInventory(String name,
+                               String groupId,
+                               String artifactId,
+                               String version,
+                               String... artifactFiles) throws IOException {
+        return writeInventory(name, groupId, artifactId, version, null, List.of(), artifactFiles);
     }
 
-    @Test
-    public void module_with_metadata_missing_artifact_throws() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMetadata(main, "com.example", null, "1.2.3");
-        Files.writeString(main.resolve("classes.jar"), "main");
-
-        assertThatThrownBy(() -> run(source, "module-foo"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Missing maven coordinates")
-                .hasMessageContaining("artifact=null");
+    private Path mainInventoryWithDeps(String name,
+                                       String groupId,
+                                       String artifactId,
+                                       String version,
+                                       List<Dep> deps,
+                                       String... artifactFiles) throws IOException {
+        return writeInventory(name, groupId, artifactId, version, null, deps, artifactFiles);
     }
 
-    @Test
-    public void module_with_metadata_missing_version_throws() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeMetadata(main, "com.example", "foo", null);
-        Files.writeString(main.resolve("classes.jar"), "main");
-
-        assertThatThrownBy(() -> run(source, "module-foo"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Missing maven coordinates")
-                .hasMessageContaining("version=null");
+    private Path testInventory(String name,
+                               String groupId,
+                               String artifactId,
+                               String version,
+                               String testsOf,
+                               List<Dep> deps,
+                               String... artifactFiles) throws IOException {
+        return writeInventory(name, groupId, artifactId, version, testsOf, deps, artifactFiles);
     }
 
-    private BuildStepResult run(Path folder, String... moduleDirs) throws IOException {
-        return run(true, folder, moduleDirs);
+    private Path writeInventory(String name,
+                                String groupId,
+                                String artifactId,
+                                String version,
+                                String testsOf,
+                                List<Dep> deps,
+                                String... artifactFiles) throws IOException {
+        Path folder = Files.createDirectory(source.resolve(name));
+        Files.writeString(folder.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
+        SequencedProperties inventory = new SequencedProperties();
+        String prefix = "module-" + name;
+        inventory.setProperty(prefix + ".pom", "pom.xml");
+        for (String artifactFile : artifactFiles) {
+            switch (artifactFile) {
+                case "classes.jar" -> inventory.setProperty(prefix + ".artifact", artifactFile);
+                case "sources.jar" -> inventory.setProperty(prefix + ".artifact.sources", artifactFile);
+                case "javadoc.jar" -> inventory.setProperty(prefix + ".artifact.javadoc", artifactFile);
+                default -> throw new IllegalArgumentException("Unknown artifact file: " + artifactFile);
+            }
+        }
+        if (testsOf != null) {
+            inventory.setProperty(prefix + ".tests", testsOf);
+        }
+        inventory.store(folder.resolve(Inventory.INVENTORY));
+        return folder;
     }
 
-    private BuildStepResult run(boolean includeTests, Path folder, String... moduleDirs) throws IOException {
-        Map<Path, ChecksumStatus> checksums = new LinkedHashMap<>();
-        for (String moduleDir : moduleDirs) {
-            try (Stream<Path> stream = Files.list(folder.resolve(moduleDir))) {
+    private BuildStepResult run(boolean includeTests, Path... inventoryFolders) throws IOException {
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        for (Path folder : inventoryFolders) {
+            Map<Path, ChecksumStatus> checksums = new LinkedHashMap<>();
+            try (Stream<Path> stream = Files.list(folder)) {
                 stream.forEach(file -> checksums.put(
-                        Path.of(moduleDir, file.getFileName().toString()),
+                        Path.of(file.getFileName().toString()),
                         ChecksumStatus.ADDED));
             }
+            arguments.put(folder.getFileName().toString(), new BuildStepArgument(folder, checksums));
         }
         return new MavenRepositoryStaging(includeTests).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("source", new BuildStepArgument(folder, checksums))))
+                        arguments)
                 .toCompletableFuture()
                 .join();
-    }
-
-    private static void writeMainModule(Path moduleDir,
-                                        String groupId,
-                                        String artifactId,
-                                        String version) throws IOException {
-        writeMainModule(moduleDir, groupId, artifactId, version, List.of());
-    }
-
-    private static void writeMainModule(Path moduleDir,
-                                        String groupId,
-                                        String artifactId,
-                                        String version,
-                                        List<Dep> deps) throws IOException {
-        writeMetadata(moduleDir, groupId, artifactId, version);
-        Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
-    }
-
-    private static void writeTestModule(Path moduleDir,
-                                        String mainArtifactId,
-                                        String groupId,
-                                        String artifactId,
-                                        String version,
-                                        List<Dep> deps) throws IOException {
-        writeMetadata(moduleDir, groupId, artifactId, version);
-        Files.writeString(moduleDir.resolve(BuildStep.MODULE),
-                "tests=" + mainArtifactId + "\n");
-        Files.writeString(moduleDir.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
-    }
-
-    private static void writeMetadata(Path moduleDir,
-                                      String groupId,
-                                      String artifactId,
-                                      String version) throws IOException {
-        StringBuilder builder = new StringBuilder();
-        if (groupId != null) {
-            builder.append("project=").append(groupId).append('\n');
-        }
-        if (artifactId != null) {
-            builder.append("artifact=").append(artifactId).append('\n');
-        }
-        if (version != null) {
-            builder.append("version=").append(version).append('\n');
-        }
-        Files.writeString(moduleDir.resolve(BuildStep.METADATA), builder.toString());
     }
 
     private static String buildPom(String groupId, String artifactId, String version, List<Dep> deps) {

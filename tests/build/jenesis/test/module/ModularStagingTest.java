@@ -2,12 +2,13 @@ package build.jenesis.test.module;
 
 import module java.base;
 import module org.junit.jupiter.api;
-import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularStaging;
+import build.jenesis.step.Inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,13 +29,13 @@ public class ModularStagingTest {
 
     @Test
     public void stages_module_jars_under_module_directory() throws IOException {
-        Path module = Files.createDirectory(source.resolve("module-build.jenesis"));
-        writeModule(module, "build.jenesis", null, null);
-        Files.writeString(module.resolve("classes.jar"), "classes-bytes");
-        Files.writeString(module.resolve("sources.jar"), "sources-bytes");
-        Files.writeString(module.resolve("javadoc.jar"), "javadoc-bytes");
+        Path inv = inventory("jenesis", "build.jenesis", null, null,
+                "classes.jar", "sources.jar", "javadoc.jar");
+        Files.writeString(inv.resolve("classes.jar"), "classes-bytes");
+        Files.writeString(inv.resolve("sources.jar"), "sources-bytes");
+        Files.writeString(inv.resolve("javadoc.jar"), "javadoc-bytes");
 
-        BuildStepResult result = run(source, "module-build.jenesis");
+        BuildStepResult result = run(false, inv);
 
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("build.jenesis/build.jenesis.jar")).hasContent("classes-bytes");
@@ -43,14 +44,14 @@ public class ModularStagingTest {
     }
 
     @Test
-    public void inserts_version_segment_when_metadata_version_is_set() throws IOException {
-        Path module = Files.createDirectory(source.resolve("module-build.jenesis"));
-        writeModule(module, "build.jenesis", null, "1.0.0");
-        Files.writeString(module.resolve("classes.jar"), "c");
-        Files.writeString(module.resolve("sources.jar"), "s");
-        Files.writeString(module.resolve("javadoc.jar"), "j");
+    public void inserts_version_segment_when_inventory_version_is_set() throws IOException {
+        Path inv = inventory("jenesis", "build.jenesis", null, "1.0.0",
+                "classes.jar", "sources.jar", "javadoc.jar");
+        Files.writeString(inv.resolve("classes.jar"), "c");
+        Files.writeString(inv.resolve("sources.jar"), "s");
+        Files.writeString(inv.resolve("javadoc.jar"), "j");
 
-        run(source, "module-build.jenesis");
+        run(false, inv);
 
         assertThat(next.resolve("build.jenesis/1.0.0/build.jenesis.jar")).hasContent("c");
         assertThat(next.resolve("build.jenesis/1.0.0/build.jenesis-sources.jar")).hasContent("s");
@@ -59,15 +60,12 @@ public class ModularStagingTest {
 
     @Test
     public void preserves_each_module_as_its_own_directory() throws IOException {
-        Path moduleA = Files.createDirectory(source.resolve("module-com.example.foo"));
-        writeModule(moduleA, "com.example.foo", null, null);
-        Files.writeString(moduleA.resolve("classes.jar"), "foo-bytes");
+        Path foo = inventory("foo", "com.example.foo", null, null, "classes.jar");
+        Files.writeString(foo.resolve("classes.jar"), "foo-bytes");
+        Path bar = inventory("bar", "com.example.bar", null, null, "classes.jar");
+        Files.writeString(bar.resolve("classes.jar"), "bar-bytes");
 
-        Path moduleB = Files.createDirectory(source.resolve("module-com.example.bar"));
-        writeModule(moduleB, "com.example.bar", null, null);
-        Files.writeString(moduleB.resolve("classes.jar"), "bar-bytes");
-
-        run(source, "module-com.example.foo", "module-com.example.bar");
+        run(false, foo, bar);
 
         assertThat(next.resolve("com.example.foo/com.example.foo.jar")).hasContent("foo-bytes");
         assertThat(next.resolve("com.example.bar/com.example.bar.jar")).hasContent("bar-bytes");
@@ -75,17 +73,15 @@ public class ModularStagingTest {
 
     @Test
     public void default_omits_test_modules() throws IOException {
-        Path main = Files.createDirectory(source.resolve("module-foo"));
-        writeModule(main, "foo", null, null);
+        Path main = inventory("foo", "foo", null, null, "classes.jar");
         Files.writeString(main.resolve("classes.jar"), "main");
-
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeModule(test, "foo.test", "foo", null);
+        Path test = inventory("foo-test", "foo.test", "foo", null,
+                "classes.jar", "sources.jar", "javadoc.jar");
         Files.writeString(test.resolve("classes.jar"), "test-classes");
         Files.writeString(test.resolve("sources.jar"), "test-sources");
         Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
 
-        run(source, "module-foo", "module-foo-test");
+        run(false, main, test);
 
         assertThat(next.resolve("foo/foo.jar")).hasContent("main");
         assertThat(next.resolve("foo.test")).doesNotExist();
@@ -93,13 +89,13 @@ public class ModularStagingTest {
 
     @Test
     public void include_tests_emits_test_module_files_under_their_module_name() throws IOException {
-        Path test = Files.createDirectory(source.resolve("module-foo-test"));
-        writeModule(test, "foo.test", "foo", null);
+        Path test = inventory("foo-test", "foo.test", "foo", null,
+                "classes.jar", "sources.jar", "javadoc.jar");
         Files.writeString(test.resolve("classes.jar"), "test-classes");
         Files.writeString(test.resolve("sources.jar"), "test-sources");
         Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
 
-        run(true, source, "module-foo-test");
+        run(true, test);
 
         assertThat(next.resolve("foo.test/foo.test.jar")).hasContent("test-classes");
         assertThat(next.resolve("foo.test/foo.test-sources.jar")).hasContent("test-sources");
@@ -107,11 +103,11 @@ public class ModularStagingTest {
     }
 
     @Test
-    public void modules_without_module_properties_are_skipped() throws IOException {
-        Path stray = Files.createDirectory(source.resolve("module-stray"));
+    public void arguments_without_inventory_are_skipped() throws IOException {
+        Path stray = Files.createDirectory(source.resolve("stray"));
         Files.writeString(stray.resolve("classes.jar"), "stray");
 
-        BuildStepResult result = run(source, "module-stray");
+        BuildStepResult result = run(false, stray);
 
         assertThat(result.next()).isTrue();
         try (Stream<Path> stream = Files.walk(next)) {
@@ -121,61 +117,71 @@ public class ModularStagingTest {
 
     @Test
     public void module_property_missing_throws() throws IOException {
-        Path module = Files.createDirectory(source.resolve("module-foo"));
-        Files.writeString(module.resolve(BuildStep.MODULE), "");
-        Files.writeString(module.resolve("classes.jar"), "c");
+        Path folder = Files.createDirectory(source.resolve("foo"));
+        SequencedProperties props = new SequencedProperties();
+        props.setProperty("module-foo.artifact", "classes.jar");
+        props.store(folder.resolve(Inventory.INVENTORY));
+        Files.writeString(folder.resolve("classes.jar"), "c");
 
-        assertThatThrownBy(() -> run(source, "module-foo"))
+        assertThatThrownBy(() -> run(false, folder))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Missing 'module' property")
-                .hasMessageContaining("module-foo");
+                .hasMessageContaining("Missing 'module' in inventory");
     }
 
     @Test
     public void only_existing_artifacts_are_linked() throws IOException {
-        Path module = Files.createDirectory(source.resolve("module-foo"));
-        writeModule(module, "foo", null, null);
-        Files.writeString(module.resolve("classes.jar"), "c");
+        Path inv = inventory("foo", "foo", null, null, "classes.jar", "sources.jar", "javadoc.jar");
+        Files.writeString(inv.resolve("classes.jar"), "c");
 
-        run(source, "module-foo");
+        run(false, inv);
 
         assertThat(next.resolve("foo/foo.jar")).hasContent("c");
         assertThat(next.resolve("foo/foo-sources.jar")).doesNotExist();
         assertThat(next.resolve("foo/foo-javadoc.jar")).doesNotExist();
     }
 
-    private BuildStepResult run(Path folder, String... moduleDirs) throws IOException {
-        return run(false, folder, moduleDirs);
+    private Path inventory(String path,
+                           String moduleName,
+                           String testsOf,
+                           String version,
+                           String... artifactFiles) throws IOException {
+        Path folder = Files.createDirectory(source.resolve(path));
+        SequencedProperties inventory = new SequencedProperties();
+        String prefix = "module-" + path;
+        inventory.setProperty(prefix + ".module", moduleName);
+        if (testsOf != null) {
+            inventory.setProperty(prefix + ".tests", testsOf);
+        }
+        if (version != null) {
+            inventory.setProperty(prefix + ".version", version);
+        }
+        for (String artifactFile : artifactFiles) {
+            switch (artifactFile) {
+                case "classes.jar" -> inventory.setProperty(prefix + ".artifact", artifactFile);
+                case "sources.jar" -> inventory.setProperty(prefix + ".artifact.sources", artifactFile);
+                case "javadoc.jar" -> inventory.setProperty(prefix + ".artifact.javadoc", artifactFile);
+                default -> throw new IllegalArgumentException("Unknown artifact file: " + artifactFile);
+            }
+        }
+        inventory.store(folder.resolve(Inventory.INVENTORY));
+        return folder;
     }
 
-    private BuildStepResult run(boolean includeTests, Path folder, String... moduleDirs) throws IOException {
-        Map<Path, ChecksumStatus> checksums = new LinkedHashMap<>();
-        for (String moduleDir : moduleDirs) {
-            try (Stream<Path> stream = Files.list(folder.resolve(moduleDir))) {
+    private BuildStepResult run(boolean includeTests, Path... inventoryFolders) throws IOException {
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        for (Path folder : inventoryFolders) {
+            Map<Path, ChecksumStatus> checksums = new LinkedHashMap<>();
+            try (Stream<Path> stream = Files.list(folder)) {
                 stream.forEach(file -> checksums.put(
-                        Path.of(moduleDir, file.getFileName().toString()),
+                        Path.of(file.getFileName().toString()),
                         ChecksumStatus.ADDED));
             }
+            arguments.put(folder.getFileName().toString(), new BuildStepArgument(folder, checksums));
         }
         return new ModularStaging(includeTests).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("source", new BuildStepArgument(folder, checksums))))
+                        arguments)
                 .toCompletableFuture()
                 .join();
-    }
-
-    private static void writeModule(Path moduleDir,
-                                    String moduleName,
-                                    String tests,
-                                    String version) throws IOException {
-        StringBuilder builder = new StringBuilder();
-        builder.append("module=").append(moduleName).append('\n');
-        if (tests != null) {
-            builder.append("tests=").append(tests).append('\n');
-        }
-        Files.writeString(moduleDir.resolve(BuildStep.MODULE), builder.toString());
-        if (version != null) {
-            Files.writeString(moduleDir.resolve(BuildStep.METADATA), "version=" + version + "\n");
-        }
     }
 }

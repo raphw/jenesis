@@ -20,7 +20,6 @@ import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Inventory;
-import build.jenesis.step.Placement;
 import build.jenesis.step.Javac;
 
 import static build.jenesis.BuildStep.IDENTITY;
@@ -50,11 +49,6 @@ public class MavenProject implements BuildExecutorModule {
         this.prefix = prefix;
         this.repository = repository;
         this.resolver = resolver;
-    }
-
-    public static Placement artifactsByModule() {
-        return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar", Pom.POM,
-                BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
@@ -128,6 +122,7 @@ public class MavenProject implements BuildExecutorModule {
                             new Inventory(),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
+                            PRODUCE,
                             DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }

@@ -20,7 +20,6 @@ import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Relocate;
 
 public record Project(
         Path root,
@@ -39,7 +38,6 @@ public record Project(
         Map<String, Resolver> resolvers) {
 
     public static final String BUILD = "build",
-            COLLECT = "collect",
             STAGE = "stage",
             EXPORT = "export",
             PIN = "pin",
@@ -69,8 +67,7 @@ public record Project(
                                         repositories, resolvers)),
                         mavenDeps);
             }, METADATA);
-            executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), BUILD);
             executor.addStep(EXPORT, new MavenRepositoryExport(), STAGE);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
@@ -110,8 +107,7 @@ public record Project(
                                 mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
-            executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new ModularStaging(project.stageTests()), COLLECT);
+            executor.addStep(STAGE, new ModularStaging(project.stageTests()), BUILD);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
@@ -153,8 +149,7 @@ public record Project(
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
-            executor.addStep(COLLECT, new Relocate(MavenProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), COLLECT);
+            executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), BUILD);
             executor.addStep(EXPORT, new MavenRepositoryExport(), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(

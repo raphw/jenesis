@@ -15,7 +15,6 @@ import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
 import build.jenesis.project.JavaModule;
 import build.jenesis.project.DependencyScope;
-import build.jenesis.step.Placement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -513,15 +512,17 @@ public class MavenProjectTest {
         SequencedProperties fooInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-foo/inventory")
                 .resolve("inventory.properties"));
-        assertThat(fooInventory).containsOnlyKeys("foo.runtime");
-        assertThat(fooInventory.getProperty("foo.runtime").split(","))
+        assertThat(fooInventory.getProperty("module-foo.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
+        assertThat(fooInventory.getProperty("module-foo.artifact"))
+                .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-bar/inventory")
                 .resolve("inventory.properties"));
-        assertThat(barInventory).containsOnlyKeys("bar.runtime");
-        assertThat(barInventory.getProperty("bar.runtime").split(","))
+        assertThat(barInventory.getProperty("module-bar.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
+        assertThat(barInventory.getProperty("module-bar.artifact"))
+                .endsWith("/classes.jar");
     }
 
     @Test
@@ -763,23 +764,6 @@ public class MavenProjectTest {
         SequencedProperties mainRequires = SequencedProperties.ofFiles(results.get("maven/module-/manifests")
                 .resolve(BuildStep.REQUIRES));
         assertThat(mainRequires.getProperty("maven/com.example/no-pin/1.0.0")).isEmpty();
-    }
-
-    @Test
-    public void artifactsByModule_links_classes_sources_javadoc_and_pom_under_sub_module_folder() throws IOException {
-        Placement placement = MavenProject.artifactsByModule();
-        Path classes = Path.of("/wrap/build/module/module-foo/produce/java/artifacts/output/artifacts/classes.jar");
-        Path sources = Path.of("/wrap/build/module/module-foo/produce/sources/output/artifacts/sources.jar");
-        Path javadoc = Path.of("/wrap/build/module/module-foo/produce/javadoc/artifacts/output/artifacts/javadoc.jar");
-        Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
-        Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        SequencedProperties module = new SequencedProperties();
-        SequencedProperties metadata = new SequencedProperties();
-        assertThat(placement.apply(classes, module, metadata)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(sources, module, metadata)).contains(Path.of("module-foo", "sources.jar"));
-        assertThat(placement.apply(javadoc, module, metadata)).contains(Path.of("module-foo", "javadoc.jar"));
-        assertThat(placement.apply(pom, module, metadata)).contains(Path.of("module-foo", "pom.xml"));
-        assertThat(placement.apply(other, module, metadata)).isEmpty();
     }
 
     @Test

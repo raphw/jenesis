@@ -6,7 +6,6 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Inventory;
 
@@ -33,23 +32,33 @@ public class InventoryTest {
         module.setProperty("main", "com.example.Foo");
         module.setProperty("module", "com.example.foo");
         module.store(manifests.resolve(BuildStep.MODULE));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        Path artifact = Files.writeString(assign.resolve("classes.jar"), "main");
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("foo/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
-        identity.store(assign.resolve(BuildStep.IDENTITY));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("version", "1.2.3");
+        metadata.store(manifests.resolve(BuildStep.METADATA));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
+        Path classes = Files.writeString(produceArtifacts.resolve("classes.jar"), "main");
+        Path sources = Files.writeString(produceArtifacts.resolve("sources.jar"), "src");
+        Path javadoc = Files.writeString(produceArtifacts.resolve("javadoc.jar"), "doc");
+        Path pom = Files.writeString(produce.resolve("pom.xml"), "<project/>");
         Path runtime = Files.createDirectory(root.resolve("runtime"));
-        Path artifactsDir = Files.createDirectory(runtime.resolve("artifacts"));
-        Files.writeString(artifactsDir.resolve("lib.jar"), "library");
-        BuildStepResult result = run(args("manifests", manifests, "assign", assign, "runtime", runtime));
+        Path runtimeArtifacts = Files.createDirectory(runtime.resolve("artifacts"));
+        Path lib = Files.writeString(runtimeArtifacts.resolve("lib.jar"), "library");
+
+        BuildStepResult result = run(args("manifests", manifests, "produce", produce, "runtime", runtime));
+
         assertThat(result.next()).isTrue();
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory).containsOnlyKeys("foo.runtime", "foo.mainClass", "foo.module");
-        assertThat(inventory.getProperty("foo.mainClass")).isEqualTo("com.example.Foo");
-        assertThat(inventory.getProperty("foo.module")).isEqualTo("com.example.foo");
-        assertThat(inventory.getProperty("foo.runtime").split(",")).containsExactly(
-                next.relativize(artifact).toString().replace(File.separatorChar, '/'),
-                next.relativize(artifactsDir.resolve("lib.jar")).toString().replace(File.separatorChar, '/'));
+        assertThat(inventory.getProperty("module-foo.mainClass")).isEqualTo("com.example.Foo");
+        assertThat(inventory.getProperty("module-foo.module")).isEqualTo("com.example.foo");
+        assertThat(inventory.getProperty("module-foo.version")).isEqualTo("1.2.3");
+        assertThat(inventory.getProperty("module-foo.artifact")).isEqualTo(relativize(classes));
+        assertThat(inventory.getProperty("module-foo.artifact.sources")).isEqualTo(relativize(sources));
+        assertThat(inventory.getProperty("module-foo.artifact.javadoc")).isEqualTo(relativize(javadoc));
+        assertThat(inventory.getProperty("module-foo.pom")).isEqualTo(relativize(pom));
+        assertThat(inventory.getProperty("module-foo.runtime").split(",")).containsExactly(
+                relativize(classes),
+                relativize(lib));
     }
 
     @Test
@@ -58,15 +67,15 @@ public class InventoryTest {
         SequencedProperties module = new SequencedProperties();
         module.setProperty("path", "foo");
         module.store(manifests.resolve(BuildStep.MODULE));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        Path artifact = Files.writeString(assign.resolve("classes.jar"), "main");
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("foo/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
-        identity.store(assign.resolve(BuildStep.IDENTITY));
-        run(args("manifests", manifests, "assign", assign));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
+        Files.writeString(produceArtifacts.resolve("classes.jar"), "main");
+
+        run(args("manifests", manifests, "produce", produce));
+
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory).containsOnlyKeys("foo.runtime");
-        assertThat(inventory.stringPropertyNames()).doesNotContain("foo.mainClass", "foo.module");
+        assertThat(inventory.stringPropertyNames())
+                .doesNotContain("module-foo.mainClass", "module-foo.module", "module-foo.version", "module-foo.tests");
     }
 
     @Test
@@ -76,73 +85,105 @@ public class InventoryTest {
         module.setProperty("path", "foo");
         module.setProperty("main", "com.example.Foo");
         module.store(manifests.resolve(BuildStep.MODULE));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        Path artifact = Files.writeString(assign.resolve("classes.jar"), "main");
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("foo/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
-        identity.store(assign.resolve(BuildStep.IDENTITY));
-        run(args("manifests", manifests, "assign", assign));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
+        Files.writeString(produceArtifacts.resolve("classes.jar"), "main");
+
+        run(args("manifests", manifests, "produce", produce));
+
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory).containsOnlyKeys("foo.runtime", "foo.mainClass");
-        assertThat(inventory.stringPropertyNames()).doesNotContain("foo.module");
+        assertThat(inventory.getProperty("module-foo.mainClass")).isEqualTo("com.example.Foo");
+        assertThat(inventory.stringPropertyNames()).doesNotContain("module-foo.module");
     }
 
     @Test
-    public void emits_unprefixed_keys_for_root_module() throws IOException {
+    public void uses_bare_module_prefix_for_root_module() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();
         module.setProperty("path", "");
         module.setProperty("main", "com.example.Root");
         module.store(manifests.resolve(BuildStep.MODULE));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        Path artifact = Files.writeString(assign.resolve("classes.jar"), "main");
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
-        identity.store(assign.resolve(BuildStep.IDENTITY));
-        run(args("manifests", manifests, "assign", assign));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
+        Files.writeString(produceArtifacts.resolve("classes.jar"), "main");
+
+        run(args("manifests", manifests, "produce", produce));
+
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory).containsOnlyKeys("runtime", "mainClass");
-        assertThat(inventory.getProperty("mainClass")).isEqualTo("com.example.Root");
+        assertThat(inventory.getProperty("module.mainClass")).isEqualTo("com.example.Root");
+        assertThat(inventory.stringPropertyNames()).noneMatch(name -> name.startsWith("module-"));
     }
 
     @Test
-    public void picks_first_complete_identity_skipping_placeholder() throws IOException {
+    public void records_tests_marker_for_test_module() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "foo-test");
+        module.setProperty("tests", "foo");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
+        Files.writeString(produceArtifacts.resolve("classes.jar"), "test");
+
+        run(args("manifests", manifests, "produce", produce));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module-foo-test.tests")).isEqualTo("foo");
+    }
+
+    @Test
+    public void records_pom_path_when_present() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();
         module.setProperty("path", "foo");
         module.store(manifests.resolve(BuildStep.MODULE));
-        Path placeholder = Files.createDirectory(root.resolve("coordinates"));
-        SequencedProperties placeholderIdentity = new SequencedProperties();
-        placeholderIdentity.setProperty("foo/coord", "");
-        placeholderIdentity.store(placeholder.resolve(BuildStep.IDENTITY));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        Path artifact = Files.writeString(assign.resolve("classes.jar"), "main");
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("foo/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
-        identity.store(assign.resolve(BuildStep.IDENTITY));
-        run(args("manifests", manifests, "coordinates", placeholder, "assign", assign));
+        Path pomFolder = Files.createDirectory(root.resolve("pom"));
+        Path pom = Files.writeString(pomFolder.resolve("pom.xml"), "<project/>");
+
+        run(args("manifests", manifests, "pom", pomFolder));
+
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("foo.runtime"))
-                .isEqualTo(next.relativize(artifact).toString().replace(File.separatorChar, '/'));
+        assertThat(inventory.getProperty("module-foo.pom")).isEqualTo(relativize(pom));
     }
 
     @Test
-    public void combines_artifacts_from_multiple_dirs() throws IOException {
+    public void falls_back_to_identity_for_artifact_when_no_produced_classes_jar() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "foo");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path assign = Files.createDirectory(root.resolve("assign"));
+        Path artifact = Files.writeString(assign.resolve("custom.jar"), "x");
+        SequencedProperties identity = new SequencedProperties();
+        identity.setProperty("foo/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
+        identity.store(assign.resolve(BuildStep.IDENTITY));
+
+        run(args("manifests", manifests, "assign", assign));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module-foo.artifact")).isEqualTo(relativize(artifact));
+        assertThat(inventory.getProperty("module-foo.runtime")).isEqualTo(relativize(artifact));
+    }
+
+    @Test
+    public void combines_dependency_artifacts_from_multiple_dirs() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();
         module.setProperty("path", "foo");
         module.store(manifests.resolve(BuildStep.MODULE));
         Path firstDeps = Files.createDirectory(root.resolve("first"));
         Path firstArtifacts = Files.createDirectory(firstDeps.resolve("artifacts"));
-        Files.writeString(firstArtifacts.resolve("a.jar"), "a");
+        Path libA = Files.writeString(firstArtifacts.resolve("a.jar"), "a");
         Path secondDeps = Files.createDirectory(root.resolve("second"));
         Path secondArtifacts = Files.createDirectory(secondDeps.resolve("artifacts"));
-        Files.writeString(secondArtifacts.resolve("b.jar"), "b");
+        Path libB = Files.writeString(secondArtifacts.resolve("b.jar"), "b");
+
         run(args("manifests", manifests, "first", firstDeps, "second", secondDeps));
+
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("foo.runtime").split(",")).containsExactly(
-                next.relativize(firstArtifacts.resolve("a.jar")).toString().replace(File.separatorChar, '/'),
-                next.relativize(secondArtifacts.resolve("b.jar")).toString().replace(File.separatorChar, '/'));
+        assertThat(inventory.getProperty("module-foo.runtime").split(",")).containsExactly(
+                relativize(libA),
+                relativize(libB));
     }
 
     @Test
@@ -163,8 +204,14 @@ public class InventoryTest {
         SequencedProperties identity = new SequencedProperties();
         identity.setProperty("foo/coord", "missing.jar");
         identity.store(assign.resolve(BuildStep.IDENTITY));
+
         run(args("manifests", manifests, "assign", assign));
+
         assertThat(next.resolve(Inventory.INVENTORY)).doesNotExist();
+    }
+
+    private String relativize(Path file) {
+        return next.relativize(file).toString().replace(File.separatorChar, '/');
     }
 
     private BuildStepResult run(SequencedMap<String, Path> argumentFolders) throws IOException {

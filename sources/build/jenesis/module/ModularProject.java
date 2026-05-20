@@ -18,7 +18,6 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Placement;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 
@@ -42,11 +41,6 @@ public class ModularProject implements BuildExecutorModule {
         this.prefix = prefix;
         this.root = root;
         this.filter = filter;
-    }
-
-    public static Placement artifactsByModule() {
-        return MultiProjectModule.linkBySubModule("classes.jar", "sources.jar", "javadoc.jar",
-                BuildStep.MODULE, BuildStep.METADATA, BuildStep.IDENTITY);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -138,6 +132,7 @@ public class ModularProject implements BuildExecutorModule {
                             new Inventory(),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
+                            PRODUCE,
                             DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }
