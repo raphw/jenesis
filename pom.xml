@@ -8,31 +8,6 @@
     <artifactId>build.jenesis</artifactId>
     <version>0-SNAPSHOT</version>
 
-    <name>Jenesis</name>
-    <description>A build tool for Java projects, written and configured in Java itself.</description>
-    <url>https://github.com/raphw/jenesis</url>
-
-    <licenses>
-        <license>
-            <name>Apache-2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        </license>
-    </licenses>
-
-    <developers>
-        <developer>
-            <id>raphw</id>
-            <name>Rafael Winterhalter</name>
-            <email>rafael.wth@gmail.com</email>
-        </developer>
-    </developers>
-
-    <scm>
-        <connection>scm:git:https://github.com/raphw/jenesis.git</connection>
-        <developerConnection>scm:git:git@github.com:raphw/jenesis.git</developerConnection>
-        <url>https://github.com/raphw/jenesis</url>
-    </scm>
-
     <build>
         <sourceDirectory>sources</sourceDirectory>
         <testSourceDirectory>tests</testSourceDirectory>
@@ -148,6 +123,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -162,5 +138,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 </project>
