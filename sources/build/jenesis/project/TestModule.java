@@ -227,10 +227,9 @@ public class TestModule implements BuildExecutorModule {
         private final String filter;
 
         private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular, String filter) {
+            super(modular, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
-            this.jarsOnly = jarsOnly;
-            this.modular = modular;
             this.filter = filter;
         }
 
@@ -240,11 +239,9 @@ public class TestModule implements BuildExecutorModule {
                     boolean jarsOnly,
                     boolean modular,
                     String filter) {
-            super(factory);
+            super(factory, modular, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
-            this.jarsOnly = jarsOnly;
-            this.modular = modular;
             this.filter = filter;
         }
 

@@ -8,22 +8,42 @@ public abstract class Java extends JdkProcessBuildStep {
 
     private static final String MODULE_PATH = "--module-path", CLASS_PATH = "--class-path";
 
-    protected boolean modular = true, jarsOnly = false;
+    protected final boolean modular, jarsOnly;
 
     protected Java() {
+        this(true, false);
+    }
+
+    protected Java(boolean modular, boolean jarsOnly) {
         super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        this.modular = modular;
+        this.jarsOnly = jarsOnly;
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
+        this(factory, true, false);
+    }
+
+    protected Java(Function<List<String>, ? extends ProcessHandler> factory, boolean modular, boolean jarsOnly) {
         super("java", factory);
+        this.modular = modular;
+        this.jarsOnly = jarsOnly;
     }
 
     public static Java of(String... commands) {
         return of(List.of(commands));
     }
 
+    public static Java of(boolean modular, boolean jarsOnly, String... commands) {
+        return of(modular, jarsOnly, List.of(commands));
+    }
+
     public static Java of(List<String> commands) {
-        return new Java() {
+        return of(true, false, commands);
+    }
+
+    public static Java of(boolean modular, boolean jarsOnly, List<String> commands) {
+        return new Java(modular, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -37,8 +57,22 @@ public abstract class Java extends JdkProcessBuildStep {
         return of(factory, List.of(commands));
     }
 
+    public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
+                          boolean modular,
+                          boolean jarsOnly,
+                          String... commands) {
+        return of(factory, modular, jarsOnly, List.of(commands));
+    }
+
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, List<String> commands) {
-        return new Java(factory) {
+        return of(factory, true, false, commands);
+    }
+
+    public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
+                          boolean modular,
+                          boolean jarsOnly,
+                          List<String> commands) {
+        return new Java(factory, modular, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -46,16 +80,6 @@ public abstract class Java extends JdkProcessBuildStep {
                 return CompletableFuture.completedStage(commands);
             }
         };
-    }
-
-    public Java modular(boolean modular) {
-        this.modular = modular;
-        return this;
-    }
-
-    public Java jarsOnly(boolean jarsOnly) {
-        this.jarsOnly = jarsOnly;
-        return this;
     }
 
     protected abstract CompletionStage<List<String>> commands(Executor executor,
