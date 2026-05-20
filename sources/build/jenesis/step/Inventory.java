@@ -84,32 +84,26 @@ public class Inventory implements BuildStep {
             if (Files.isDirectory(artifactsDir)) {
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifactsDir)) {
                     for (Path file : stream) {
-                        String name = file.getFileName().toString();
-                        switch (name) {
-                            case CLASSES_JAR -> {
-                                if (classesArtifact == null) {
-                                    classesArtifact = file;
-                                } else {
-                                    dependencies.add(file);
-                                }
+                        if (CLASSES_JAR.equals(file.getFileName().toString())) {
+                            if (classesArtifact == null) {
+                                classesArtifact = file;
+                                continue;
                             }
-                            case SOURCES_JAR -> {
-                                if (sourcesArtifact == null) {
-                                    sourcesArtifact = file;
-                                } else {
-                                    dependencies.add(file);
-                                }
-                            }
-                            case JAVADOC_JAR -> {
-                                if (javadocArtifact == null) {
-                                    javadocArtifact = file;
-                                } else {
-                                    dependencies.add(file);
-                                }
-                            }
-                            default -> dependencies.add(file);
                         }
+                        dependencies.add(file);
                     }
+                }
+            }
+            if (sourcesArtifact == null) {
+                Path candidate = folder.resolve(SOURCES).resolve(SOURCES_JAR);
+                if (Files.isRegularFile(candidate)) {
+                    sourcesArtifact = candidate;
+                }
+            }
+            if (javadocArtifact == null) {
+                Path candidate = folder.resolve(DOCUMENTATION).resolve(JAVADOC_JAR);
+                if (Files.isRegularFile(candidate)) {
+                    javadocArtifact = candidate;
                 }
             }
         }

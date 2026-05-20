@@ -31,7 +31,7 @@ public class Jar extends JdkProcessBuildStep {
         List<String> commands = new ArrayList<>(List.of(
                 "--create",
                 "--file",
-                Files.createDirectory(context.next().resolve(ARTIFACTS))
+                Files.createDirectory(context.next().resolve(sort.folder))
                         .resolve(sort.file)
                         .toString(),
                 "--date=1980-01-01T00:00:02Z"));
@@ -50,15 +50,17 @@ public class Jar extends JdkProcessBuildStep {
 
     public enum Sort {
 
-        CLASSES("classes.jar", BuildStep.CLASSES, BuildStep.RESOURCES),
-        SOURCES("sources.jar", BuildStep.SOURCES, BuildStep.RESOURCES),
-        JAVADOC("javadoc.jar", Javadoc.JAVADOC);
+        CLASSES("classes.jar", BuildStep.ARTIFACTS, BuildStep.CLASSES, BuildStep.RESOURCES),
+        SOURCES("sources.jar", BuildStep.SOURCES, BuildStep.SOURCES, BuildStep.RESOURCES),
+        JAVADOC("javadoc.jar", BuildStep.DOCUMENTATION, Javadoc.JAVADOC);
 
         final String file;
+        final String folder;
         final List<String> folders;
 
-        Sort(String file, String... folders) {
+        Sort(String file, String folder, String... folders) {
             this.file = file;
+            this.folder = folder;
             this.folders = List.of(folders);
         }
     }

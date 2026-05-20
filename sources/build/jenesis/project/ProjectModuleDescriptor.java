@@ -8,30 +8,30 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     private final ModuleDescriptor base;
     private final boolean tests;
     private final boolean source;
-    private final boolean javadoc;
+    private final boolean documentation;
     private final int depth;
 
     public ProjectModuleDescriptor(ModuleDescriptor base,
                                    boolean tests,
                                    boolean source,
-                                   boolean javadoc) {
-        this(base, tests, source, javadoc, 0);
+                                   boolean documentation) {
+        this(base, tests, source, documentation, 0);
     }
 
     private ProjectModuleDescriptor(ModuleDescriptor base,
                                     boolean tests,
                                     boolean source,
-                                    boolean javadoc,
+                                    boolean documentation,
                                     int depth) {
         this.base = base;
         this.tests = tests;
         this.source = source;
-        this.javadoc = javadoc;
+        this.documentation = documentation;
         this.depth = depth;
     }
 
     public ProjectModuleDescriptor toInherited() {
-        return new ProjectModuleDescriptor(base, tests, source, javadoc, depth + 1);
+        return new ProjectModuleDescriptor(base, tests, source, documentation, depth + 1);
     }
 
     public boolean tests() {
@@ -42,8 +42,8 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
         return source;
     }
 
-    public boolean javadoc() {
-        return javadoc;
+    public boolean documentation() {
+        return documentation;
     }
 
     @Override

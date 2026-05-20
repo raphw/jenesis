@@ -17,7 +17,7 @@ public class ProjectModuleDescriptorTest {
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, true);
         assertThat(descriptor.tests()).isTrue();
         assertThat(descriptor.source()).isFalse();
-        assertThat(descriptor.javadoc()).isTrue();
+        assertThat(descriptor.documentation()).isTrue();
     }
 
     @Test
@@ -44,7 +44,7 @@ public class ProjectModuleDescriptorTest {
         assertThat(inherited.dependencies()).isEqualTo(base.dependencies());
         assertThat(inherited.tests()).isTrue();
         assertThat(inherited.source()).isTrue();
-        assertThat(inherited.javadoc()).isTrue();
+        assertThat(inherited.documentation()).isTrue();
         assertThat(inherited.sources()).isEqualTo("../" + base.sources());
         assertThat(inherited.manifests()).isEqualTo("../" + base.manifests());
         assertThat(inherited.artifacts(DependencyScope.COMPILE)).isEqualTo("../" + base.artifacts(DependencyScope.COMPILE));

@@ -42,7 +42,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
             if (descriptor.source()) {
                 sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
             }
-            if (descriptor.javadoc()) {
+            if (descriptor.documentation()) {
                 sub.addModule("javadoc", (module, inherited) -> {
                     module.addStep("classes", Javadoc.tool(), inherited.sequencedKeySet().stream());
                     module.addStep("artifacts", Jar.tool(Jar.Sort.JAVADOC), "classes");

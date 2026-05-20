@@ -28,7 +28,7 @@ public record Project(
         Layout layout,
         boolean tests,
         boolean sources,
-        boolean javadoc,
+        boolean documentation,
         boolean stageTests,
         List<Path> metadata,
         String version,
@@ -63,7 +63,7 @@ public record Project(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
-                                                project.javadoc()),
+                                                project.documentation()),
                                         repositories, resolvers)),
                         mavenDeps);
             }, METADATA);
@@ -102,7 +102,7 @@ public record Project(
                                 new ProjectModuleDescriptor(descriptor,
                                         project.tests(),
                                         project.sources(),
-                                        project.javadoc()),
+                                        project.documentation()),
                                 mergedRepos,
                                 mergedResolvers)),
                         modulesDeps);
@@ -145,7 +145,7 @@ public record Project(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
-                                                project.javadoc()),
+                                                project.documentation()),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
@@ -326,7 +326,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -343,7 +343,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -360,7 +360,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -377,7 +377,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -394,7 +394,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -411,7 +411,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -421,14 +421,14 @@ public record Project(
                 resolvers);
     }
 
-    public Project javadoc(boolean javadoc) {
+    public Project documentation(boolean documentation) {
         return new Project(root,
                 target,
                 cache,
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -445,7 +445,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -462,7 +462,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 List.of(metadata),
                 version,
@@ -479,7 +479,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -496,7 +496,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -513,7 +513,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -530,7 +530,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -547,7 +547,7 @@ public record Project(
                 layout,
                 tests,
                 sources,
-                javadoc,
+                documentation,
                 stageTests,
                 metadata,
                 version,
@@ -564,7 +564,7 @@ public record Project(
         Layout resolvedLayout = layout;
         boolean resolvedTests = tests;
         boolean resolvedSources = sources;
-        boolean resolvedJavadoc = javadoc;
+        boolean resolvedDocumentation = documentation;
         boolean resolvedStageTests = stageTests;
         List<Path> resolvedMetadata = metadata;
         String resolvedVersion = version;
@@ -597,8 +597,8 @@ public record Project(
         if (Boolean.getBoolean("jenesis.project.sources")) {
             resolvedSources = true;
         }
-        if (Boolean.getBoolean("jenesis.project.docs")) {
-            resolvedJavadoc = true;
+        if (Boolean.getBoolean("jenesis.project.documentation")) {
+            resolvedDocumentation = true;
         }
         if (Boolean.getBoolean("jenesis.project.stageTests")) {
             resolvedStageTests = true;
@@ -629,7 +629,7 @@ public record Project(
                 resolvedLayout,
                 resolvedTests,
                 resolvedSources,
-                resolvedJavadoc,
+                resolvedDocumentation,
                 resolvedStageTests,
                 resolvedMetadata,
                 resolvedVersion,

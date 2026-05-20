@@ -54,7 +54,7 @@ jobs:
         run: |
           java -Djenesis.project.version=${VERSION} \
                -Djenesis.project.sources=true \
-               -Djenesis.project.docs=true \
+               -Djenesis.project.documentation=true \
                -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
 

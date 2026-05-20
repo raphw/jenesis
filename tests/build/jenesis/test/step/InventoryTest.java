@@ -38,8 +38,10 @@ public class InventoryTest {
         Path produce = Files.createDirectory(root.resolve("produce"));
         Path produceArtifacts = Files.createDirectory(produce.resolve("artifacts"));
         Path classes = Files.writeString(produceArtifacts.resolve("classes.jar"), "main");
-        Path sources = Files.writeString(produceArtifacts.resolve("sources.jar"), "src");
-        Path javadoc = Files.writeString(produceArtifacts.resolve("javadoc.jar"), "doc");
+        Path sources = Files.writeString(
+                Files.createDirectory(produce.resolve("sources")).resolve("sources.jar"), "src");
+        Path javadoc = Files.writeString(
+                Files.createDirectory(produce.resolve("documentation")).resolve("javadoc.jar"), "doc");
         Path pom = Files.writeString(produce.resolve("pom.xml"), "<project/>");
         Path runtime = Files.createDirectory(root.resolve("runtime"));
         Path runtimeArtifacts = Files.createDirectory(runtime.resolve("artifacts"));

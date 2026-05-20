@@ -51,7 +51,7 @@ public class JavaMultiProjectAssemblerTest {
         Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES));
         Files.writeString(fixture.sources.resolve(BuildStep.SOURCES).resolve("foo.java"), "// dummy");
         Path sourcesOutput = fixture.execute("sub/sources").get("sub/sources");
-        assertThat(sourcesOutput.resolve("artifacts").resolve("sources.jar")).exists();
+        assertThat(sourcesOutput.resolve("sources").resolve("sources.jar")).exists();
     }
 
     @Test
@@ -71,7 +71,7 @@ public class JavaMultiProjectAssemblerTest {
                 }
                 """);
         Path javadocOutput = fixture.execute("sub/javadoc/artifacts").get("sub/javadoc/artifacts");
-        assertThat(javadocOutput.resolve("artifacts").resolve("javadoc.jar")).exists();
+        assertThat(javadocOutput.resolve("documentation").resolve("javadoc.jar")).exists();
     }
 
     @Test
@@ -101,7 +101,7 @@ public class JavaMultiProjectAssemblerTest {
     private Fixture setUp(String moduleProperties,
                           boolean tests,
                           boolean source,
-                          boolean javadoc) throws IOException {
+                          boolean documentation) throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
@@ -146,7 +146,7 @@ public class JavaMultiProjectAssemblerTest {
                 return BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts";
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, javadoc);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation);
         BuildExecutorModule assembled = new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,

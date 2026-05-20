@@ -70,7 +70,7 @@ public class JarTest {
                         classes,
                         Map.of(Path.of("sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "sources.jar")).isNotEmptyFile();
+        assertThat(next.resolve(BuildStep.SOURCES + "sources.jar")).isNotEmptyFile();
     }
 
     @ParameterizedTest
@@ -91,7 +91,7 @@ public class JarTest {
                         classes,
                         Map.of(Path.of("sample/Sample.html"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "javadoc.jar")).isNotEmptyFile();
+        assertThat(next.resolve(BuildStep.DOCUMENTATION + "javadoc.jar")).isNotEmptyFile();
     }
 
     @ParameterizedTest
