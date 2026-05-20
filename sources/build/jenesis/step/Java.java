@@ -75,8 +75,8 @@ public abstract class Java extends JdkProcessBuildStep {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
                     if (Files.isDirectory(candidate)) {
-                        if (modular && Files.exists(candidate.resolve("module-info.class"))) { // TODO: multi-release?
-                            modulePath.add(candidate.toString()); // TODO: does manifest apply without jar file?
+                        if (modular && Files.exists(candidate.resolve("module-info.class"))) {
+                            modulePath.add(candidate.toString());
                         } else {
                             classPath.add(candidate.toString());
                         }
@@ -93,7 +93,7 @@ public abstract class Java extends JdkProcessBuildStep {
                                 try (JarFile jar = new JarFile(file.toFile(),
                                         true,
                                         ZipFile.OPEN_READ,
-                                        Runtime.version())) { // TODO: multi-release?
+                                        Runtime.version())) {
                                     if (jar.getEntry("module-info.class") != null
                                             || jar.getManifest() != null
                                             && jar.getManifest().getMainAttributes().getValue("Automatic-Module-Name") != null) {
