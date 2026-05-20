@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -76,6 +77,13 @@ public abstract class ProcessBuildStep implements BuildStep {
                 Path output = context.supplement().resolve("output"), error = context.supplement().resolve("error");
                 ProcessHandler handler = factory.apply(Stream.concat(prepended.stream(), processed.stream()).toList());
                 Files.writeString(context.supplement().resolve("command"), String.join(" ", handler.commands()));
+                if (Boolean.getBoolean("jenesis.verbose")) {
+                    System.out.printf("%s%-11s%s %s%n",
+                        BuildExecutorCallback.YELLOW,
+                        "[EXECUTED]",
+                        BuildExecutorCallback.RESET,
+                        String.join(" ", handler.commands()));
+                }
                 executor.execute(() -> {
                     try {
                         int exitCode = handler.execute(output, error);
