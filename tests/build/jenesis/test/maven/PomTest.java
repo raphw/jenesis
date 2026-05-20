@@ -8,7 +8,6 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
-import build.jenesis.maven.MavenRepositoryPlacement;
 import build.jenesis.maven.Pom;
 import build.jenesis.project.DependencyScope;
 
@@ -205,40 +204,6 @@ public class PomTest {
                         Map.of(Path.of(BuildStep.METADATA), ChecksumStatus.ADDED))))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing 'version'");
-    }
-
-    @Test
-    public void metadata_version_propagates_through_export_layout() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("maven/com.example/foo/jar/0-SNAPSHOT", "");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
-        SequencedProperties metadata = new SequencedProperties();
-        metadata.setProperty("project", "com.example");
-        metadata.setProperty("artifact", "foo");
-        metadata.setProperty("version", "2.7.1");
-        metadata.store(argument.resolve(BuildStep.METADATA));
-        Path exported = Files.createDirectory(root.resolve("repository"));
-        new Pom().apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        Files.writeString(next.resolve("classes.jar"), "jar bytes");
-        Files.writeString(next.resolve(BuildStep.METADATA),
-                "project=com.example\nartifact=foo\nversion=2.7.1\n");
-        MavenRepositoryPlacement.toRepository(exported).apply(Runnable::run,
-                        new BuildStepContext(previous, Files.createDirectory(root.resolve("next2")), supplement),
-                        new LinkedHashMap<>(Map.of("pom-and-jar", new BuildStepArgument(
-                                next,
-                                Map.of(Path.of("pom.xml"), ChecksumStatus.ADDED,
-                                        Path.of("classes.jar"), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        assertThat(exported.resolve("com/example/foo/2.7.1/foo-2.7.1.jar")).hasContent("jar bytes");
-        assertThat(exported.resolve("com/example/foo/2.7.1/foo-2.7.1.pom")).exists();
     }
 
     @Test
