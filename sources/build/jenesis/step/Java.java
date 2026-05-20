@@ -8,25 +8,28 @@ public abstract class Java extends JdkProcessBuildStep {
 
     private static final String MODULE_PATH = "--module-path", CLASS_PATH = "--class-path";
 
-    protected final boolean modular, jarsOnly;
+    protected final ModulePathPredicate isModular;
+    protected final boolean jarsOnly;
 
     protected Java() {
-        this(true, false);
+        this(_ -> false, true);
     }
 
-    protected Java(boolean modular, boolean jarsOnly) {
+    protected Java(ModulePathPredicate isModular, boolean jarsOnly) {
         super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        this.modular = modular;
+        this.isModular = isModular;
         this.jarsOnly = jarsOnly;
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, true, false);
+        this(factory, _ -> false, true);
     }
 
-    protected Java(Function<List<String>, ? extends ProcessHandler> factory, boolean modular, boolean jarsOnly) {
+    protected Java(Function<List<String>, ? extends ProcessHandler> factory,
+                   ModulePathPredicate isModular,
+                   boolean jarsOnly) {
         super("java", factory);
-        this.modular = modular;
+        this.isModular = isModular;
         this.jarsOnly = jarsOnly;
     }
 
@@ -34,16 +37,16 @@ public abstract class Java extends JdkProcessBuildStep {
         return of(List.of(commands));
     }
 
-    public static Java of(boolean modular, boolean jarsOnly, String... commands) {
-        return of(modular, jarsOnly, List.of(commands));
+    public static Java of(ModulePathPredicate isModular, boolean jarsOnly, String... commands) {
+        return of(isModular, jarsOnly, List.of(commands));
     }
 
     public static Java of(List<String> commands) {
-        return of(true, false, commands);
+        return of(_ -> false, true, commands);
     }
 
-    public static Java of(boolean modular, boolean jarsOnly, List<String> commands) {
-        return new Java(modular, jarsOnly) {
+    public static Java of(ModulePathPredicate isModular, boolean jarsOnly, List<String> commands) {
+        return new Java(isModular, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -58,21 +61,21 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
-                          boolean modular,
+                          ModulePathPredicate isModular,
                           boolean jarsOnly,
                           String... commands) {
-        return of(factory, modular, jarsOnly, List.of(commands));
+        return of(factory, isModular, jarsOnly, List.of(commands));
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, List<String> commands) {
-        return of(factory, true, false, commands);
+        return of(factory, _ -> false, true, commands);
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
-                          boolean modular,
+                          ModulePathPredicate isModular,
                           boolean jarsOnly,
                           List<String> commands) {
-        return new Java(factory, modular, jarsOnly) {
+        return new Java(factory, isModular, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -84,7 +87,8 @@ public abstract class Java extends JdkProcessBuildStep {
 
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
-                                                              SequencedMap<String, BuildStepArgument> arguments) throws IOException;
+                                                              SequencedMap<String, BuildStepArgument> arguments)
+            throws IOException;
 
     @Override
     public CompletionStage<List<String>> process(Executor executor,
@@ -99,11 +103,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
                     if (Files.isDirectory(candidate)) {
-                        if (modular && Files.exists(candidate.resolve("module-info.class"))) {
-                            modulePath.add(candidate.toString());
-                        } else {
-                            classPath.add(candidate.toString());
-                        }
+                        (isModular.placeOnModulePath(candidate) ? modulePath : classPath).add(candidate.toString());
                     }
                 }
             }
@@ -112,22 +112,8 @@ public abstract class Java extends JdkProcessBuildStep {
                 if (Files.exists(candidate)) {
                     Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
                         @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                            if (modular) {
-                                try (JarFile jar = new JarFile(file.toFile(),
-                                        true,
-                                        ZipFile.OPEN_READ,
-                                        Runtime.version())) {
-                                    if (jar.getEntry("module-info.class") != null
-                                            || jar.getManifest() != null
-                                            && jar.getManifest().getMainAttributes().getValue("Automatic-Module-Name") != null) {
-                                        modulePath.add(file.toString());
-                                        return FileVisitResult.CONTINUE;
-                                    }
-                                } catch (IllegalArgumentException _) {
-                                }
-                            }
-                            classPath.add(file.toString());
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            (isModular.placeOnModulePath(file) ? modulePath : classPath).add(file.toString());
                             return FileVisitResult.CONTINUE;
                         }
                     });
@@ -163,5 +149,11 @@ public abstract class Java extends JdkProcessBuildStep {
         return commands(executor, context, arguments).thenApplyAsync(commands -> Stream.concat(
                 prefixes.stream(),
                 commands.stream()).toList(), executor);
+    }
+
+    @FunctionalInterface
+    public interface ModulePathPredicate extends Serializable {
+
+        boolean placeOnModulePath(Path path);
     }
 }

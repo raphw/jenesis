@@ -37,7 +37,7 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true, true, false, filter);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, false, true, false, filter);
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -48,7 +48,7 @@ public class TestModule implements BuildExecutorModule {
                       Map<String, Repository> repositories,
                       Map<String, Resolver> resolvers,
                       String filter) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, true, false, filter);
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, false, true, false, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
@@ -63,7 +63,7 @@ public class TestModule implements BuildExecutorModule {
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers,
                                                                    String filter) {
-        this(engine, isTest, null, repositories, resolvers, true, true, true, false, filter);
+        this(engine, isTest, null, repositories, resolvers, true, false, true, false, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
@@ -82,7 +82,7 @@ public class TestModule implements BuildExecutorModule {
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers,
             String filter) {
-        this(engine, isTest, factory, repositories, resolvers, true, true, true, false, filter);
+        this(engine, isTest, factory, repositories, resolvers, true, false, true, false, filter);
     }
 
     private TestModule(TestEngine engine,
@@ -224,12 +224,14 @@ public class TestModule implements BuildExecutorModule {
 
         private final TestEngine engine;
         private final Predicate<String> isTest;
+        private final boolean modular;
         private final String filter;
 
         private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular, String filter) {
-            super(modular, jarsOnly);
+            super(_ -> modular, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
+            this.modular = modular;
             this.filter = filter;
         }
 
@@ -239,9 +241,10 @@ public class TestModule implements BuildExecutorModule {
                     boolean jarsOnly,
                     boolean modular,
                     String filter) {
-            super(factory, modular, jarsOnly);
+            super(factory, _ -> modular, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
+            this.modular = modular;
             this.filter = filter;
         }
 

@@ -33,7 +33,7 @@ public class JavaTest {
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
             Files.copy(requireNonNull(input), folder.resolve("Sample.class"));
         }
-        BuildStepResult result = Java.of("sample.Sample").apply(
+        BuildStepResult result = Java.of(_ -> false, false, "sample.Sample").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(

@@ -17,8 +17,17 @@ public class MavenDefaultRepository implements MavenRepository {
             environment += "/";
         }
         repository = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        this.local = Files.isDirectory(local) ? local : null;
+        String localOverride = System.getenv("MAVEN_LOCAL_REPOSITORY");
+        if (localOverride == null) {
+            Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
+            this.local = Files.isDirectory(local) ? local : null;
+        } else {
+            Path local = Path.of(localOverride);
+            if (!Files.isDirectory(local)) {
+                throw new IllegalStateException("MAVEN_LOCAL_REPOSITORY does not point at a directory: " + local);
+            }
+            this.local = local;
+        }
         validations = Map.of("SHA1", repository);
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
         callback = verbose ? path -> System.out.printf("%s%-11s%s %s%n",

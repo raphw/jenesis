@@ -527,7 +527,7 @@ others are declared next to the step that emits them.
 | `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value emitting the same flag once per piece. Each input folder's file is processed independently and its entries are appended to the command line in folder order, so the same key in two folders becomes two flag instances. Values that name filesystem paths are written relative to the file's containing folder (paths are not resolved until the consumer step needs them), which keeps the on-disk content position-independent so build outputs can be relocated or shared between caches without rewriting.                                                                                          |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
-| `cache/`                   | by convention                    | A folder used for caches that outlive a single build, such as previously fetched Java module URI registries; cached entries are content-addressable and refreshed on demand by whatever produced them.                                                |
+| `cache/`                   | by convention                    | A project-root folder for caches that outlive a single build, hardlink-shared with `target/`. The `MODULAR` layout populates `cache/modules/<encoded-coordinate>.jar` via `Repository.cached(...)` so module jars survive a `target/` wipe; `MAVEN` and `MODULAR_TO_MAVEN` cache into `~/.m2/repository` instead. Relocatable via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`. See the *Repositories and resolvers* and *The `cache/` folder* sections below for the full picture. |
 | `.jenesis.build`           | `BuildExecutor.BUILD_MARKER`     | An empty marker file placed at the root of an active build directory. Project-tree walkers honour it as a stop signal so nested builds aren't re-discovered as part of the parent build's project graph.                                              |
 
 Build steps
@@ -1016,8 +1016,9 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.stageTests`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
-| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which `MODULAR` stores its `modules/` URI registry. Ignored by `MAVEN` and `MODULAR_TO_MAVEN`. |
+| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which the `MODULAR` layout stores `modules/<encoded-coordinate>.jar` for each downloaded module jar (see *The `cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
+| `MAVEN_LOCAL_REPOSITORY`| environment variable| Overrides the local Maven repository directory that `MavenDefaultRepository` reads from and hardlinks downloaded jars into (default `~/.m2/repository`). When set, the directory must exist or `MavenDefaultRepository` throws on construction. When unset, a missing default `~/.m2/repository` silently disables the local cache layer and every fetch streams directly from upstream. |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
 Properties are passed on the JVM command line, e.g.
@@ -1115,6 +1116,108 @@ bytes, the output was tampered with - flips `consistent` to `false` and the step
 of the hash; they only gate scheduling, so a step that runs under selectors produces the same cached output a full
 build would have, and subsequent unselected runs hit the cache as expected.
 
+### Repositories and resolvers
+
+`Repository` and `Resolver` are the two pluggable surfaces for dependency lookup: a `Repository` goes from a
+coordinate to bytes, a `Resolver` goes from a root set of coordinates to a transitive closure. Layouts wire
+defaults; user code overrides them per prefix.
+
+`Repository` is a `@FunctionalInterface` with a single method `fetch(Executor, String coordinate) -> Optional<RepositoryItem>`,
+where `RepositoryItem` is a thin wrapper exposing an `InputStream` and optionally a `Path` (so consumers can
+hardlink instead of copy). Two default methods compose: `repo.prepend(other)` tries `other` first and falls
+back to `this`; `repo.cached(folder)` wraps `this` with an on-disk hardlink cache that names each fetched
+artifact `folder/<BuildExecutorModule.encode(coordinate)>.jar`.
+
+Static factories on the interface itself:
+
+- **`Repository.empty()`** - never resolves anything. Useful as the default for a prefix with no associated
+  repository.
+- **`Repository.ofUris(Map<String, URI>)`** and the overload **`Repository.ofUris(uris, versionResolver)`** -
+  coordinate-to-URI lookup. The optional `versionResolver` (a `Serializable BiFunction<URI, String, Optional<URI>>`)
+  rewrites the registered URL for a versioned coordinate; when omitted, the lookup is strict-literal.
+  `MavenDefaultRepository.versionResolver()` is the canonical implementation: it parses the registered URL as
+  a Maven-layout path and substitutes the requested version into both the directory segment and the filename,
+  so a single-URL registry can satisfy arbitrary version pins. `file://` URIs are returned as
+  `RepositoryItem.ofFile(...)` so the framework can hardlink the existing on-disk bytes instead of streaming.
+- **`Repository.ofFiles(Map<String, Path>)`** and **`Repository.files()`** - coordinate-to-`Path` lookups (the
+  second interprets the coordinate string itself as a filesystem path). Used when bytes are produced locally.
+- **`Repository.ofProperties(suffix, folders, resolver, [versionResolver,] cache)`** - bulk-loads a
+  `Map<String, Repository>` keyed by prefix from line-based `<prefix>/<key>=<location>` registries found in
+  `folders`. Each prefix's URIs become `Repository.ofUris(..., versionResolver).cached(cache)`. This is how
+  the `MODULAR` layout converts the `uris.properties` output of `DownloadModuleUris` into a per-prefix
+  repository map, with `cache/modules/` serving as the cross-build hardlink cache.
+- **`Repository.prepend(left, right)`** - per-prefix `prepend` of two repository maps (the right map's entries
+  are tried first, falling back to the left's for the same prefix).
+
+`MavenRepository` extends `Repository` with a structured `fetch(executor, groupId, artifactId, version, type,
+classifier, checksum)` and an optional `fetchMetadata(executor, groupId, artifactId, checksum)` returning the
+artifact's `maven-metadata.xml`. `MavenRepository.of(Repository)` adapts any plain `Repository` by serialising
+the parts into a `groupId/artifactId[/type[/classifier]]/version` coordinate string.
+
+`MavenDefaultRepository` is the concrete implementation: it talks HTTP to the upstream Maven repository
+(default `https://repo1.maven.org/maven2/`, overridable via the `MAVEN_REPOSITORY_URI` environment variable),
+and hardlinks fetched bytes through the user's **local Maven repository**, defaulting to `~/.m2/repository`
+and overridable via the `MAVEN_LOCAL_REPOSITORY` environment variable (this is **not** the project's
+`cache/` folder). When `MAVEN_LOCAL_REPOSITORY` is set explicitly, the directory must exist or the
+constructor throws; the default `~/.m2/repository` is permissive in the other direction, silently bypassing
+the local cache layer when absent. Each download is validated against its `.sha1` sidecar; a mismatch
+deletes the cached file and any cached digests so the next request re-downloads from upstream.
+
+`Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
+`Map<String, Repository>` to fetch from, a `versions` pin map (with optional space-separated `<algorithm>/<hex>`
+checksum suffix), and a `compile`/`runtime` flag, and returns the resolved closure as a
+`SequencedMap<String, String>`. The value carries the chosen version and/or checksum that the downstream
+`Download` step validates against. The default method `resolver.translated(targetPrefix, translator)`
+rewrites both coordinates and the prefix before delegating; this is how `MODULAR_TO_MAVEN` plugs a
+`MavenPomResolver` into `ModularJarResolver` as a fallback, mapping `module/<name>` coordinates through
+`MavenUriParser` into the `maven/<groupId/artifactId>` form a Maven resolver understands.
+
+Static factories: **`Resolver.identity()`** emits its inputs unchanged under the supplied prefix without any
+transitive walk; **`Resolver.of(translator)`** flat-maps each coordinate through a
+`Function<String, SequencedCollection<String>>` (useful for static, non-network resolution). The two
+graph-walking implementations live in the per-layer sections below: `ModularJarResolver` under *Java support*
+and `MavenPomResolver` under *Maven support*.
+
+**Per-prefix dispatch.** Every `requires.properties` line is prefixed `<prefix>/<coordinate>`, and the
+framework routes each line to `resolvers.get(prefix)` with the entire repository map attached (resolvers may
+read from sibling prefixes when chaining). The two built-in prefixes are `maven` and `module`. Users define
+new prefixes - or override the layout's defaults on the same prefix - by passing
+`Map<String, Repository>` and `Map<String, Resolver>` through `Project.repositories(...)` /
+`Project.resolvers(...)`; the user maps are `putAll`-merged *after* the layout defaults, so a user entry
+under the same key wins, and the merged maps are forwarded through `JavaMultiProjectAssembler` into every
+per-module `JavaModule` / `TestModule`.
+
+### The `cache/` folder
+
+`cache/` is the project-root home for caches that should outlive a single build but stay local to the
+project tree. It sits between `target/` (incremental per-run state, deletable to force a clean rebuild) and
+`~/.m2/repository` (shared across every project on the user's machine). The path defaults to `cache/` at the
+project root and can be relocated via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`.
+
+What lives there today:
+
+- **`cache/modules/`** - hardlinked jars fetched by the `MODULAR` layout's per-prefix
+  `Repository.ofUris(...).cached(cache/modules)` wrappers (wired in `Project.Layout.MODULAR`). Each entry is
+  named `<BuildExecutorModule.encode(coordinate)>.jar`; the encoded coordinate is a content-stable function
+  of the coordinate string, so two builds asking for the same coordinate map to the same filename and the
+  second build hardlinks from `cache/modules/` instead of going to the network. `MAVEN` and `MODULAR_TO_MAVEN`
+  do not populate this folder: their canonical `MavenDefaultRepository` already caches into
+  `~/.m2/repository`, so for those layouts `cache/` is typically empty.
+
+Properties of the cache layer:
+
+- **Content-addressable by coordinate.** Filenames derive from the coordinate, not the build run, so replays
+  are filesystem lookups and the folder can be moved between machines without rewriting.
+- **Refresh on demand only.** No TTL, no automatic invalidation: entries persist until something deletes
+  them. The assumption is that jars at versioned coordinates are immutable by contract; force a refresh by
+  deleting the file (or the whole folder) and re-running.
+- **Safe to delete.** Nothing in `target/` references `cache/` directly and no build identity hashes through
+  cache contents, so a wiped `cache/` only costs the next build's downloads. Conversely, deleting `target/`
+  while keeping `cache/` is the fastest path to a clean rebuild that does not re-fetch anything.
+- **Hardlinks, not copies.** Both the cache write (`Files.createLink` in `Repository.cached`) and downstream
+  consumption use hardlinks where the filesystem allows, so a populated `cache/` does not multiply disk
+  usage when its contents flow into `target/`.
+
 ### Java support
 
 Generic infrastructure (`BuildExecutor`, `BuildStep`, `BuildExecutorModule`) doesn't know anything about Java. The
@@ -1189,10 +1292,14 @@ coordinates implements `Resolver`. The generic infrastructure treats all three a
 Maven support is layered on top of the same generic interfaces, with one extra wrinkle: Maven repositories
 serve POMs in addition to artifacts, so they get a refined `Repository` interface.
 
-- **`MavenRepository`** extends the generic `Repository` with `fetchMetadata(groupId, artifactId, version)`
-  returning an `InputStream` over the POM. Implementations: `MavenDefaultRepository` (HTTP, with on-disk cache
-  in `cache/`) and any user-supplied subclass (e.g. an internal Nexus mirror). The `MAVEN_REPOSITORY_URI`
-  environment variable overrides the default upstream URL.
+- **`MavenRepository`** extends the generic `Repository` with a structured
+  `fetch(executor, groupId, artifactId, version, type, classifier, checksum)` and an optional
+  `fetchMetadata(executor, groupId, artifactId, checksum)` returning the artifact's `maven-metadata.xml`.
+  Implementations: `MavenDefaultRepository` (HTTP, with on-disk cache in the user's local Maven repository,
+  default `~/.m2/repository`; the project's `cache/` folder is **not** used here) and any user-supplied
+  subclass (e.g. an internal Nexus mirror). The `MAVEN_REPOSITORY_URI` environment variable overrides the
+  default upstream URL; `MAVEN_LOCAL_REPOSITORY` overrides the local repository directory. See the
+  *Repositories and resolvers* section above for the generic interface and its factories.
 - **`Pom`** is a `BuildStep` that emits or transforms `pom.xml` files in the build graph (used by
   `MavenProject`'s scan/prepare flow).
 - **`MavenPomEmitter`** is a stateless serializer: takes a `Pom` model and writes a `pom.xml`. Used both for
