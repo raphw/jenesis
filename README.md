@@ -258,7 +258,7 @@ entries with the same key override the layout default.
 | Layout               | Pipeline                                                                                  | Mirrors                |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
 | `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaModule` + per-module `Pom` step + `MavenRepositoryStaging` + `MavenRepositoryExport` | `build/Maven.java`     |
-| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `DownloadModuleUris` + `ModularProject` over a URI-derived repository + per-project `JavaModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `build/Modular.java`   |
+| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `DownloadModuleUris` + `ModularProject` over a `JenesisModuleRepository`-prepended URI-derived repository + per-project `JavaModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `build/Modular.java`   |
 | `Layout.MODULAR_TO_MAVEN` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `DownloadModuleUris` + `ModularProject` against a `MavenDefaultRepository` (`MavenPomResolver` translated through `MavenUriParser`), with a per-module `Pom` step on top of the assembler, plus `MavenRepositoryStaging` + `MavenRepositoryExport` | `build/ModularToMaven.java` |
 | `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
 
@@ -1185,7 +1185,10 @@ at a published Jenesis module repository works the same way. A bare-name coordin
 unversioned `<root>/<module>/<module>.jar`; a coordinate with a version (`<module>/<version>`) fetches
 `<root>/<module>/<version>/<module>.jar`. For `file://` URIs the returned `RepositoryItem` exposes the
 underlying `Path` so downstream caches can hardlink instead of copy; for HTTP URIs the stream is opened
-eagerly and an HTTP 404 surfaces as `Optional.empty()` so resolvers can fall back cleanly.
+eagerly and an HTTP 404 surfaces as `Optional.empty()` so resolvers can fall back cleanly. The `MODULAR`
+layout prepends a no-arg `JenesisModuleRepository` ahead of the URI-derived remote repository for the
+`module` prefix, so a local hit at `~/.jenesis` short-circuits the network fetch and a miss falls back to
+the URI registry transparently.
 
 `Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
 `Map<String, Repository>` to fetch from, a `versions` pin map (with optional space-separated `<algorithm>/<hex>`

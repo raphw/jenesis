@@ -11,6 +11,7 @@ import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
+import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.JenesisModuleRepositoryExport;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularStaging;
@@ -91,6 +92,9 @@ public record Project(
                         (_, value) -> URI.create(value),
                         MavenDefaultRepository.versionResolver(),
                         Files.createDirectories(project.cache().resolve("modules"))));
+                repositories.merge("module",
+                        new JenesisModuleRepository(),
+                        (existing, local) -> local.prepend(existing));
                 repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(true));
