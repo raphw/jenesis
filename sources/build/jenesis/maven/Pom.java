@@ -12,37 +12,24 @@ public class Pom implements BuildStep {
 
     public static final String POM = "pom.xml";
 
-    private final Function<String, String> resolver;
+    private final Set<String> prefixes;
     private final Map<String, String> shared;
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(Map.of());
+        this(Set.of("maven"), Map.of());
+    }
+
+    public Pom(Set<String> prefixes) {
+        this(prefixes, Map.of());
     }
 
     public Pom(Map<String, String> shared) {
-        this.resolver = (Function<String, String> & Serializable) (coordinate -> {
-            int separator = coordinate.indexOf('/');
-            if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
-                return coordinate;
-            }
-            String name = coordinate.substring(separator + 1);
-            String[] elements = name.split("\\.");
-            if (elements.length < 2) {
-                return coordinate;
-            }
-            String groupId = elements[0] + "." + elements[1];
-            return "maven/" + groupId + "/" + name + "/0-SNAPSHOT";
-        });
-        this.shared = Map.copyOf(shared);
+        this(Set.of("maven"), shared);
     }
 
-    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this(resolver, Map.of());
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
-        this.resolver = resolver;
+    public Pom(Set<String> prefixes, Map<String, String> shared) {
+        this.prefixes = Set.copyOf(prefixes);
         this.shared = Map.copyOf(shared);
     }
 
@@ -52,10 +39,8 @@ public class Pom implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
-        SequencedProperties coordinates = SequencedProperties.ofFolders(folders, IDENTITY);
         SequencedProperties requires = SequencedProperties.ofFolders(folders, REQUIRES);
         SequencedProperties scopes = SequencedProperties.ofFolders(folders, SCOPES);
-        SequencedProperties module = SequencedProperties.ofFolders(folders, MODULE);
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         boolean scoped = !scopes.isEmpty();
         SequencedProperties compileRequires = new SequencedProperties();
@@ -75,48 +60,19 @@ public class Pom implements BuildStep {
             }
         }
         shared.forEach(metadata::setProperty);
-        String prefix = null;
-        MavenDependencyKey.Versioned self = null;
-        for (String coordinate : coordinates.stringPropertyNames()) {
-            if (!coordinates.getProperty(coordinate).isEmpty()) {
-                continue;
-            }
-            String resolved = resolver.apply(coordinate);
-            int separator = resolved.indexOf('/');
-            if (separator == -1) {
-                continue;
-            }
-            MavenDependencyKey.Versioned parsed;
-            try {
-                parsed = MavenDependencyKey.parse(resolved.substring(separator + 1));
-            } catch (IllegalArgumentException _) {
-                continue;
-            }
-            if ("pom".equals(parsed.key().type())) {
-                continue;
-            }
-            prefix = resolved.substring(0, separator);
-            self = parsed;
-            break;
-        }
-        if (self == null) {
-            throw new IllegalStateException(
-                    "No own Maven coordinate (with empty value) found in coordinates.properties");
-        }
-        String selfArtifactId = self.key().artifactId();
         String groupId = metadata.getProperty("project");
         if (groupId == null) {
-            throw new IllegalStateException(
-                    "Missing 'project' (groupId) in metadata.properties for " + selfArtifactId);
+            throw new IllegalStateException("Missing 'project' (groupId) in metadata.properties");
         }
         String artifactId = metadata.getProperty("artifact");
         if (artifactId == null) {
             throw new IllegalStateException(
-                    "Missing 'artifact' (artifactId) in metadata.properties for " + selfArtifactId);
+                    "Missing 'artifact' (artifactId) in metadata.properties for " + groupId);
         }
-        boolean test = module.getProperty("tests") != null;
-        if (!artifactId.equals(selfArtifactId) && !test) {
-            return CompletableFuture.completedStage(new BuildStepResult(true));
+        String version = metadata.getProperty("version");
+        if (version == null) {
+            throw new IllegalStateException(
+                    "Missing 'version' in metadata.properties for " + groupId + ":" + artifactId);
         }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
         SequencedSet<String> allRequires = new LinkedHashSet<>(compileRequires.stringPropertyNames());
@@ -125,7 +81,7 @@ public class Pom implements BuildStep {
         }
         for (String name : allRequires) {
             int separator = name.indexOf('/');
-            if (separator == -1 || !prefix.equals(name.substring(0, separator))) {
+            if (separator == -1 || !prefixes.contains(name.substring(0, separator))) {
                 continue;
             }
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(name.substring(separator + 1));
@@ -149,11 +105,6 @@ public class Pom implements BuildStep {
                     null,
                     null,
                     null));
-        }
-        String version = metadata.getProperty("version");
-        if (version == null) {
-            throw new IllegalStateException(
-                    "Missing 'version' in metadata.properties for " + selfArtifactId);
         }
         MavenPomEmitter.Metadata parsed = null;
         if (!metadata.isEmpty()) {

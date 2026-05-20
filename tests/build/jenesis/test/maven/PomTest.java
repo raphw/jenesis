@@ -168,53 +168,7 @@ public class PomTest {
     }
 
     @Test
-    public void default_resolver_translates_module_self_coordinate_to_maven() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("module/build.jenesis.test", "");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
-        SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("maven/build.jenesis/jenesis/0-SNAPSHOT", "");
-        dependencies.setProperty("module/some.other.module", "");
-        dependencies.store(argument.resolve(BuildStep.REQUIRES));
-        SequencedProperties metadata = new SequencedProperties();
-        metadata.setProperty("project", "build.jenesis");
-        metadata.setProperty("artifact", "build.jenesis.test");
-        metadata.setProperty("version", "0-SNAPSHOT");
-        metadata.store(argument.resolve(BuildStep.METADATA));
-        BuildStepResult result = new Pom().apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                argument,
-                                Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        assertThat(result.next()).isTrue();
-        assertThat(Files.readString(next.resolve(Pom.POM))).isEqualTo("""
-                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-                <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                    <groupId>build.jenesis</groupId>
-                    <artifactId>build.jenesis.test</artifactId>
-                    <version>0-SNAPSHOT</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>build.jenesis</groupId>
-                            <artifactId>jenesis</artifactId>
-                            <version>0-SNAPSHOT</version>
-                        </dependency>
-                    </dependencies>
-                </project>
-                """);
-    }
-
-    @Test
-    public void metadata_version_overrides_self_version_in_emitted_pom() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("maven/build.jenesis/jenesis/jar/0-SNAPSHOT", "");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+    public void metadata_version_is_emitted_in_pom() throws IOException {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("maven/org.example/lib/1.2.3", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
@@ -228,7 +182,6 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
@@ -240,32 +193,7 @@ public class PomTest {
     }
 
     @Test
-    public void metadata_version_overrides_default_resolver_snapshot_version() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("module/build.jenesis.test", "");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
-        SequencedProperties metadata = new SequencedProperties();
-        metadata.setProperty("project", "build.jenesis");
-        metadata.setProperty("artifact", "build.jenesis.test");
-        metadata.setProperty("version", "9.0.0");
-        metadata.store(argument.resolve(BuildStep.METADATA));
-        BuildStepResult result = new Pom().apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        assertThat(result.next()).isTrue();
-        assertThat(Files.readString(next.resolve(Pom.POM))).contains("<version>9.0.0</version>");
-    }
-
-    @Test
     public void missing_metadata_version_throws() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
         metadata.setProperty("artifact", "jenesis");
@@ -274,8 +202,7 @@ public class PomTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                         argument,
-                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED))))))
+                        Map.of(Path.of(BuildStep.METADATA), ChecksumStatus.ADDED))))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing 'version'");
     }
@@ -358,29 +285,6 @@ public class PomTest {
     }
 
     @Test
-    public void metadata_artifact_mismatch_skips_emission() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
-        SequencedProperties metadata = new SequencedProperties();
-        metadata.setProperty("project", "build.jenesis");
-        metadata.setProperty("artifact", "other.module");
-        metadata.setProperty("version", "1.0.0");
-        metadata.store(argument.resolve(BuildStep.METADATA));
-        BuildStepResult result = new Pom().apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                                argument,
-                                Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Pom.POM)).doesNotExist();
-    }
-
-    @Test
     public void user_metadata_overrides_pom_derived_metadata_when_both_are_provided() throws IOException {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/com.example/foo/jar/1.0.0", "");
@@ -451,17 +355,4 @@ public class PomTest {
         assertThat(pom).contains("<name>Apache-2.0</name>");
     }
 
-    @Test
-    public void fails_when_no_self_coordinate_is_present() throws IOException {
-        SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "/already/resolved.jar");
-        coordinates.store(argument.resolve(BuildStep.IDENTITY));
-        assertThatThrownBy(() -> new Pom().apply(Runnable::run,
-                new BuildStepContext(previous, next, supplement),
-                new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
-                        argument,
-                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED))))))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("No own Maven coordinate");
-    }
 }
