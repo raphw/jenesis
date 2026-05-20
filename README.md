@@ -650,13 +650,15 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
 - `artifacts` (`Download`) fetches the unified resolved set into `artifacts/`, validating checksums when
   present and hard-linking from the local cache when available so the second resolve doesn't re-fetch jars
   the project's own resolve already brought down.
-- `executed` (`TestModule.Run` extends `Java`) honours the `-Djenesis.test=<patterns>` system property: a
-  comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. Class entries
-  are emitted via the engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()`
-  (e.g. `-select-method=`). The property's value is part of the step's serialized state (so changing it
-  invalidates the cache); when set, the step is also forced to re-run regardless of cache consistency. `Java`
-  scans each argument's `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on
-  its own `modular` flag.
+- `executed` (`TestModule.Run` extends `Java`) accepts a `filter` argument: a comma-separated list of Java
+  regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. When wired by
+  `JavaMultiProjectAssembler`, the filter is sourced from the `-Djenesis.java.test=<patterns>` system property;
+  callers that construct `TestModule` directly pass the filter explicitly. Class entries are emitted via the
+  engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()` (e.g.
+  `-select-method=`). The filter is part of the step's serialized state (so changing it invalidates the cache);
+  when set, the step is also forced to re-run regardless of cache consistency. `Java` scans each argument's
+  `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on its own `modular`
+  flag.
 
 ```mermaid
 flowchart LR
@@ -979,7 +981,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.executor.digest`  | system property | Algorithm passed to `HashDigestFunction` and `BuildStepHashFunction.ofSerializationDigest(...)` by `BuildExecutor.of(Path)` for both the per-file content checksums (used to compute step input/output diffs) and the per-step serialization hash (used to detect config changes). Any `MessageDigest` algorithm name is accepted. Default `MD5`. |
 | `jenesis.verbose`          | system property | When `true`, the default `BuildExecutorCallback` prints per-step verbose output (input/output checksum diffs, decisions to skip or re-run) instead of just the high-level status lines. The same flag also enables verbose logging in `Repository`, `MavenDefaultRepository`, `Project`, and `Execute`.                                              |
 | `jenesis.executor.timeout` | system property | ISO-8601 duration (e.g. `PT5M`, `PT30S`) applied to every `BuildStep` by `BuildExecutor.of(Path)`. Each step's returned `CompletionStage` is wrapped with `orTimeout`, so the build fails fast with a `TimeoutException` (surfaced as a `BuildExecutorException`) when a step exceeds the limit. Note that the future is only completed exceptionally; the underlying virtual thread is not interrupted and only winds down when the surrounding `ExecutorService` closes at the end of the build. Default `PT0S` disables the timeout. |
-| `jenesis.test`          | system property     | When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching the comma-separated regex entries `<classRegex>[#<method>]`. The value is part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. |
+| `jenesis.java.test`     | system property     | Read by `JavaMultiProjectAssembler` and passed to its `TestModule` as the test filter: a comma-separated list of `<classRegex>[#<method>]` entries. When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching those patterns. The value becomes part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. Callers that construct `TestModule` directly pass the filter explicitly through the `String filter` constructor; the module itself no longer reads any system property. |
 | `jenesis.requireChecksums` | system property | When `true`, `Download` fails the build with an `IllegalStateException` for any resolved coordinate that has no checksum pinned in `requires.properties`. Use this to lock the build down so every artifact has to come with a SHA pin from a `pom.xml` `<!--Checksum/...-->` comment or a `@requires <module> <version> <algorithm>/<hex>` Javadoc tag. |
 | `jenesis.project.pinAlgorithm` | system property | Algorithm used by `PinPom` / `PinModuleInfo` to recompute checksums over the resolved jar artifacts during the `pin` step (default `SHA-256`). Pin always rehashes whatever is sitting in the upstream `artifacts/` folders, so the pinned `<!--Checksum/...-->` / `@requires` lines always reflect the bytes the build actually used. Any `MessageDigest` algorithm name is accepted (`SHA-512`, `SHA-1`, etc.). |
 | `jenesis.project.version` | system property   | When set, stamps the version onto every artifact this build produces. It is appended last into every per-module `metadata.properties` (after the framework defaults and the project-root override file), so it overrides the `version` from either layer. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` writes it into `<version>`; dependency versions are unaffected. `MavenRepositoryStaging` reads coordinates from the produced `pom.xml`, so the staged folder path, artifact filenames and `MavenRepositoryExport`'s `maven-metadata-local.xml` follow along. |
@@ -1007,7 +1009,7 @@ arguments, the full graph runs.
 | `java build/Modular.java`                 | Whole graph. On a warm cache, every step is `[SKIPPED]`.                                                                                                        |
 | `java build/Modular.java ::/test`         | Every `test` sub-module at any depth, plus its transitive preliminary closure. Modules along the path have their step preliminaries cache-checked; sibling sub-graphs that happen to be scheduled by `::` lenient-skip. |
 | `java build/Modular.java build/::/test`   | Same, but anchored under the top-level `build` module. Top-level entries that aren't on the path to `build` (e.g. the `stage` step that depends on `build`) are not scheduled at all.                  |
-| `java -Djenesis.test='.*FooTest' build/Modular.java ::/test` | Same selector, but `TestModule.executed` re-runs unconditionally and only selects classes matching the regex; upstream `classes`/`artifacts` etc. stay cached. |
+| `java -Djenesis.java.test='.*FooTest' build/Modular.java ::/test` | Same selector, but `TestModule.executed` re-runs unconditionally and only selects classes matching the regex; upstream `classes`/`artifacts` etc. stay cached. |
 
 Literal selectors that don't resolve throw `Unknown selector: …`. Wildcards (`:` for one segment, `::` for any
 depth) silently skip non-matching branches, but over-schedule sibling subtrees: each such module's `accept(...)`

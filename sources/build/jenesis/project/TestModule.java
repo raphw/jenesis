@@ -32,7 +32,7 @@ public class TestModule implements BuildExecutorModule {
     private final String filter;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, System.getProperty("jenesis.test"));
+        this(repositories, resolvers, null);
     }
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
@@ -40,7 +40,7 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(engine, repositories, resolvers, System.getProperty("jenesis.test"));
+        this(engine, repositories, resolvers, null);
     }
 
     public TestModule(TestEngine engine,
@@ -54,7 +54,7 @@ public class TestModule implements BuildExecutorModule {
                                                                    P isTest,
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers) {
-        this(engine, isTest, repositories, resolvers, System.getProperty("jenesis.test"));
+        this(engine, isTest, repositories, resolvers, null);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
@@ -71,7 +71,7 @@ public class TestModule implements BuildExecutorModule {
             P isTest,
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers) {
-        this(factory, engine, isTest, repositories, resolvers, System.getProperty("jenesis.test"));
+        this(factory, engine, isTest, repositories, resolvers, null);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(

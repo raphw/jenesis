@@ -14,7 +14,11 @@ import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
 
-public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
+public record JavaMultiProjectAssembler(boolean process, String filter) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+
+    public JavaMultiProjectAssembler() {
+        this(Boolean.getBoolean("jenesis.java.process"), System.getProperty("jenesis.java.test"));
+    }
 
     @Override
     public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
@@ -22,7 +26,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                                      Map<String, Resolver> resolvers) {
         return (sub, outerInherited) -> {
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
-            sub.addModule("java", new JavaModule(),
+            sub.addModule("java", new JavaModule(process),
                     "prepare",
                     descriptor.sources(),
                     descriptor.manifests(),
@@ -35,7 +39,7 @@ public class JavaMultiProjectAssembler implements MultiProjectAssembler<ProjectM
                 if (Files.isRegularFile(module) && SequencedProperties
                         .ofFiles(module)
                         .getProperty("tests") != null) {
-                    sub.addModule("test", new TestModule(repositories, resolvers),
+                    sub.addModule("test", new TestModule(repositories, resolvers, filter),
                             "java",
                             "prepare",
                             descriptor.sources(),
