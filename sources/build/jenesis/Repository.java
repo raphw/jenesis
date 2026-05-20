@@ -106,7 +106,7 @@ public interface Repository {
             URI uri = candidate;
             callback.accept(uri);
             if (Objects.equals("file", uri.getScheme())) {
-                return Optional.of(RepositoryItem.ofFile(Path.of(uri)));
+                return Optional.of(RepositoryItem.ofFile(Path.of(uri), true));
             } else {
                 return Optional.of(() -> uri.toURL().openStream());
             }

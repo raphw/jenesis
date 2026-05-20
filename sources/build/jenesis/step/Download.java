@@ -9,18 +9,16 @@ import build.jenesis.SequencedProperties;
 
 public class Download implements DependencyProcessingBuildStep {
 
-    public static final String REQUIRE_CHECKSUMS_PROPERTY = "jenesis.requireChecksums";
-
     private final transient Map<String, Repository> repositories;
-    private final boolean requireChecksums;
+    private final boolean strictPinning;
 
     public Download(Map<String, Repository> repositories) {
-        this(repositories, Boolean.getBoolean(REQUIRE_CHECKSUMS_PROPERTY));
+        this(repositories, false);
     }
 
-    public Download(Map<String, Repository> repositories, boolean requireChecksums) {
+    public Download(Map<String, Repository> repositories, boolean strictPinning) {
         this.repositories = repositories;
-        this.requireChecksums = requireChecksums;
+        this.strictPinning = strictPinning;
     }
 
     @Override
@@ -38,35 +36,36 @@ public class Download implements DependencyProcessingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
-                    if (requireChecksums) {
-                        throw new IllegalStateException(
-                                "No checksum pinned for " + dependency + " (-D" + REQUIRE_CHECKSUMS_PROPERTY + " is set)");
-                    }
-                    if (previous != null && Files.exists(previous)) {
-                        Files.createLink(libs.resolve(name), previous);
-                    } else {
-                        CompletableFuture<?> future = new CompletableFuture<>();
-                        executor.execute(() -> {
-                            try {
-                                RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
-                                        () -> new IllegalStateException("Unresolved: " + dependency));
-                                Path file = source.file().orElse(null);
-                                if (file == null) {
-                                    try (InputStream inputStream = source.toInputStream()) {
-                                        Files.copy(inputStream, libs.resolve(name));
-                                    }
-                                } else {
-                                    Files.createLink(context.next().resolve(DEPENDENCIES + name), file);
-                                }
-                                future.complete(null);
-                            } catch (Throwable t) {
-                                future.completeExceptionally(new RuntimeException(
-                                        "Failed to fetch " + dependency,
-                                        t));
+                    CompletableFuture<?> future = new CompletableFuture<>();
+                    executor.execute(() -> {
+                        try {
+                            RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
+                                    () -> new IllegalStateException("Unresolved: " + dependency));
+                            if (strictPinning && !source.internal()) {
+                                throw new IllegalStateException(
+                                        "No checksum pinned for " + dependency + " (strict pinning is enabled)");
                             }
-                        });
-                        futures.add(future);
-                    }
+                            if (previous != null && Files.exists(previous)) {
+                                Files.createLink(libs.resolve(name), previous);
+                                future.complete(null);
+                                return;
+                            }
+                            Path file = source.file().orElse(null);
+                            if (file == null) {
+                                try (InputStream inputStream = source.toInputStream()) {
+                                    Files.copy(inputStream, libs.resolve(name));
+                                }
+                            } else {
+                                Files.createLink(context.next().resolve(DEPENDENCIES + name), file);
+                            }
+                            future.complete(null);
+                        } catch (Throwable t) {
+                            future.completeExceptionally(new RuntimeException(
+                                    "Failed to fetch " + dependency,
+                                    t));
+                        }
+                    });
+                    futures.add(future);
                 } else {
                     int algorithm = entry.getValue().indexOf('/');
                     MessageDigest digest;

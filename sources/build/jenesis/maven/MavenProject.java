@@ -52,13 +52,28 @@ public class MavenProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), assembler);
+        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), false, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           boolean strictPinning,
+                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
+        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), strictPinning, assembler);
     }
 
     public static BuildExecutorModule make(Path root,
                                            String prefix,
                                            MavenRepository mavenRepository,
                                            MavenPomResolver mavenResolver,
+                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
+        return make(root, prefix, mavenRepository, mavenResolver, false, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           String prefix,
+                                           MavenRepository mavenRepository,
+                                           MavenPomResolver mavenResolver,
+                                           boolean strictPinning,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
@@ -82,7 +97,7 @@ public class MavenProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE),
+                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE, strictPinning),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

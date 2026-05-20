@@ -39,7 +39,7 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
                 if (Files.isRegularFile(module) && SequencedProperties
                         .ofFiles(module)
                         .getProperty("tests") != null) {
-                    sub.addModule("test", new TestModule(repositories, resolvers, filter),
+                    sub.addModule("test", new TestModule(repositories, resolvers, filter).strictPinning(descriptor.strictPinning()),
                             "java",
                             "prepare",
                             descriptor.sources(),
@@ -52,12 +52,12 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
                 }
             }
             if (descriptor.source()) {
-                sub.addStep("sources", Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
+                sub.addStep("sources", process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
             }
             if (descriptor.documentation()) {
                 sub.addModule("javadoc", (module, inherited) -> {
-                    module.addStep("classes", Javadoc.tool(), inherited.sequencedKeySet().stream());
-                    module.addStep("artifacts", Jar.tool(Jar.Sort.JAVADOC), "classes");
+                    module.addStep("classes", process ? Javadoc.process() : Javadoc.tool(), inherited.sequencedKeySet().stream());
+                    module.addStep("artifacts", process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC), "classes");
                 },
                 descriptor.sources(),
                 descriptor.manifests(),

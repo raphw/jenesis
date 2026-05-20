@@ -30,6 +30,7 @@ public record Project(
         boolean sources,
         boolean documentation,
         boolean stageTests,
+        boolean strictPinning,
         List<Path> metadata,
         String version,
         SequencedSet<String> defaultTarget,
@@ -59,11 +60,13 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
                 sub.addModule("maven", MavenProject.make(project.root(),
+                                project.strictPinning(),
                                 (descriptor, repositories, resolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
-                                                project.documentation()),
+                                                project.documentation(),
+                                                project.strictPinning()),
                                         repositories, resolvers)),
                         mavenDeps);
             }, METADATA);
@@ -98,11 +101,13 @@ public record Project(
                 sub.addModule("modules", ModularProject.make(project.root(),
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
+                        project.strictPinning(),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                 new ProjectModuleDescriptor(descriptor,
                                         project.tests(),
                                         project.sources(),
-                                        project.documentation()),
+                                        project.documentation(),
+                                        project.strictPinning()),
                                 mergedRepos,
                                 mergedResolvers)),
                         modulesDeps);
@@ -141,11 +146,13 @@ public record Project(
                 sub.addModule("modules", ModularProject.make(project.root(),
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
+                                project.strictPinning(),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
-                                                project.documentation()),
+                                                project.documentation(),
+                                                project.strictPinning()),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, "download", METADATA);
@@ -311,6 +318,7 @@ public record Project(
                 false,
                 false,
                 false,
+                false,
                 List.of(),
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
@@ -328,6 +336,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -345,6 +354,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -362,6 +372,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -379,6 +390,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -396,6 +408,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -413,6 +426,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -430,6 +444,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -447,6 +462,25 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
+                metadata,
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project strictPinning(boolean strictPinning) {
+        return new Project(root,
+                target,
+                cache,
+                layout,
+                tests,
+                sources,
+                documentation,
+                stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -464,6 +498,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 List.of(metadata),
                 version,
                 defaultTarget,
@@ -481,6 +516,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -498,6 +534,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
@@ -515,6 +552,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -532,6 +570,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -549,6 +588,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
+                strictPinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -566,6 +606,7 @@ public record Project(
         boolean resolvedSources = sources;
         boolean resolvedDocumentation = documentation;
         boolean resolvedStageTests = stageTests;
+        boolean resolvedStrictPinning = strictPinning;
         List<Path> resolvedMetadata = metadata;
         String resolvedVersion = version;
         String rootOverride = System.getProperty("jenesis.project.root");
@@ -603,6 +644,10 @@ public record Project(
         if (Boolean.getBoolean("jenesis.project.stageTests")) {
             resolvedStageTests = true;
         }
+        String strictPinningOverride = System.getProperty("jenesis.project.strictPinning");
+        if (strictPinningOverride != null) {
+            resolvedStrictPinning = Boolean.parseBoolean(strictPinningOverride);
+        }
         String metadataOverride = System.getProperty("jenesis.project.metadata");
         if (metadataOverride != null) {
             resolvedMetadata = Arrays.stream(metadataOverride.split(Pattern.quote(File.pathSeparator)))
@@ -631,6 +676,7 @@ public record Project(
                 resolvedSources,
                 resolvedDocumentation,
                 resolvedStageTests,
+                resolvedStrictPinning,
                 resolvedMetadata,
                 resolvedVersion,
                 defaultTarget,

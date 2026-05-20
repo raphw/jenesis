@@ -29,6 +29,7 @@ public class TestModule implements BuildExecutorModule {
     private final boolean jarsOnly;
     private final boolean modular;
     private final boolean requireEngine;
+    private final boolean strictPinning;
     private final String filter;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -36,7 +37,7 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true, true, filter);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, true, false, filter);
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -47,7 +48,7 @@ public class TestModule implements BuildExecutorModule {
                       Map<String, Repository> repositories,
                       Map<String, Resolver> resolvers,
                       String filter) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, true, filter);
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, true, false, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
@@ -62,7 +63,7 @@ public class TestModule implements BuildExecutorModule {
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers,
                                                                    String filter) {
-        this(engine, isTest, null, repositories, resolvers, true, true, true, filter);
+        this(engine, isTest, null, repositories, resolvers, true, true, true, false, filter);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
@@ -81,7 +82,7 @@ public class TestModule implements BuildExecutorModule {
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers,
             String filter) {
-        this(engine, isTest, factory, repositories, resolvers, true, true, true, filter);
+        this(engine, isTest, factory, repositories, resolvers, true, true, true, false, filter);
     }
 
     private TestModule(TestEngine engine,
@@ -92,6 +93,7 @@ public class TestModule implements BuildExecutorModule {
                        boolean jarsOnly,
                        boolean modular,
                        boolean requireEngine,
+                       boolean strictPinning,
                        String filter) {
         this.engine = engine;
         this.isTest = isTest;
@@ -101,6 +103,7 @@ public class TestModule implements BuildExecutorModule {
         this.jarsOnly = jarsOnly;
         this.modular = modular;
         this.requireEngine = requireEngine;
+        this.strictPinning = strictPinning;
         this.filter = filter;
     }
 
@@ -113,15 +116,19 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
     }
 
     public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
+    }
+
+    public TestModule strictPinning(boolean strictPinning) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
     }
 
     @Override
@@ -144,7 +151,7 @@ public class TestModule implements BuildExecutorModule {
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories), REQUIRED);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning), REQUIRED);
         Run run = factory == null
                 ? new Run(resolved, isTest, jarsOnly, modular, filter)
                 : new Run(factory, resolved, isTest, jarsOnly, modular, filter);

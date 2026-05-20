@@ -49,6 +49,7 @@ public class ModularProject implements BuildExecutorModule {
         return make(root,
                 repositories,
                 Map.of("module", new ModularJarResolver(true)),
+                false,
                 assembler);
     }
 
@@ -56,11 +57,20 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
+        return make(root, repositories, resolvers, false, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           boolean strictPinning,
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 "module",
                 _ -> true,
                 repositories,
                 resolvers,
+                strictPinning,
                 assembler);
     }
 
@@ -69,6 +79,16 @@ public class ModularProject implements BuildExecutorModule {
                                            Predicate<Path> filter,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
+        return make(root, prefix, filter, repositories, resolvers, false, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           String prefix,
+                                           Predicate<Path> filter,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           boolean strictPinning,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
@@ -92,7 +112,7 @@ public class ModularProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, strictPinning),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

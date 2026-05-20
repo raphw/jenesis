@@ -201,10 +201,11 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))))
-                .isInstanceOf(IllegalStateException.class)
+                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
                 .hasMessageContaining("No checksum pinned for foo/bar")
-                .hasMessageContaining(Download.REQUIRE_CHECKSUMS_PROPERTY);
+                .hasMessageContaining("strict pinning");
     }
 
     @Test

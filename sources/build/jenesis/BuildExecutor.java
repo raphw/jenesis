@@ -43,7 +43,8 @@ public class BuildExecutor {
                 Duration.parse(System.getProperty("jenesis.executor.timeout", "PT0S")),
                 new HashDigestFunction(algorithm),
                 BuildStepHashFunction.ofSerializationDigest(algorithm),
-                BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target));
+                BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target),
+                Boolean.getBoolean("jenesis.executor.rebuild"));
     }
 
     public static BuildExecutor of(Path target,
@@ -51,6 +52,33 @@ public class BuildExecutor {
                                    HashFunction hash,
                                    BuildStepHashFunction stepHash,
                                    BuildExecutorCallback callback) throws IOException {
+        return of(target, timeout, hash, stepHash, callback, false);
+    }
+
+    public static BuildExecutor of(Path target,
+                                   Duration timeout,
+                                   HashFunction hash,
+                                   BuildStepHashFunction stepHash,
+                                   BuildExecutorCallback callback,
+                                   boolean rebuild) throws IOException {
+        if (rebuild && Files.isDirectory(target)) {
+            Files.walkFileTree(target, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exception) throws IOException {
+                    if (exception != null) {
+                        throw exception;
+                    }
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
         BuildExecutor executor = new BuildExecutor(target, timeout, hash, stepHash, callback, "", Map.of());
         if (!Files.exists(target.resolve(BUILD_MARKER))) {
             Files.createFile(target.resolve(BUILD_MARKER));

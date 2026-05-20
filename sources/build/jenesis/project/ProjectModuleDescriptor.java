@@ -9,29 +9,40 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     private final boolean tests;
     private final boolean source;
     private final boolean documentation;
+    private final boolean strictPinning;
     private final int depth;
 
     public ProjectModuleDescriptor(ModuleDescriptor base,
                                    boolean tests,
                                    boolean source,
                                    boolean documentation) {
-        this(base, tests, source, documentation, 0);
+        this(base, tests, source, documentation, false, 0);
+    }
+
+    public ProjectModuleDescriptor(ModuleDescriptor base,
+                                   boolean tests,
+                                   boolean source,
+                                   boolean documentation,
+                                   boolean strictPinning) {
+        this(base, tests, source, documentation, strictPinning, 0);
     }
 
     private ProjectModuleDescriptor(ModuleDescriptor base,
                                     boolean tests,
                                     boolean source,
                                     boolean documentation,
+                                    boolean strictPinning,
                                     int depth) {
         this.base = base;
         this.tests = tests;
         this.source = source;
         this.documentation = documentation;
+        this.strictPinning = strictPinning;
         this.depth = depth;
     }
 
     public ProjectModuleDescriptor toInherited() {
-        return new ProjectModuleDescriptor(base, tests, source, documentation, depth + 1);
+        return new ProjectModuleDescriptor(base, tests, source, documentation, strictPinning, depth + 1);
     }
 
     public boolean tests() {
@@ -44,6 +55,10 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
 
     public boolean documentation() {
         return documentation;
+    }
+
+    public boolean strictPinning() {
+        return strictPinning;
     }
 
     @Override
