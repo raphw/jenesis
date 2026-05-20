@@ -11,6 +11,7 @@ import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
+import build.jenesis.module.JenesisModuleRepositoryExport;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularStaging;
 import build.jenesis.module.ModularProject;
@@ -113,6 +114,7 @@ public record Project(
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(STAGE, new ModularStaging(project.stageTests()), BUILD);
+            executor.addStep(EXPORT, new JenesisModuleRepositoryExport(), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
