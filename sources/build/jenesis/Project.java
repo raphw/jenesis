@@ -12,7 +12,7 @@ import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
-import build.jenesis.module.ModularPlacement;
+import build.jenesis.module.ModularStaging;
 import build.jenesis.module.ModularProject;
 import build.jenesis.module.PinModuleInfo;
 import build.jenesis.project.JavaMultiProjectAssembler;
@@ -111,9 +111,7 @@ public record Project(
                         modulesDeps);
             }, "download", METADATA);
             executor.addStep(COLLECT, new Relocate(ModularProject.artifactsByModule()), BUILD);
-            executor.addStep(STAGE,
-                    new Relocate(new ModularPlacement(project.stageTests())),
-                    COLLECT);
+            executor.addStep(STAGE, new ModularStaging(project.stageTests()), COLLECT);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
