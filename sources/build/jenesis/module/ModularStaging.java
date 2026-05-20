@@ -40,9 +40,9 @@ public class ModularStaging implements BuildStep {
             if (moduleName == null) {
                 throw new IllegalStateException("Missing 'module' in inventory: " + inventoryFile);
             }
-            Path artifact = resolve(argument.folder(), inv.getProperty(prefix + ".artifact"));
-            Path sources = resolve(argument.folder(), inv.getProperty(prefix + ".artifact.sources"));
-            Path javadoc = resolve(argument.folder(), inv.getProperty(prefix + ".artifact.javadoc"));
+            Path artifact = singleJar(argument.folder(), inv.getProperty(prefix + ".artifacts"), prefix, "artifacts", true, inventoryFile);
+            Path sources = singleJar(argument.folder(), inv.getProperty(prefix + ".sources"), prefix, "sources", false, inventoryFile);
+            Path javadoc = singleJar(argument.folder(), inv.getProperty(prefix + ".documentation"), prefix, "documentation", false, inventoryFile);
             String version = inv.getProperty(prefix + ".version");
             Path target = version == null
                     ? context.next().resolve(moduleName)
@@ -65,12 +65,60 @@ public class ModularStaging implements BuildStep {
         throw new IllegalStateException("Inventory contains no prefixed keys: " + file);
     }
 
-    private static Path resolve(Path base, String relative) {
-        if (relative == null) {
+    private static Path singleJar(Path base,
+                                  String value,
+                                  String prefix,
+                                  String kind,
+                                  boolean required,
+                                  Path inventoryFile) {
+        if (value == null || value.isEmpty()) {
+            if (required) {
+                throw new IllegalStateException("Missing '"
+                        + prefix
+                        + "."
+                        + kind
+                        + "' in inventory: "
+                        + inventoryFile);
+            }
             return null;
         }
-        Path resolved = base.resolve(relative).normalize();
-        return Files.isRegularFile(resolved) ? resolved : null;
+        List<Path> jars = new ArrayList<>();
+        for (String entry : value.split(",")) {
+            String trimmed = entry.trim();
+            if (trimmed.isEmpty() || !trimmed.endsWith(".jar")) {
+                continue;
+            }
+            Path candidate = base.resolve(trimmed).normalize();
+            if (Files.isRegularFile(candidate)) {
+                jars.add(candidate);
+            }
+        }
+        if (jars.isEmpty()) {
+            if (required) {
+                throw new IllegalStateException("No '.jar' file listed in '"
+                        + prefix
+                        + "."
+                        + kind
+                        + "' (value: "
+                        + value
+                        + ") in inventory: "
+                        + inventoryFile);
+            }
+            return null;
+        }
+        if (jars.size() > 1) {
+            throw new IllegalStateException((required ? "Expected exactly one '.jar' in '" : "Expected at most one '.jar' in '")
+                    + prefix
+                    + "."
+                    + kind
+                    + "', got "
+                    + jars.size()
+                    + " ("
+                    + jars
+                    + ") in inventory: "
+                    + inventoryFile);
+        }
+        return jars.getFirst();
     }
 
     private static void link(Path source, Path target) throws IOException {

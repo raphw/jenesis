@@ -44,8 +44,8 @@ public class InventoryTest {
                 Files.createDirectory(produce.resolve("documentation")).resolve("javadoc.jar"), "doc");
         Path pom = Files.writeString(produce.resolve("pom.xml"), "<project/>");
         Path runtime = Files.createDirectory(root.resolve("runtime"));
-        Path runtimeArtifacts = Files.createDirectory(runtime.resolve("artifacts"));
-        Path lib = Files.writeString(runtimeArtifacts.resolve("lib.jar"), "library");
+        Path runtimeDeps = Files.createDirectory(runtime.resolve("dependencies"));
+        Path lib = Files.writeString(runtimeDeps.resolve("lib.jar"), "library");
 
         BuildStepResult result = run(args("manifests", manifests, "produce", produce, "runtime", runtime));
 
@@ -54,9 +54,9 @@ public class InventoryTest {
         assertThat(inventory.getProperty("module-foo.mainClass")).isEqualTo("com.example.Foo");
         assertThat(inventory.getProperty("module-foo.module")).isEqualTo("com.example.foo");
         assertThat(inventory.getProperty("module-foo.version")).isEqualTo("1.2.3");
-        assertThat(inventory.getProperty("module-foo.artifact")).isEqualTo(relativize(classes));
-        assertThat(inventory.getProperty("module-foo.artifact.sources")).isEqualTo(relativize(sources));
-        assertThat(inventory.getProperty("module-foo.artifact.javadoc")).isEqualTo(relativize(javadoc));
+        assertThat(inventory.getProperty("module-foo.artifacts")).isEqualTo(relativize(classes));
+        assertThat(inventory.getProperty("module-foo.sources")).isEqualTo(relativize(sources));
+        assertThat(inventory.getProperty("module-foo.documentation")).isEqualTo(relativize(javadoc));
         assertThat(inventory.getProperty("module-foo.pom")).isEqualTo(relativize(pom));
         assertThat(inventory.getProperty("module-foo.runtime").split(",")).containsExactly(
                 relativize(classes),
@@ -149,36 +149,17 @@ public class InventoryTest {
     }
 
     @Test
-    public void falls_back_to_identity_for_artifact_when_no_produced_classes_jar() throws IOException {
-        Path manifests = Files.createDirectory(root.resolve("manifests"));
-        SequencedProperties module = new SequencedProperties();
-        module.setProperty("path", "foo");
-        module.store(manifests.resolve(BuildStep.MODULE));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        Path artifact = Files.writeString(assign.resolve("custom.jar"), "x");
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("foo/coord", assign.relativize(artifact).toString().replace(File.separatorChar, '/'));
-        identity.store(assign.resolve(BuildStep.IDENTITY));
-
-        run(args("manifests", manifests, "assign", assign));
-
-        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("module-foo.artifact")).isEqualTo(relativize(artifact));
-        assertThat(inventory.getProperty("module-foo.runtime")).isEqualTo(relativize(artifact));
-    }
-
-    @Test
-    public void combines_dependency_artifacts_from_multiple_dirs() throws IOException {
+    public void combines_dependency_jars_from_multiple_dirs() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();
         module.setProperty("path", "foo");
         module.store(manifests.resolve(BuildStep.MODULE));
         Path firstDeps = Files.createDirectory(root.resolve("first"));
-        Path firstArtifacts = Files.createDirectory(firstDeps.resolve("artifacts"));
-        Path libA = Files.writeString(firstArtifacts.resolve("a.jar"), "a");
+        Path firstDir = Files.createDirectory(firstDeps.resolve("dependencies"));
+        Path libA = Files.writeString(firstDir.resolve("a.jar"), "a");
         Path secondDeps = Files.createDirectory(root.resolve("second"));
-        Path secondArtifacts = Files.createDirectory(secondDeps.resolve("artifacts"));
-        Path libB = Files.writeString(secondArtifacts.resolve("b.jar"), "b");
+        Path secondDir = Files.createDirectory(secondDeps.resolve("dependencies"));
+        Path libB = Files.writeString(secondDir.resolve("b.jar"), "b");
 
         run(args("manifests", manifests, "first", firstDeps, "second", secondDeps));
 
@@ -193,22 +174,6 @@ public class InventoryTest {
         Path empty = Files.createDirectory(root.resolve("empty"));
         BuildStepResult result = run(args("empty", empty));
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(Inventory.INVENTORY)).doesNotExist();
-    }
-
-    @Test
-    public void skips_identity_when_main_artifact_missing() throws IOException {
-        Path manifests = Files.createDirectory(root.resolve("manifests"));
-        SequencedProperties module = new SequencedProperties();
-        module.setProperty("path", "foo");
-        module.store(manifests.resolve(BuildStep.MODULE));
-        Path assign = Files.createDirectory(root.resolve("assign"));
-        SequencedProperties identity = new SequencedProperties();
-        identity.setProperty("foo/coord", "missing.jar");
-        identity.store(assign.resolve(BuildStep.IDENTITY));
-
-        run(args("manifests", manifests, "assign", assign));
-
         assertThat(next.resolve(Inventory.INVENTORY)).doesNotExist();
     }
 

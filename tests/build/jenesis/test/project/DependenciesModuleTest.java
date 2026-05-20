@@ -45,7 +45,7 @@ public class DependenciesModuleTest {
         assertThat(resolved.stringPropertyNames()).containsExactly("foo/bar");
         assertThat(resolved.getProperty("foo/bar")).isEqualTo("");
         assertThat(steps.get("output/artifacts")
-                .resolve(BuildStep.ARTIFACTS)
+                .resolve(BuildStep.DEPENDENCIES)
                 .resolve("foo-bar.jar")).content().isEqualTo("bar");
     }
 

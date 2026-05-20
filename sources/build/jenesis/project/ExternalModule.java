@@ -80,7 +80,7 @@ public class ExternalModule implements BuildExecutorModule {
                 COORDINATE);
         buildExecutor.addStep(EXTERNAL, new ExtractExternal(coordinate), EXTERNAL_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
-            Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
+            Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
             SequencedProperties properties = SequencedProperties.ofFiles(
                     delegated.get(PREVIOUS + EXTERNAL).resolve(EXTERNAL_PROPERTIES));
             String name = properties.getProperty(JENESIS_MODULE);
@@ -147,7 +147,7 @@ public class ExternalModule implements BuildExecutorModule {
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            Path artifacts = arguments.get(EXTERNAL_ARTIFACTS).folder().resolve(BuildStep.ARTIFACTS);
+            Path artifacts = arguments.get(EXTERNAL_ARTIFACTS).folder().resolve(BuildStep.DEPENDENCIES);
             String name;
             try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(
                     artifacts.resolve(coordinate.replace('/', '-') + ".jar")))) {

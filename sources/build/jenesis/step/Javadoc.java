@@ -36,19 +36,21 @@ public class Javadoc extends JdkProcessBuildStep {
                 "-tag", "main:X"));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(BuildStep.SOURCES),
-                    classes = argument.folder().resolve(BuildStep.CLASSES),
-                    artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+                    classes = argument.folder().resolve(BuildStep.CLASSES);
             if (Files.exists(classes)) {
                 path.add(classes.toString());
             }
-            if (Files.exists(artifacts)) {
-                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        path.add(file.toString());
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
+            for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
+                Path jars = argument.folder().resolve(jarFolder);
+                if (Files.exists(jars)) {
+                    Files.walkFileTree(jars, new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            path.add(file.toString());
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+                }
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new SimpleFileVisitor<>() {

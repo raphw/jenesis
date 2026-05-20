@@ -245,7 +245,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         writeAutomaticJar(artifacts, "maven-com.example-bar-1.2.3.jar", "com.example.bar");
         writeAutomaticJar(artifacts, "module-baz-2.0.0.jar", "com.example.baz");
         writeRequires(new LinkedHashMap<>(Map.of(
@@ -264,7 +264,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         writeAutomaticJar(artifacts, "module-build.jenesis.jar", "build.jenesis");
         writeAutomaticJar(artifacts, "module-other-1.0.0.jar", "other.module");
         writeRequires(new LinkedHashMap<>(Map.of(
@@ -283,7 +283,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         Path jar = artifacts.resolve("module-bar-1.2.3.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
@@ -325,7 +325,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         writeAutomaticJar(artifacts, "module-internal-1.0.0.jar", "internal.module");
         writeAutomaticJar(artifacts, "module-external-2.0.0.jar", "external.module");
         writeRequires(new LinkedHashMap<>(Map.of(

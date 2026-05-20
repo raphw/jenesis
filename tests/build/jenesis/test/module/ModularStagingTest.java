@@ -31,9 +31,9 @@ public class ModularStagingTest {
     public void stages_module_jars_under_module_directory() throws IOException {
         Path inv = inventory("jenesis", "build.jenesis", null, null,
                 "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(inv.resolve("classes.jar"), "classes-bytes");
-        Files.writeString(inv.resolve("sources.jar"), "sources-bytes");
-        Files.writeString(inv.resolve("javadoc.jar"), "javadoc-bytes");
+        writeArtifact(inv, "classes.jar", "classes-bytes");
+        writeArtifact(inv, "sources.jar", "sources-bytes");
+        writeArtifact(inv, "javadoc.jar", "javadoc-bytes");
 
         BuildStepResult result = run(false, inv);
 
@@ -47,9 +47,9 @@ public class ModularStagingTest {
     public void inserts_version_segment_when_inventory_version_is_set() throws IOException {
         Path inv = inventory("jenesis", "build.jenesis", null, "1.0.0",
                 "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(inv.resolve("classes.jar"), "c");
-        Files.writeString(inv.resolve("sources.jar"), "s");
-        Files.writeString(inv.resolve("javadoc.jar"), "j");
+        writeArtifact(inv, "classes.jar", "c");
+        writeArtifact(inv, "sources.jar", "s");
+        writeArtifact(inv, "javadoc.jar", "j");
 
         run(false, inv);
 
@@ -61,9 +61,9 @@ public class ModularStagingTest {
     @Test
     public void preserves_each_module_as_its_own_directory() throws IOException {
         Path foo = inventory("foo", "com.example.foo", null, null, "classes.jar");
-        Files.writeString(foo.resolve("classes.jar"), "foo-bytes");
+        writeArtifact(foo, "classes.jar", "foo-bytes");
         Path bar = inventory("bar", "com.example.bar", null, null, "classes.jar");
-        Files.writeString(bar.resolve("classes.jar"), "bar-bytes");
+        writeArtifact(bar, "classes.jar", "bar-bytes");
 
         run(false, foo, bar);
 
@@ -74,12 +74,12 @@ public class ModularStagingTest {
     @Test
     public void default_omits_test_modules() throws IOException {
         Path main = inventory("foo", "foo", null, null, "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = inventory("foo-test", "foo.test", "foo", null,
                 "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(test.resolve("classes.jar"), "test-classes");
-        Files.writeString(test.resolve("sources.jar"), "test-sources");
-        Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
+        writeArtifact(test, "classes.jar", "test-classes");
+        writeArtifact(test, "sources.jar", "test-sources");
+        writeArtifact(test, "javadoc.jar", "test-javadoc");
 
         run(false, main, test);
 
@@ -91,9 +91,9 @@ public class ModularStagingTest {
     public void include_tests_emits_test_module_files_under_their_module_name() throws IOException {
         Path test = inventory("foo-test", "foo.test", "foo", null,
                 "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(test.resolve("classes.jar"), "test-classes");
-        Files.writeString(test.resolve("sources.jar"), "test-sources");
-        Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
+        writeArtifact(test, "classes.jar", "test-classes");
+        writeArtifact(test, "sources.jar", "test-sources");
+        writeArtifact(test, "javadoc.jar", "test-javadoc");
 
         run(true, test);
 
@@ -105,7 +105,7 @@ public class ModularStagingTest {
     @Test
     public void arguments_without_inventory_are_skipped() throws IOException {
         Path stray = Files.createDirectory(source.resolve("stray"));
-        Files.writeString(stray.resolve("classes.jar"), "stray");
+        writeArtifact(stray, "classes.jar", "stray");
 
         BuildStepResult result = run(false, stray);
 
@@ -119,9 +119,9 @@ public class ModularStagingTest {
     public void module_property_missing_throws() throws IOException {
         Path folder = Files.createDirectory(source.resolve("foo"));
         SequencedProperties props = new SequencedProperties();
-        props.setProperty("module-foo.artifact", "classes.jar");
+        props.setProperty("module-foo.artifacts", "artifacts/classes.jar");
         props.store(folder.resolve(Inventory.INVENTORY));
-        Files.writeString(folder.resolve("classes.jar"), "c");
+        writeArtifact(folder, "classes.jar", "c");
 
         assertThatThrownBy(() -> run(false, folder))
                 .isInstanceOf(IllegalStateException.class)
@@ -131,7 +131,7 @@ public class ModularStagingTest {
     @Test
     public void only_existing_artifacts_are_linked() throws IOException {
         Path inv = inventory("foo", "foo", null, null, "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(inv.resolve("classes.jar"), "c");
+        writeArtifact(inv, "classes.jar", "c");
 
         run(false, inv);
 
@@ -157,14 +157,28 @@ public class ModularStagingTest {
         }
         for (String artifactFile : artifactFiles) {
             switch (artifactFile) {
-                case "classes.jar" -> inventory.setProperty(prefix + ".artifact", artifactFile);
-                case "sources.jar" -> inventory.setProperty(prefix + ".artifact.sources", artifactFile);
-                case "javadoc.jar" -> inventory.setProperty(prefix + ".artifact.javadoc", artifactFile);
+                case "classes.jar" -> inventory.setProperty(prefix + ".artifacts", "artifacts/" + artifactFile);
+                case "sources.jar" -> inventory.setProperty(prefix + ".sources", "sources/" + artifactFile);
+                case "javadoc.jar" -> inventory.setProperty(prefix + ".documentation", "documentation/" + artifactFile);
                 default -> throw new IllegalArgumentException("Unknown artifact file: " + artifactFile);
             }
         }
         inventory.store(folder.resolve(Inventory.INVENTORY));
         return folder;
+    }
+
+    private static Path writeArtifact(Path folder, String filename, String content) throws IOException {
+        String subdir = switch (filename) {
+            case "classes.jar" -> "artifacts";
+            case "sources.jar" -> "sources";
+            case "javadoc.jar" -> "documentation";
+            default -> throw new IllegalArgumentException("Unknown artifact: " + filename);
+        };
+        Path dir = folder.resolve(subdir);
+        if (!Files.isDirectory(dir)) {
+            Files.createDirectories(dir);
+        }
+        return Files.writeString(dir.resolve(filename), content);
     }
 
     private BuildStepResult run(boolean includeTests, Path... inventoryFolders) throws IOException {

@@ -141,7 +141,7 @@ public class PinPom implements BuildStep {
                                           HashDigestFunction hashFunction) throws IOException {
         String filename = coordinate.replace('/', '-') + ".jar";
         for (BuildStepArgument argument : arguments) {
-            Path jar = argument.folder().resolve(BuildStep.ARTIFACTS).resolve(filename);
+            Path jar = argument.folder().resolve(BuildStep.DEPENDENCIES).resolve(filename);
             if (Files.isRegularFile(jar)) {
                 return hashFunction.algorithm() + "/" + HexFormat.of().formatHex(hashFunction.hash(jar));
             }

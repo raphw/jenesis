@@ -68,23 +68,25 @@ public interface TestEngine extends Serializable {
     private static List<Attributes> scanManifests(Iterable<Path> folders) throws IOException {
         List<Attributes> manifests = new ArrayList<>();
         for (Path folder : folders) {
-            Path artifacts = folder.resolve(BuildStep.ARTIFACTS);
-            if (!Files.exists(artifacts)) {
-                continue;
-            }
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
-                for (Path file : stream) {
-                    if (!Files.isRegularFile(file)) {
-                        continue;
-                    }
-                    try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(file))) {
-                        Manifest manifest = jarStream.getManifest();
-                        if (manifest != null) {
-                            manifests.add(manifest.getMainAttributes());
+            for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
+                Path jars = folder.resolve(jarFolder);
+                if (!Files.exists(jars)) {
+                    continue;
+                }
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(jars)) {
+                    for (Path file : stream) {
+                        if (!Files.isRegularFile(file)) {
+                            continue;
                         }
-                    } catch (IOException e) {
-                        throw e;
-                    } catch (Exception _) {
+                        try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(file))) {
+                            Manifest manifest = jarStream.getManifest();
+                            if (manifest != null) {
+                                manifests.add(manifest.getMainAttributes());
+                            }
+                        } catch (IOException e) {
+                            throw e;
+                        } catch (Exception _) {
+                        }
                     }
                 }
             }

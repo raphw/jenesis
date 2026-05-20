@@ -227,7 +227,7 @@ public class ModularProjectTest {
         assertThat(fooInventory.getProperty("module-foo.module")).isEqualTo("foo");
         assertThat(fooInventory.getProperty("module-foo.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(fooInventory.getProperty("module-foo.artifact"))
+        assertThat(fooInventory.getProperty("module-foo.artifacts"))
                 .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/inventory")
@@ -235,7 +235,7 @@ public class ModularProjectTest {
         assertThat(barInventory.getProperty("module-bar.module")).isEqualTo("bar");
         assertThat(barInventory.getProperty("module-bar.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(barInventory.getProperty("module-bar.artifact"))
+        assertThat(barInventory.getProperty("module-bar.artifacts"))
                 .endsWith("/classes.jar");
     }
 

@@ -265,7 +265,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.ARTIFACTS));
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         Path jar = artifacts.resolve("maven-org.example-dep-1.0.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);

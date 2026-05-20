@@ -31,12 +31,12 @@ public class Download implements DependencyProcessingBuildStep {
                                                           SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        Path libs = Files.createDirectory(context.next().resolve(ARTIFACTS));
+        Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
             for (Map.Entry<String, String> entry : group.getValue().entrySet()) {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
-                Path previous = context.previous() == null ? null : context.previous().resolve(ARTIFACTS + name);
+                Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
                     if (requireChecksums) {
                         throw new IllegalStateException(
@@ -56,7 +56,7 @@ public class Download implements DependencyProcessingBuildStep {
                                         Files.copy(inputStream, libs.resolve(name));
                                     }
                                 } else {
-                                    Files.createLink(context.next().resolve(ARTIFACTS + name), file);
+                                    Files.createLink(context.next().resolve(DEPENDENCIES + name), file);
                                 }
                                 future.complete(null);
                             } catch (Throwable t) {
@@ -103,7 +103,7 @@ public class Download implements DependencyProcessingBuildStep {
                                 }
                             } else {
                                 if (validateFile(digest, file, checksum)) {
-                                    Files.createLink(context.next().resolve(ARTIFACTS + name), file);
+                                    Files.createLink(context.next().resolve(DEPENDENCIES + name), file);
                                 } else {
                                     throw new IllegalStateException("Mismatched digest for " + dependency);
                                 }

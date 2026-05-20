@@ -514,14 +514,14 @@ public class MavenProjectTest {
                 .resolve("inventory.properties"));
         assertThat(fooInventory.getProperty("module-foo.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(fooInventory.getProperty("module-foo.artifact"))
+        assertThat(fooInventory.getProperty("module-foo.artifacts"))
                 .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-bar/inventory")
                 .resolve("inventory.properties"));
         assertThat(barInventory.getProperty("module-bar.runtime").split(","))
                 .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(barInventory.getProperty("module-bar.artifact"))
+        assertThat(barInventory.getProperty("module-bar.artifacts"))
                 .endsWith("/classes.jar");
     }
 

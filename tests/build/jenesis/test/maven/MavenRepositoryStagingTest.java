@@ -31,9 +31,9 @@ public class MavenRepositoryStagingTest {
     public void stages_main_module_jars_and_pom_at_canonical_path() throws IOException {
         Path inv = mainInventory("foo", "com.example", "foo", "1.2.3",
                 "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(inv.resolve("classes.jar"), "classes-bytes");
-        Files.writeString(inv.resolve("sources.jar"), "sources-bytes");
-        Files.writeString(inv.resolve("javadoc.jar"), "javadoc-bytes");
+        writeArtifact(inv, "classes.jar", "classes-bytes");
+        writeArtifact(inv, "sources.jar", "sources-bytes");
+        writeArtifact(inv, "javadoc.jar", "javadoc-bytes");
 
         BuildStepResult result = run(true, inv);
 
@@ -47,7 +47,7 @@ public class MavenRepositoryStagingTest {
     @Test
     public void only_existing_artifacts_are_linked() throws IOException {
         Path inv = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(inv.resolve("classes.jar"), "c");
+        writeArtifact(inv, "classes.jar", "c");
 
         run(true, inv);
 
@@ -59,7 +59,7 @@ public class MavenRepositoryStagingTest {
     @Test
     public void main_pom_is_unchanged_when_no_test_variants_exist() throws IOException {
         Path inv = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(inv.resolve("classes.jar"), "c");
+        writeArtifact(inv, "classes.jar", "c");
 
         run(true, inv);
 
@@ -71,13 +71,13 @@ public class MavenRepositoryStagingTest {
     @Test
     public void merges_test_variant_dependencies_into_main_pom_with_scope_test() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(
                         new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3"),
                         new Dep("org.assertj", "assertj-core", "3.27.0")),
                 "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         run(true, main, test);
 
@@ -91,13 +91,13 @@ public class MavenRepositoryStagingTest {
     @Test
     public void self_referencing_test_dependency_is_excluded_from_merge() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(
                         new Dep("com.example", "foo", "1.2.3"),
                         new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")),
                 "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         run(true, main, test);
 
@@ -110,13 +110,13 @@ public class MavenRepositoryStagingTest {
     @Test
     public void test_variant_jars_are_routed_to_main_coordinate_with_test_classifier() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(),
                 "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(test.resolve("classes.jar"), "test-classes");
-        Files.writeString(test.resolve("sources.jar"), "test-sources");
-        Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
+        writeArtifact(test, "classes.jar", "test-classes");
+        writeArtifact(test, "sources.jar", "test-sources");
+        writeArtifact(test, "javadoc.jar", "test-javadoc");
 
         run(true, main, test);
 
@@ -128,10 +128,10 @@ public class MavenRepositoryStagingTest {
     @Test
     public void test_variant_does_not_emit_a_separate_pom() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(), "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         run(true, main, test);
 
@@ -148,15 +148,15 @@ public class MavenRepositoryStagingTest {
     @Test
     public void test_variants_are_routed_to_their_declared_main() throws IOException {
         Path mainA = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(mainA.resolve("classes.jar"), "foo-main");
+        writeArtifact(mainA, "classes.jar", "foo-main");
         Path mainB = mainInventory("bar", "com.example", "bar", "1.2.3", "classes.jar");
-        Files.writeString(mainB.resolve("classes.jar"), "bar-main");
+        writeArtifact(mainB, "classes.jar", "bar-main");
         Path testA = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")), "classes.jar");
-        Files.writeString(testA.resolve("classes.jar"), "foo-test");
+        writeArtifact(testA, "classes.jar", "foo-test");
         Path testB = testInventory("bar-test", "com.example", "bar.test", "1.2.3", "bar",
                 List.of(new Dep("org.assertj", "assertj-core", "3.27.0")), "classes.jar");
-        Files.writeString(testB.resolve("classes.jar"), "bar-test");
+        writeArtifact(testB, "classes.jar", "bar-test");
 
         run(true, mainA, mainB, testA, testB);
 
@@ -173,13 +173,13 @@ public class MavenRepositoryStagingTest {
     @Test
     public void two_tests_for_the_same_main_fail_loudly() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path testA = testInventory("foo-test-a", "com.example", "foo.test.a", "1.2.3", "foo",
                 List.of(), "classes.jar");
-        Files.writeString(testA.resolve("classes.jar"), "test-a");
+        writeArtifact(testA, "classes.jar", "test-a");
         Path testB = testInventory("foo-test-b", "com.example", "foo.test.b", "1.2.3", "foo",
                 List.of(), "classes.jar");
-        Files.writeString(testB.resolve("classes.jar"), "test-b");
+        writeArtifact(testB, "classes.jar", "test-b");
 
         assertThatThrownBy(() -> run(true, main, testA, testB))
                 .isInstanceOf(IllegalStateException.class)
@@ -192,10 +192,10 @@ public class MavenRepositoryStagingTest {
     @Test
     public void test_referencing_unknown_main_fails_loudly() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "typo",
                 List.of(), "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         assertThatThrownBy(() -> run(true, main, test))
                 .isInstanceOf(IllegalStateException.class)
@@ -208,7 +208,7 @@ public class MavenRepositoryStagingTest {
     public void bare_test_with_no_main_present_fails_loudly() throws IOException {
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "",
                 List.of(), "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         assertThatThrownBy(() -> run(true, test))
                 .isInstanceOf(IllegalStateException.class)
@@ -220,12 +220,12 @@ public class MavenRepositoryStagingTest {
     @Test
     public void bare_test_with_multiple_mains_fails_loudly() throws IOException {
         Path mainA = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(mainA.resolve("classes.jar"), "foo-main");
+        writeArtifact(mainA, "classes.jar", "foo-main");
         Path mainB = mainInventory("bar", "com.example", "bar", "1.2.3", "classes.jar");
-        Files.writeString(mainB.resolve("classes.jar"), "bar-main");
+        writeArtifact(mainB, "classes.jar", "bar-main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "",
                 List.of(), "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         assertThatThrownBy(() -> run(true, mainA, mainB, test))
                 .isInstanceOf(IllegalStateException.class)
@@ -239,9 +239,9 @@ public class MavenRepositoryStagingTest {
     @Test
     public void duplicate_main_artifact_ids_fail_loudly() throws IOException {
         Path mainA = mainInventory("foo-a", "com.example.a", "foo", "1.2.3", "classes.jar");
-        Files.writeString(mainA.resolve("classes.jar"), "foo-a");
+        writeArtifact(mainA, "classes.jar", "foo-a");
         Path mainB = mainInventory("foo-b", "com.example.b", "foo", "1.2.3", "classes.jar");
-        Files.writeString(mainB.resolve("classes.jar"), "foo-b");
+        writeArtifact(mainB, "classes.jar", "foo-b");
 
         assertThatThrownBy(() -> run(true, mainA, mainB))
                 .isInstanceOf(IllegalStateException.class)
@@ -256,13 +256,13 @@ public class MavenRepositoryStagingTest {
     public void test_dependency_already_declared_in_main_pom_is_not_re_added_with_test_scope() throws IOException {
         Path main = mainInventoryWithDeps("foo", "com.example", "foo", "1.2.3",
                 List.of(new Dep("org.slf4j", "slf4j-api", "2.0.9")), "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(
                         new Dep("org.slf4j", "slf4j-api", "2.0.9"),
                         new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")),
                 "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         run(true, main, test);
 
@@ -277,12 +277,12 @@ public class MavenRepositoryStagingTest {
     @Test
     public void default_does_not_stage_test_artifacts() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(), "classes.jar", "sources.jar", "javadoc.jar");
-        Files.writeString(test.resolve("classes.jar"), "test-classes");
-        Files.writeString(test.resolve("sources.jar"), "test-sources");
-        Files.writeString(test.resolve("javadoc.jar"), "test-javadoc");
+        writeArtifact(test, "classes.jar", "test-classes");
+        writeArtifact(test, "sources.jar", "test-sources");
+        writeArtifact(test, "javadoc.jar", "test-javadoc");
 
         run(false, main, test);
 
@@ -295,10 +295,10 @@ public class MavenRepositoryStagingTest {
     @Test
     public void default_does_not_merge_test_dependencies_into_main_pom() throws IOException {
         Path main = mainInventory("foo", "com.example", "foo", "1.2.3", "classes.jar");
-        Files.writeString(main.resolve("classes.jar"), "main");
+        writeArtifact(main, "classes.jar", "main");
         Path test = testInventory("foo-test", "com.example", "foo.test", "1.2.3", "foo",
                 List.of(new Dep("org.junit.jupiter", "junit-jupiter", "5.11.3")), "classes.jar");
-        Files.writeString(test.resolve("classes.jar"), "test");
+        writeArtifact(test, "classes.jar", "test");
 
         run(false, main, test);
 
@@ -310,7 +310,7 @@ public class MavenRepositoryStagingTest {
     @Test
     public void arguments_without_inventory_are_skipped() throws IOException {
         Path stray = Files.createDirectory(source.resolve("stray"));
-        Files.writeString(stray.resolve("classes.jar"), "stray");
+        writeArtifact(stray, "classes.jar", "stray");
 
         BuildStepResult result = run(true, stray);
 
@@ -361,9 +361,9 @@ public class MavenRepositoryStagingTest {
         inventory.setProperty(prefix + ".pom", "pom.xml");
         for (String artifactFile : artifactFiles) {
             switch (artifactFile) {
-                case "classes.jar" -> inventory.setProperty(prefix + ".artifact", artifactFile);
-                case "sources.jar" -> inventory.setProperty(prefix + ".artifact.sources", artifactFile);
-                case "javadoc.jar" -> inventory.setProperty(prefix + ".artifact.javadoc", artifactFile);
+                case "classes.jar" -> inventory.setProperty(prefix + ".artifacts", "artifacts/" + artifactFile);
+                case "sources.jar" -> inventory.setProperty(prefix + ".sources", "sources/" + artifactFile);
+                case "javadoc.jar" -> inventory.setProperty(prefix + ".documentation", "documentation/" + artifactFile);
                 default -> throw new IllegalArgumentException("Unknown artifact file: " + artifactFile);
             }
         }
@@ -372,6 +372,20 @@ public class MavenRepositoryStagingTest {
         }
         inventory.store(folder.resolve(Inventory.INVENTORY));
         return folder;
+    }
+
+    private static Path writeArtifact(Path folder, String filename, String content) throws IOException {
+        String subdir = switch (filename) {
+            case "classes.jar" -> "artifacts";
+            case "sources.jar" -> "sources";
+            case "javadoc.jar" -> "documentation";
+            default -> throw new IllegalArgumentException("Unknown artifact: " + filename);
+        };
+        Path dir = folder.resolve(subdir);
+        if (!Files.isDirectory(dir)) {
+            Files.createDirectories(dir);
+        }
+        return Files.writeString(dir.resolve(filename), content);
     }
 
     private BuildStepResult run(boolean includeTests, Path... inventoryFolders) throws IOException {

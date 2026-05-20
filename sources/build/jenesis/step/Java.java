@@ -83,29 +83,31 @@ public abstract class Java extends JdkProcessBuildStep {
                     }
                 }
             }
-            Path candidate = argument.folder().resolve(ARTIFACTS);
-            if (Files.exists(candidate)) {
-                Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        if (modular) {
-                            try (JarFile jar = new JarFile(file.toFile(),
-                                    true,
-                                    ZipFile.OPEN_READ,
-                                    Runtime.version())) { // TODO: multi-release?
-                                if (jar.getEntry("module-info.class") != null
-                                        || jar.getManifest() != null
-                                        && jar.getManifest().getMainAttributes().getValue("Automatic-Module-Name") != null) {
-                                    modulePath.add(file.toString());
-                                    return FileVisitResult.CONTINUE;
+            for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
+                Path candidate = argument.folder().resolve(jarFolder);
+                if (Files.exists(candidate)) {
+                    Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                            if (modular) {
+                                try (JarFile jar = new JarFile(file.toFile(),
+                                        true,
+                                        ZipFile.OPEN_READ,
+                                        Runtime.version())) { // TODO: multi-release?
+                                    if (jar.getEntry("module-info.class") != null
+                                            || jar.getManifest() != null
+                                            && jar.getManifest().getMainAttributes().getValue("Automatic-Module-Name") != null) {
+                                        modulePath.add(file.toString());
+                                        return FileVisitResult.CONTINUE;
+                                    }
+                                } catch (IllegalArgumentException _) {
                                 }
-                            } catch (IllegalArgumentException _) {
                             }
+                            classPath.add(file.toString());
+                            return FileVisitResult.CONTINUE;
                         }
-                        classPath.add(file.toString());
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
+                    });
+                }
             }
             SequencedMap<String, String> folders = properties.get(entry.getKey());
             if (folders != null) {

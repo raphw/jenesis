@@ -43,7 +43,7 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
@@ -72,7 +72,7 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
@@ -94,13 +94,13 @@ public class DownloadTest {
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .hasMessageContaining("Mismatched digest for foo/bar");
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run() throws IOException, NoSuchAlgorithmException {
         Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
+                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
@@ -116,8 +116,8 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(previous.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
     }
 
     @Test
@@ -135,7 +135,7 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
@@ -163,13 +163,13 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run_no_hash() throws IOException {
         Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
+                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
@@ -184,8 +184,8 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(previous.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
     }
 
     @Test
@@ -222,6 +222,6 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 }
