@@ -25,11 +25,16 @@ public class Group implements BuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument ->
+                argument.hasChanged(Path.of(IDENTITY), Path.of(requiresPath)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        // TODO: improve incremental resolve
         Map<String, Set<String>> from = new HashMap<>(), to = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             String name = identification.apply(entry.getKey()).orElse(null);

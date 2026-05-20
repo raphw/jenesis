@@ -11,6 +11,13 @@ import build.jenesis.SequencedProperties;
 public class Versions implements BuildStep {
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(REQUIRES),
+                Path.of(CLASSES)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)

@@ -25,11 +25,16 @@ public class Assign implements BuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument ->
+                argument.hasChanged(Path.of(ARTIFACTS), Path.of(IDENTITY)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        // TODO: improve incremental resolve
         SequencedProperties assignments = new SequencedProperties();
         SequencedSet<Path> files = new LinkedHashSet<>();
         for (BuildStepArgument argument : arguments.values()) {

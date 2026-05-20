@@ -13,6 +13,18 @@ public class Inventory implements BuildStep {
     public static final String POM = "pom.xml";
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(MODULE),
+                Path.of(METADATA),
+                Path.of(POM),
+                Path.of(ARTIFACTS),
+                Path.of(SOURCES),
+                Path.of(DOCUMENTATION),
+                Path.of(DEPENDENCIES)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)

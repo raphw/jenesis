@@ -11,11 +11,17 @@ import build.jenesis.SequencedProperties;
 public interface DependencyProcessingBuildStep extends BuildStep {
 
     @Override
+    default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(REQUIRES),
+                Path.of(VERSIONS)));
+    }
+
+    @Override
     default CompletionStage<BuildStepResult> apply(Executor executor,
                                                    BuildStepContext context,
                                                    SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        // TODO: improve incremental resolve
         SequencedMap<String, SequencedMap<String, String>> groups = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, String>> versions = new LinkedHashMap<>();
         Map<String, SequencedMap<String, SequencedMap<String, String>>> sources = new LinkedHashMap<>();

@@ -34,6 +34,14 @@ public class Pom implements BuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(REQUIRES),
+                Path.of(SCOPES),
+                Path.of(METADATA)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
