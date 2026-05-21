@@ -10,7 +10,7 @@ public class MavenPomResolver implements Resolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
-    private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
+    private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([^}]+)})");
     public static final String CHECKSUM_PREFIX = "Checksum/";
 
     private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
@@ -289,12 +289,14 @@ public class MavenPomResolver implements Resolver {
             UnresolvedPom pom = paths.get(module);
             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
             SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
-            pom.dependencies().forEach((key, value) -> dependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
             pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                     key.resolve(pom.properties()),
                     value.resolve(pom.properties())));
+            pom.dependencies().forEach((key, value) -> {
+                MavenDependencyKey resolvedKey = key.resolve(pom.properties());
+                dependencies.put(resolvedKey, merge(value.resolve(pom.properties()),
+                        managedDependencies.get(resolvedKey)));
+            });
             results.put(root.relativize(module), new MavenLocalPom(property(pom.groupId(), pom.properties()),
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),

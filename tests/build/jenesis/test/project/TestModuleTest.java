@@ -354,8 +354,8 @@ public class TestModuleTest {
         return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.REQUIRES));
     }
 
-    private static List<Path> bootModuleJars() {
-        List<Path> jars = new ArrayList<>();
+    private static List<Path> bootModuleJars() throws IOException {
+        Set<Path> jars = new LinkedHashSet<>();
         for (ResolvedModule resolved : ModuleLayer.boot().configuration().modules()) {
             String name = resolved.name();
             if (name.startsWith("java.") || name.startsWith("jdk.")) {
@@ -370,6 +370,21 @@ public class TestModuleTest {
                 jars.add(path);
             }
         }
-        return jars;
+        Enumeration<URL> manifests = ClassLoader.getSystemClassLoader().getResources("META-INF/MANIFEST.MF");
+        while (manifests.hasMoreElements()) {
+            String url = manifests.nextElement().toString();
+            if (!url.startsWith("jar:file:")) {
+                continue;
+            }
+            int bang = url.indexOf("!/");
+            if (bang < 0) {
+                continue;
+            }
+            Path path = Path.of(URI.create(url.substring("jar:".length(), bang)));
+            if (Files.isRegularFile(path)) {
+                jars.add(path);
+            }
+        }
+        return new ArrayList<>(jars);
     }
 }
