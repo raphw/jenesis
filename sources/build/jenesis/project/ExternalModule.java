@@ -73,27 +73,24 @@ public class ExternalModule implements BuildExecutorModule {
                     urls.add(file.toUri().toURL());
                 }
             }
-            URL mainArtifact = artifacts.resolve(coordinate.replace('/', '-') + ".jar").toUri().toURL();
+            URI mainArtifact = artifacts.resolve(coordinate.replace('/', '-') + ".jar").toUri();
             URLClassLoader classLoader = new URLClassLoader(
                     urls.toArray(URL[]::new),
                     BuildExecutorModule.class.getClassLoader());
-            URLClassLoader scanLoader = new URLClassLoader(
-                    new URL[] {mainArtifact},
-                    BuildExecutorModule.class.getClassLoader());
             BuildExecutorModule delegate;
             try {
-                String name = ServiceLoader
-                        .load(BuildExecutorModule.class, scanLoader)
+                delegate = ServiceLoader
+                        .load(BuildExecutorModule.class, classLoader)
                         .stream()
+                        .filter(provider -> URI.create(provider.type()
+                                .getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation()
+                                .toString()).equals(mainArtifact))
                         .findFirst()
                         .orElseThrow(() -> new IllegalStateException(
                                 "No BuildExecutorModule service provider found for " + coordinate))
-                        .type()
-                        .getName();
-                delegate = Class.forName(name, true, classLoader)
-                        .asSubclass(BuildExecutorModule.class)
-                        .getConstructor()
-                        .newInstance();
+                        .get();
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }
