@@ -75,10 +75,15 @@ class JenesisClassLoaderBridge {
     }
 
     Object findProvider() {
-        return ServiceLoader.load(layer, foreignBuildExecutorModule)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "No BuildExecutorModule service provider found in layer"));
+        Iterator<?> providers = ServiceLoader.load(layer, foreignBuildExecutorModule).iterator();
+        if (!providers.hasNext()) {
+            throw new IllegalStateException("No BuildExecutorModule service provider found in layer");
+        }
+        Object provider = providers.next();
+        if (providers.hasNext()) {
+            throw new IllegalStateException("Multiple BuildExecutorModule service providers found in layer");
+        }
+        return provider;
     }
 
     void accept(Object foreignModule, BuildExecutor hostExecutor, SequencedMap<String, Path> inherited) throws IOException {
