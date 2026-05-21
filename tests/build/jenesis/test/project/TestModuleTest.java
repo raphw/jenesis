@@ -30,20 +30,15 @@ public class TestModuleTest {
     public void setUp() throws Exception {
         Path artifacts = Files.createDirectory(dependencies.resolve(BuildStep.ARTIFACTS));
         Files.createDirectory(emptyDependencies.resolve(BuildStep.ARTIFACTS));
-        List<String> elements = new ArrayList<>();
-        elements.addAll(Arrays.asList(System.getProperty("java.class.path", "").split(File.pathSeparator)));
-        elements.addAll(Arrays.asList(System.getProperty("jdk.module.path", "").split(File.pathSeparator)));
         List<String> appended = new ArrayList<>();
-        for (String element : elements) {
-            if (element.endsWith("_rt.jar") || element.endsWith("-rt.jar")) {
+        for (Path path : bootModuleJars()) {
+            String fileName = path.getFileName().toString();
+            if (fileName.endsWith("_rt.jar") || fileName.endsWith("-rt.jar")) {
                 continue;
             }
-            Path path = Path.of(element);
-            if (Files.isRegularFile(path)) {
-                String name = path.getFileName().toFile() + "-" + UUID.randomUUID() + ".jar";
-                appended.add(name);
-                Files.copy(path, artifacts.resolve(name));
-            }
+            String name = fileName + "-" + UUID.randomUUID() + ".jar";
+            appended.add(name);
+            Files.copy(path, artifacts.resolve(name));
         }
         try (InputStream input = TestSample.class.getResourceAsStream(TestSample.class.getSimpleName() + ".class");
              OutputStream output = Files.newOutputStream(Files
@@ -357,5 +352,24 @@ public class TestModuleTest {
 
     private static SequencedProperties readRequires(Path stepFolder) throws IOException {
         return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.REQUIRES));
+    }
+
+    private static List<Path> bootModuleJars() {
+        List<Path> jars = new ArrayList<>();
+        for (ResolvedModule resolved : ModuleLayer.boot().configuration().modules()) {
+            String name = resolved.name();
+            if (name.startsWith("java.") || name.startsWith("jdk.")) {
+                continue;
+            }
+            URI location = resolved.reference().location().orElse(null);
+            if (location == null) {
+                continue;
+            }
+            Path path = Path.of(location);
+            if (Files.isRegularFile(path)) {
+                jars.add(path);
+            }
+        }
+        return jars;
     }
 }
