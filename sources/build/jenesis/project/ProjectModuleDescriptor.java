@@ -6,35 +6,28 @@ import build.jenesis.BuildExecutorModule;
 public class ProjectModuleDescriptor implements ModuleDescriptor {
 
     private final ModuleDescriptor base;
-    private final boolean tests;
+    private final boolean test;
     private final boolean source;
     private final boolean documentation;
     private final boolean strictPinning;
     private final int depth;
 
     public ProjectModuleDescriptor(ModuleDescriptor base,
-                                   boolean tests,
-                                   boolean source,
-                                   boolean documentation) {
-        this(base, tests, source, documentation, false, 0);
-    }
-
-    public ProjectModuleDescriptor(ModuleDescriptor base,
-                                   boolean tests,
+                                   boolean test,
                                    boolean source,
                                    boolean documentation,
                                    boolean strictPinning) {
-        this(base, tests, source, documentation, strictPinning, 0);
+        this(base, test, source, documentation, strictPinning, 0);
     }
 
     private ProjectModuleDescriptor(ModuleDescriptor base,
-                                    boolean tests,
+                                    boolean test,
                                     boolean source,
                                     boolean documentation,
                                     boolean strictPinning,
                                     int depth) {
         this.base = base;
-        this.tests = tests;
+        this.test = test;
         this.source = source;
         this.documentation = documentation;
         this.strictPinning = strictPinning;
@@ -42,11 +35,11 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     }
 
     public ProjectModuleDescriptor toInherited() {
-        return new ProjectModuleDescriptor(base, tests, source, documentation, strictPinning, depth + 1);
+        return new ProjectModuleDescriptor(base, test, source, documentation, strictPinning, depth + 1);
     }
 
-    public boolean tests() {
-        return tests;
+    public boolean test() {
+        return test;
     }
 
     public boolean source() {

@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
@@ -34,7 +33,7 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
                     descriptor.resolved(DependencyScope.RUNTIME),
                     descriptor.artifacts(DependencyScope.COMPILE),
                     descriptor.artifacts(DependencyScope.RUNTIME));
-            if (descriptor.tests()) {
+            if (descriptor.test()) {
                 Path module = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
                 if (Files.isRegularFile(module)) {
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
