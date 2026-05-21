@@ -17,4 +17,6 @@ module build.jenesis {
     exports build.jenesis.module;
     exports build.jenesis.project;
     exports build.jenesis.step;
+
+    uses build.jenesis.BuildExecutorModule;
 }

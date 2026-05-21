@@ -45,9 +45,17 @@ class JenesisClassLoaderBridge {
         }
         Configuration config = ModuleLayer.boot().configuration()
                 .resolveAndBind(finder, ModuleFinder.of(), roots);
-        layer = ModuleLayer.boot().defineModulesWithOneLoader(config, ClassLoader.getPlatformClassLoader());
+        ModuleLayer.Controller controller = ModuleLayer.defineModulesWithOneLoader(
+                config, List.of(ModuleLayer.boot()), ClassLoader.getPlatformClassLoader());
+        layer = controller.layer();
         loader = layer.findLoader(roots.iterator().next());
-
+        Module hostModule = JenesisClassLoaderBridge.class.getModule();
+        Module foreignJenesis = layer.findModule(BuildExecutor.class.getModule().getName()).orElseThrow(
+                () -> new IllegalStateException("Foreign module not found: " + BuildExecutor.class.getModule().getName()));
+        for (Module foreignModule : layer.modules()) {
+            hostModule.addReads(foreignModule);
+        }
+        controller.addOpens(foreignJenesis, BuildExecutor.class.getPackageName(), hostModule);
         foreignBuildExecutor = Class.forName(BuildExecutor.class.getName(), false, loader);
         foreignBuildExecutorModule = Class.forName(BuildExecutorModule.class.getName(), false, loader);
         Class<?> foreignBuildStep = Class.forName(BuildStep.class.getName(), false, loader);
@@ -55,27 +63,23 @@ class JenesisClassLoaderBridge {
         Class<?> foreignBuildStepArgument = Class.forName(BuildStepArgument.class.getName(), false, loader);
         Class<?> foreignBuildStepResult = Class.forName(BuildStepResult.class.getName(), false, loader);
         Class<?> foreignChecksumStatus = Class.forName(ChecksumStatus.class.getName(), false, loader);
-
-        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(foreignBuildExecutorModule, MethodHandles.lookup());
         foreignAccept = lookup.findVirtual(foreignBuildExecutorModule, "accept",
                 MethodType.methodType(void.class, foreignBuildExecutor, SequencedMap.class));
         foreignApply = lookup.findVirtual(foreignBuildStep, "apply",
                 MethodType.methodType(CompletionStage.class, Executor.class, foreignBuildStepContext, SequencedMap.class));
         foreignShouldRun = lookup.findVirtual(foreignBuildStep, "shouldRun",
                 MethodType.methodType(boolean.class, SequencedMap.class));
-
         foreignContextCtor = lookup.findConstructor(foreignBuildStepContext,
                 MethodType.methodType(void.class, Path.class, Path.class, Path.class));
         foreignArgumentCtor = lookup.findConstructor(foreignBuildStepArgument,
                 MethodType.methodType(void.class, Path.class, Map.class));
         foreignResultNext = lookup.findVirtual(foreignBuildStepResult, "next",
                 MethodType.methodType(boolean.class));
-
         foreignBuildModuleName = Class.forName(BuildModuleName.class.getName(), false, loader)
                 .asSubclass(Annotation.class);
         foreignBuildModuleNameValue = lookup.findVirtual(foreignBuildModuleName, "value",
                 MethodType.methodType(String.class));
-
         Map<String, Object> values = new HashMap<>();
         for (ChecksumStatus status : ChecksumStatus.values()) {
             Field field = foreignChecksumStatus.getField(status.name());
@@ -170,35 +174,46 @@ class JenesisClassLoaderBridge {
     }
 
     private BuildStep wrapStep(Object foreignStep) {
-        return new BuildStep() {
-            @Override
-            public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-                try {
-                    return (boolean) foreignShouldRun.invoke(foreignStep, toForeignArguments(arguments));
-                } catch (RuntimeException | Error e) {
-                    throw e;
-                } catch (Throwable t) {
-                    throw new RuntimeException(t);
-                }
-            }
+        return new ForeignBuildStep(this, foreignStep);
+    }
 
-            @Override
-            @SuppressWarnings("unchecked")
-            public CompletionStage<BuildStepResult> apply(Executor executor,
-                                                          BuildStepContext context,
-                                                          SequencedMap<String, BuildStepArgument> arguments)
-                    throws IOException {
-                try {
-                    CompletionStage<Object> foreign = (CompletionStage<Object>) foreignApply.invoke(
-                            foreignStep, executor, toForeignContext(context), toForeignArguments(arguments));
-                    return foreign.thenApply(JenesisClassLoaderBridge.this::fromForeignResult);
-                } catch (IOException | RuntimeException | Error e) {
-                    throw e;
-                } catch (Throwable t) {
-                    throw new RuntimeException(t);
-                }
+    private static final class ForeignBuildStep implements BuildStep {
+
+        private final transient JenesisClassLoaderBridge bridge;
+        private final Object foreignStep;
+
+        ForeignBuildStep(JenesisClassLoaderBridge bridge, Object foreignStep) {
+            this.bridge = bridge;
+            this.foreignStep = foreignStep;
+        }
+
+        @Override
+        public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+            try {
+                return (boolean) bridge.foreignShouldRun.invoke(foreignStep, bridge.toForeignArguments(arguments));
+            } catch (RuntimeException | Error e) {
+                throw e;
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
             }
-        };
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            try {
+                CompletionStage<Object> foreign = (CompletionStage<Object>) bridge.foreignApply.invoke(
+                        foreignStep, executor, bridge.toForeignContext(context), bridge.toForeignArguments(arguments));
+                return foreign.thenApply(bridge::fromForeignResult);
+            } catch (IOException | RuntimeException | Error e) {
+                throw e;
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
+        }
     }
 
     private BuildExecutorModule wrapModule(Object foreignModule) {
