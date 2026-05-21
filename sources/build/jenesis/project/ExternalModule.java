@@ -20,29 +20,36 @@ public class ExternalModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Set<String> additionalDependencies;
+    private final String buildModuleName;
 
     public ExternalModule(String coordinate,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Set.of());
+        this(coordinate, repositories, resolvers, Set.of(), null);
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
-                           Set<String> additionalDependencies) {
+                           Set<String> additionalDependencies,
+                           String buildModuleName) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.additionalDependencies = additionalDependencies;
+        this.buildModuleName = buildModuleName;
     }
 
     public ExternalModule withDependencies(String... dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)));
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)), buildModuleName);
     }
 
     public ExternalModule withDependencies(SequencedSet<String> dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies));
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName);
+    }
+
+    public ExternalModule loadBuildModule(String name) {
+        return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name);
     }
 
     @Override
@@ -77,7 +84,7 @@ public class ExternalModule implements BuildExecutorModule {
             Object foreignModule;
             try {
                 bridge = new JenesisClassLoaderBridge(artifacts);
-                foreignModule = bridge.findProvider();
+                foreignModule = bridge.findProvider(buildModuleName);
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }

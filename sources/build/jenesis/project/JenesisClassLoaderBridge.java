@@ -1,10 +1,12 @@
 package build.jenesis.project;
 
 import module java.base;
+import java.lang.annotation.Annotation;
 import java.lang.module.Configuration;
 import java.lang.reflect.Proxy;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildModuleName;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -27,6 +29,9 @@ class JenesisClassLoaderBridge {
     private final MethodHandle foreignResultNext;
 
     private final Class<?> foreignBuildExecutor;
+
+    private final Class<? extends Annotation> foreignBuildModuleName;
+    private final MethodHandle foreignBuildModuleNameValue;
 
     private final Map<String, Object> foreignChecksumValues;
 
@@ -66,6 +71,11 @@ class JenesisClassLoaderBridge {
         foreignResultNext = lookup.findVirtual(foreignBuildStepResult, "next",
                 MethodType.methodType(boolean.class));
 
+        foreignBuildModuleName = Class.forName(BuildModuleName.class.getName(), false, loader)
+                .asSubclass(Annotation.class);
+        foreignBuildModuleNameValue = lookup.findVirtual(foreignBuildModuleName, "value",
+                MethodType.methodType(String.class));
+
         Map<String, Object> values = new HashMap<>();
         for (ChecksumStatus status : ChecksumStatus.values()) {
             Field field = foreignChecksumStatus.getField(status.name());
@@ -74,16 +84,38 @@ class JenesisClassLoaderBridge {
         foreignChecksumValues = Map.copyOf(values);
     }
 
-    Object findProvider() {
-        Iterator<?> providers = ServiceLoader.load(layer, foreignBuildExecutorModule).iterator();
-        if (!providers.hasNext()) {
-            throw new IllegalStateException("No BuildExecutorModule service provider found in layer");
+    Object findProvider(String name) {
+        Object match = null;
+        for (Object provider : ServiceLoader.load(layer, foreignBuildExecutorModule)) {
+            Annotation annotation = provider.getClass().getAnnotation(foreignBuildModuleName);
+            String providerName;
+            if (annotation == null) {
+                providerName = null;
+            } else {
+                try {
+                    providerName = (String) foreignBuildModuleNameValue.invoke(annotation);
+                } catch (RuntimeException | Error e) {
+                    throw e;
+                } catch (Throwable t) {
+                    throw new RuntimeException(t);
+                }
+            }
+            if (!Objects.equals(name, providerName)) {
+                continue;
+            }
+            if (match != null) {
+                throw new IllegalStateException(name == null
+                        ? "Multiple unnamed BuildExecutorModule service providers found in layer"
+                        : "Multiple BuildExecutorModule service providers named " + name + " found in layer");
+            }
+            match = provider;
         }
-        Object provider = providers.next();
-        if (providers.hasNext()) {
-            throw new IllegalStateException("Multiple BuildExecutorModule service providers found in layer");
+        if (match == null) {
+            throw new IllegalStateException(name == null
+                    ? "No unnamed BuildExecutorModule service provider found in layer"
+                    : "No BuildExecutorModule service provider named " + name + " found in layer");
         }
-        return provider;
+        return match;
     }
 
     void accept(Object foreignModule, BuildExecutor hostExecutor, SequencedMap<String, Path> inherited) throws IOException {

@@ -28,15 +28,42 @@ public class InternalModule implements BuildExecutorModule {
     private final Path source;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
+    private final Set<String> additionalDependencies;
+    private final String buildModuleName;
 
     public InternalModule(String prefix,
                           Path source,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
+        this(prefix, source, repositories, resolvers, Set.of(), null);
+    }
+
+    private InternalModule(String prefix,
+                           Path source,
+                           Map<String, Repository> repositories,
+                           Map<String, Resolver> resolvers,
+                           Set<String> additionalDependencies,
+                           String buildModuleName) {
         this.prefix = prefix;
         this.source = source;
         this.repositories = repositories;
         this.resolvers = resolvers;
+        this.additionalDependencies = additionalDependencies;
+        this.buildModuleName = buildModuleName;
+    }
+
+    public InternalModule withDependencies(String... dependencies) {
+        return new InternalModule(prefix, source, repositories, resolvers,
+                new LinkedHashSet<>(List.of(dependencies)), buildModuleName);
+    }
+
+    public InternalModule withDependencies(SequencedSet<String> dependencies) {
+        return new InternalModule(prefix, source, repositories, resolvers,
+                new LinkedHashSet<>(dependencies), buildModuleName);
+    }
+
+    public InternalModule loadBuildModule(String name) {
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, name);
     }
 
     @Override
@@ -56,7 +83,7 @@ public class InternalModule implements BuildExecutorModule {
         for (DependencyScope scope : DependencyScope.values()) {
             String requiresId = scope.label() + "-requires";
             boolean compile = scope == DependencyScope.COMPILE;
-            buildExecutor.addStep(requiresId, new ParseModuleInfo(prefix, compile), SOURCE);
+            buildExecutor.addStep(requiresId, new ParseModuleInfo(prefix, compile, additionalDependencies), SOURCE);
             buildExecutor.addModule(scope.label(),
                     new DependenciesModule(repositories, resolvers, compile),
                     requiresId);
@@ -82,7 +109,7 @@ public class InternalModule implements BuildExecutorModule {
             Object foreignModule;
             try {
                 bridge = new JenesisClassLoaderBridge(artifacts);
-                foreignModule = bridge.findProvider();
+                foreignModule = bridge.findProvider(buildModuleName);
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve internal build execution module " + source, e);
             }
@@ -93,7 +120,7 @@ public class InternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record ParseModuleInfo(String prefix, boolean compile) implements BuildStep {
+    private record ParseModuleInfo(String prefix, boolean compile, Set<String> additionalDependencies) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -116,6 +143,9 @@ public class InternalModule implements BuildExecutorModule {
             SequencedProperties properties = new SequencedProperties();
             for (String dependency : compile ? info.requires() : info.runtimeRequires()) {
                 properties.setProperty(prefix + "/" + dependency, "");
+            }
+            for (String dependency : additionalDependencies) {
+                properties.setProperty(dependency, "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
