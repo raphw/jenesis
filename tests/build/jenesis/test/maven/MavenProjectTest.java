@@ -293,8 +293,12 @@ public class MavenProjectTest {
                     <build>
                        <sourceDirectory>sources</sourceDirectory>
                        <resources>
-                         <resource>resources-1</resource>
-                         <resource>resources-2</resource>
+                         <resource>
+                           <directory>resources-1</directory>
+                         </resource>
+                         <resource>
+                           <directory>resources-2</directory>
+                         </resource>
                        </resources>
                     </build>
                 </project>
@@ -357,8 +361,12 @@ public class MavenProjectTest {
                     <build>
                        <testSourceDirectory>sources</testSourceDirectory>
                        <testResources>
-                         <testResource>resources-1</testResource>
-                         <testResource>resources-2</testResource>
+                         <testResource>
+                           <directory>resources-1</directory>
+                         </testResource>
+                         <testResource>
+                           <directory>resources-2</directory>
+                         </testResource>
                        </testResources>
                     </build>
                 </project>

@@ -442,13 +442,15 @@ public class MavenPomResolver implements Resolver {
                         build == null ? null : toTextChild400(build, "sourceDirectory").orElse(null),
                         build == null ? null : toChildren400(build, "resources").findFirst()
                                 .map(node -> toChildren400(node, "resource")
-                                        .map(Node::getTextContent)
+                                        .map(child -> toTextChild400(child, "directory").orElse(null))
+                                        .filter(Objects::nonNull)
                                         .toList())
                                 .orElse(null),
                         build == null ? null : toTextChild400(build, "testSourceDirectory").orElse(null),
                         build == null ? null : toChildren400(build, "testResources").findFirst()
                                 .map(node -> toChildren400(node, "testResource")
-                                        .map(Node::getTextContent)
+                                        .map(child -> toTextChild400(child, "directory").orElse(null))
+                                        .filter(Objects::nonNull)
                                         .toList())
                                 .orElse(null),
                         modules == null ? null : toChildren400(modules, "module")

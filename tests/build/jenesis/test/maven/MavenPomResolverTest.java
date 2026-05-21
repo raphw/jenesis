@@ -2575,13 +2575,21 @@ public class MavenPomResolverTest {
                     <build>
                         <sourceDirectory>sources</sourceDirectory>
                         <resources>
-                            <resource>resource-1</resource>
-                            <resource>resource-2</resource>
+                            <resource>
+                                <directory>resource-1</directory>
+                            </resource>
+                            <resource>
+                                <directory>resource-2</directory>
+                            </resource>
                         </resources>
                         <testSourceDirectory>tests</testSourceDirectory>
                         <testResources>
-                            <testResource>testResource-1</testResource>
-                            <testResource>testResource-2</testResource>
+                            <testResource>
+                                <directory>testResource-1</directory>
+                            </testResource>
+                            <testResource>
+                                <directory>testResource-2</directory>
+                            </testResource>
                         </testResources>
                     </build>
                     <dependencies>

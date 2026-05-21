@@ -49,15 +49,14 @@ class JenesisClassLoaderBridge {
                 config, List.of(ModuleLayer.boot()), ClassLoader.getPlatformClassLoader());
         layer = controller.layer();
         loader = layer.findLoader(roots.iterator().next());
+        foreignBuildExecutor = Class.forName(BuildExecutor.class.getName(), false, loader);
+        foreignBuildExecutorModule = Class.forName(BuildExecutorModule.class.getName(), false, loader);
         Module hostModule = JenesisClassLoaderBridge.class.getModule();
-        Module foreignJenesis = layer.findModule(BuildExecutor.class.getModule().getName()).orElseThrow(
-                () -> new IllegalStateException("Foreign module not found: " + BuildExecutor.class.getModule().getName()));
+        Module foreignJenesis = foreignBuildExecutor.getModule();
         for (Module foreignModule : layer.modules()) {
             hostModule.addReads(foreignModule);
         }
         controller.addOpens(foreignJenesis, BuildExecutor.class.getPackageName(), hostModule);
-        foreignBuildExecutor = Class.forName(BuildExecutor.class.getName(), false, loader);
-        foreignBuildExecutorModule = Class.forName(BuildExecutorModule.class.getName(), false, loader);
         Class<?> foreignBuildStep = Class.forName(BuildStep.class.getName(), false, loader);
         Class<?> foreignBuildStepContext = Class.forName(BuildStepContext.class.getName(), false, loader);
         Class<?> foreignBuildStepArgument = Class.forName(BuildStepArgument.class.getName(), false, loader);
