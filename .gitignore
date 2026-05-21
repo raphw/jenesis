@@ -1,5 +1,5 @@
 target/
-cache/
+.jenesis/
 /sdk/*
 !/sdk/bin/
 !.mvn/wrapper/maven-wrapper.jar

@@ -91,7 +91,7 @@ public record Project(
                         inherited.values(),
                         (_, value) -> URI.create(value),
                         MavenDefaultRepository.versionResolver(),
-                        Files.createDirectories(project.cache().resolve("modules"))));
+                        Files.createDirectories(project.cache())));
                 repositories.merge("module",
                         new JenesisModuleRepository(),
                         (existing, local) -> local.prepend(existing));
@@ -319,7 +319,7 @@ public record Project(
     public Project() {
         this(Path.of("."),
                 Path.of("target"),
-                Path.of("cache"),
+                Path.of(".jenesis", "cache"),
                 Layout.AUTO,
                 true,
                 false,

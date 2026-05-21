@@ -24,7 +24,7 @@ public class Modular {
                     downloaded.values(),
                     (_, value) -> URI.create(value),
                     MavenDefaultRepository.versionResolver(),
-                    Files.createDirectories(Path.of("cache/modules")));
+                    Files.createDirectories(Path.of(".jenesis", "cache")));
             Map<String, Resolver> resolvers = Map.of("module", new ModularJarResolver(true));
             build.addModule("modules", ModularProject.make(
                     Path.of("."),

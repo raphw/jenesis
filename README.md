@@ -426,8 +426,8 @@ Three properties of the model give incremental builds and reproducibility for fr
   time so the bug surfaces at the first run instead of silently breaking cache invalidation.
 
 The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
-`ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `cache/` by
-convention for cross-build caches such as downloaded module URIs.
+`ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `.jenesis/cache/`
+by convention for cross-build caches such as downloaded module URIs.
 
 ### Best practice: communicate through file/folder conventions, not step names
 
@@ -536,7 +536,7 @@ others are declared next to the step that emits them.
 | `process/<command>.properties` | `ProcessBuildStep.PROCESS` (folder)  | Command-line fragments contributed to a downstream `ProcessBuildStep` whose tool name matches `<command>` (`java`, `javac`, `jar`, `javadoc`). Keys are flags (e.g. `--add-modules`); values are flag values, with literal `\n` inside a value emitting the same flag once per piece. Each input folder's file is processed independently and its entries are appended to the command line in folder order, so the same key in two folders becomes two flag instances. Values that name filesystem paths are written relative to the file's containing folder (paths are not resolved until the consumer step needs them), which keeps the on-disk content position-independent so build outputs can be relocated or shared between caches without rewriting.                                                                                          |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
-| `cache/`                   | by convention                    | A project-root folder for caches that outlive a single build, hardlink-shared with `target/`. The `MODULAR` layout populates `cache/modules/<encoded-coordinate>.jar` via `Repository.cached(...)` so module jars survive a `target/` wipe; `MAVEN` and `MODULAR_TO_MAVEN` cache into `~/.m2/repository` instead. Relocatable via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`. See the *Repositories and resolvers* and *The `cache/` folder* sections below for the full picture. |
+| `.jenesis/cache/`          | by convention                    | A project-root folder for caches that outlive a single build, hardlink-shared with `target/`. The `MODULAR` layout populates `.jenesis/cache/<encoded-coordinate>.jar` via `Repository.cached(...)` so module jars survive a `target/` wipe; `MAVEN` and `MODULAR_TO_MAVEN` cache into `~/.m2/repository` instead. Relocatable via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`. See the *Repositories and resolvers* and *The `.jenesis/cache/` folder* sections below for the full picture. |
 | `.jenesis.build`           | `BuildExecutor.BUILD_MARKER`     | An empty marker file placed at the root of an active build directory. Project-tree walkers honour it as a stop signal so nested builds aren't re-discovered as part of the parent build's project graph.                                              |
 
 Build steps
@@ -1025,7 +1025,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.stageTests`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
-| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `cache`) under which the `MODULAR` layout stores `modules/<encoded-coordinate>.jar` for each downloaded module jar (see *The `cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
+| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `MAVEN_LOCAL_REPOSITORY`| environment variable| Overrides the local Maven repository directory (default `~/.m2/repository`) for both reads and writes: `MavenDefaultRepository` reads from and hardlinks downloaded jars into it; `MavenRepositoryExport` publishes the staged tree into it. On the read side, an explicit override must point at an existing directory or `MavenDefaultRepository` throws on construction (unset is permissive: a missing default silently disables the local cache and every fetch streams from upstream). On the write side, the directory is created on demand. |
 | `MAVEN_REPOSITORY_TOKEN`| environment variable| When set, `MavenDefaultRepository` sends the value verbatim as an `Authorization` header on every HTTP fetch (artifact bytes and `.sha1` sidecars). Useful for upstreams that require token-based auth: set the full header value, e.g. `Bearer <token>` for OAuth-style endpoints or `Basic <base64(user:pass)>` for HTTP Basic. Ignored for `file://` URIs and any non-HTTP scheme. |
@@ -1156,7 +1156,7 @@ Static factories on the interface itself:
   `Map<String, Repository>` keyed by prefix from line-based `<prefix>/<key>=<location>` registries found in
   `folders`. Each prefix's URIs become `Repository.ofUris(..., versionResolver).cached(cache)`. This is how
   the `MODULAR` layout converts the `uris.properties` output of `DownloadModuleUris` into a per-prefix
-  repository map, with `cache/modules/` serving as the cross-build hardlink cache.
+  repository map, with `.jenesis/cache/` serving as the cross-build hardlink cache.
 - **`Repository.prepend(left, right)`** - per-prefix `prepend` of two repository maps (the right map's entries
   are tried first, falling back to the left's for the same prefix).
 
@@ -1169,7 +1169,7 @@ the parts into a `groupId/artifactId[/type[/classifier]]/version` coordinate str
 (default `https://repo1.maven.org/maven2/`, overridable via the `MAVEN_REPOSITORY_URI` environment variable),
 and hardlinks fetched bytes through the user's **local Maven repository**, defaulting to `~/.m2/repository`
 and overridable via the `MAVEN_LOCAL_REPOSITORY` environment variable (this is **not** the project's
-`cache/` folder). When `MAVEN_LOCAL_REPOSITORY` is set explicitly, the directory must exist or the
+`.jenesis/cache/` folder). When `MAVEN_LOCAL_REPOSITORY` is set explicitly, the directory must exist or the
 constructor throws; the default `~/.m2/repository` is permissive in the other direction, silently bypassing
 the local cache layer when absent. For upstreams that require authentication, `MAVEN_REPOSITORY_TOKEN` is
 sent verbatim as the `Authorization` header on every HTTP fetch (set the full value including the scheme,
@@ -1284,22 +1284,20 @@ hardlink mirror with no format transformation. Republishing the local repository
 to an HTTP server, copying it onto another machine, mounting a network share) is also a straight
 file-tree mirror; the resulting URL or path is a valid `JenesisModuleRepository` root.
 
-### The `cache/` folder
+### The `.jenesis/cache/` folder
 
-`cache/` is the project-root home for caches that should outlive a single build but stay local to the
+`.jenesis/cache/` is the project-root home for caches that should outlive a single build but stay local to the
 project tree. It sits between `target/` (incremental per-run state, deletable to force a clean rebuild) and
-`~/.m2/repository` (shared across every project on the user's machine). The path defaults to `cache/` at the
-project root and can be relocated via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`.
+`~/.m2/repository` (shared across every project on the user's machine). The path defaults to `.jenesis/cache/`
+at the project root and can be relocated via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`.
 
-What lives there today:
-
-- **`cache/modules/`** - hardlinked jars fetched by the `MODULAR` layout's per-prefix
-  `Repository.ofUris(...).cached(cache/modules)` wrappers (wired in `Project.Layout.MODULAR`). Each entry is
-  named `<BuildExecutorModule.encode(coordinate)>.jar`; the encoded coordinate is a content-stable function
-  of the coordinate string, so two builds asking for the same coordinate map to the same filename and the
-  second build hardlinks from `cache/modules/` instead of going to the network. `MAVEN` and `MODULAR_TO_MAVEN`
-  do not populate this folder: their canonical `MavenDefaultRepository` already caches into
-  `~/.m2/repository`, so for those layouts `cache/` is typically empty.
+What lives there today: hardlinked jars fetched by the `MODULAR` layout's per-prefix
+`Repository.ofUris(...).cached(.jenesis/cache)` wrappers (wired in `Project.Layout.MODULAR`). Each entry is
+named `<BuildExecutorModule.encode(coordinate)>.jar`; the encoded coordinate is a content-stable function
+of the coordinate string, so two builds asking for the same coordinate map to the same filename and the
+second build hardlinks from `.jenesis/cache/` instead of going to the network. `MAVEN` and `MODULAR_TO_MAVEN`
+do not populate this folder: their canonical `MavenDefaultRepository` already caches into
+`~/.m2/repository`, so for those layouts `.jenesis/cache/` is typically empty.
 
 Properties of the cache layer:
 
@@ -1308,12 +1306,13 @@ Properties of the cache layer:
 - **Refresh on demand only.** No TTL, no automatic invalidation: entries persist until something deletes
   them. The assumption is that jars at versioned coordinates are immutable by contract; force a refresh by
   deleting the file (or the whole folder) and re-running.
-- **Safe to delete.** Nothing in `target/` references `cache/` directly and no build identity hashes through
-  cache contents, so a wiped `cache/` only costs the next build's downloads. Conversely, deleting `target/`
-  while keeping `cache/` is the fastest path to a clean rebuild that does not re-fetch anything.
+- **Safe to delete.** Nothing in `target/` references `.jenesis/cache/` directly and no build identity hashes
+  through cache contents, so a wiped `.jenesis/cache/` only costs the next build's downloads. Conversely,
+  deleting `target/` while keeping `.jenesis/cache/` is the fastest path to a clean rebuild that does not
+  re-fetch anything.
 - **Hardlinks, not copies.** Both the cache write (`Files.createLink` in `Repository.cached`) and downstream
-  consumption use hardlinks where the filesystem allows, so a populated `cache/` does not multiply disk
-  usage when its contents flow into `target/`.
+  consumption use hardlinks where the filesystem allows, so a populated `.jenesis/cache/` does not multiply
+  disk usage when its contents flow into `target/`.
 
 ### Java support
 
@@ -1393,7 +1392,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   `fetch(executor, groupId, artifactId, version, type, classifier, checksum)` and an optional
   `fetchMetadata(executor, groupId, artifactId, checksum)` returning the artifact's `maven-metadata.xml`.
   Implementations: `MavenDefaultRepository` (HTTP, with on-disk cache in the user's local Maven repository,
-  default `~/.m2/repository`; the project's `cache/` folder is **not** used here) and any user-supplied
+  default `~/.m2/repository`; the project's `.jenesis/cache/` folder is **not** used here) and any user-supplied
   subclass (e.g. an internal Nexus mirror). The `MAVEN_REPOSITORY_URI` environment variable overrides the
   default upstream URL; `MAVEN_LOCAL_REPOSITORY` overrides the local repository directory; and
   `MAVEN_REPOSITORY_TOKEN`, when set, is sent verbatim as an `Authorization` header on every HTTP fetch
