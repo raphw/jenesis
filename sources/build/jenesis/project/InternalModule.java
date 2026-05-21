@@ -114,16 +114,7 @@ public class InternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private static class ParseModuleInfo implements BuildStep {
-
-        private final String prefix;
-        private final boolean compile;
-        private final ModuleInfoParser parser = new ModuleInfoParser();
-
-        private ParseModuleInfo(String prefix, boolean compile) {
-            this.prefix = prefix;
-            this.compile = compile;
-        }
+    private record ParseModuleInfo(String prefix, boolean compile) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -142,7 +133,7 @@ public class InternalModule implements BuildExecutorModule {
                 throw new IllegalStateException(
                         "Internal module source is not modular (missing module-info.java)");
             }
-            ModuleInfo info = parser.identify(moduleInfo);
+            ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
             for (String dependency : compile ? info.requires() : info.runtimeRequires()) {
                 properties.setProperty(prefix + "/" + dependency, "");
