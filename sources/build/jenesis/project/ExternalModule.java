@@ -74,29 +74,18 @@ public class ExternalModule implements BuildExecutorModule {
                 }
             }
             URI mainArtifact = artifacts.resolve(coordinate.replace('/', '-') + ".jar").toUri();
-            URLClassLoader classLoader = new URLClassLoader(
-                    urls.toArray(URL[]::new),
-                    BuildExecutorModule.class.getClassLoader());
-            BuildExecutorModule delegate;
+            URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
+            JenesisClassLoaderBridge bridge;
+            Object foreignModule;
             try {
-                delegate = ServiceLoader
-                        .load(BuildExecutorModule.class, classLoader)
-                        .stream()
-                        .filter(provider -> URI.create(provider.type()
-                                .getProtectionDomain()
-                                .getCodeSource()
-                                .getLocation()
-                                .toString()).equals(mainArtifact))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "No BuildExecutorModule service provider found for " + coordinate))
-                        .get();
+                bridge = new JenesisClassLoaderBridge(classLoader);
+                foreignModule = bridge.findProvider(mainArtifact);
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
             forwarded.remove(PREVIOUS + EXTERNAL_ARTIFACTS);
-            delegate.accept(delegateExecutor, forwarded);
+            bridge.accept(foreignModule, delegateExecutor, forwarded);
         }, Stream.concat(Stream.of(EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 

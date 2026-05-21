@@ -86,31 +86,19 @@ public class InternalModule implements BuildExecutorModule {
                     urls.add(file.toUri().toURL());
                 }
             }
-            URI main = mainArtifact;
-            URLClassLoader classLoader = new URLClassLoader(
-                    urls.toArray(URL[]::new),
-                    BuildExecutorModule.class.getClassLoader());
-            BuildExecutorModule delegate;
+            URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
+            JenesisClassLoaderBridge bridge;
+            Object foreignModule;
             try {
-                delegate = ServiceLoader
-                        .load(BuildExecutorModule.class, classLoader)
-                        .stream()
-                        .filter(provider -> URI.create(provider.type()
-                                .getProtectionDomain()
-                                .getCodeSource()
-                                .getLocation()
-                                .toString()).equals(main))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "No BuildExecutorModule service provider found in " + source))
-                        .get();
+                bridge = new JenesisClassLoaderBridge(classLoader);
+                foreignModule = bridge.findProvider(mainArtifact);
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve internal build execution module " + source, e);
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
             forwarded.remove(PREVIOUS + MAIN_ARTIFACTS);
             forwarded.remove(PREVIOUS + RUNTIME_ARTIFACTS);
-            delegate.accept(delegateExecutor, forwarded);
+            bridge.accept(foreignModule, delegateExecutor, forwarded);
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
