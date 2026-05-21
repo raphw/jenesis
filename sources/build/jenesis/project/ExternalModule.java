@@ -48,7 +48,7 @@ public class ExternalModule implements BuildExecutorModule {
         return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName);
     }
 
-    public ExternalModule loadBuildModule(String name) {
+    public ExternalModule withBuildModuleName(String name) {
         return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name);
     }
 

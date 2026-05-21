@@ -62,7 +62,7 @@ public class InternalModule implements BuildExecutorModule {
                 new LinkedHashSet<>(dependencies), buildModuleName);
     }
 
-    public InternalModule loadBuildModule(String name) {
+    public InternalModule withBuildModuleName(String name) {
         return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, name);
     }
 

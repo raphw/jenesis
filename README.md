@@ -925,31 +925,115 @@ flowchart LR
 
 ### `ExternalModule`
 
-Used for loading a `BuildExecutorModule` from a jar coordinate at build time, so a build can pull in plug-in
-modules published to a repository instead of vendoring them as source. Given a `<prefix>/<key>` coordinate, a map
-of `Repository` instances, a map of `Resolver` instances, and optional constructor arguments, it registers four
-internal nodes:
+Used for loading a `BuildExecutorModule` from a published modular jar at build time, so a build can pull in
+plug-in modules from a repository instead of vendoring them as source. The plug-in must ship as a Java
+module that declares `provides build.jenesis.BuildExecutorModule with ...;` in its `module-info.java`.
 
-- `coordinate` writes the requested coordinate into a fresh `requires.properties`.
-- `dependencies` is an embedded `DependenciesModule` that resolves + downloads the coordinate's transitive closure
-  using the supplied resolvers and repositories.
-- `external` reads the main jar's `META-INF/MANIFEST.MF`, looks up the `Jenesis-Module` attribute, and writes the
-  recorded class name into `external.properties`. Because this is a cached `BuildStep` keyed off the `artifacts/`
-  folder, the manifest read is skipped on subsequent runs whose downloaded artifacts checksum-identically.
-- `delegate` opens a `URLClassLoader` over the downloaded jars, loads the recorded class, picks the unique public
-  constructor whose parameter count matches the supplied arguments, instantiates it, and invokes its `accept(...)`
-  against the same inherited folders `ExternalModule` itself received.
+Given a `<prefix>/<coordinate>` string, a map of `Repository` instances, and a map of `Resolver` instances,
+`ExternalModule` registers three internal nodes:
 
-The `URLClassLoader` parents to the build's own class loader, so `BuildExecutorModule` and the rest of the public
-API stay shared types between host and plug-in - but the external coordinate's transitive dependencies live only
-inside the loader, so they don't leak into the host classpath and two external modules with conflicting libraries
-don't clash. The loader is intentionally kept alive for the build's lifetime, because the build steps the delegated
-module registers hold class references to it.
+- `coordinate` writes the requested coordinate (plus any added via `withDependencies(...)`) into a fresh
+  `requires.properties`.
+- `dependencies` is an embedded `DependenciesModule` that resolves + downloads the coordinate's transitive
+  closure using the supplied repositories and resolvers. The plug-in's own `requires build.jenesis;` is
+  followed by the resolver, so its copy of Jenesis is fetched alongside its other dependencies.
+- `delegate` builds a fresh `ModuleLayer` over the downloaded jars and runs the plug-in's
+  `BuildExecutorModule.accept(...)` against the same inherited folders `ExternalModule` itself received
+  (see *Plug-in isolation* below).
 
-`ExternalModule` overrides `resolve(...)` to hide its four internal nodes from the published output map and to
-strip the `delegate/` prefix from the delegated module's results, so the delegated module's outputs appear under
-`ExternalModule`'s registered name - exactly as if the delegated module had been wired into the build directly.
-The hidden steps still execute and participate in the cache normally; only their published names disappear.
+`ExternalModule.resolve(...)` hides the three internal nodes from the published output map and strips the
+`delegate/` prefix from the delegated module's outputs, so the plug-in's nodes surface under
+`ExternalModule`'s registered name. The hidden steps still execute and participate in the cache; only
+their published names disappear.
+
+```java
+new ExternalModule("module/com.example.plugin", repositories, resolvers)
+        .withDependencies("module/com.example.extra");
+```
+
+### `InternalModule`
+
+Used for loading a `BuildExecutorModule` from a local source folder, so a plug-in can be developed
+alongside the project that consumes it without first publishing it to a repository. The source folder
+must contain a `module-info.java` that `provides build.jenesis.BuildExecutorModule with ...;` - the
+plug-in still has to ship as a Java module, just one built from source instead of pulled from a
+repository.
+
+`InternalModule` takes a coordinate `prefix`, a `Path` to the source folder, a `Repository` map, and a
+`Resolver` map, and registers:
+
+- `source` binds the source folder as Java sources via `Bind.asSources()`.
+- `compile-requires` and `runtime-requires` each parse the source's `module-info.java` and write a
+  `requires.properties` for the corresponding scope (`requires` for compile, `requires` minus `static` for
+  runtime). Each entry is keyed `<prefix>/<module-name>`, so the resolver under `prefix` can look it up.
+  Both steps re-run only when `sources/module-info.java` actually changes.
+- `compile` and `runtime` are scope-specific `DependenciesModule` instances that download the two
+  classpaths separately.
+- `java` is a `JavaModule` that compiles the source against the compile classpath.
+- `delegate` builds a `ModuleLayer` over the compiled jar plus the runtime classpath and runs the
+  plug-in.
+
+`withDependencies(...)` adds extra coordinates (written verbatim, no prefix added) to both
+`requires.properties` files, for plug-ins that need modules not declared in their own `module-info.java`.
+The source must declare `requires build.jenesis;` (plus whatever else it uses from Jenesis); the resolver
+fetches Jenesis like any other module dependency. `InternalModule` errors at build time if the source
+lacks `module-info.java`.
+
+### Plug-in isolation
+
+Both modules load the plug-in into a fresh `ModuleLayer` whose ClassLoader parent is the platform loader,
+not the host's application loader. As a result:
+
+- The host's `build.jenesis` classes are invisible to the plug-in. The plug-in pulls in its own copy of
+  Jenesis via its `requires build.jenesis;` declaration; the resolver downloads it like any other
+  module. The two copies are different `Class` instances in different loaders.
+- Two plug-ins with conflicting transitive dependencies do not clash, because they each get their own
+  layer with their own copy of every non-platform module.
+
+Because the host can't simply call methods on the loaded plug-in (the types live in a different loader),
+`JenesisClassLoaderBridge` mediates: it creates a `java.lang.reflect.Proxy` implementing the *foreign*
+`BuildExecutor` and hands that proxy to the plug-in's `accept(...)`. As the plug-in calls `addStep`,
+`addModule`, etc. on the proxy, the bridge:
+
+- Forwards default-method calls through `InvocationHandler.invokeDefault`, so the abstract overloads are
+  all the bridge has to special-case.
+- Wraps each `BuildStep` argument as a host `BuildStep` that, on `apply(...)`, translates the host's
+  `BuildStepContext` / `BuildStepArgument` into foreign records (via `MethodHandle`s bound to the foreign
+  record constructors), invokes the foreign step's `apply` via `MethodHandle`, and translates the foreign
+  `BuildStepResult` back. `ChecksumStatus` enum values are mapped across loaders by name.
+- Wraps each `BuildExecutorModule` argument as a host `BuildExecutorModule` that recursively re-enters
+  the same bridge when invoked, so plug-ins can register nested modules.
+- Passes everything else (Strings, `Path`s, `SequencedMap<String, String>`,
+  `Function<String, Optional<String>>`) through unchanged - those types live in `java.base` and are
+  shared across loaders.
+
+The reflective calls use `MethodHandles`, and the bridge uses `ModuleLayer.Controller.addOpens` plus
+`MethodHandles.privateLookupIn` to obtain a lookup whose accessing class is in the foreign loader. That
+lookup is required so the JVM's loader-constraint check (which would otherwise complain that the host and
+foreign loaders define different `BuildExecutor` `Class` objects for the same name) does not trip.
+
+### Picking a specific plug-in: `@BuildModuleName` and `withBuildModuleName(...)`
+
+The plug-in's layer must resolve to **exactly one** `BuildExecutorModule` service provider. By default
+(no `withBuildModuleName(...)` call), only providers without a `@build.jenesis.BuildModuleName` annotation
+qualify. Annotated providers are selected explicitly:
+
+```java
+package com.example;
+
+@BuildModuleName("publish")
+public class Publish implements BuildExecutorModule { ... }
+```
+
+```java
+new ExternalModule("module/com.example.plugin", repositories, resolvers)
+        .withBuildModuleName("publish");
+```
+
+`InternalModule` exposes the same `withBuildModuleName(String)` factory. If zero or more than one provider
+match the (possibly null) requested name, the build fails at `delegate` time with a descriptive error.
+This makes it possible to ship multiple entry points in a single plug-in jar and let the consumer pick
+which one to run per `ExternalModule` / `InternalModule` instance.
 
 Implementing a `BuildStep`
 --------------------------

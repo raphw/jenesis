@@ -211,7 +211,7 @@ public class ExternalModuleTest {
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
-                .loadBuildModule("foo"));
+                .withBuildModuleName("foo"));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps.get("external/marker").resolve("out.txt")).content().isEqualTo("named");
@@ -241,7 +241,7 @@ public class ExternalModuleTest {
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
-                .loadBuildModule("bar"));
+                .withBuildModuleName("bar"));
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()
