@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ExternalModuleTest {
 
-    private static final String JENESIS_MODULE = "Jenesis-Module";
+    private static final String SERVICE_ENTRY = "META-INF/services/build.jenesis.BuildExecutorModule";
 
     @TempDir
     private Path root, jars;
@@ -70,45 +70,6 @@ public class ExternalModuleTest {
     }
 
     @Test
-    public void can_pass_constructor_arguments_to_external_module() throws IOException {
-        Path jar = buildModuleJar(jars, "gen.WithArgs", """
-                package gen;
-                import build.jenesis.BuildExecutor;
-                import build.jenesis.BuildExecutorModule;
-                import build.jenesis.BuildStepResult;
-                import java.nio.file.Files;
-                import java.nio.file.Path;
-                import java.util.SequencedMap;
-                import java.util.concurrent.CompletableFuture;
-                public class WithArgs implements BuildExecutorModule {
-                    private final String left;
-                    private final String right;
-                    public WithArgs(String left, String right) {
-                        this.left = left;
-                        this.right = right;
-                    }
-                    public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                        String captured = left + ":" + right;
-                        executor.addStep("marker", (e, context, args) -> {
-                            Files.writeString(context.next().resolve("out.txt"), captured);
-                            return CompletableFuture.completedStage(new BuildStepResult(true));
-                        });
-                    }
-                }
-                """);
-
-        buildExecutor.addModule("external", new ExternalModule(
-                "foo/bar",
-                Map.of("foo", (executor, coordinate) -> Optional.of(RepositoryItem.ofFile(jar))),
-                Map.of("foo", Resolver.identity()),
-                "hello",
-                "world"));
-
-        SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps.get("external/marker").resolve("out.txt")).content().isEqualTo("hello:world");
-    }
-
-    @Test
     public void can_add_additional_dependency_coordinates() throws IOException {
         Path helperJar = buildModuleJar(jars, "helper.Helper", """
                 package helper;
@@ -159,8 +120,8 @@ public class ExternalModuleTest {
     }
 
     @Test
-    public void fails_when_manifest_lacks_jenesis_module_entry() throws IOException {
-        Path jar = jars.resolve("no-attribute.jar");
+    public void fails_when_no_service_provider_declared() throws IOException {
+        Path jar = jars.resolve("no-service.jar");
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
         try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
@@ -175,11 +136,11 @@ public class ExternalModuleTest {
         assertThatThrownBy(() -> buildExecutor.execute())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
-                .hasMessageContaining("manifest entry");
+                .hasMessageContaining("No BuildExecutorModule service provider");
     }
 
     @Test
-    public void fails_when_loaded_class_is_not_a_build_executor_module() throws IOException {
+    public void fails_when_declared_provider_is_not_a_build_executor_module() throws IOException {
         Path jar = buildModuleJar(jars, "gen.NotAModule", """
                 package gen;
                 public class NotAModule {
@@ -193,7 +154,7 @@ public class ExternalModuleTest {
                 Map.of("foo", Resolver.identity())));
 
         assertThatThrownBy(() -> buildExecutor.execute())
-                .hasRootCauseInstanceOf(ClassCastException.class);
+                .hasRootCauseInstanceOf(ServiceConfigurationError.class);
     }
 
     private static Path buildModuleJar(Path folder, String fqcn, String source) throws IOException {
@@ -225,8 +186,10 @@ public class ExternalModuleTest {
         Path jar = folder.resolve(simpleName + ".jar");
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
-        manifest.getMainAttributes().putValue(JENESIS_MODULE, fqcn);
         try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            out.putNextEntry(new JarEntry(SERVICE_ENTRY));
+            out.write(fqcn.getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
             Files.walkFileTree(classes, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
