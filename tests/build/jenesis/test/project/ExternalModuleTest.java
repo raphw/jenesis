@@ -9,6 +9,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
+import build.jenesis.RepositoryItem;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.project.ExternalModule;
 
@@ -91,7 +92,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -133,7 +134,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -170,7 +171,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -207,7 +208,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
@@ -237,7 +238,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
@@ -261,7 +262,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -301,7 +302,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                Map.of("module", Repository.ofFiles(Map.of(
+                Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -355,5 +356,14 @@ public class ExternalModuleTest {
             });
         }
         return jarOut;
+    }
+
+    private static Repository versionInsensitive(Map<String, Path> files) {
+        return (executor, coordinate) -> {
+            int slash = coordinate.indexOf('/');
+            String name = slash < 0 ? coordinate : coordinate.substring(0, slash);
+            Path file = files.get(name);
+            return file == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(file));
+        };
     }
 }

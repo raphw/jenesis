@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
+import build.jenesis.RepositoryItem;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.project.InternalModule;
 
@@ -89,7 +90,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
@@ -129,7 +130,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
@@ -164,7 +165,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
@@ -179,7 +180,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
 
         assertThatThrownBy(() -> buildExecutor.execute())
@@ -216,7 +217,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
                 .withBuildModuleName("foo"));
 
@@ -244,7 +245,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
                 .withBuildModuleName("bar"));
 
@@ -274,7 +275,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
 
         assertThatThrownBy(() -> buildExecutor.execute())
@@ -312,7 +313,7 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 source,
-                Map.of("module", Repository.ofFiles(Map.of("build.jenesis", jenesisJar))),
+                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
 
         assertThatThrownBy(() -> buildExecutor.execute())
@@ -330,5 +331,14 @@ public class InternalModuleTest {
             Files.writeString(file, entry.getValue());
         }
         return target;
+    }
+
+    private static Repository versionInsensitive(Map<String, Path> files) {
+        return (executor, coordinate) -> {
+            int slash = coordinate.indexOf('/');
+            String name = slash < 0 ? coordinate : coordinate.substring(0, slash);
+            Path file = files.get(name);
+            return file == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(file));
+        };
     }
 }
