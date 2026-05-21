@@ -1,6 +1,8 @@
 package build.jenesis.project;
 
 import module java.base;
+import java.lang.module.Configuration;
+import java.lang.reflect.Proxy;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -11,9 +13,9 @@ import build.jenesis.ChecksumStatus;
 
 class JenesisClassLoaderBridge {
 
+    private final ModuleLayer layer;
     private final ClassLoader loader;
 
-    private final Class<?> foreignBuildExecutor;
     private final Class<?> foreignBuildExecutorModule;
 
     private final MethodHandle foreignAccept;
@@ -24,10 +26,23 @@ class JenesisClassLoaderBridge {
     private final MethodHandle foreignArgumentCtor;
     private final MethodHandle foreignResultNext;
 
+    private final Class<?> foreignBuildExecutor;
+
     private final Map<String, Object> foreignChecksumValues;
 
-    JenesisClassLoaderBridge(ClassLoader loader) throws ReflectiveOperationException {
-        this.loader = loader;
+    JenesisClassLoaderBridge(Collection<Path> artifacts) throws ReflectiveOperationException {
+        ModuleFinder finder = ModuleFinder.of(artifacts.toArray(Path[]::new));
+        Set<String> roots = finder.findAll().stream()
+                .map(ref -> ref.descriptor().name())
+                .collect(Collectors.toUnmodifiableSet());
+        if (roots.isEmpty()) {
+            throw new IllegalStateException("No modules found in " + artifacts);
+        }
+        Configuration config = ModuleLayer.boot().configuration()
+                .resolveAndBind(finder, ModuleFinder.of(), roots);
+        layer = ModuleLayer.boot().defineModulesWithOneLoader(config, ClassLoader.getPlatformClassLoader());
+        loader = layer.findLoader(roots.iterator().next());
+
         foreignBuildExecutor = Class.forName(BuildExecutor.class.getName(), false, loader);
         foreignBuildExecutorModule = Class.forName(BuildExecutorModule.class.getName(), false, loader);
         Class<?> foreignBuildStep = Class.forName(BuildStep.class.getName(), false, loader);
@@ -59,22 +74,15 @@ class JenesisClassLoaderBridge {
         foreignChecksumValues = Map.copyOf(values);
     }
 
-    Object findProvider(URI mainArtifact) {
-        return ServiceLoader.load(foreignBuildExecutorModule, loader)
-                .stream()
-                .filter(provider -> URI.create(provider.type()
-                        .getProtectionDomain()
-                        .getCodeSource()
-                        .getLocation()
-                        .toString()).equals(mainArtifact))
+    Object findProvider() {
+        return ServiceLoader.load(layer, foreignBuildExecutorModule)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        "No BuildExecutorModule service provider found for " + mainArtifact))
-                .get();
+                        "No BuildExecutorModule service provider found in layer"));
     }
 
     void accept(Object foreignModule, BuildExecutor hostExecutor, SequencedMap<String, Path> inherited) throws IOException {
-        Object foreignProxy = java.lang.reflect.Proxy.newProxyInstance(
+        Object foreignProxy = Proxy.newProxyInstance(
                 loader,
                 new Class<?>[]{foreignBuildExecutor},
                 new BuildExecutorBridge(hostExecutor));

@@ -66,20 +66,18 @@ public class ExternalModule implements BuildExecutorModule {
                 new DependenciesModule(repositories, resolvers, false),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
-            Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
-            List<URL> urls = new ArrayList<>();
-            try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
+            Path depArtifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
+            List<Path> artifacts = new ArrayList<>();
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(depArtifacts)) {
                 for (Path file : files) {
-                    urls.add(file.toUri().toURL());
+                    artifacts.add(file);
                 }
             }
-            URI mainArtifact = artifacts.resolve(coordinate.replace('/', '-') + ".jar").toUri();
-            URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
             try {
-                bridge = new JenesisClassLoaderBridge(classLoader);
-                foreignModule = bridge.findProvider(mainArtifact);
+                bridge = new JenesisClassLoaderBridge(artifacts);
+                foreignModule = bridge.findProvider();
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }

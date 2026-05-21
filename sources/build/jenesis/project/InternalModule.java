@@ -67,31 +67,22 @@ public class InternalModule implements BuildExecutorModule {
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
             Path depArtifacts = delegated.get(PREVIOUS + RUNTIME_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
-            List<URL> urls = new ArrayList<>();
-            URI mainArtifact = null;
+            List<Path> artifacts = new ArrayList<>();
             try (DirectoryStream<Path> files = Files.newDirectoryStream(mainArtifacts)) {
                 for (Path file : files) {
-                    if (mainArtifact != null) {
-                        throw new IllegalStateException("Expected a single main artifact in " + mainArtifacts);
-                    }
-                    urls.add(file.toUri().toURL());
-                    mainArtifact = file.toUri();
+                    artifacts.add(file);
                 }
-            }
-            if (mainArtifact == null) {
-                throw new IllegalStateException("No main artifact in " + mainArtifacts);
             }
             try (DirectoryStream<Path> files = Files.newDirectoryStream(depArtifacts)) {
                 for (Path file : files) {
-                    urls.add(file.toUri().toURL());
+                    artifacts.add(file);
                 }
             }
-            URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
             try {
-                bridge = new JenesisClassLoaderBridge(classLoader);
-                foreignModule = bridge.findProvider(mainArtifact);
+                bridge = new JenesisClassLoaderBridge(artifacts);
+                foreignModule = bridge.findProvider();
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve internal build execution module " + source, e);
             }

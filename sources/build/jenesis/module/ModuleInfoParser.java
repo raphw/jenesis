@@ -2,12 +2,13 @@ package build.jenesis.module;
 
 import module java.base;
 import module jdk.compiler;
+import javax.tools.ToolProvider;
 
 import static java.util.Objects.requireNonNull;
 
 public class ModuleInfoParser {
 
-    private final JavaCompiler compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
+    private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
     public ModuleInfo identify(Path moduleInfo) throws IOException {
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
