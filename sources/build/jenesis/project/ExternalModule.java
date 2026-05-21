@@ -19,18 +19,18 @@ public class ExternalModule implements BuildExecutorModule {
     private final String coordinate;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final List<String> additionalDependencies;
+    private final Set<String> additionalDependencies;
 
     public ExternalModule(String coordinate,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, List.of());
+        this(coordinate, repositories, resolvers, Set.of());
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
-                           List<String> additionalDependencies) {
+                           Set<String> additionalDependencies) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
@@ -38,11 +38,11 @@ public class ExternalModule implements BuildExecutorModule {
     }
 
     public ExternalModule withDependencies(String... dependencies) {
-        return withDependencies(List.of(dependencies));
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)));
     }
 
-    public ExternalModule withDependencies(List<String> dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, List.copyOf(dependencies));
+    public ExternalModule withDependencies(SequencedSet<String> dependencies) {
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies));
     }
 
     @Override
