@@ -8,7 +8,7 @@ public interface TestEngine extends Serializable {
 
     String module();
 
-    Set<String> coordinates();
+    SequencedSet<String> coordinates();
 
     String mainClass();
 

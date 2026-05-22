@@ -28,21 +28,21 @@ public class InternalModule implements BuildExecutorModule {
     private final Path source;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final Set<String> additionalDependencies;
+    private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
 
     public InternalModule(String prefix,
                           Path source,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(prefix, source, repositories, resolvers, Set.of(), null);
+        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null);
     }
 
     private InternalModule(String prefix,
                            Path source,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
-                           Set<String> additionalDependencies,
+                           SequencedSet<String> additionalDependencies,
                            String buildModuleName) {
         this.prefix = prefix;
         this.source = source;
@@ -120,7 +120,7 @@ public class InternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record ParseModuleInfo(String prefix, boolean compile, Set<String> additionalDependencies) implements BuildStep {
+    private record ParseModuleInfo(String prefix, boolean compile, SequencedSet<String> additionalDependencies) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {

@@ -20,8 +20,8 @@ public record TestNG() implements TestEngine {
     }
 
     @Override
-    public Set<String> coordinates() {
-        return Set.of();
+    public SequencedSet<String> coordinates() {
+        return Collections.emptyNavigableSet();
     }
 
     @Override

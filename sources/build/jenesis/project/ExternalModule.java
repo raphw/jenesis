@@ -19,19 +19,19 @@ public class ExternalModule implements BuildExecutorModule {
     private final String coordinate;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final Set<String> additionalDependencies;
+    private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
 
     public ExternalModule(String coordinate,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Set.of(), null);
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null);
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
-                           Set<String> additionalDependencies,
+                           SequencedSet<String> additionalDependencies,
                            String buildModuleName) {
         this.coordinate = coordinate;
         this.repositories = repositories;

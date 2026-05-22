@@ -368,7 +368,7 @@ class BuildExecutorDefault implements BuildExecutor {
                 registration.dependencies())) != null) {
             throw new IllegalArgumentException("Step already registered: " + prepended);
         }
-        registrations.replace(identity, new Registration(registration.bound(), Set.of(prepended), Map.of(prepended, prepended)));
+        registrations.replace(identity, new Registration(registration.bound(), new LinkedHashSet<>(Set.of(prepended)), Map.of(prepended, prepended)));
     }
 
     private void append(String identity, String appended, Bound bound) {
@@ -379,7 +379,7 @@ class BuildExecutorDefault implements BuildExecutor {
         if (registrations.putIfAbsent(validated(appended, VALIDATE_ORIGINAL), registration) != null) {
             throw new IllegalArgumentException("Step already registered: " + appended);
         }
-        registrations.replace(identity, new Registration(bound, Set.of(appended), Map.of(appended, appended)));
+        registrations.replace(identity, new Registration(bound, new LinkedHashSet<>(Set.of(appended)), Map.of(appended, appended)));
     }
 
     @Override
@@ -591,7 +591,7 @@ class BuildExecutorDefault implements BuildExecutor {
         }
     }
 
-    private record Registration(Bound bound, Set<String> preliminaries, Map<String, String> dependencies) {
+    private record Registration(Bound bound, SequencedSet<String> preliminaries, Map<String, String> dependencies) {
     }
 
     private record StepSummary(Path folder, Map<Path, byte[]> checksums) {
