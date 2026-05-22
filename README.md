@@ -1418,11 +1418,16 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.
 - **`TestModule`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` plus the built-in
-  `JUnit4` and `JUnit5` records encode per-framework metadata (main class, command-line prefix for selecting
-  classes/methods, marker class used to detect the framework on the classpath, optional Maven coordinates of the
-  runner). `JUnit5` takes an explicit `jupiterVersion` and `platformVersion`; when no engine is passed,
-  `TestEngine.of(...)` infers both from the `Implementation-Version` manifest entries of the Jupiter API and
-  Platform Commons jars discovered on the inherited paths. New frameworks slot in by implementing `TestEngine`.
+  `JUnit4`, `JUnit5`, and `TestNG` records encode per-framework metadata (main class, marker class used to
+  detect the framework on the classpath, optional Maven coordinates of the runner) and each implements
+  `commands(classes, methods)` to shape the CLI arguments for picking tests to run: `JUnit4` emits class
+  names positionally and throws `IllegalArgumentException` if individual methods are requested, `JUnit5`
+  emits `--select-class=` / `--select-method=` per entry, and `TestNG` joins everything into the single
+  comma-separated `-testclass` / `-methods` arguments the `org.testng.TestNG` runner expects. `JUnit5` takes
+  an explicit `jupiterVersion` and `platformVersion`; when no engine is passed, `TestEngine.of(...)` infers
+  both from the `Implementation-Version` manifest entries of the Jupiter API and Platform Commons jars
+  discovered on the inherited paths. New frameworks slot in by implementing `TestEngine` and choosing
+  whatever argument shape the runner needs.
 - **`JavaModule`** is the canonical `BuildExecutorModule` for "compile sources, package as a jar, optionally run
   tests". It delegates to `Javac`, `Jar`, and `TestModule`. Build scripts that don't have multi-project structure
   (`Minimal.java`, `Manual.java`) wire it directly.

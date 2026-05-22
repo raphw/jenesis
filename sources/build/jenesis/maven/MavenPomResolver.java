@@ -291,7 +291,7 @@ public class MavenPomResolver implements Resolver {
             SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
             pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                     key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
+                    value.resolveManaged(pom.properties())));
             pom.dependencies().forEach((key, value) -> {
                 MavenDependencyKey resolvedKey = key.resolve(pom.properties());
                 dependencies.put(resolvedKey, merge(value.resolve(pom.properties()),
@@ -500,6 +500,8 @@ public class MavenPomResolver implements Resolver {
                             Collections.emptyNavigableMap());
                 } else {
                     InputStream stream = candidate.toInputStream();
+                    Path localPath = candidate.file().map(Path::getParent).orElse(null);
+                    Map<Path, UnresolvedPom> localPaths = localPath == null ? null : new HashMap<>();
                     if (checksum != null) {
                         int separator = checksum.indexOf('/');
                         if (separator < 0) {
@@ -517,9 +519,9 @@ public class MavenPomResolver implements Resolver {
                         }
                         DigestInputStream digestStream = new DigestInputStream(stream, digest);
                         pom = assemble(executor, repository, drainAndValidate(digestStream, digest, expected,
-                                groupId, artifactId, version), false, null, null, children, poms);
+                                groupId, artifactId, version), false, localPath, localPaths, children, poms);
                     } else {
-                        pom = assemble(executor, repository, stream, false, null, null, children, poms);
+                        pom = assemble(executor, repository, stream, false, localPath, localPaths, children, poms);
                     }
                 }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
@@ -557,7 +559,7 @@ public class MavenPomResolver implements Resolver {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
             MavenDependencyKey key = entry.getKey().resolve(pom.properties());
-            MavenDependencyValue value = entry.getValue().resolve(pom.properties());
+            MavenDependencyValue value = entry.getValue().resolveManaged(pom.properties());
             if (value.scope() == MavenDependencyScope.IMPORT) {
                 UnresolvedPom imported = assembleOrCached(executor,
                         repository,
@@ -568,7 +570,7 @@ public class MavenPomResolver implements Resolver {
                         new HashSet<>(),
                         unresolved);
                 imported.managedDependencies().forEach((importKey, importValue) -> {
-                    MavenDependencyValue resolved = importValue.resolve(imported.properties());
+                    MavenDependencyValue resolved = importValue.resolveManaged(imported.properties());
                     if (resolved.scope() != MavenDependencyScope.IMPORT) {
                         managedDependencies.putIfAbsent(importKey.resolve(imported.properties()), resolved);
                     }
@@ -732,8 +734,17 @@ public class MavenPomResolver implements Resolver {
                                    String optional,
                                    String checksum) {
         private MavenDependencyValue resolve(Map<String, String> properties) {
+            return resolve(properties, true);
+        }
+
+        private MavenDependencyValue resolveManaged(Map<String, String> properties) {
+            return resolve(properties, false);
+        }
+
+        private MavenDependencyValue resolve(Map<String, String> properties, boolean defaultScope) {
+            String resolvedScope = property(scope, properties);
             return new MavenDependencyValue(property(version, properties),
-                    MavenDependencyScope.of(property(scope, properties)),
+                    resolvedScope == null && !defaultScope ? null : MavenDependencyScope.of(resolvedScope),
                     systemPath == null ? null : Path.of(property(systemPath, properties)),
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new MavenDependencyName(
                             property(exclusion.groupId(), properties),

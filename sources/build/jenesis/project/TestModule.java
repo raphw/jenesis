@@ -262,7 +262,7 @@ public class TestModule implements BuildExecutorModule {
                     ? engine
                     : TestEngine.of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
                             .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
-            List<TestSelector> selectors = TestSelector.parse(filter);
+            List<TestSpec> specs = TestSpec.parse(filter);
             List<String> commands = new ArrayList<>();
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
@@ -276,6 +276,8 @@ public class TestModule implements BuildExecutorModule {
                 commands.add(resolved.mainClass());
             }
             commands.addAll(resolved.arguments());
+            SequencedSet<String> matchedClasses = new LinkedHashSet<>();
+            SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(CLASSES);
                 if (Files.exists(classes)) {
@@ -285,22 +287,19 @@ public class TestModule implements BuildExecutorModule {
                             if (file.toString().endsWith(".class")) {
                                 String raw = classes.relativize(file).toString();
                                 String className = raw.substring(0, raw.length() - 6).replace(File.separatorChar, '.');
-                                if (selectors.isEmpty()) {
+                                if (specs.isEmpty()) {
                                     if (isTest.test(className)) {
-                                        commands.add(resolved.classPrefix() + className);
+                                        matchedClasses.add(className);
                                     }
                                 } else {
-                                    for (TestSelector selector : selectors) {
-                                        if (selector.classPattern.matcher(className).matches()) {
-                                            if (selector.method == null) {
-                                                commands.add(resolved.classPrefix() + className);
+                                    for (TestSpec spec : specs) {
+                                        if (spec.classPattern.matcher(className).matches()) {
+                                            if (spec.method == null) {
+                                                matchedClasses.add(className);
                                             } else {
-                                                String methodPrefix = resolved.methodPrefix();
-                                                if (methodPrefix == null) {
-                                                    throw new IllegalStateException(
-                                                            "Engine does not support method selection: " + resolved);
-                                                }
-                                                commands.add(methodPrefix + className + "#" + selector.method);
+                                                matchedMethods
+                                                        .computeIfAbsent(className, _ -> new ArrayList<>())
+                                                        .add(spec.method);
                                             }
                                             break;
                                         }
@@ -312,17 +311,18 @@ public class TestModule implements BuildExecutorModule {
                     });
                 }
             }
+            commands.addAll(resolved.commands(new ArrayList<>(matchedClasses), matchedMethods));
             return CompletableFuture.completedFuture(commands);
         }
     }
 
-    private record TestSelector(Pattern classPattern, String method) {
+    private record TestSpec(Pattern classPattern, String method) {
 
-        static List<TestSelector> parse(String spec) {
+        static List<TestSpec> parse(String spec) {
             if (spec == null || spec.isBlank()) {
                 return List.of();
             }
-            List<TestSelector> result = new ArrayList<>();
+            List<TestSpec> result = new ArrayList<>();
             for (String entry : spec.split(",")) {
                 String trimmed = entry.trim();
                 if (trimmed.isEmpty()) {
@@ -330,9 +330,9 @@ public class TestModule implements BuildExecutorModule {
                 }
                 int separator = trimmed.indexOf('#');
                 if (separator < 0) {
-                    result.add(new TestSelector(Pattern.compile(trimmed), null));
+                    result.add(new TestSpec(Pattern.compile(trimmed), null));
                 } else {
-                    result.add(new TestSelector(
+                    result.add(new TestSpec(
                             Pattern.compile(trimmed.substring(0, separator)),
                             trimmed.substring(separator + 1)));
                 }

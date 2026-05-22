@@ -33,16 +33,6 @@ public record JUnit5() implements TestEngine {
     }
 
     @Override
-    public String classPrefix() {
-        return "-select-class=";
-    }
-
-    @Override
-    public String methodPrefix() {
-        return "-select-method=";
-    }
-
-    @Override
     public Map<String, String> properties() {
         return Map.of("org.jline.terminal.dumb", "true");
     }
@@ -50,5 +40,19 @@ public record JUnit5() implements TestEngine {
     @Override
     public List<String> arguments() {
         return List.of("execute", "--disable-banner", "--disable-ansi-colors");
+    }
+
+    @Override
+    public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
+        List<String> commands = new ArrayList<>();
+        for (String className : classes) {
+            commands.add("-select-class=" + className);
+        }
+        for (Map.Entry<String, List<String>> entry : methods.entrySet()) {
+            for (String method : entry.getValue()) {
+                commands.add("-select-method=" + entry.getKey() + "#" + method);
+            }
+        }
+        return commands;
     }
 }

@@ -30,12 +30,15 @@ public record JUnit4() implements TestEngine {
     }
 
     @Override
-    public String classPrefix() {
-        return "";
+    public List<String> arguments() {
+        return List.of();
     }
 
     @Override
-    public List<String> arguments() {
-        return List.of();
+    public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
+        if (!methods.isEmpty()) {
+            throw new IllegalArgumentException("JUnit4 does not support running individual methods");
+        }
+        return new ArrayList<>(classes);
     }
 }

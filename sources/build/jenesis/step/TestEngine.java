@@ -12,12 +12,6 @@ public interface TestEngine extends Serializable {
 
     String mainClass();
 
-    String classPrefix();
-
-    default String methodPrefix() {
-        return null;
-    }
-
     default Map<String, String> versions() {
         return Map.of();
     }
@@ -32,9 +26,11 @@ public interface TestEngine extends Serializable {
 
     Map<String, String> runnerMarkers();
 
+    List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods);
+
     static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
         List<Attributes> manifests = scanManifests(folders);
-        for (TestEngine engine : List.<TestEngine>of(new JUnit5(), new JUnit4())) {
+        for (TestEngine engine : List.<TestEngine>of(new JUnit5(), new JUnit4(), new TestNG())) {
             if (matches(manifests, engine.markers())) {
                 return Optional.of(engine);
             }
