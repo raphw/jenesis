@@ -238,6 +238,18 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 requires.store(context.next().resolve(BuildStep.REQUIRES));
                                 scopes.store(context.next().resolve(BuildStep.SCOPES));
+                                SequencedProperties exclusionsProperties = new SequencedProperties();
+                                for (String key : properties.stringPropertyNames()) {
+                                    if (key.startsWith("exclusions.")) {
+                                        String coord = key.substring("exclusions.".length());
+                                        if (requires.containsKey(coord)) {
+                                            exclusionsProperties.setProperty(coord, properties.getProperty(key));
+                                        }
+                                    }
+                                }
+                                if (!exclusionsProperties.isEmpty()) {
+                                    exclusionsProperties.store(context.next().resolve(BuildStep.EXCLUSIONS));
+                                }
                                 SequencedProperties versions = new SequencedProperties();
                                 String managed = properties.getProperty("managedDependencies", "");
                                 if (!managed.isEmpty()) {
@@ -488,6 +500,17 @@ public class MavenProject implements BuildExecutorModule {
                                     .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
                                     .collect(Collectors.joining(",")));
                 }
+            }
+            if (value.dependencies() != null) {
+                value.dependencies().forEach((depKey, depValue) -> {
+                    if (depValue.exclusions() != null && !depValue.exclusions().isEmpty()) {
+                        properties.setProperty(
+                                "exclusions." + depKey.coordinate(prefix, depValue.version()),
+                                depValue.exclusions().stream()
+                                        .map(name -> name.groupId() + "/" + name.artifactId())
+                                        .collect(Collectors.joining(",")));
+                    }
+                });
             }
             properties.setProperty("managedDependencies",
                     value.managedDependencies() == null ? "" : value.managedDependencies().entrySet().stream()

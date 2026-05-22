@@ -3562,7 +3562,7 @@ public class MavenPomResolverTest {
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
-                new LinkedHashSet<>(List.of("group/artifact/1")),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
                 true);
         assertThat(resolved).containsOnlyKeys(
@@ -3604,7 +3604,7 @@ public class MavenPomResolverTest {
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
-                new LinkedHashSet<>(List.of("group/artifact/1")),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
                 true);
         assertThat(resolved).containsOnlyKeys(
@@ -3646,7 +3646,7 @@ public class MavenPomResolverTest {
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
-                new LinkedHashSet<>(List.of("group/artifact/1")),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
                 true);
         assertThat(resolved).containsOnlyKeys(
@@ -3679,7 +3679,7 @@ public class MavenPomResolverTest {
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
-                new LinkedHashSet<>(List.of("group/artifact/1")),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(resolved).containsOnlyKeys(
@@ -3733,7 +3733,7 @@ public class MavenPomResolverTest {
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
-                new LinkedHashSet<>(List.of("group/artifact/1")),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
                 true);
         assertThat(resolved).containsOnlyKeys(

@@ -14,7 +14,8 @@ public interface DependencyProcessingBuildStep extends BuildStep {
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
-                Path.of(VERSIONS)));
+                Path.of(VERSIONS),
+                Path.of(EXCLUSIONS)));
     }
 
     @Override
@@ -43,7 +44,28 @@ public interface DependencyProcessingBuildStep extends BuildStep {
                 }
             }
         }
-        CompletionStage<SequencedProperties> requiresStage = transform(executor, context, arguments, groups, versions);
+        SequencedMap<String, SequencedMap<String, SequencedSet<String>>> exclusions = new LinkedHashMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path file = argument.folder().resolve(EXCLUSIONS);
+            if (!Files.exists(file)) {
+                continue;
+            }
+            SequencedProperties properties = SequencedProperties.ofFiles(file);
+            for (String property : properties.stringPropertyNames()) {
+                int index = property.indexOf('/');
+                String prefix = property.substring(0, index);
+                String coordinate = property.substring(index + 1);
+                String value = properties.getProperty(property);
+                SequencedSet<String> excludes = new LinkedHashSet<>();
+                if (!value.isEmpty()) {
+                    for (String entry : value.split(",")) {
+                        excludes.add(entry);
+                    }
+                }
+                exclusions.computeIfAbsent(prefix, _ -> new LinkedHashMap<>()).put(coordinate, excludes);
+            }
+        }
+        CompletionStage<SequencedProperties> requiresStage = transform(executor, context, arguments, groups, versions, exclusions);
         CompletionStage<SequencedProperties> versionsStage = transformVersions(executor, context, arguments, versions);
         return requiresStage.thenCombineAsync(versionsStage, (requiresProperties, versionsProperties) -> {
             if (requiresProperties != null) {
@@ -68,7 +90,8 @@ public interface DependencyProcessingBuildStep extends BuildStep {
                                                    BuildStepContext context,
                                                    SequencedMap<String, BuildStepArgument> arguments,
                                                    SequencedMap<String, SequencedMap<String, String>> groups,
-                                                   SequencedMap<String, SequencedMap<String, String>> versions) throws IOException;
+                                                   SequencedMap<String, SequencedMap<String, String>> versions,
+                                                   SequencedMap<String, SequencedMap<String, SequencedSet<String>>> exclusions) throws IOException;
 
     default CompletionStage<SequencedProperties> transformVersions(Executor executor,
                                                                    BuildStepContext context,

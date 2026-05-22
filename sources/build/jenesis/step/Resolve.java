@@ -26,17 +26,24 @@ public class Resolve implements DependencyProcessingBuildStep {
                                                           BuildStepContext context,
                                                           SequencedMap<String, BuildStepArgument> arguments,
                                                           SequencedMap<String, SequencedMap<String, String>> groups,
-                                                          SequencedMap<String, SequencedMap<String, String>> versions)
+                                                          SequencedMap<String, SequencedMap<String, String>> versions,
+                                                          SequencedMap<String, SequencedMap<String, SequencedSet<String>>> exclusions)
             throws IOException {
         SequencedProperties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
+            SequencedMap<String, SequencedSet<String>> coordinates = new LinkedHashMap<>();
+            SequencedMap<String, SequencedSet<String>> groupExclusions = exclusions
+                    .getOrDefault(group.getKey(), new LinkedHashMap<>());
+            for (String coordinate : group.getValue().sequencedKeySet()) {
+                coordinates.put(coordinate, groupExclusions.getOrDefault(coordinate, Collections.emptyNavigableSet()));
+            }
             for (Map.Entry<String, String> entry : requireNonNull(
                     resolvers.get(group.getKey()),
                     "Unknown resolver: " + group.getKey()).dependencies(
                     executor,
                     group.getKey(),
                     repositories,
-                    group.getValue().sequencedKeySet(),
+                    coordinates,
                     versions.getOrDefault(group.getKey(), new LinkedHashMap<>()),
                     compile).entrySet()) {
                 String value;

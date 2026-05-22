@@ -23,7 +23,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -45,7 +45,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
@@ -65,7 +65,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -89,7 +89,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -113,7 +113,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 false);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
@@ -163,7 +163,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/1.2.3", ""));
@@ -181,7 +181,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
@@ -199,7 +199,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "9.9")),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/9.9", ""));
@@ -217,7 +217,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "7.0")),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/7.0", ""));
@@ -236,7 +236,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -260,7 +260,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -284,7 +284,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "pinned/1.0");
@@ -308,7 +308,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "plain");
@@ -332,7 +332,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("dep", "9.9")),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "dep/9.9");
@@ -357,7 +357,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "middle/1.0", "deep/1.0");
@@ -385,7 +385,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).contains(Map.entry("shared/1.0", ""));
@@ -405,7 +405,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("transitive", "9.9")),
                 true);
         assertThat(dependencies).containsExactly(
@@ -429,7 +429,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/2.0", ""));
@@ -450,7 +450,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/1.0", ""));

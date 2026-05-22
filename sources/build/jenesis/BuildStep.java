@@ -17,7 +17,8 @@ public interface BuildStep extends Serializable {
             VERSIONS = "versions.properties",
             MODULE = "module.properties",
             METADATA = "metadata.properties",
-            SCOPES = "scopes.properties";
+            SCOPES = "scopes.properties",
+            EXCLUSIONS = "exclusions.properties";
 
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);

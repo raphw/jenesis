@@ -38,6 +38,7 @@ public class Pom implements BuildStep {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
                 Path.of(SCOPES),
+                Path.of(EXCLUSIONS),
                 Path.of(METADATA)));
     }
 
@@ -49,6 +50,7 @@ public class Pom implements BuildStep {
         List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
         SequencedProperties requires = SequencedProperties.ofFolders(folders, REQUIRES);
         SequencedProperties scopes = SequencedProperties.ofFolders(folders, SCOPES);
+        SequencedProperties exclusions = SequencedProperties.ofFolders(folders, EXCLUSIONS);
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         boolean scoped = !scopes.isEmpty();
         SequencedProperties compileRequires = new SequencedProperties();
@@ -107,11 +109,24 @@ public class Pom implements BuildStep {
                     scope = MavenDependencyScope.RUNTIME;
                 }
             }
+            List<MavenDependencyName> excludes = null;
+            String exclusionList = exclusions.getProperty(name);
+            if (exclusionList != null && !exclusionList.isEmpty()) {
+                excludes = new ArrayList<>();
+                for (String entry : exclusionList.split(",")) {
+                    int slash = entry.indexOf('/');
+                    if (slash > 0) {
+                        excludes.add(new MavenDependencyName(
+                                entry.substring(0, slash),
+                                entry.substring(slash + 1)));
+                    }
+                }
+            }
             deps.putIfAbsent(parsed.key(), new MavenDependencyValue(
                     parsed.version(),
                     scope,
                     null,
-                    null,
+                    excludes,
                     null));
         }
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(POM))) {

@@ -28,7 +28,7 @@ public class MavenPomResolver implements Resolver {
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
-                                                     SequencedSet<String> coordinates,
+                                                     SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
@@ -41,11 +41,20 @@ public class MavenPomResolver implements Resolver {
                     version, null, null, null, null, checksum));
         });
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-        coordinates.forEach(coordinate -> {
+        coordinates.forEach((coordinate, excludes) -> {
+            List<MavenDependencyName> exclusions = excludes.isEmpty()
+                    ? null
+                    : excludes.stream()
+                            .map(entry -> {
+                                int separator = entry.indexOf('/');
+                                return new MavenDependencyName(
+                                        entry.substring(0, separator), entry.substring(separator + 1));
+                            })
+                            .collect(Collectors.toList());
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.tryParse(coordinate);
             if (parsed.version() != null) {
                 dependencies.put(parsed.key(),
-                        new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, null, null));
+                        new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, exclusions, null));
                 return;
             }
             MavenDependencyValue managed = managedDependencies.get(parsed.key());
@@ -54,7 +63,7 @@ public class MavenPomResolver implements Resolver {
                         "No version pinned for " + coordinate + " (add to dependencyManagement)");
             }
             dependencies.put(parsed.key(), new MavenDependencyValue(
-                    managed.version(), MavenDependencyScope.COMPILE, null, null, null, managed.checksum()));
+                    managed.version(), MavenDependencyScope.COMPILE, null, exclusions, null, managed.checksum()));
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,

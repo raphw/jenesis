@@ -23,6 +23,7 @@ public class MultiProjectDependencies implements BuildStep {
                 Path.of(SCOPES),
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
+                Path.of(EXCLUSIONS),
                 Path.of(IDENTITY)));
     }
 
@@ -33,7 +34,8 @@ public class MultiProjectDependencies implements BuildStep {
             throws IOException {
         SequencedMap<String, String> coordinates = new LinkedHashMap<>(),
                 dependencies = new LinkedHashMap<>(),
-                versions = new LinkedHashMap<>();
+                versions = new LinkedHashMap<>(),
+                exclusions = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
                 Path scopesFile = entry.getValue().folder().resolve(SCOPES);
@@ -62,6 +64,15 @@ public class MultiProjectDependencies implements BuildStep {
                             property,
                             properties.getProperty(property)));
                 }
+                Path exclusionsPath = entry.getValue().folder().resolve(EXCLUSIONS);
+                if (Files.exists(exclusionsPath)) {
+                    SequencedProperties properties = SequencedProperties.ofFiles(exclusionsPath);
+                    properties.stringPropertyNames().forEach(property -> {
+                        if (filtered.isEmpty() || filtered.contains(property)) {
+                            exclusions.putIfAbsent(property, properties.getProperty(property));
+                        }
+                    });
+                }
             } else {
                 Path file = entry.getValue().folder().resolve(IDENTITY);
                 if (Files.exists(file)) {
@@ -88,6 +99,11 @@ public class MultiProjectDependencies implements BuildStep {
             SequencedProperties versionProperties = new SequencedProperties();
             versions.forEach(versionProperties::setProperty);
             versionProperties.store(context.next().resolve(VERSIONS));
+        }
+        if (!exclusions.isEmpty()) {
+            SequencedProperties exclusionsProperties = new SequencedProperties();
+            exclusions.forEach(exclusionsProperties::setProperty);
+            exclusionsProperties.store(context.next().resolve(EXCLUSIONS));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

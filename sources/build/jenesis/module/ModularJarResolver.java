@@ -25,15 +25,21 @@ public class ModularJarResolver implements Resolver {
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
-                                                     SequencedSet<String> coordinates,
+                                                     SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
+        coordinates.forEach((coordinate, exclusions) -> {
+            if (!exclusions.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
+            }
+        });
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
         SequencedMap<String, String> hints = new LinkedHashMap<>(versions);
-        Queue<String> queue = new ArrayDeque<>(coordinates);
+        Queue<String> queue = new ArrayDeque<>(coordinates.sequencedKeySet());
         int runtime = Runtime.version().feature();
         while (!queue.isEmpty()) {
             String raw = queue.remove();
@@ -140,7 +146,12 @@ public class ModularJarResolver implements Resolver {
             }
         }
         if (!unresolved.isEmpty()) {
-            fallback.dependencies(executor, prefix, repositories, unresolved, hints, compile).forEach(dependencies::putIfAbsent);
+            SequencedMap<String, SequencedSet<String>> unresolvedCoordinates = new LinkedHashMap<>();
+            for (String coordinate : unresolved) {
+                unresolvedCoordinates.put(coordinate, Collections.emptyNavigableSet());
+            }
+            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, compile)
+                    .forEach(dependencies::putIfAbsent);
         }
         return dependencies;
     }
