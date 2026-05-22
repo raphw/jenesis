@@ -22,13 +22,41 @@ public class Resolve implements DependencyProcessingBuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(REQUIRES),
+                Path.of(VERSIONS),
+                Path.of(EXCLUSIONS)));
+    }
+
+    @Override
     public CompletionStage<SequencedProperties> transform(Executor executor,
                                                           BuildStepContext context,
                                                           SequencedMap<String, BuildStepArgument> arguments,
                                                           SequencedMap<String, SequencedMap<String, String>> groups,
-                                                          SequencedMap<String, SequencedMap<String, String>> versions,
-                                                          SequencedMap<String, SequencedMap<String, SequencedSet<String>>> exclusions)
+                                                          SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
+        SequencedMap<String, SequencedMap<String, SequencedSet<String>>> exclusions = new LinkedHashMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path file = argument.folder().resolve(EXCLUSIONS);
+            if (!Files.exists(file)) {
+                continue;
+            }
+            SequencedProperties properties = SequencedProperties.ofFiles(file);
+            for (String property : properties.stringPropertyNames()) {
+                int index = property.indexOf('/');
+                String prefix = property.substring(0, index);
+                String coordinate = property.substring(index + 1);
+                String value = properties.getProperty(property);
+                SequencedSet<String> excludes = new LinkedHashSet<>();
+                if (!value.isEmpty()) {
+                    for (String entry : value.split(",")) {
+                        excludes.add(entry);
+                    }
+                }
+                exclusions.computeIfAbsent(prefix, _ -> new LinkedHashMap<>()).put(coordinate, excludes);
+            }
+        }
         SequencedProperties properties = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             SequencedMap<String, SequencedSet<String>> coordinates = new LinkedHashMap<>();

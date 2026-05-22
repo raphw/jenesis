@@ -27,8 +27,7 @@ public class Download implements DependencyProcessingBuildStep {
                                                           BuildStepContext context,
                                                           SequencedMap<String, BuildStepArgument> arguments,
                                                           SequencedMap<String, SequencedMap<String, String>> groups,
-                                                          SequencedMap<String, SequencedMap<String, String>> versions,
-                                                          SequencedMap<String, SequencedMap<String, SequencedSet<String>>> exclusions)
+                                                          SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
