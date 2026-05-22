@@ -16,12 +16,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class InternalModuleTest {
 
-    @TempDir
+    @TempDir(cleanup = CleanupMode.NEVER)
     private static Path shared;
 
     private static Path jenesisJar;
 
-    @TempDir
+    @TempDir(cleanup = CleanupMode.NEVER)
     private Path root, work;
 
     private BuildExecutor buildExecutor;
