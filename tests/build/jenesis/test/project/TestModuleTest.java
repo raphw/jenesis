@@ -15,6 +15,7 @@ import build.jenesis.project.TestModule;
 import build.jenesis.step.JUnit4;
 import build.jenesis.step.JUnit5;
 import build.jenesis.step.Javac;
+import build.jenesis.step.TestNG;
 import sample.TestSample;
 
 import static java.util.Objects.requireNonNull;
@@ -315,6 +316,24 @@ public class TestModuleTest {
         executor.addModule(
                 "test",
                 new TestModule(new JUnit4(),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of(),
+                        Map.of()).jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties).isEmpty();
+    }
+
+    @Test
+    public void requires_step_emits_nothing_for_testng_engine() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(new TestNG(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of()).jarsOnly(false),

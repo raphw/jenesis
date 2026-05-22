@@ -38,7 +38,7 @@ public class MavenPomResolver implements Resolver {
             String version = split < 0 ? value : value.substring(0, split);
             String checksum = split < 0 ? null : value.substring(split + 1).trim();
             managedDependencies.put(key, new MavenDependencyValue(
-                    version, MavenDependencyScope.COMPILE, null, null, null, checksum));
+                    version, null, null, null, null, checksum));
         });
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         coordinates.forEach(coordinate -> {
