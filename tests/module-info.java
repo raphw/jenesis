@@ -1,4 +1,6 @@
 /**
+ * Test sources for {@code build.jenesis}.
+ *
  * @jenesis.release 25
  * @jenesis.test build.jenesis
  * @jenesis.pin org.junit.jupiter 5.11.3 SHA-256/ac7578efed162367c3ddc006338e07d4571510fd9866642ea93d5b9e4ed2f665
