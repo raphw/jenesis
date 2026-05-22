@@ -14,8 +14,7 @@ public class JenesisModuleRepository implements Repository {
         Path path = override == null
                 ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
                 : Path.of(override);
-        root = withTrailingSlash(path.toUri());
-        token = null;
+        this(path.toUri());
     }
 
     public JenesisModuleRepository(URI root) {
@@ -23,13 +22,9 @@ public class JenesisModuleRepository implements Repository {
     }
 
     public JenesisModuleRepository(URI root, String token) {
-        this.root = withTrailingSlash(root);
+        String text = root.toString();
+        this.root = text.endsWith("/") ? root : URI.create(text + "/");
         this.token = token;
-    }
-
-    private static URI withTrailingSlash(URI uri) {
-        String text = uri.toString();
-        return text.endsWith("/") ? uri : URI.create(text + "/");
     }
 
     @Override
@@ -49,18 +44,14 @@ public class JenesisModuleRepository implements Repository {
         }
         InputStream stream;
         try {
-            stream = openStream(uri, token);
+            URLConnection connection = uri.toURL().openConnection();
+            if (token != null && connection instanceof HttpURLConnection http) {
+                http.setRequestProperty("Authorization", token);
+            }
+            stream = connection.getInputStream();
         } catch (FileNotFoundException _) {
             return Optional.empty();
         }
         return Optional.of(() -> stream);
-    }
-
-    private static InputStream openStream(URI uri, String token) throws IOException {
-        URLConnection connection = uri.toURL().openConnection();
-        if (token != null && connection instanceof HttpURLConnection http) {
-            http.setRequestProperty("Authorization", token);
-        }
-        return connection.getInputStream();
     }
 }
