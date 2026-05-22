@@ -11,12 +11,12 @@ public record TestNG() implements TestEngine {
 
     @Override
     public Map<String, String> markers() {
-        return Map.of("Implementation-Title", "testng");
+        return Map.of("Implementation-Title", "TestNG");
     }
 
     @Override
     public Map<String, String> runnerMarkers() {
-        return Map.of("Implementation-Title", "testng");
+        return Map.of("Implementation-Title", "TestNG");
     }
 
     @Override

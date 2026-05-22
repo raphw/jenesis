@@ -61,6 +61,9 @@ public abstract class ProcessBuildStep implements BuildStep {
             properties.put(entry.getKey(), folderMap);
         }
         return process(executor, context, arguments, properties).thenComposeAsync(processed -> {
+            if (processed == null) {
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
                 List<String> prepended = new ArrayList<>();

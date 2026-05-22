@@ -48,7 +48,7 @@ public class MultiProjectModuleTest {
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
-                    Map.entry("1", new LinkedHashSet<>()),
+                    Map.entry("1", Collections.emptyNavigableSet()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))));
             return (name, dependencies, identifiers) -> switch (name) {
                 case "1" -> {
@@ -70,7 +70,7 @@ public class MultiProjectModuleTest {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identifier/2-module",
                             "../../identifier/2-source");
-                    assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
+                    assertThat(dependencies).containsExactly(Map.entry("1", Collections.emptyNavigableSet()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/2-module",
@@ -121,7 +121,7 @@ public class MultiProjectModuleTest {
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
-                    Map.entry("1", new LinkedHashSet<>()),
+                    Map.entry("1", Collections.emptyNavigableSet()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
                     Map.entry("3", new LinkedHashSet<>(Set.of("2"))));
             return (name, dependencies, identifiers) -> switch (name) {
@@ -144,7 +144,7 @@ public class MultiProjectModuleTest {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identifier/2-module",
                             "../../identifier/2-source");
-                    assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
+                    assertThat(dependencies).containsExactly(Map.entry("1", Collections.emptyNavigableSet()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/2-module",
@@ -164,7 +164,7 @@ public class MultiProjectModuleTest {
                             "../../identifier/3-source");
                     assertThat(dependencies).containsExactly(
                             Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
-                            Map.entry("1", new LinkedHashSet<>()));
+                            Map.entry("1", Collections.emptyNavigableSet()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/3-module",

@@ -105,6 +105,15 @@ public class MavenProject implements BuildExecutorModule {
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES, COORDINATES);
+                    SequencedSet<String> resources = new LinkedHashSet<>();
+                    String resourcesPrefix = MultiProjectModule.IDENTIFIER_PATH + name + "/resources-";
+                    for (String key : inherited.sequencedKeySet()) {
+                        if (key.startsWith(resourcesPrefix)) {
+                            String synonym = key.substring(MultiProjectModule.IDENTIFIER_PATH.length() + name.length() + 1);
+                            produceDeps.put(key, synonym);
+                            resources.add(BuildExecutorModule.PREVIOUS + synonym);
+                        }
+                    }
                     for (DependencyScope scope : List.of(DependencyScope.COMPILE, DependencyScope.RUNTIME)) {
                         String resolved = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
                         String artifacts = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
@@ -115,7 +124,7 @@ public class MavenProject implements BuildExecutorModule {
                         produceDeps.putIfAbsent(key, key);
                     }
                     buildExecutor.addModule(PRODUCE,
-                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet()),
+                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources),
                                     mergedRepositories,
                                     resolverMap),
                             produceDeps);
@@ -158,12 +167,10 @@ public class MavenProject implements BuildExecutorModule {
                         SequencedProperties properties = SequencedProperties.ofFiles(file);
                         boolean active = false;
                         Path base = root.resolve(properties.getProperty("path"));
-                        if (!properties.getProperty("sources").isEmpty()) {
-                            Path sources = base.resolve(properties.getProperty("sources"));
-                            if (Files.exists(sources)) {
-                                module.addSource("sources", Bind.asSources(), sources);
-                                active = true;
-                            }
+                        String sourcesProperty = properties.getProperty("sources");
+                        Path sources = sourcesProperty.isEmpty() ? null : base.resolve(sourcesProperty);
+                        if (sources != null && Files.exists(sources)) {
+                            active = true;
                         }
                         int index = 0;
                         if (!properties.getProperty("resources").isEmpty()) {
@@ -176,6 +183,7 @@ public class MavenProject implements BuildExecutorModule {
                             }
                         }
                         if (active) {
+                            module.addSource("sources", Bind.asSources(), sources == null ? base : sources);
                             module.addStep(COORDINATES, (_, context, _) -> {
                                 SequencedProperties coordinates = new SequencedProperties();
                                 coordinates.setProperty(properties.getProperty("coordinate"), "");
@@ -508,7 +516,9 @@ public class MavenProject implements BuildExecutorModule {
         }
     }
 
-    public record MavenModuleDescriptor(String name, SequencedSet<String> dependencies) implements ModuleDescriptor {
+    public record MavenModuleDescriptor(String name,
+                                        SequencedSet<String> dependencies,
+                                        SequencedSet<String> resources) implements ModuleDescriptor {
 
         @Override
         public String sources() {

@@ -26,13 +26,16 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
         return (sub, outerInherited) -> {
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
             sub.addModule("java", new JavaModule(process),
-                    "prepare",
-                    descriptor.sources(),
-                    descriptor.manifests(),
-                    descriptor.resolved(DependencyScope.COMPILE),
-                    descriptor.resolved(DependencyScope.RUNTIME),
-                    descriptor.artifacts(DependencyScope.COMPILE),
-                    descriptor.artifacts(DependencyScope.RUNTIME));
+                    Stream.concat(
+                            Stream.of(
+                                    "prepare",
+                                    descriptor.sources(),
+                                    descriptor.manifests(),
+                                    descriptor.resolved(DependencyScope.COMPILE),
+                                    descriptor.resolved(DependencyScope.RUNTIME),
+                                    descriptor.artifacts(DependencyScope.COMPILE),
+                                    descriptor.artifacts(DependencyScope.RUNTIME)),
+                            descriptor.resources().stream()));
             if (descriptor.test()) {
                 Path module = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
                 if (Files.isRegularFile(module)) {

@@ -303,6 +303,11 @@ public class ModularProject implements BuildExecutorModule {
         }
 
         @Override
+        public SequencedSet<String> resources() {
+            return Collections.emptyNavigableSet();
+        }
+
+        @Override
         public String manifests() {
             return BuildExecutorModule.PREVIOUS + MANIFESTS;
         }

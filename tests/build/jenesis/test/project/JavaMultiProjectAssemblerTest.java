@@ -121,12 +121,17 @@ public class JavaMultiProjectAssemblerTest {
 
             @Override
             public SequencedSet<String> dependencies() {
-                return new LinkedHashSet<>();
+                return Collections.emptyNavigableSet();
             }
 
             @Override
             public String sources() {
                 return BuildExecutorModule.PREVIOUS + "sources";
+            }
+
+            @Override
+            public SequencedSet<String> resources() {
+                return Collections.emptyNavigableSet();
             }
 
             @Override

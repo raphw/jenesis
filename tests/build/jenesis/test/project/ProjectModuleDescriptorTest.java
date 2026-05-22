@@ -13,7 +13,7 @@ public class ProjectModuleDescriptorTest {
 
     @Test
     public void carries_the_flags_unchanged() {
-        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", new LinkedHashSet<>());
+        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet());
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, true, false);
         assertThat(descriptor.test()).isTrue();
         assertThat(descriptor.source()).isFalse();
@@ -23,11 +23,12 @@ public class ProjectModuleDescriptorTest {
     @Test
     public void delegates_module_descriptor_accessors_to_base() {
         LinkedHashSet<String> dependencies = new LinkedHashSet<>(List.of("module-bar"));
-        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", dependencies);
+        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", dependencies, Collections.emptyNavigableSet());
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, false, false, false, false);
         assertThat(descriptor.name()).isEqualTo(base.name());
         assertThat(descriptor.dependencies()).isEqualTo(base.dependencies());
         assertThat(descriptor.sources()).isEqualTo(base.sources());
+        assertThat(descriptor.resources()).isEqualTo(base.resources());
         assertThat(descriptor.manifests()).isEqualTo(base.manifests());
         assertThat(descriptor.artifacts(DependencyScope.COMPILE)).isEqualTo(base.artifacts(DependencyScope.COMPILE));
         assertThat(descriptor.artifacts(DependencyScope.RUNTIME)).isEqualTo(base.artifacts(DependencyScope.RUNTIME));
@@ -37,7 +38,7 @@ public class ProjectModuleDescriptorTest {
 
     @Test
     public void to_inherited_prepends_one_parent_segment_per_call() {
-        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", new LinkedHashSet<>());
+        ModuleDescriptor base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet());
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, true, true, false);
         ProjectModuleDescriptor inherited = descriptor.toInherited();
         assertThat(inherited.name()).isEqualTo(base.name());
@@ -46,6 +47,9 @@ public class ProjectModuleDescriptorTest {
         assertThat(inherited.source()).isTrue();
         assertThat(inherited.documentation()).isTrue();
         assertThat(inherited.sources()).isEqualTo("../" + base.sources());
+        assertThat(inherited.resources()).isEqualTo(base.resources().stream()
+                .map(r -> "../" + r)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
         assertThat(inherited.manifests()).isEqualTo("../" + base.manifests());
         assertThat(inherited.artifacts(DependencyScope.COMPILE)).isEqualTo("../" + base.artifacts(DependencyScope.COMPILE));
         assertThat(inherited.artifacts(DependencyScope.RUNTIME)).isEqualTo("../" + base.artifacts(DependencyScope.RUNTIME));

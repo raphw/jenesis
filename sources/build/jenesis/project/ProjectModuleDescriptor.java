@@ -70,6 +70,13 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     }
 
     @Override
+    public SequencedSet<String> resources() {
+        return base.resources().stream()
+                .map(resource -> BuildExecutorModule.PREVIOUS.repeat(depth) + resource)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    @Override
     public String manifests() {
         return BuildExecutorModule.PREVIOUS.repeat(depth) + base.manifests();
     }

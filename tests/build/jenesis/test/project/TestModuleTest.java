@@ -16,6 +16,8 @@ import build.jenesis.step.JUnit4;
 import build.jenesis.step.JUnit5;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestNG;
+import sample.JUnit4TestSample;
+import sample.TestNGTestSample;
 import sample.TestSample;
 
 import static java.util.Objects.requireNonNull;
@@ -25,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestModuleTest {
 
     @TempDir
-    private Path root, dependencies, classes, emptyDependencies;
+    private Path root, dependencies, classes, emptyDependencies, junit4Dependencies, testngDependencies;
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -41,12 +43,10 @@ public class TestModuleTest {
             appended.add(name);
             Files.copy(path, artifacts.resolve(name));
         }
-        try (InputStream input = TestSample.class.getResourceAsStream(TestSample.class.getSimpleName() + ".class");
-             OutputStream output = Files.newOutputStream(Files
-                     .createDirectories(classes.resolve(Javac.CLASSES + "sample"))
-                     .resolve("TestSample.class"))) {
-            requireNonNull(input).transferTo(output);
-        }
+        Path sampleClasses = Files.createDirectories(classes.resolve(Javac.CLASSES + "sample"));
+        copyClass(TestSample.class, sampleClasses);
+        copyClass(JUnit4TestSample.class, sampleClasses);
+        copyClass(TestNGTestSample.class, sampleClasses);
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("maven/org.junit.platform/junit-platform-console",
                 "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
@@ -115,6 +115,77 @@ public class TestModuleTest {
                 .lines()
                 .filter(line -> !line.startsWith("stty:"))
                 .collect(Collectors.joining("\n"))).isEmpty();
+    }
+
+    @Test
+    public void can_execute_junit4() throws IOException {
+        populateFilteredArtifacts(junit4Dependencies, Set.of("junit-4", "hamcrest-core-"));
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("maven/junit/junit",
+                "4.13.2 SHA-256/8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3");
+        versions.setProperty("maven/org.hamcrest/hamcrest-core",
+                "1.3 SHA-256/66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9");
+        versions.store(junit4Dependencies.resolve(BuildStep.VERSIONS));
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("maven/junit/junit", "");
+        requires.store(junit4Dependencies.resolve(BuildStep.REQUIRES));
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", junit4Dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(new JUnit4(),
+                        candidate -> candidate.endsWith("JUnit4TestSample"),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
+        assertThat(supplement.resolve("output")).content().contains("Hello world!");
+        assertThat(supplement.resolve("output")).content().contains("OK (1 test)");
+    }
+
+    @Test
+    public void can_execute_testng() throws IOException {
+        populateFilteredArtifacts(testngDependencies, Set.of("testng-", "jcommander-", "slf4j-api-", "jquery-"));
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("maven/org.testng/testng",
+                "7.10.2 SHA-256/225fd56447f2e5e439db3b483a79cd9f294fad9f357f8352b12ee6a3411ebb15");
+        versions.setProperty("maven/com.beust/jcommander",
+                "1.82 SHA-256/deeac157c8de6822878d85d0c7bc8467a19cc8484d37788f7804f039dde280b1");
+        versions.setProperty("maven/org.slf4j/slf4j-api",
+                "1.7.36 SHA-256/d3ef575e3e4979678dc01bf1dcce51021493b4d11fb7f1be8ad982877c16a1c0");
+        versions.setProperty("maven/org.webjars/jquery",
+                "3.7.1 SHA-256/262016dd3a559df87aefbe392804e9bf620787c9204c0ab8522d4c231ea65097");
+        versions.store(testngDependencies.resolve(BuildStep.VERSIONS));
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("maven/org.testng/testng", "");
+        requires.store(testngDependencies.resolve(BuildStep.REQUIRES));
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", testngDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(new TestNG(),
+                        candidate -> candidate.endsWith("TestNGTestSample"),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
+        assertThat(supplement.resolve("output")).content().contains("Hello world!");
     }
 
     @Test
@@ -371,6 +442,27 @@ public class TestModuleTest {
 
     private static SequencedProperties readRequires(Path stepFolder) throws IOException {
         return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.REQUIRES));
+    }
+
+    private static void copyClass(Class<?> type, Path target) throws IOException {
+        try (InputStream input = type.getResourceAsStream(type.getSimpleName() + ".class");
+             OutputStream output = Files.newOutputStream(target.resolve(type.getSimpleName() + ".class"))) {
+            requireNonNull(input).transferTo(output);
+        }
+    }
+
+    private static void populateFilteredArtifacts(Path dependencies, Set<String> excludedJarPrefixes) throws IOException {
+        Path artifacts = Files.createDirectory(dependencies.resolve(BuildStep.ARTIFACTS));
+        for (Path path : bootModuleJars()) {
+            String fileName = path.getFileName().toString();
+            if (fileName.endsWith("_rt.jar") || fileName.endsWith("-rt.jar")) {
+                continue;
+            }
+            if (excludedJarPrefixes.stream().anyMatch(fileName::startsWith)) {
+                continue;
+            }
+            Files.copy(path, artifacts.resolve(fileName + "-" + UUID.randomUUID() + ".jar"));
+        }
     }
 
     private static List<Path> bootModuleJars() throws IOException {

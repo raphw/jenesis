@@ -10,6 +10,8 @@ public interface ModuleDescriptor {
 
     String sources();
 
+    SequencedSet<String> resources();
+
     String manifests();
 
     String coordinates();

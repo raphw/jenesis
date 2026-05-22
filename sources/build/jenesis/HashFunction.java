@@ -42,6 +42,9 @@ public interface HashFunction {
 
     static Map<Path, byte[]> read(Path folder, HashFunction hash) throws IOException {
         Map<Path, byte[]> checksums = new LinkedHashMap<>();
+        if (!Files.exists(folder)) {
+            return checksums;
+        }
         Queue<Path> queue = new ArrayDeque<>(List.of(folder));
         do {
             Path current = queue.remove();

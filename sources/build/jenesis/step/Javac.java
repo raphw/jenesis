@@ -77,6 +77,9 @@ public class Javac extends JdkProcessBuildStep {
                 });
             }
         }
+        if (files.isEmpty()) {
+            return CompletableFuture.completedStage(null);
+        }
         boolean module = files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
         if (!path.isEmpty()) {
             for (String entry : path) {
