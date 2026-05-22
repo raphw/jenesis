@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.SequencedProperties;
@@ -70,7 +71,7 @@ public class Javac extends JdkProcessBuildStep {
                         if (name.endsWith(".java")) {
                             files.add(name);
                         } else {
-                            Files.createLink(target.resolve(sources.relativize(file)), file);
+                            BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                         }
                         return FileVisitResult.CONTINUE;
                     }

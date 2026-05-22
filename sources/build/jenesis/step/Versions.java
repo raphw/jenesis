@@ -69,7 +69,7 @@ public class Versions implements BuildStep {
                             if (status == ChecksumStatus.RETAINED) {
                                 Path priorOutput = context.previous().resolve(CLASSES).resolve(source.relativize(file));
                                 if (Files.exists(priorOutput)) {
-                                    Files.createLink(destination, priorOutput);
+                                    BuildStep.linkOrCopy(destination, priorOutput);
                                     return FileVisitResult.CONTINUE;
                                 }
                             }
@@ -101,7 +101,7 @@ public class Versions implements BuildStep {
                             }
                         }));
                     } else {
-                        Files.createLink(destination, file);
+                        BuildStep.linkOrCopy(destination, file);
                     }
                     return FileVisitResult.CONTINUE;
                 }

@@ -382,7 +382,7 @@ public class MavenProject implements BuildExecutorModule {
                     if (file.getFileName().toString().equals("pom.xml")) {
                         Path target = poms.resolve(root.relativize(file));
                         Files.createDirectories(target.getParent());
-                        Files.createLink(target, file);
+                        BuildStep.linkOrCopy(target, file);
                     }
                     return FileVisitResult.CONTINUE;
                 }

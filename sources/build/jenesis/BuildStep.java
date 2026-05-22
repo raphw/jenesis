@@ -26,4 +26,12 @@ public interface BuildStep extends Serializable {
     CompletionStage<BuildStepResult> apply(Executor executor,
                                            BuildStepContext context,
                                            SequencedMap<String, BuildStepArgument> arguments) throws IOException;
+
+    static void linkOrCopy(Path link, Path existing) throws IOException {
+        try {
+            Files.createLink(link, existing);
+        } catch (UnsupportedOperationException | FileSystemException _) {
+            Files.copy(existing, link);
+        }
+    }
 }

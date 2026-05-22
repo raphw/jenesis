@@ -155,7 +155,7 @@ public class MavenRepositoryStaging implements BuildStep {
             if (!Files.exists(stagedPom)) {
                 List<DependencyEntry> deps = pairings.testDepsByMain().getOrDefault(coordinates.artifactId(), List.of());
                 if (deps.isEmpty()) {
-                    Files.createLink(stagedPom, main.pom());
+                    BuildStep.linkOrCopy(stagedPom, main.pom());
                 } else {
                     writeMergedPom(main.pom(), deps, stagedPom);
                 }
@@ -267,7 +267,7 @@ public class MavenRepositoryStaging implements BuildStep {
 
     private static void link(Path source, Path target) throws IOException {
         if (source != null && !Files.exists(target)) {
-            Files.createLink(target, source);
+            BuildStep.linkOrCopy(target, source);
         }
     }
 

@@ -61,7 +61,7 @@ public class Bind implements BuildStep {
 
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                            Files.createLink(target.resolve(source.relativize(file)), file);
+                            BuildStep.linkOrCopy(target.resolve(source.relativize(file)), file);
                             return FileVisitResult.CONTINUE;
                         }
                     });

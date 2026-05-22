@@ -126,7 +126,7 @@ public class ModularStaging implements BuildStep {
 
     private static void link(Path source, Path target) throws IOException {
         if (source != null && !Files.exists(target)) {
-            Files.createLink(target, source);
+            BuildStep.linkOrCopy(target, source);
         }
     }
 }

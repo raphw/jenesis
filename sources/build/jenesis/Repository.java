@@ -44,7 +44,7 @@ public interface Repository {
                         }
                         Path file = item.file().orElse(null);
                         if (file != null) {
-                            Files.createLink(candidate, file);
+                            BuildStep.linkOrCopy(candidate, file);
                         } else {
                             try (InputStream inputStream = item.toInputStream()) {
                                 Files.copy(inputStream, candidate);

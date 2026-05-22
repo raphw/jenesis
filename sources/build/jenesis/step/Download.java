@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.Repository;
@@ -46,7 +47,7 @@ public class Download implements DependencyProcessingBuildStep {
                                         "No checksum pinned for " + dependency + " (strict pinning is enabled)");
                             }
                             if (previous != null && Files.exists(previous)) {
-                                Files.createLink(libs.resolve(name), previous);
+                                BuildStep.linkOrCopy(libs.resolve(name), previous);
                                 future.complete(null);
                                 return;
                             }
@@ -56,7 +57,7 @@ public class Download implements DependencyProcessingBuildStep {
                                     Files.copy(inputStream, libs.resolve(name));
                                 }
                             } else {
-                                Files.createLink(context.next().resolve(DEPENDENCIES + name), file);
+                                BuildStep.linkOrCopy(context.next().resolve(DEPENDENCIES + name), file);
                             }
                             future.complete(null);
                         } catch (Throwable t) {
@@ -77,7 +78,7 @@ public class Download implements DependencyProcessingBuildStep {
                     String checksum = entry.getValue().substring(algorithm + 1);
                     if (previous != null && Files.exists(previous)) {
                         if (validateFile(digest, previous, checksum)) {
-                            Files.createLink(libs.resolve(name), previous);
+                            BuildStep.linkOrCopy(libs.resolve(name), previous);
                             continue;
                         } else {
                             digest.reset();
@@ -102,7 +103,7 @@ public class Download implements DependencyProcessingBuildStep {
                                 }
                             } else {
                                 if (validateFile(digest, file, checksum)) {
-                                    Files.createLink(context.next().resolve(DEPENDENCIES + name), file);
+                                    BuildStep.linkOrCopy(context.next().resolve(DEPENDENCIES + name), file);
                                 } else {
                                     throw new IllegalStateException("Mismatched digest for " + dependency);
                                 }
