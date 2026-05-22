@@ -55,7 +55,7 @@ public record Project(
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, project, assembler) -> {
-            executor.addModule(HELP, new HelpModule());
+            executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
@@ -95,7 +95,7 @@ public record Project(
         };
 
         Layout MODULAR = (executor, project, assembler) -> {
-            executor.addModule(HELP, new HelpModule());
+            executor.addModule(HELP, new HelpModule("modular", assembler.getClass().getName()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>();
@@ -142,7 +142,7 @@ public record Project(
         };
 
         Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
-            executor.addModule(HELP, new HelpModule());
+            executor.addModule(HELP, new HelpModule("modular_to_maven", assembler.getClass().getName()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MavenPomResolver resolver = new MavenPomResolver();
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
@@ -278,12 +278,16 @@ public record Project(
         }
     }
 
-    private record HelpModule() implements BuildExecutorModule {
+    private record HelpModule(String layout, String assembler) implements BuildExecutorModule {
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
             System.out.println(("""
                     %{title}Jenesis%{reset} - a Java build tool, written and configured in Java.
+
+                    %{header}Active configuration:%{reset}
+                      layout      %{name}%{layout}%{reset}
+                      assembler   %{name}%{assembler}%{reset}
 
                     %{header}Usage:%{reset}
                       java build/jenesis/Project.java [selectors...]
@@ -317,6 +321,9 @@ public record Project(
                       skipped, so a typo in the tail of a %{name}::%{reset} selector produces no error.
 
                     %{header}System properties (-Djenesis.project.<key>=<value>):%{reset}
+                      Honored only when the project goes through Project.resolveProperties()
+                      (the default main(...) does). A custom Project.java that wires its own
+                      values, or sets fields after resolveProperties(), may ignore them.
                       %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
                       %{name}skipTests%{reset}                        Skip executing tests
@@ -337,6 +344,8 @@ public record Project(
 
                     See README.md for the full reference.
                     """)
+                    .replace("%{layout}", layout)
+                    .replace("%{assembler}", assembler)
                     .replace("%{reset}", BuildExecutorCallback.RESET)
                     .replace("%{header}", BuildExecutorCallback.YELLOW)
                     .replace("%{name}", BuildExecutorCallback.CYAN)
