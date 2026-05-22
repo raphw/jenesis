@@ -96,15 +96,15 @@ public class MavenRepositoryStaging implements BuildStep {
                 if (mainsByArtifactId.isEmpty()) {
                     throw new IllegalStateException("Test module '"
                             + test.prefix()
-                            + "' does not name the main module it tests (bare @test) "
+                            + "' does not name the main module it tests (bare @jenesis.test) "
                             + "but no main module is present to attach it to");
                 }
                 if (mainsByArtifactId.size() > 1) {
                     throw new IllegalStateException("Test module '"
                             + test.prefix()
-                            + "' does not name the main module it tests (bare @test) "
+                            + "' does not name the main module it tests (bare @jenesis.test) "
                             + "but multiple main modules are present; "
-                            + "specify an explicit @test <artifactId> (known mains: "
+                            + "specify an explicit @jenesis.test <artifactId> (known mains: "
                             + mainsByArtifactId.keySet()
                             + ")");
                 }

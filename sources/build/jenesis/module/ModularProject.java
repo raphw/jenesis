@@ -204,7 +204,7 @@ public class ModularProject implements BuildExecutorModule {
             if (info.testOf() != null && !info.testOf().isEmpty() && !info.requires().contains(info.testOf())) {
                 throw new IllegalStateException("Test module '"
                         + info.coordinate()
-                        + "' declares @test "
+                        + "' declares @jenesis.test "
                         + info.testOf()
                         + " but does not 'requires "
                         + info.testOf()

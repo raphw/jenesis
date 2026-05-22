@@ -69,7 +69,7 @@ public class ModuleInfoParser {
                                 .collect(Collectors.joining())
                                 .trim();
                         switch (unknown.getTagName()) {
-                            case "pin" -> {
+                            case "jenesis.pin" -> {
                                 int split = content.indexOf(' ');
                                 if (split < 1 || split == content.length() - 1) {
                                     continue;
@@ -81,13 +81,13 @@ public class ModuleInfoParser {
                                 }
                                 versions.put(dependency, version);
                             }
-                            case "release" -> {
+                            case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
                                     release = content;
                                 }
                             }
-                            case "test" -> testOf = content;
-                            case "main" -> {
+                            case "jenesis.test" -> testOf = content;
+                            case "jenesis.main" -> {
                                 if (!content.isEmpty()) {
                                     main = content;
                                 }

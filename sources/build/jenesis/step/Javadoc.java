@@ -30,10 +30,10 @@ public class Javadoc extends JdkProcessBuildStep {
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
                 "-d", Files.createDirectory(context.next().resolve(JAVADOC)).toString(),
                 "-notimestamp",
-                "-tag", "release:a:Release:",
-                "-tag", "requires:a:Requires:",
-                "-tag", "tests:X",
-                "-tag", "main:X"));
+                "-tag", "jenesis.release:a:Release:",
+                "-tag", "jenesis.requires:a:Requires:",
+                "-tag", "jenesis.test:X",
+                "-tag", "jenesis.main:X"));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(BuildStep.SOURCES),
                     classes = argument.folder().resolve(BuildStep.CLASSES);

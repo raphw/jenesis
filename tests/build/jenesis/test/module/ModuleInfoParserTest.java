@@ -56,7 +56,7 @@ public class ModuleInfoParserTest {
     public void single_requires_tag_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin bar 1.2.3
+                 * @jenesis.pin bar 1.2.3
                  */
                 module foo {
                   requires bar;
@@ -70,7 +70,7 @@ public class ModuleInfoParserTest {
     public void requires_tag_carries_optional_checksum_after_version() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin bar 1.2.3 SHA256/cafebabe
+                 * @jenesis.pin bar 1.2.3 SHA256/cafebabe
                  */
                 module foo {
                   requires bar;
@@ -84,9 +84,9 @@ public class ModuleInfoParserTest {
     public void multiple_requires_tags_preserve_order() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin bar 1.0
-                 * @pin qux 2.0
-                 * @pin baz 3.0
+                 * @jenesis.pin bar 1.0
+                 * @jenesis.pin qux 2.0
+                 * @jenesis.pin baz 3.0
                  */
                 module foo {
                   requires bar;
@@ -103,7 +103,7 @@ public class ModuleInfoParserTest {
     public void pin_for_non_declared_module_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin transitive.pin 9.9.9
+                 * @jenesis.pin transitive.pin 9.9.9
                  */
                 module foo {
                   requires bar;
@@ -118,9 +118,9 @@ public class ModuleInfoParserTest {
     public void malformed_requires_tag_is_skipped() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin bar
-                 * @pin
-                 * @pin qux 1.0
+                 * @jenesis.pin bar
+                 * @jenesis.pin
+                 * @jenesis.pin qux 1.0
                  */
                 module foo {
                   requires bar;
@@ -134,9 +134,9 @@ public class ModuleInfoParserTest {
     public void java_and_jdk_pins_are_ignored() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin java.base 21
-                 * @pin jdk.compiler 21
-                 * @pin bar 1.0
+                 * @jenesis.pin java.base 21
+                 * @jenesis.pin jdk.compiler 21
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -154,7 +154,7 @@ public class ModuleInfoParserTest {
                  *
                  * @author someone
                  * @since 1.0
-                 * @pin bar 1.0
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -168,8 +168,8 @@ public class ModuleInfoParserTest {
     public void release_tag_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
-                 * @pin bar 1.0
+                 * @jenesis.release 25
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -184,7 +184,7 @@ public class ModuleInfoParserTest {
     public void empty_release_tag_is_ignored() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release
+                 * @jenesis.release
                  */
                 module foo {
                   requires bar;
@@ -198,7 +198,7 @@ public class ModuleInfoParserTest {
     public void no_release_tag_yields_null_release() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin bar 1.0
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -212,7 +212,7 @@ public class ModuleInfoParserTest {
     public void open_module_with_javadoc_pins() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @pin bar 1.0
+                 * @jenesis.pin bar 1.0
                  */
                 open module foo {
                   requires bar;
@@ -231,7 +231,7 @@ public class ModuleInfoParserTest {
                  *
                  * A small library that does foo things.
                  *
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
@@ -262,7 +262,7 @@ public class ModuleInfoParserTest {
     public void block_tag_only_javadoc_yields_null_name_and_description() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
@@ -277,7 +277,7 @@ public class ModuleInfoParserTest {
     public void bare_tests_tag_marks_module_with_empty_main_name() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @test
+                 * @jenesis.test
                  */
                 module foo {
                   requires bar;
@@ -291,7 +291,7 @@ public class ModuleInfoParserTest {
     public void tests_tag_with_argument_marks_main_module() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @test build.jenesis
+                 * @jenesis.test build.jenesis
                  */
                 module foo {
                   requires bar;
@@ -305,7 +305,7 @@ public class ModuleInfoParserTest {
     public void absent_tests_tag_leaves_module_as_non_test() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
@@ -319,7 +319,7 @@ public class ModuleInfoParserTest {
     public void main_tag_captures_main_class() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @main build.jenesis.Project
+                 * @jenesis.main build.jenesis.Project
                  */
                 module foo {
                   requires bar;
@@ -333,7 +333,7 @@ public class ModuleInfoParserTest {
     public void absent_main_tag_leaves_main_class_unset() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
