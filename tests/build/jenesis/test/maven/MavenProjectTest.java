@@ -164,6 +164,7 @@ public class MavenProjectTest {
         SequencedProperties testRequiresProps = SequencedProperties.ofFiles(testRequires);
         assertThat(testRequiresProps.stringPropertyNames()).containsExactlyInAnyOrder(
                 "maven/scope/test-dep/1",
+                "maven/scope/provided-dep/1",
                 "maven/group/artifact/1");
     }
 

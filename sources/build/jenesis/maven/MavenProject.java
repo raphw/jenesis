@@ -470,7 +470,8 @@ public class MavenProject implements BuildExecutorModule {
                 String testDependencies = value.dependencies() == null
                         ? ""
                         : value.dependencies().entrySet().stream()
-                                .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST)
+                                .filter(dep -> dep.getValue().scope() == MavenDependencyScope.TEST
+                                        || dep.getValue().scope() == MavenDependencyScope.PROVIDED)
                                 .map(dep -> dep.getKey().coordinate(prefix, dep.getValue().version()))
                                 .collect(Collectors.joining(","));
                 properties.setProperty("dependencies.test", testDependencies.isEmpty()

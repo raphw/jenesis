@@ -203,7 +203,7 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                 throw new IllegalStateException(e);
             }
             metadata = switch (document.getDocumentElement().getAttribute("modelVersion")) {
-                case "1.1.0" -> {
+                case "", "1.1.0" -> {
                     Node versioning = toChildren(document.getDocumentElement())
                             .filter(node -> Objects.equals(node.getLocalName(), "versioning"))
                             .findFirst()
