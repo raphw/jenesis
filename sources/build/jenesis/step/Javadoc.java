@@ -31,9 +31,9 @@ public class Javadoc extends JdkProcessBuildStep {
                 "-d", Files.createDirectory(context.next().resolve(JAVADOC)).toString(),
                 "-notimestamp",
                 "-tag", "jenesis.release:a:Release:",
-                "-tag", "jenesis.requires:a:Requires:",
-                "-tag", "jenesis.test:X",
-                "-tag", "jenesis.main:X"));
+                "-tag", "jenesis.main:a:Main class:",
+                "-tag", "jenesis.test:a:Tests the module:",
+                "-tag", "jenesis.pin:a:Pinned dependencies:"));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(BuildStep.SOURCES),
                     classes = argument.folder().resolve(BuildStep.CLASSES);
