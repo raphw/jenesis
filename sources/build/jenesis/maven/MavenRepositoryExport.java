@@ -16,7 +16,7 @@ public class MavenRepositoryExport implements BuildStep {
     private final Path target;
 
     public MavenRepositoryExport() {
-        String override = System.getenv("MAVEN_LOCAL_REPOSITORY");
+        String override = System.getenv("MAVEN_REPOSITORY_LOCAL");
         target = override == null
                 ? Path.of(System.getProperty("user.home")).resolve(".m2").resolve("repository")
                 : Path.of(override);

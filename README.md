@@ -283,14 +283,14 @@ The staging shape differs by layout:
   routed onto the main coordinate with a `-tests` classifier, and the test module's `pom.xml` is parsed for
   its dependencies, which are appended to the staged main POM with `<scope>test</scope>`. The follow-up
   `MavenRepositoryExport` step copies the staged tree into the local Maven repository (default
-  `~/.m2/repository`, overridable via `MAVEN_LOCAL_REPOSITORY`) with the right `maven-metadata-local.xml` and
+  `~/.m2/repository`, overridable via `MAVEN_REPOSITORY_LOCAL`) with the right `maven-metadata-local.xml` and
   `_remote.repositories` markers.
 - `MODULAR` uses `ModularStaging`. For each module's inventory it reads `prefix.module` (the Java module system module name)
   and the optional `prefix.version`, then hardlinks the artifacts as `<module>/<module>.jar` (plus
   `-sources.jar` / `-javadoc.jar` siblings when produced). When `prefix.version` is present, the version is
   inserted as one extra path segment: `<module>/<version>/<module>.jar`. There is no `pom.xml` to anchor a
   Maven coordinate. The follow-up `JenesisModuleRepositoryExport` step copies that staged tree into the
-  local Jenesis module repository (default `~/.jenesis`, overridable via the `JENESIS_MODULE_REPOSITORY`
+  local Jenesis module repository (default `~/.jenesis`, overridable via the `JENESIS_REPOSITORY_LOCAL`
   environment variable), preserving the same `<module>[/<version>]/` shape. When a module is versioned, its
   files are *also* mirrored to the unversioned `<module>/` root so the module root always reflects the most
   recently built version (a subsequent build of the same module overwrites the root regardless of which
@@ -558,12 +558,12 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `Group`                    | Reads each predecessor's `identity.properties` and `requires.properties`; for each identified group, writes a `groups/<name>.properties` listing the other groups whose coordinates it depends on. | `identity.properties`, `requires.properties`                                                                                          | `groups/<encoded-name>.properties`                                               |
 | `Assign`                   | Fills the empty values of `identity.properties` with paths to the jars in the predecessors' `artifacts/`, finalising the coordinate → file mapping.                                           | `identity.properties`, `artifacts/`                                                                                                   | `identity.properties` (empty values filled with artifact paths)                  |
 | `Inventory`                | Builds a per-module **launchable and stageable summary**: scans each predecessor for `module.properties` (`path`, `main`, `module`, `test`), `metadata.properties` (`version`), any `artifacts/` subdir (each file goes into `prefix.artifacts`), any `sources/` subdir (each file into `prefix.sources`), any `documentation/` subdir (each file into `prefix.documentation`), any `dependencies/` subdir (each file appended to the runtime classpath), and a top-level `pom.xml` (the generated POM when the layout emits one). Emits one `inventory.properties` with a single-segment prefix (`module` for the root, `module-<path>` otherwise); all path values are self-anchored to the inventory file's folder. See the row in the conventions table above for the recognised keys. | `module.properties`, `metadata.properties`, `artifacts/`, `sources/`, `documentation/`, `dependencies/`, `pom.xml`                                                                              | `inventory.properties`                                                            |
-| `DownloadModuleUris`       | Fetches the configured remote URL lists (default: the sormuras/modules registry) and concatenates them into a single `uris.properties`.                                                        | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
+| `DownloadModuleUris`       | Fetches the configured remote URL lists and concatenates them into a single `uris.properties`. The default registry is [sormuras/modules](https://github.com/sormuras/modules), a community-maintained map of Java module names to Maven Central jar URLs; its refresh is manual, so a brand-new upstream version may not appear in the registry until the next refresh is published. | none (fetches the configured URLs)                                                                                                    | `uris.properties`                                                                |
 | `MultiProjectDependencies` | Merges per-project `requires.properties` (and looks up sibling-project paths in their `identity.properties`) into one unified `requires.properties`. Sibling-built coordinates are written with empty values (no integrity validation; trust is implicit within the same build); externally-pinned coordinates pass through with their declared checksums intact. | per-predecessor `identity.properties` or `requires.properties`, partitioned by predicate                                              | unified `requires.properties`                                                    |
 | `Pom`                      | Emits a Maven `pom.xml`, taking the project's own coordinate from the empty entry in `identity.properties` and its dependencies from `requires.properties` entries that share the same prefix. | `identity.properties` (self coordinate = empty value), `requires.properties`                                                          | `pom.xml`                                                                       |
 | `MavenRepositoryStaging`   | Per-module inventory walker that stages the contents of every `inventory.properties` it sees into a Maven-repository tree under `context.next()`. For each main module it parses `prefix.pom` for `groupId`/`artifactId`/`version`, validates that `prefix.artifacts` lists exactly one `.jar` and `prefix.sources`/`prefix.documentation` each list at most one `.jar`, then hardlinks the binary plus the (optional) sources/documentation jars plus the pom as `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>`. For each test module (`prefix.test=<main-artifactId>`) it routes the jars onto the named main's coordinate with a `-tests` classifier; the test module's POM is parsed for additional dependencies and merged into the staged main POM with `<scope>test</scope>`. Refuses duplicate main artifactIds and multiple test modules pointing at the same main. | every `inventory.properties` reachable through the predecessors                                                                       | `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>[-<classifier>].{jar,pom}` |
 | `ModularStaging`           | Per-module inventory walker that stages Java-module-named artifacts. For each inventory it reads `prefix.module` (the Java module system module name) and optional `prefix.version`, validates that `prefix.artifacts` lists exactly one `.jar` and `prefix.sources`/`prefix.documentation` each list at most one, then hardlinks them under `<moduleName>/[<version>/]<moduleName>{,-sources,-javadoc}.jar`. Test modules (`prefix.test` set) are skipped by default and emitted under their own Java module system name when `includeTests` is enabled. | every `inventory.properties` reachable through the predecessors                                                                       | `<moduleName>/[<version>/]<moduleName>{,-sources,-javadoc}.jar`                  |
-| `MavenRepositoryExport`    | Publishes a staged Maven-repository tree to an external target path (default `~/.m2/repository`, overridable via the `MAVEN_LOCAL_REPOSITORY` environment variable). Always re-runs (`shouldRun = true`) since the destination is outside the executor's control. Walks each predecessor for `.pom` files, copies every sibling in the version directory into the matching target path with `REPLACE_EXISTING`, then writes the `mvn install`-equivalent metadata: a `maven-metadata-local.xml` per artifact (`<release>` set to the highest non-SNAPSHOT version by Maven semantics, `<versions>` sorted ascending, `<lastUpdated>` timestamp), an `_remote.repositories` marker per version directory, and a `modelVersion="1.1.0"` `maven-metadata-local.xml` inside each `-SNAPSHOT` version directory listing per-extension/classifier `<snapshotVersions>`. | a staged Maven-repository tree (typically `MavenRepositoryStaging`'s output)                                                          | files copied under the configured target path; nothing is written under `context.next()` |
+| `MavenRepositoryExport`    | Publishes a staged Maven-repository tree to an external target path (default `~/.m2/repository`, overridable via the `MAVEN_REPOSITORY_LOCAL` environment variable). Always re-runs (`shouldRun = true`) since the destination is outside the executor's control. Walks each predecessor for `.pom` files, copies every sibling in the version directory into the matching target path with `REPLACE_EXISTING`, then writes the `mvn install`-equivalent metadata: a `maven-metadata-local.xml` per artifact (`<release>` set to the highest non-SNAPSHOT version by Maven semantics, `<versions>` sorted ascending, `<lastUpdated>` timestamp), an `_remote.repositories` marker per version directory, and a `modelVersion="1.1.0"` `maven-metadata-local.xml` inside each `-SNAPSHOT` version directory listing per-extension/classifier `<snapshotVersions>`. | a staged Maven-repository tree (typically `MavenRepositoryStaging`'s output)                                                          | files copied under the configured target path; nothing is written under `context.next()` |
 | `PinPom`                   | Reads each predecessor's `versions.properties` and `requires.properties`, filters entries by a configured prefix (typically `maven`), and rewrites the configured `pom.xml` source file(s) so that the `<dependencyManagement>` block lists every entry as a `<dependency>` (with `<type>`/`<classifier>` when present) plus a `<!--Checksum/<algorithm>/<hex>-->` comment when the value carries one. Replaces the existing block in place if present, inserts one before `<dependencies>` (or before `</project>`) if absent. Also strips any `<!--Checksum/...-->` comments from direct `<dependency>` entries outside `<dependencyManagement>`, since the rewritten BOM is the single source of truth for those checksums. Accepts either a single `Path` or a `List<Path>` of pom.xml files to update. Always re-runs (`shouldRun = true`) and writes back to the source file outside `context.next()`. | `versions.properties` and/or `requires.properties` (resolved with-version coords) from each predecessor                              | none under `context.next()`; mutates the configured `pom.xml` file(s)            |
 | `PinModuleInfo`            | Reads each predecessor's `versions.properties` and `requires.properties`, filters entries by a configured prefix (typically `module`), and rewrites the configured `module-info.java` source file(s) so that the preceding Javadoc block contains `@pin <module> <version>[ <algorithm>/<hex>]` tags for every entry. Replaces the existing `@pin` lines in place if present (preserving other block tags like `@release`, `@test`); inserts a fresh Javadoc block above the module declaration if none exists. Accepts either a single `Path` or a `List<Path>` of module-info.java files. Always re-runs (`shouldRun = true`) and writes back to the source file outside `context.next()`. | `versions.properties` and/or `requires.properties` (resolved with-version coords) from each predecessor                              | none under `context.next()`; mutates the configured `module-info.java` file(s)   |
 
@@ -1111,9 +1111,11 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
-| `MAVEN_LOCAL_REPOSITORY`| environment variable| Overrides the local Maven repository directory (default `~/.m2/repository`) for both reads and writes: `MavenDefaultRepository` reads from and hardlinks downloaded jars into it; `MavenRepositoryExport` publishes the staged tree into it. On the read side, an explicit override must point at an existing directory or `MavenDefaultRepository` throws on construction (unset is permissive: a missing default silently disables the local cache and every fetch streams from upstream). On the write side, the directory is created on demand. |
+| `MAVEN_REPOSITORY_LOCAL`| environment variable| Overrides the local Maven repository directory (default `~/.m2/repository`) for both reads and writes: `MavenDefaultRepository` reads from and hardlinks downloaded jars into it; `MavenRepositoryExport` publishes the staged tree into it. On the read side, an explicit override must point at an existing directory or `MavenDefaultRepository` throws on construction (unset is permissive: a missing default silently disables the local cache and every fetch streams from upstream). On the write side, the directory is created on demand. |
 | `MAVEN_REPOSITORY_TOKEN`| environment variable| When set, `MavenDefaultRepository` sends the value verbatim as an `Authorization` header on every HTTP fetch (artifact bytes and `.sha1` sidecars). Useful for upstreams that require token-based auth: set the full header value, e.g. `Bearer <token>` for OAuth-style endpoints or `Basic <base64(user:pass)>` for HTTP Basic. Ignored for `file://` URIs and any non-HTTP scheme. |
-| `JENESIS_MODULE_REPOSITORY` | environment variable | Overrides the local Jenesis module repository directory (default `~/.jenesis`) used by both `JenesisModuleRepositoryExport` (writes the staged module tree into it; directory created on demand) and `JenesisModuleRepository`'s no-arg constructor (reads module jars back from it). |
+| `JENESIS_REPOSITORY_URI` | environment variable| Overrides the upstream URL that `JenesisModuleRepository`'s no-arg constructor points at (default `https://repo.jenesis.build/modules/`, the public overlay; see *Jenesis Repository layout for Java modules*). A trailing slash is added automatically if missing once the URI becomes a repository root. Useful for pointing at a mirror or a privately hosted publication of the same on-disk shape. The explicit `URI`-arg constructors bypass this variable. |
+| `JENESIS_REPOSITORY_LOCAL` | environment variable| Overrides the local Jenesis module repository directory (default `~/.jenesis`) used by `JenesisModuleRepositoryExport` (writes the staged module tree into it; directory created on demand) and by the static factory `JenesisModuleRepository.ofLocal()` (reads module jars back from it). `JenesisModuleRepository`'s no-arg constructor does **not** consult this variable; the remote overlay is governed by `JENESIS_REPOSITORY_URI` / `JENESIS_REPOSITORY_TOKEN` instead. |
+| `JENESIS_REPOSITORY_TOKEN` | environment variable| When set, `JenesisModuleRepository`'s no-arg constructor sends the value verbatim as an `Authorization` header on every HTTP fetch (e.g. `Bearer <token>` or `Basic <base64(user:pass)>`). Ignored for `file://` roots and any non-HTTP scheme. The `(URI, String token)` constructor takes an explicit token instead, bypassing this variable. The set of three `JENESIS_REPOSITORY_*` variables mirrors the `MAVEN_REPOSITORY_*` set above. |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
 Properties are passed on the JVM command line, e.g.
@@ -1252,8 +1254,8 @@ the parts into a `groupId/artifactId[/type[/classifier]]/version` coordinate str
 `MavenDefaultRepository` is the concrete implementation: it talks HTTP to the upstream Maven repository
 (default `https://repo1.maven.org/maven2/`, overridable via the `MAVEN_REPOSITORY_URI` environment variable),
 and hardlinks fetched bytes through the user's **local Maven repository**, defaulting to `~/.m2/repository`
-and overridable via the `MAVEN_LOCAL_REPOSITORY` environment variable (this is **not** the project's
-`.jenesis/cache/` folder). When `MAVEN_LOCAL_REPOSITORY` is set explicitly, the directory must exist or the
+and overridable via the `MAVEN_REPOSITORY_LOCAL` environment variable (this is **not** the project's
+`.jenesis/cache/` folder). When `MAVEN_REPOSITORY_LOCAL` is set explicitly, the directory must exist or the
 constructor throws; the default `~/.m2/repository` is permissive in the other direction, silently bypassing
 the local cache layer when absent. For upstreams that require authentication, `MAVEN_REPOSITORY_TOKEN` is
 sent verbatim as the `Authorization` header on every HTTP fetch (set the full value including the scheme,
@@ -1262,22 +1264,26 @@ fetches and ignored for `file://` URIs. Each download is validated against its `
 deletes the cached file and any cached digests so the next request re-downloads from upstream.
 
 `JenesisModuleRepository` is the read-side counterpart to `JenesisModuleRepositoryExport`: it fetches module
-jars from a tree shaped by the export step (`<root>/<module>[/<version>]/<module>.jar`). The no-arg constructor
-defaults to `~/.jenesis` (overridable via the `JENESIS_MODULE_REPOSITORY` environment variable, same one the
-export honours); a `URI` constructor accepts any root, so a `file://`, `http://`, or `https://` URL pointing
-at a published Jenesis module repository works the same way. A `(URI, String token)` overload accepts an
-explicit auth token for use with custom remote repositories: when non-null, the value is sent verbatim as
-an `Authorization` header on every HTTP fetch (e.g. `Bearer <token>` or `Basic <base64(user:pass)>`). The
-token is ignored for `file://` roots and any non-HTTP scheme. The no-arg constructor does not pick up a
-token from the environment - tokens are an opt-in only used when wiring a custom `JenesisModuleRepository`
-explicitly through `Project.repositories(...)`. A bare-name coordinate (`<module>`) fetches the
-unversioned `<root>/<module>/<module>.jar`; a coordinate with a version (`<module>/<version>`) fetches
-`<root>/<module>/<version>/<module>.jar`. For `file://` URIs the returned `RepositoryItem` exposes the
-underlying `Path` so downstream caches can hardlink instead of copy; for HTTP URIs the stream is opened
-eagerly and an HTTP 404 surfaces as `Optional.empty()` so resolvers can fall back cleanly. The `MODULAR`
-layout prepends a no-arg `JenesisModuleRepository` ahead of the URI-derived remote repository for the
-`module` prefix, so a local hit at `~/.jenesis` short-circuits the network fetch and a miss falls back to
-the URI registry transparently.
+jars from a tree shaped by the export step (`<root>/<module>[/<version>]/<module>.jar`). The no-arg
+constructor defaults to the public overlay at `https://repo.jenesis.build/modules/` (see
+*Jenesis Repository layout for Java modules* below for what that URL serves) and consults two environment
+variables in line with the Maven-side trio: `JENESIS_REPOSITORY_URI` overrides the upstream root, and
+`JENESIS_REPOSITORY_TOKEN` is sent verbatim as an `Authorization` header on every HTTP fetch (e.g. `Bearer
+<token>` or `Basic <base64(user:pass)>`, ignored for `file://` and any non-HTTP scheme). The `URI`
+constructor accepts any root explicitly, so a `file://`, `http://`, or `https://` URL pointing at a
+publication of the same shape works the same way; the `(URI, String token)` overload additionally accepts
+an explicit auth token, bypassing `JENESIS_REPOSITORY_TOKEN`. The static factory
+`JenesisModuleRepository.ofLocal()` returns a repository rooted at `~/.jenesis` (overridable via
+`JENESIS_REPOSITORY_LOCAL`, the same variable the export honours). `ofLocal()` does not consult the
+`JENESIS_REPOSITORY_TOKEN` variable - tokens only apply to the remote overlay or to a custom
+`JenesisModuleRepository` wired explicitly through `Project.repositories(...)`. A bare-name coordinate
+(`<module>`) fetches the unversioned `<root>/<module>/<module>.jar`; a coordinate with a version
+(`<module>/<version>`) fetches `<root>/<module>/<version>/<module>.jar`. For `file://` URIs the returned
+`RepositoryItem` exposes the underlying `Path` so downstream caches can hardlink instead of copy; for HTTP
+URIs the stream is opened eagerly and an HTTP 404 surfaces as `Optional.empty()` so resolvers can fall
+back cleanly. The `MODULAR` layout prepends a no-arg `JenesisModuleRepository` ahead of the URI-derived
+remote repository for the `module` prefix, so the overlay at `repo.jenesis.build` is consulted first and
+a miss falls back to the sormuras-derived URI registry transparently.
 
 `Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
 `Map<String, Repository>` to fetch from, a `versions` pin map (with optional space-separated `<algorithm>/<hex>`
@@ -1307,10 +1313,12 @@ per-module `JavaModule` / `TestModule`.
 
 The Jenesis Repository for Java modules is the on-disk format that `JenesisModuleRepositoryExport` writes
 and `JenesisModuleRepository` reads - the persistent, cross-project home for built modules, analogous to
-`~/.m2/repository` for the Maven layout. The default location is `~/.jenesis` (overridable via the
-`JENESIS_MODULE_REPOSITORY` environment variable, honoured by both the export and the repository's no-arg
-constructor); a `URI`-arg constructor on `JenesisModuleRepository` accepts any root, so a `file://`,
-`http://`, or `https://` URL pointing at a publication of the same shape works equally well.
+`~/.m2/repository` for the Maven layout. `JenesisModuleRepositoryExport` and the static factory
+`JenesisModuleRepository.ofLocal()` both default to `~/.jenesis` (overridable via the
+`JENESIS_REPOSITORY_LOCAL` environment variable); `JenesisModuleRepository`'s no-arg constructor instead
+defaults to the public overlay at `https://repo.jenesis.build/modules/` (see *The public overlay* at the
+end of this section). A `URI`-arg constructor on `JenesisModuleRepository` accepts any root, so a
+`file://`, `http://`, or `https://` URL pointing at a publication of the same shape works equally well.
 
 **On-disk shape.** Each module owns a directory at the root named after its Java module name. Versioned
 builds live under one extra path segment named after the version; unversioned builds live directly at the
@@ -1367,6 +1375,18 @@ The shape is identical to the tree `ModularStaging` produces in `target/`, so th
 hardlink mirror with no format transformation. Republishing the local repository elsewhere (uploading it
 to an HTTP server, copying it onto another machine, mounting a network share) is also a straight
 file-tree mirror; the resulting URL or path is a valid `JenesisModuleRepository` root.
+
+**The public overlay.** The default no-arg root - `https://repo.jenesis.build/modules/` - is a
+publicly-served redirect layer that maps the same `<module>[/<version>]/<module>.jar` request shape onto
+Maven Central. It is a thin Cloudflare Worker that looks the requested module up in the
+[sormuras/modules](https://github.com/sormuras/modules) registry and 302s to the matching upstream jar;
+when a version segment is supplied, the Worker rewrites the version inside the resolved URL before
+redirecting, so any version that exists at the upstream coordinate is reachable - not just the one the
+registry pins. The catalogue itself is refreshed manually, so brand-new versions may not be reachable
+through the overlay until the next sormuras refresh; a project that needs a missing module/version can
+layer its own `JenesisModuleRepository(URI.create(...))` on top, or feed `DownloadModuleUris` an updated
+registry URL. The overlay holds no jar bytes of its own and performs no authentication of its own; cache
+and transport behaviour are whatever Maven Central serves at the redirect target.
 
 ### The `.jenesis/cache/` folder
 
@@ -1483,7 +1503,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   Implementations: `MavenDefaultRepository` (HTTP, with on-disk cache in the user's local Maven repository,
   default `~/.m2/repository`; the project's `.jenesis/cache/` folder is **not** used here) and any user-supplied
   subclass (e.g. an internal Nexus mirror). The `MAVEN_REPOSITORY_URI` environment variable overrides the
-  default upstream URL; `MAVEN_LOCAL_REPOSITORY` overrides the local repository directory; and
+  default upstream URL; `MAVEN_REPOSITORY_LOCAL` overrides the local repository directory; and
   `MAVEN_REPOSITORY_TOKEN`, when set, is sent verbatim as an `Authorization` header on every HTTP fetch
   (e.g. `Bearer <token>`). See the *Repositories and resolvers* section above for the generic interface
   and its factories.
@@ -1519,7 +1539,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   their POMs are parsed for additional dependencies that get merged into the staged main POM with
   `<scope>test</scope>`.
 - **`MavenRepositoryExport`** is the `BuildStep` that publishes the staged tree to an external Maven repository
-  directory (default `~/.m2/repository`, overridable via the `MAVEN_LOCAL_REPOSITORY` environment variable).
+  directory (default `~/.m2/repository`, overridable via the `MAVEN_REPOSITORY_LOCAL` environment variable).
   It always re-runs, walks each predecessor for `.pom` files, copies
   every sibling in the version directory into the target, and writes the `mvn install`-equivalent metadata
   (`maven-metadata-local.xml` per artifact, `_remote.repositories` markers per version dir, per-version

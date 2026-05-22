@@ -6,15 +6,14 @@ import build.jenesis.RepositoryItem;
 
 public class JenesisModuleRepository implements Repository {
 
+    public static final URI DEFAULT = URI.create("https://repo.jenesis.build/modules/");
+
     private final URI root;
     private final String token;
 
     public JenesisModuleRepository() {
-        String override = System.getenv("JENESIS_MODULE_REPOSITORY");
-        Path path = override == null
-                ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
-                : Path.of(override);
-        this(path.toUri());
+        String uri = System.getenv("JENESIS_REPOSITORY_URI");
+        this(uri == null ? DEFAULT : URI.create(uri), System.getenv("JENESIS_REPOSITORY_TOKEN"));
     }
 
     public JenesisModuleRepository(URI root) {
@@ -25,6 +24,14 @@ public class JenesisModuleRepository implements Repository {
         String text = root.toString();
         this.root = text.endsWith("/") ? root : URI.create(text + "/");
         this.token = token;
+    }
+
+    public static JenesisModuleRepository ofLocal() {
+        String override = System.getenv("JENESIS_REPOSITORY_LOCAL");
+        Path path = override == null
+                ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
+                : Path.of(override);
+        return new JenesisModuleRepository(path.toUri());
     }
 
     @Override
