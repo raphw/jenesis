@@ -83,7 +83,11 @@ public class MultiProjectModule implements BuildExecutorModule {
                     projects.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
                 MultiProject project = factory.apply(projects);
-                SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>(projects);
+                SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>();
+                projects.entrySet().stream()
+                        .sorted(Comparator.comparingInt(e -> e.getKey().startsWith("test-") ? 1 : 0))
+                        .forEach(e -> pending.put(e.getKey(), e.getValue()));
+                SequencedSet<String> added = new LinkedHashSet<>();
                 while (!pending.isEmpty()) {
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
@@ -107,10 +111,11 @@ public class MultiProjectModule implements BuildExecutorModule {
                                     dependencies,
                                     arguments), Stream.of(
                                             arguments.sequencedKeySet().stream(),
-                                            dependencies.sequencedKeySet().stream(),
+                                            added.stream(),
                                             inherited.sequencedKeySet().stream()
                                                     .map(identifier -> PREVIOUS.repeat(2) + identifier))
                                     .flatMap(Function.identity()));
+                            added.add(entry.getKey());
                             it.remove();
                         }
                     }
