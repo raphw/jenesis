@@ -62,6 +62,10 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
                 sub.addModule("maven", MavenProject.make(project.root(),
+                                "maven",
+                                new MavenDefaultRepository()
+                                        .cached(project.cache() == null ? null : Files.createDirectories(project.cache())),
+                                new MavenPomResolver(),
                                 project.strictPinning(),
                                 (descriptor, repositories, resolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
@@ -88,7 +92,7 @@ public record Project(
                 Map<String, Repository> repositories = new LinkedHashMap<>();
                 repositories.put("module",
                         new JenesisModuleRepository()
-                                .cached(Files.createDirectories(project.cache()))
+                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache()))
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
@@ -132,7 +136,9 @@ public record Project(
                         DownloadModuleUris.URIS,
                         inherited.values());
                 Map<String, Repository> repositories = new LinkedHashMap<>();
-                repositories.put("maven", new MavenDefaultRepository());
+                repositories.put("maven",
+                        new MavenDefaultRepository()
+                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
                 repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(false,

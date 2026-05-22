@@ -297,6 +297,39 @@ public class TestModuleTest {
     }
 
     @Test
+    public void abstract_classes_are_excluded_from_test_selection() throws IOException {
+        Path sampleClasses = classes.resolve(Javac.CLASSES + "sample");
+        compileSource(sampleClasses, "AbstractTestSample", """
+                package sample;
+                public abstract class AbstractTestSample {
+                    @org.junit.jupiter.api.Test
+                    public void test() { System.out.println("must not run"); }
+                }
+                """, bootModuleJars());
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(new JUnit5(),
+                        candidate -> candidate.endsWith("TestSample"),
+                        Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute();
+
+        Path supplement = root.resolve("test").resolve("executed").resolve("supplement");
+        assertThat(supplement.resolve("command")).content()
+                .contains("-select-class=sample.TestSample")
+                .doesNotContain("AbstractTestSample");
+    }
+
+    @Test
     public void filter_with_method_selector_targets_specific_method() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("dependencies", dependencies);

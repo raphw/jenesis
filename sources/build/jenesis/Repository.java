@@ -15,6 +15,9 @@ public interface Repository {
     }
 
     default Repository cached(Path folder) {
+        if (folder == null) {
+            return this;
+        }
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
         return cached(folder, verbose ? target -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,

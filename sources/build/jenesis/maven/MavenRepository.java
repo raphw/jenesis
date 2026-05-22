@@ -20,6 +20,38 @@ public interface MavenRepository extends Repository {
     }
 
     @Override
+    default MavenRepository cached(Path folder) {
+        if (folder == null) {
+            return this;
+        }
+        Repository cached = Repository.super.cached(folder);
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) throws IOException {
+                if (checksum != null) {
+                    return MavenRepository.this.fetch(executor, groupId, artifactId, version, type, classifier, checksum);
+                }
+                return cached.fetch(executor,
+                        new MavenDependencyKey(groupId, artifactId, type, classifier).coordinate(null, version));
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
+                                                          String artifactId,
+                                                          String checksum) throws IOException {
+                return MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum);
+            }
+        };
+    }
+
+    @Override
     default MavenRepository prepend(Repository repository) {
         MavenRepository mavenRepository = of(repository);
         return new MavenRepository() {

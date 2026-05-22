@@ -278,15 +278,19 @@ public class TestModule implements BuildExecutorModule {
             commands.addAll(resolved.arguments(context.supplement()));
             SequencedSet<String> matchedClasses = new LinkedHashSet<>();
             SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
+            ClassFile classFile = ClassFile.of();
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(CLASSES);
                 if (Files.exists(classes)) {
                     Files.walkFileTree(classes, new SimpleFileVisitor<>() {
                         @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                             if (file.toString().endsWith(".class")) {
                                 String raw = classes.relativize(file).toString();
                                 String className = raw.substring(0, raw.length() - 6).replace(File.separatorChar, '.');
+                                if ((classFile.parse(file).flags().flagsMask() & ClassFile.ACC_ABSTRACT) != 0) {
+                                    return FileVisitResult.CONTINUE;
+                                }
                                 if (specs.isEmpty()) {
                                     if (isTest.test(className)) {
                                         matchedClasses.add(className);
