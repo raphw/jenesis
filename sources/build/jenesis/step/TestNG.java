@@ -30,8 +30,8 @@ public record TestNG() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments() {
-        return List.of();
+    public List<String> arguments(Path supplement) {
+        return List.of("-d", supplement.resolve("test-output").toString());
     }
 
     @Override

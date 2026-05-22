@@ -275,7 +275,7 @@ public class TestModule implements BuildExecutorModule {
             } else {
                 commands.add(resolved.mainClass());
             }
-            commands.addAll(resolved.arguments());
+            commands.addAll(resolved.arguments(context.supplement()));
             SequencedSet<String> matchedClasses = new LinkedHashSet<>();
             SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
             for (BuildStepArgument argument : arguments.values()) {

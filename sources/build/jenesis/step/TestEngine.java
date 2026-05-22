@@ -20,7 +20,7 @@ public interface TestEngine extends Serializable {
         return Map.of();
     }
 
-    List<String> arguments();
+    List<String> arguments(Path supplement);
 
     Map<String, String> markers();
 

@@ -30,7 +30,7 @@ public record JUnit4() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments() {
+    public List<String> arguments(Path supplement) {
         return List.of();
     }
 
