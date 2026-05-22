@@ -84,17 +84,12 @@ public record Project(
 
         Layout MODULAR = (executor, project, assembler) -> {
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
-            executor.addStep("download", new DownloadModuleUris());
             executor.addModule(BUILD, (sub, inherited) -> {
-                Map<String, Repository> repositories = new LinkedHashMap<>(Repository.ofProperties(
-                        DownloadModuleUris.URIS,
-                        inherited.values(),
-                        (_, value) -> URI.create(value),
-                        MavenDefaultRepository.versionResolver(),
-                        Files.createDirectories(project.cache())));
-                repositories.merge("module",
-                        new JenesisModuleRepository(),
-                        (existing, local) -> local.prepend(existing));
+                Map<String, Repository> repositories = new LinkedHashMap<>();
+                repositories.put("module",
+                        new JenesisModuleRepository()
+                                .cached(Files.createDirectories(project.cache()))
+                                .prepend(JenesisModuleRepository.ofLocal()));
                 repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(true));
@@ -116,7 +111,7 @@ public record Project(
                                 mergedRepos,
                                 mergedResolvers)),
                         modulesDeps);
-            }, "download", METADATA);
+            }, METADATA);
             executor.addStep(STAGE, new ModularStaging(project.stageTests()), BUILD);
             executor.addStep(EXPORT, new JenesisModuleRepositoryExport(), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
