@@ -315,7 +315,6 @@ public record Project(
         }
     }
 
-
     public Project() {
         this(Path.of("."),
                 Path.of("target"),

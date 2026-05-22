@@ -22,7 +22,7 @@ public class Modules {
         Path target = Path.of("target");
 
         BuildExecutor root = BuildExecutor.of(target);
-        root.addSource("deps", Path.of("dependencies"));
+        root.addSource("deps", Path.of("build", "dependencies"));
 
         root.addStep("main-deps", Bind.asRequires("main.properties"), "deps");
         root.addModule("main-artifacts", new DependenciesModule(repositories, resolvers, true), "main-deps");

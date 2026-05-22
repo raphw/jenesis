@@ -14,12 +14,6 @@
  * @pin org.apiguardian.api 1.1.2 SHA-256/b509448ac506d607319f182537f0b35d71007582ec741832a1f111e5b5b70b38
  * @pin org.assertj.core 3.27.0 SHA-256/0b4d14008475fb362c2db090bc89c41b864d870216ccf8e8188fb60eb112ad68
  * @pin net.bytebuddy 1.15.11 SHA-256/fa08998aae1e7bdae83bde0712c50e8444d71c0e0c196bb2247ade8d4ad0eb90
- * @pin junit 4.13.2 SHA-256/8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3
- * @pin org.hamcrest.core 1.3 SHA-256/66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9
- * @pin org.testng 7.10.2 SHA-256/225fd56447f2e5e439db3b483a79cd9f294fad9f357f8352b12ee6a3411ebb15
- * @pin com.beust.jcommander 1.82 SHA-256/deeac157c8de6822878d85d0c7bc8467a19cc8484d37788f7804f039dde280b1
- * @pin org.slf4j 1.7.36 SHA-256/d3ef575e3e4979678dc01bf1dcce51021493b4d11fb7f1be8ad982877c16a1c0
- * @pin org.webjars.jquery 3.7.1 SHA-256/262016dd3a559df87aefbe392804e9bf620787c9204c0ab8522d4c231ea65097
  */
 open module build.jenesis.test {
 
@@ -27,6 +21,4 @@ open module build.jenesis.test {
     requires java.compiler;
     requires org.junit.jupiter;
     requires org.assertj.core;
-    requires junit;
-    requires org.testng;
 }

@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import module java.compiler;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
@@ -16,11 +17,8 @@ import build.jenesis.step.JUnit4;
 import build.jenesis.step.JUnit5;
 import build.jenesis.step.Javac;
 import build.jenesis.step.TestNG;
-import sample.JUnit4TestSample;
-import sample.TestNGTestSample;
-import sample.TestSample;
+import javax.tools.ToolProvider;
 
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -43,10 +41,14 @@ public class TestModuleTest {
             appended.add(name);
             Files.copy(path, artifacts.resolve(name));
         }
-        Path sampleClasses = Files.createDirectories(classes.resolve(Javac.CLASSES + "sample"));
-        copyClass(TestSample.class, sampleClasses);
-        copyClass(JUnit4TestSample.class, sampleClasses);
-        copyClass(TestNGTestSample.class, sampleClasses);
+        Path sampleClasses = classes.resolve(Javac.CLASSES + "sample");
+        compileSource(sampleClasses, "TestSample", """
+                package sample;
+                public class TestSample {
+                    @org.junit.jupiter.api.Test
+                    public void test() { System.out.println("Hello world!"); }
+                }
+                """, bootModuleJars());
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("maven/org.junit.platform/junit-platform-console",
                 "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
@@ -118,8 +120,22 @@ public class TestModuleTest {
     }
 
     @Test
-    public void can_execute_junit4() throws IOException {
-        populateFilteredArtifacts(junit4Dependencies, Set.of("junit-4", "hamcrest-core-"));
+    public void can_execute_junit4() throws Exception {
+        Path junitJar = downloadJar(junit4Dependencies.resolve("junit-4.13.2.jar"),
+                "https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar",
+                "8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3");
+        Path hamcrestJar = downloadJar(junit4Dependencies.resolve("hamcrest-core-1.3.jar"),
+                "https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar",
+                "66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9");
+        populateFilteredArtifacts(junit4Dependencies, Set.of("junit-4.13.2.jar", "hamcrest-core-1.3.jar"));
+        Path sampleClasses = classes.resolve(Javac.CLASSES + "sample");
+        compileSource(sampleClasses, "JUnit4TestSample", """
+                package sample;
+                public class JUnit4TestSample {
+                    @org.junit.Test
+                    public void test() { System.out.println("Hello world!"); }
+                }
+                """, List.of(junitJar));
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("maven/junit/junit",
                 "4.13.2 SHA-256/8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3");
@@ -152,8 +168,29 @@ public class TestModuleTest {
     }
 
     @Test
-    public void can_execute_testng() throws IOException {
-        populateFilteredArtifacts(testngDependencies, Set.of("testng-", "jcommander-", "slf4j-api-", "jquery-"));
+    public void can_execute_testng() throws Exception {
+        Path testngJar = downloadJar(testngDependencies.resolve("testng-7.10.2.jar"),
+                "https://repo1.maven.org/maven2/org/testng/testng/7.10.2/testng-7.10.2.jar",
+                "225fd56447f2e5e439db3b483a79cd9f294fad9f357f8352b12ee6a3411ebb15");
+        Path jcommanderJar = downloadJar(testngDependencies.resolve("jcommander-1.82.jar"),
+                "https://repo1.maven.org/maven2/com/beust/jcommander/1.82/jcommander-1.82.jar",
+                "deeac157c8de6822878d85d0c7bc8467a19cc8484d37788f7804f039dde280b1");
+        Path slf4jJar = downloadJar(testngDependencies.resolve("slf4j-api-1.7.36.jar"),
+                "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar",
+                "d3ef575e3e4979678dc01bf1dcce51021493b4d11fb7f1be8ad982877c16a1c0");
+        Path jqueryJar = downloadJar(testngDependencies.resolve("jquery-3.7.1.jar"),
+                "https://repo1.maven.org/maven2/org/webjars/jquery/3.7.1/jquery-3.7.1.jar",
+                "262016dd3a559df87aefbe392804e9bf620787c9204c0ab8522d4c231ea65097");
+        populateFilteredArtifacts(testngDependencies, Set.of(
+                "testng-7.10.2.jar", "jcommander-1.82.jar", "slf4j-api-1.7.36.jar", "jquery-3.7.1.jar"));
+        Path sampleClasses = classes.resolve(Javac.CLASSES + "sample");
+        compileSource(sampleClasses, "TestNGTestSample", """
+                package sample;
+                public class TestNGTestSample {
+                    @org.testng.annotations.Test
+                    public void test() { System.out.println("Hello world!"); }
+                }
+                """, List.of(testngJar));
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("maven/org.testng/testng",
                 "7.10.2 SHA-256/225fd56447f2e5e439db3b483a79cd9f294fad9f357f8352b12ee6a3411ebb15");
@@ -444,10 +481,38 @@ public class TestModuleTest {
         return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.REQUIRES));
     }
 
-    private static void copyClass(Class<?> type, Path target) throws IOException {
-        try (InputStream input = type.getResourceAsStream(type.getSimpleName() + ".class");
-             OutputStream output = Files.newOutputStream(target.resolve(type.getSimpleName() + ".class"))) {
-            requireNonNull(input).transferTo(output);
+    private static Path downloadJar(Path target, String url, String expected) throws Exception {
+        byte[] body;
+        try (InputStream in = URI.create(url).toURL().openStream()) {
+            body = in.readAllBytes();
+        }
+        String actual = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+        if (!actual.equals(expected)) {
+            throw new IllegalStateException(
+                    "SHA-256 mismatch for " + url + ": expected " + expected + " got " + actual);
+        }
+        Files.write(target, body);
+        return target;
+    }
+
+    private static void compileSource(Path classesDir, String simpleName, String source, List<Path> classpath)
+            throws IOException {
+        Files.createDirectories(classesDir);
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null)) {
+            fileManager.setLocationFromPaths(StandardLocation.CLASS_OUTPUT, List.of(classesDir.getParent()));
+            fileManager.setLocationFromPaths(StandardLocation.CLASS_PATH, classpath);
+            JavaFileObject unit = new SimpleJavaFileObject(
+                    URI.create("string:///sample/" + simpleName + ".java"),
+                    JavaFileObject.Kind.SOURCE) {
+                @Override
+                public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                    return source;
+                }
+            };
+            if (!compiler.getTask(null, fileManager, null, null, null, List.of(unit)).call()) {
+                throw new IllegalStateException("Failed to compile " + simpleName);
+            }
         }
     }
 

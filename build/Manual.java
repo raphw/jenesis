@@ -22,7 +22,7 @@ public class Manual {
         Map<String, Resolver> resolvers = Map.of("maven", new MavenPomResolver());
 
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
-        root.addSource("deps", Path.of("dependencies"));
+        root.addSource("deps", Path.of("build", "dependencies"));
 
         root.addModule("main-deps", (module, _) -> {
             module.addStep("properties", Bind.asRequires("main.properties"), "../deps");
