@@ -204,6 +204,60 @@ public class ProjectTest {
     }
 
     @Test
+    public void maven_layout_resolver_preserves_step_path_after_slash() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project project = new Project().root(root).target(target);
+        Function<String, String> resolver = Project.Layout.MAVEN.apply(
+                BuildExecutor.of(target,
+                        Duration.ZERO,
+                        new HashDigestFunction("MD5"),
+                        BuildStepHashFunction.ofSerializationDigest("MD5"),
+                        BuildExecutorCallback.nop()),
+                project,
+                new JavaMultiProjectAssembler());
+        assertThat(resolver.apply("sources/compile/dependencies/resolved"))
+                .isEqualTo("build/maven/compose/module/module-sources/compile/dependencies/resolved");
+        assertThat(resolver.apply("/compile"))
+                .isEqualTo("build/maven/compose/module/module-/compile");
+    }
+
+    @Test
+    public void modular_layout_resolver_preserves_step_path_after_slash() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project project = new Project().root(root).target(target);
+        Function<String, String> resolver = Project.Layout.MODULAR.apply(
+                BuildExecutor.of(target,
+                        Duration.ZERO,
+                        new HashDigestFunction("MD5"),
+                        BuildStepHashFunction.ofSerializationDigest("MD5"),
+                        BuildExecutorCallback.nop()),
+                project,
+                new JavaMultiProjectAssembler());
+        assertThat(resolver.apply("sources/compile/dependencies/resolved"))
+                .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/resolved");
+        assertThat(resolver.apply("/compile"))
+                .isEqualTo("build/modules/compose/module/module-/compile");
+    }
+
+    @Test
+    public void modular_to_maven_layout_resolver_preserves_step_path_after_slash() throws IOException {
+        Path target = Files.createDirectory(root.resolve("target"));
+        Project project = new Project().root(root).target(target);
+        Function<String, String> resolver = Project.Layout.MODULAR_TO_MAVEN.apply(
+                BuildExecutor.of(target,
+                        Duration.ZERO,
+                        new HashDigestFunction("MD5"),
+                        BuildStepHashFunction.ofSerializationDigest("MD5"),
+                        BuildExecutorCallback.nop()),
+                project,
+                new JavaMultiProjectAssembler());
+        assertThat(resolver.apply("sources/compile/dependencies/resolved"))
+                .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/resolved");
+        assertThat(resolver.apply("/compile"))
+                .isEqualTo("build/modules/compose/module/module-/compile");
+    }
+
+    @Test
     public void modular_layout_registers_export_step() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
         Project project = new Project().root(root).target(target);

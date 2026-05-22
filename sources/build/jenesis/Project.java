@@ -44,7 +44,8 @@ public record Project(
             STAGE = "stage",
             EXPORT = "export",
             PIN = "pin",
-            METADATA = "metadata";
+            METADATA = "metadata",
+            HELP = "help";
 
     @FunctionalInterface
     public interface Layout {
@@ -54,6 +55,7 @@ public record Project(
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         Layout MAVEN = (executor, project, assembler) -> {
+            executor.addModule(HELP, new HelpModule());
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
@@ -83,10 +85,17 @@ public record Project(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "pom.xml",
                     file -> new PinPom("maven", file, hashFunction)), BUILD);
-            return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
+            return name -> {
+                int slash = name.indexOf('/');
+                return slash == -1
+                        ? prefix + "/module-" + BuildExecutorModule.encode(name)
+                        : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
+                                + "/" + name.substring(slash + 1);
+            };
         };
 
         Layout MODULAR = (executor, project, assembler) -> {
+            executor.addModule(HELP, new HelpModule());
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>();
@@ -123,10 +132,17 @@ public record Project(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
                     file -> new PinModuleInfo("module", file, hashFunction)), BUILD);
-            return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
+            return name -> {
+                int slash = name.indexOf('/');
+                return slash == -1
+                        ? prefix + "/module-" + BuildExecutorModule.encode(name)
+                        : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
+                                + "/" + name.substring(slash + 1);
+            };
         };
 
         Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
+            executor.addModule(HELP, new HelpModule());
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MavenPomResolver resolver = new MavenPomResolver();
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
@@ -171,7 +187,13 @@ public record Project(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
                     file -> new PinModuleInfo("module", file, true, hashFunction)), BUILD);
-            return name -> prefix + "/module-" + BuildExecutorModule.encode(name);
+            return name -> {
+                int slash = name.indexOf('/');
+                return slash == -1
+                        ? prefix + "/module-" + BuildExecutorModule.encode(name)
+                        : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
+                                + "/" + name.substring(slash + 1);
+            };
         };
 
         Layout AUTO = (executor, project, assembler) -> of(project.root()).apply(executor, project, assembler);
@@ -253,6 +275,72 @@ public record Project(
             values.forEach(properties::setProperty);
             properties.store(context.next().resolve(BuildStep.METADATA));
             return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private record HelpModule() implements BuildExecutorModule {
+
+        @Override
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+            System.out.println(("""
+                    %{title}Jenesis%{reset} - a Java build tool, written and configured in Java.
+
+                    %{header}Usage:%{reset}
+                      java build/jenesis/Project.java [selectors...]
+
+                    Without selectors, the default target (%{name}build%{reset}) is executed.
+
+                    %{header}Selectors (available in every layout):%{reset}
+                      %{name}build%{reset}       Resolve, compile, package, and test every module
+                      %{name}stage%{reset}       Stage produced artifacts into a local repository
+                      %{name}export%{reset}      Export the staged repository as the build deliverable
+                      %{name}pin%{reset}         Rewrite version/checksum pins into pom.xml or module-info.java
+                      %{name}metadata%{reset}    Refresh the metadata module outputs
+                      %{name}help%{reset}        Print this message
+
+                    %{header}Module-scoped selector:%{reset}
+                      A selector starting with %{name}+%{reset} is shorthand for a single project module:
+                      %{name}+<module>%{reset} resolves to the module's subgraph inside %{name}build%{reset} (it does
+                      not run %{name}stage%{reset}, %{name}export%{reset}, or %{name}pin%{reset}; invoke those explicitly if needed).
+                      %{name}+<module>/<step>%{reset} drills further into a specific step inside that
+                      module, e.g. %{name}+myModule/compile/dependencies/resolved%{reset}.
+                      <module> matches the source folder that holds the module's pom.xml
+                      or module-info.java. Run %{name}build%{reset} once and look at the printed
+                      module-* lines to discover available module names.
+
+                    %{header}Wildcards in selectors:%{reset}
+                      %{name}:%{reset}   matches a single path segment, e.g. %{name}build/:/java%{reset} matches
+                          the %{name}java%{reset} step of every direct child of %{name}build%{reset}.
+                      %{name}::%{reset}  matches any depth (zero or more segments), e.g. %{name}::/test%{reset}
+                          matches every %{name}test%{reset} step anywhere in the tree.
+                      Both wildcards are lenient: branches that fail to match are silently
+                      skipped, so a typo in the tail of a %{name}::%{reset} selector produces no error.
+
+                    %{header}System properties (-Djenesis.project.<key>=<value>):%{reset}
+                      %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
+                      %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
+                      %{name}skipTests%{reset}                        Skip executing tests
+                      %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
+                      %{name}stageTests%{reset}                       Stage test artifacts alongside main artifacts
+                      %{name}strictPinning%{reset}                    Fail the build for any unpinned artifact
+                      %{name}metadata%{reset}                         Path-separated list of extra metadata files
+                      %{name}version%{reset}                          Project version
+                      %{name}pinAlgorithm%{reset}                     Algorithm for pin checksums (default: SHA-256)
+                      %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
+
+                    %{header}Custom Javadoc tags in module-info.java:%{reset}
+                      %{name}@jenesis.release%{reset} <V>             Java release target
+                      %{name}@jenesis.main%{reset} <class>            Main class for the module
+                      %{name}@jenesis.test%{reset} [<module>]         Mark module as a test variant of <module>
+                      %{name}@jenesis.pin%{reset} <mod> <ver> [<algo>/<hex>]
+                                                       Pin a dependency version and checksum
+
+                    See README.md for the full reference.
+                    """)
+                    .replace("%{reset}", BuildExecutorCallback.RESET)
+                    .replace("%{header}", BuildExecutorCallback.YELLOW)
+                    .replace("%{name}", BuildExecutorCallback.CYAN)
+                    .replace("%{title}", BuildExecutorCallback.GREEN));
         }
     }
 
