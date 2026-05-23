@@ -45,7 +45,8 @@ public record Project(
             EXPORT = "export",
             PIN = "pin",
             METADATA = "metadata",
-            HELP = "help";
+            HELP = "help",
+            SKILL = "skill";
 
     @FunctionalInterface
     public interface Layout {
@@ -56,6 +57,7 @@ public record Project(
 
         Layout MAVEN = (executor, project, assembler) -> {
             executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
+            executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
@@ -96,6 +98,7 @@ public record Project(
 
         Layout MODULAR = (executor, project, assembler) -> {
             executor.addModule(HELP, new HelpModule("modular", assembler.getClass().getName()));
+            executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>();
@@ -143,6 +146,7 @@ public record Project(
 
         Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
             executor.addModule(HELP, new HelpModule("modular_to_maven", assembler.getClass().getName()));
+            executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MavenPomResolver resolver = new MavenPomResolver();
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
@@ -290,7 +294,10 @@ public record Project(
                       assembler   %{name}%{assembler}%{reset}
 
                     %{header}Usage:%{reset}
-                      java build/jenesis/Project.java [selectors...]
+                      Pass selectors as command-line arguments to the build launcher
+                      (the installed %{name}jenesis%{reset} CLI, a source-mode
+                      %{name}Project.java%{reset} script, or a programmatic
+                      %{name}Project.build(...)%{reset} call from Java code).
 
                     Without selectors, the default target (%{name}build%{reset}) is executed.
 
@@ -301,6 +308,7 @@ public record Project(
                       %{name}pin%{reset}         Rewrite version/checksum pins into pom.xml or module-info.java
                       %{name}metadata%{reset}    Refresh the metadata module outputs
                       %{name}help%{reset}        Print this message
+                      %{name}skill%{reset}       Print an agent-oriented onboarding briefing (plain text)
 
                     %{header}Module-scoped selector:%{reset}
                       A selector starting with %{name}+%{reset} is shorthand for a single project module:
@@ -358,6 +366,241 @@ public record Project(
                     .replace("%{header}", BuildExecutorCallback.YELLOW)
                     .replace("%{name}", BuildExecutorCallback.CYAN)
                     .replace("%{title}", BuildExecutorCallback.GREEN));
+        }
+    }
+
+    private record SkillModule(Path target) implements BuildExecutorModule {
+
+        @Override
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+            System.out.println(("""
+                    Jenesis - skill briefing for coding agents
+                    ==========================================
+
+                    Jenesis is a Java build tool whose project configuration is itself
+                    Java code. A build is invoked by passing selectors as command-line
+                    arguments to a launcher. Three entry shapes exist, all equivalent:
+
+                      - the installed `jenesis` CLI (from the release zip / SDKMAN);
+                      - a source-mode `Project.java` script in the project tree, run
+                        with `java <script.java> [selectors...]`;
+                      - a programmatic `Project.build(selectors...)` call from
+                        Java code (used when embedding the build in another tool).
+
+                    With no selectors the default target `build` runs. Whichever
+                    launcher is used, it constructs a `BuildExecutor`, wires the
+                    layout, and forwards the selectors.
+
+                    Project layouts
+                    ---------------
+                    A layout decides how modules are discovered and what gets staged:
+
+                      maven             pom.xml per module; emits a classic jar plus
+                                        pom.xml. Mirrors `build/Maven.java`.
+                      modular           module-info.java per module; emits a modular
+                                        jar, no pom.xml. Mirrors `build/Modular.java`.
+                      modular_to_maven  Both module-info.java and pom.xml; emits
+                                        modular jars laid out in a Maven repo.
+
+                    The default is `auto`: it inspects the project root and picks
+                    `maven` or `modular` (never `modular_to_maven`, which must be
+                    forced). Force a layout with `-Djenesis.project.layout=<name>`.
+
+                    Target folder
+                    -------------
+                    Every build output lives under the project's target folder. For
+                    this build the absolute path is:
+
+                      %{target}
+
+                    Shape under target/:
+                      build/                   Per-step output trees, mirroring the
+                                               build graph. A selector path like
+                                               `build/maven/compose/module/<m>/produce/
+                                               assemble/java/artifacts` corresponds
+                                               1:1 to a folder here, so an agent can
+                                               walk it to inspect a step's actual
+                                               output.
+                      build/.../<step>/output/ Files the step produced (jars, the
+                                               conventional `*.properties`, etc.).
+                      build/.../<step>/        Auxiliary files (command-line argument
+                        supplement/            files, intermediates).
+                      stage/output/            The tree built by `stage`, ready for
+                                               `export`. MAVEN / MODULAR_TO_MAVEN
+                                               produce a Maven-repository layout;
+                                               MODULAR produces <module>/<version>/.
+
+                    target/ is ephemeral and safe to delete; the build recreates
+                    whatever is needed. `-Djenesis.executor.rebuild=true` wipes it
+                    before building. Browse this path to inspect intermediate
+                    results when debugging a selector or diffing a behaviour change.
+
+                    Deriving selectors from target/ (minimal recreation)
+                    ----------------------------------------------------
+                    Because target/build/ mirrors the build graph 1:1, any folder
+                    under it doubles as a selector. To rebuild a single artifact
+                    after a source edit without re-running the whole graph:
+
+                      1. Find the step folder you care about under target/build/
+                         (e.g. `target/build/maven/compose/module/<m>/produce/
+                         assemble/java/artifacts/`).
+                      2. Strip the `target/` prefix and any trailing `/output` or
+                         `/supplement` from the path.
+                      3. Pass the remaining path to the launcher as a selector
+                         (e.g. `build/maven/compose/module/<m>/produce/assemble/
+                         java/artifacts`).
+
+                    The executor walks that selector's subgraph and re-runs only
+                    steps whose serialized form or predecessor checksums changed,
+                    ignoring unrelated branches. Combine with wildcards (`:`,
+                    `::`) to scope to multiple modules at once, or with the
+                    `+<module>` shorthand to address a module by its source-folder
+                    name without typing the full path.
+
+                    Conventional per-module files
+                    -----------------------------
+                    Every per-module step writes properties files into its output
+                    folder. Names are constants on `BuildStep`:
+
+                      metadata.properties   POM-style descriptive metadata
+                                            (`project`, `artifact`, `version`,
+                                            `name`, `description`, `url`,
+                                            `license.<id>.{name,url}`,
+                                            `developer.<id>.{name,email}`,
+                                            `scm.{connection,developerConnection,url}`).
+                                            Project-level overrides live in the file
+                                            pointed at by
+                                            `-Djenesis.project.metadata=<path>`
+                                            (conventionally `project.properties`).
+                      module.properties     Graph-state only (`path`, `module`,
+                                            `test`, `main`). Framework-managed.
+                      identity.properties   `<prefix>/<coordinate>` -> path-or-empty.
+                      requires.properties   `<prefix>/<coordinate>` -> empty or
+                                            `<algo>/<hex>` checksum (pinned).
+                      versions.properties   `<prefix>/<version-less coord>` ->
+                                            `<version>[ <algo>/<hex>]`. Bill of
+                                            materials for the resolution pass.
+                      scopes.properties     `<prefix>/<coord>` -> COMPILE,RUNTIME.
+                      exclusions.properties `<prefix>/<coord>` -> comma-separated
+                                            `<groupId>/<artifactId>` exclusions.
+                      inventory.properties  Per-module summary used by staging
+                                            (artifacts/sources/documentation/pom/
+                                            runtime classpath, prefixed).
+
+                    Treat these as the single source of truth between steps; never
+                    invent a side-channel. README's "Conventional folders and files"
+                    table is the full reference.
+
+                    Selectors
+                    ---------
+                    Selectors address points in the build graph:
+
+                      build, stage, export, pin, metadata, help, skill
+                                            Top-level entry points.
+                      +<module>             Module subgraph inside `build` (does not
+                                            run stage/export/pin). The <module>
+                                            matches the source folder of the
+                                            pom.xml / module-info.java.
+                      +<module>/<step>      Drill into a specific step inside that
+                                            module, e.g.
+                                            +foo/compile/dependencies/resolved.
+                      :                     Single-segment wildcard
+                                            (`build/:/java` matches every direct
+                                            child's `java` step).
+                      ::                    Multi-segment wildcard. Lenient - typos
+                                            in a `::` tail silently match nothing.
+
+                    Cache model (important for build-step authors)
+                    ----------------------------------------------
+                    Every `BuildStep` is `Serializable`. The incremental cache keys
+                    each step by:
+                      1. the digest of its serialized form (fields plus the class's
+                         `serialVersionUID`), AND
+                      2. the checksums of every predecessor folder's contents.
+
+                    Consequence: changes to a build step's *code* (the body of
+                    `apply(...)`, switching tool flags, etc.) do NOT alter the
+                    serialized form, so cached outputs are NOT invalidated. After
+                    such an edit, bump the step class's `serialVersionUID` to force
+                    re-execution of that step, or run with
+                    `-Djenesis.executor.rebuild=true` to wipe `target/` for a full
+                    rebuild. Changes to project sources are always detected; this
+                    caveat applies only when editing the build code itself.
+
+                    Custom Javadoc tags in module-info.java
+                    ---------------------------------------
+                      @jenesis.release <V>              Java release target.
+                      @jenesis.main <class>             Main class for the module.
+                      @jenesis.test [<module>]          Mark this module as a test
+                                                        variant of <module>.
+                      @jenesis.pin <mod> <ver> [<algo>/<hex>]
+                                                        Pin a dependency's version
+                                                        and (optionally) its content
+                                                        checksum.
+
+                    Useful system properties (-Djenesis.project.<key>=<value>)
+                    ----------------------------------------------------------
+                      root, target, cache         Override input/output locations.
+                      layout                      auto, maven, modular,
+                                                  modular_to_maven.
+                      skipTests                   Skip wiring test execution.
+                      sources, documentation      Assemble sources / javadoc jars.
+                      stageTests                  Stage test artifacts.
+                      strictPinning               Fail the build for any unpinned
+                                                  artifact.
+                      metadata                    Path-separated list of extra
+                                                  metadata files.
+                      version                     Stamp version onto every produced
+                                                  artifact.
+                      pinAlgorithm                Algorithm for pin checksums
+                                                  (default SHA-256).
+
+                    Executor-level properties:
+                      -Djenesis.executor.rebuild=true   Wipe target/ before build.
+                      -Djenesis.executor.timeout=PT5M   Per-step timeout.
+                      -Djenesis.verbose=true            Verbose step output.
+
+                    Where to read more
+                    ------------------
+                    README.md (at the project root, and on the public repo) is the
+                    full reference. Key sections an agent will need:
+
+                      "Layouts and assemblers"            How the three layouts
+                                                          wire modules.
+                      "Conventional folders and files"    Exact schema of every
+                                                          properties file.
+                      "Build steps" and
+                      "Build executor modules"            Per-step and per-module
+                                                          contracts.
+                      "Project metadata"                  How metadata.properties
+                                                          and project.properties
+                                                          merge.
+                      "Releasing to Maven Central"        Stage / export / pin and
+                                                          handoff to JReleaser.
+
+                    Online resources
+                    ----------------
+                      Source repository
+                        https://github.com/raphw/jenesis
+                      README (current main)
+                        https://github.com/raphw/jenesis/blob/main/README.md
+                      Issue tracker (bugs, questions, design discussion)
+                        https://github.com/raphw/jenesis/issues
+                      Releases (changelog, downloads, the matching git tag for
+                      each published version)
+                        https://github.com/raphw/jenesis/releases
+                      Example build configurations bundled in the repo
+                        build/Maven.java, build/Modular.java,
+                        build/ModularToMaven.java, build/Manual.java,
+                        build/Minimal.java
+
+                    When stuck, prefer reading the source: every public type lives
+                    under `sources/build/jenesis/` and is small enough to read
+                    end-to-end. The tests under `tests/` double as executable
+                    documentation for the public API.
+
+                    Run `help` for the same content with color, oriented at humans.
+                    """).replace("%{target}", target.toAbsolutePath().normalize().toString()));
         }
     }
 
@@ -840,11 +1083,20 @@ public record Project(
     public static void main(String... selectors) {
         try {
             new Project().resolveProperties().doMain(selectors);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed using selectors " + List.of(selectors), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while wrapping build in container", e);
+        } catch (Throwable t) {
+            if (t instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            throw new UsageHint(t);
+        }
+    }
+
+    private static final class UsageHint extends RuntimeException {
+
+        private UsageHint(Throwable cause) {
+            super("Pass `help` as the only argument on the command line to receive"
+                    + " usage information, or `skill` for an agent-oriented briefing.",
+                    cause);
         }
     }
 }
