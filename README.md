@@ -426,6 +426,21 @@ Three properties of the model give incremental builds and reproducibility for fr
   serialization. Steps that still hold genuinely non-serializable state throw `NotSerializableException` at hash
   time so the bug surfaces at the first run instead of silently breaking cache invalidation.
 
+Declaring an explicit `serialVersionUID` on a `BuildStep` is the Java-native equivalent of adding a manual
+version field to the type: it replaces the JVM-computed shape fingerprint with a pinned value the author
+maintains by hand. The trade-off is real, because the auto-computed UID is the only part of the default
+serialization stream that tracks method signatures at all. The class descriptor itself records only the class
+name, flags, non-transient field shape, and superclass chain, never methods or bodies. Pinning a UID therefore
+removes the cache's only handle on behavioural changes: a step whose `execute(...)` gains parameters, whose
+helpers change signature, or whose superclass adds a method then hashes identically to the prior version, and
+stale outputs may be reused. The author is then responsible for bumping the UID by hand on every
+behaviour-affecting change. The implicit UID is not perfect either, since it does not recurse into superclasses
+or interfaces and ignores method bodies, but it catches more accidental drift than a pinned value and is the
+default `BuildStep` authors should rely on. Pin one only when stream stability across JVMs or compiler versions
+outweighs the loss of automatic discovery, and treat the value as something you bump by hand thereafter; once
+an explicit UID is declared the JDK no longer computes the implicit one, and there is no supported way to ask
+`ObjectOutputStream` what it would have been.
+
 The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
 `ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `.jenesis/cache/`
 by convention for cross-build caches such as downloaded module URIs.
