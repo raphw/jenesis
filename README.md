@@ -239,9 +239,10 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   repository). `Project` parameterises this over `ProjectModuleDescriptor`, a record that wraps the layout's
   base descriptor (`MavenProject.MavenModuleDescriptor` or `ModularProject.ModularModuleDescriptor`) and adds
   the project-level flags `tests`, `source`, `javadoc`. The default assembler `JavaMultiProjectAssembler` is
-  stateless and reads those flags off the descriptor it receives - no `Context` object: a single
-  `JavaModule.testIfAvailable(...)` is wired against all six descriptor paths, with optional `sources` and
-  `javadoc` steps appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
+  stateless and reads those flags off the descriptor it receives - no `Context` object: a `prepare` step plus a
+  `JavaModule` is wired against the six descriptor paths and the module's resources, and when `descriptor.test()`
+  is set and the module's `module.properties` flags it as a test variant a `TestModule` sub-module is wired
+  alongside the `JavaModule`, with optional `sources` and `javadoc` steps appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
   user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded with project-wide
   metadata read once from `metadata.properties` (when configured); `MODULAR` does not. Each layout adds a
   top-level `pin` module (sibling of `build`) that walks the BUILD outputs and rewrites every discovered
@@ -624,41 +625,37 @@ Build executor modules
 The modules listed here are pre-implemented for convenience; the build tool itself does not depend on any of them, and a build is free to ignore them and supply its own `BuildExecutorModule` implementations.
 
 In every diagram below, blue rounded nodes are inputs (folders or files), yellow rectangles are steps, and
-purple rectangles are nested sub-modules. Optional steps are connected with dashed edges; the edge label names
-the method that enables them.
+purple rectangles are nested sub-modules.
 
 ### `JavaModule`
 
 Used for compiling and packaging a single Java module from its sources and its resolved dependencies. Between
 compilation and packaging it runs a `Versions` step that consults the compile-scope `requires.properties` and
 rewrites every `module-info.class` to embed the resolved versions on each `requires` directive, so the produced
-jar carries the same versions that were used to assemble its module path. Calling `.test(engine, repositories, resolvers)`
-or `.testIfAvailable(repositories, resolvers)` adds an extra `tests` sub-module that runs the compiled tests; the
-repositories/resolvers are forwarded into `TestModule` so the test runner can be fetched on the side instead of being
-a compile-time `requires` of the test module (see *`TestModule`* below). Pass empty maps to skip runner fetching when
-the runner is already present on the inherited class- or module-path.
+jar carries the same versions that were used to assemble its module path. The record's single `process` flag
+chooses between the in-process tool APIs (`Javac.tool()` / `Jar.tool(...)`) and out-of-process invocations
+(`Javac.process()` / `Jar.process(...)`); the latter is what `JavaMultiProjectAssembler` selects when
+`-Djenesis.java.process=true` is set so the build can run under a stricter sandbox. Running the compiled tests
+is not part of `JavaModule` itself - that is wired separately by `JavaMultiProjectAssembler` as a sibling
+`TestModule` when the project enables tests and the module is flagged as a test variant (see *`TestModule`*
+below).
 
 ```mermaid
 flowchart LR
   classDef input fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
   classDef step fill:#fef3c7,stroke:#92400e,color:#78350f;
-  classDef optional fill:#fef3c7,stroke:#92400e,color:#78350f,stroke-dasharray:4 3;
   src(["sources/"]):::input
   arts(["dependency artifacts/"]):::input
   req(["dependency requires.properties"]):::input
-  classes["classes<br/>(Javac)"]:::step
-  versions["versions<br/>(Versions)"]:::step
+  classes["compiled<br/>(Javac)"]:::step
+  versions["classes<br/>(Versions)"]:::step
   artifacts["artifacts<br/>(Jar, Sort.CLASSES)"]:::step
-  tests["tests<br/>(TestModule)"]:::optional
   src --> classes
   arts --> classes
   classes --> versions
   req --> versions
   versions --> artifacts
   arts --> artifacts
-  classes -.->|".test(engine) /<br/>.testIfAvailable()"| tests
-  artifacts -.-> tests
-  arts -.-> tests
 ```
 
 ### `TestModule`
@@ -1079,7 +1076,7 @@ A few rules of thumb for new steps:
   alter the serialized form, and therefore does **not** invalidate previously cached outputs. To force a rebuild
   after such a change, increment the step's `serialVersionUID`: the new value flows into the stream's class
   descriptor, the configuration hash changes, and every previously cached run of that step re-executes.
-  (`-Djenesis.rebuild=true` achieves the same thing globally, but discards every other step's cache too.)
+  (`-Djenesis.executor.rebuild=true` achieves the same thing globally, but discards every other step's cache too.)
 
 - **Return a meaningful `BuildStepResult`.** A successful result with `next() == true` atomically promotes
   `context.next()` over the previous run. A result with `next() == false` keeps the previous folder and discards
@@ -1106,7 +1103,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.pinAlgorithm` | system property | Algorithm used by `PinPom` / `PinModuleInfo` to recompute checksums over the resolved jar artifacts during the `pin` step (default `SHA-256`). Pin always rehashes whatever is sitting in the upstream `artifacts/` folders, so the pinned `<!--Checksum/...-->` / `@jenesis.pin` lines always reflect the bytes the build actually used. Any `MessageDigest` algorithm name is accepted (`SHA-512`, `SHA-1`, etc.). |
 | `jenesis.project.version` | system property   | When set, stamps the version onto every artifact this build produces. It is appended last into every per-module `metadata.properties` (after the framework defaults and the project-root override file), so it overrides the `version` from either layer. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` writes it into `<version>`; dependency versions are unaffected. `MavenRepositoryStaging` reads coordinates from the produced `pom.xml`, so the staged folder path, artifact filenames and `MavenRepositoryExport`'s `maven-metadata-local.xml` follow along. |
 | `jenesis.project.layout`        | system property | Read by `Project.Builder` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `modular_to_maven` (case-insensitive). Unknown values throw on `resolveProperties()`. |
-| `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` constructs its `JavaModule` without the `testIfAvailable(...)`/`test(...)` decoration, so test sources and test dependencies are not wired into the graph. |
+| `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project.Builder` resolves the project-level `tests` flag to `false`. The flag is carried on `ProjectModuleDescriptor.test()`, and `JavaMultiProjectAssembler` skips wiring the sibling `TestModule` sub-module when it is `false`, so test sources and test dependencies are not wired into the graph. |
 | `jenesis.project.stageTests`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project.Builder` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
@@ -1121,7 +1118,7 @@ The following system properties and environment variables tune the build at laun
 
 Properties are passed on the JVM command line, e.g.
 
-    java -Djenesis.rebuild=true build/Modules.java
+    java -Djenesis.executor.rebuild=true build/Modules.java
 
 ### Selectors on the command line
 
@@ -1446,8 +1443,9 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
 - **`ProcessBuildStep`** is the abstract base for every step that shells out to an external command. Subclasses
   return their command-line via `process(...)`; the base class assembles the process, captures stdout/stderr,
   validates the exit code, and reports a `BuildStepResult`. It also defines the `process/<name>.properties`
-  convention used by upstream steps to inject command-line arguments (see `TestModule.Prepare`, which writes
-  `process/java.properties` with `--module-path=…`).
+  convention used by upstream steps to inject command-line arguments (see `JavaMultiProjectAssembler.Prepare`,
+  which writes `process/jar.properties` with `--main-class=…` and `process/javac.properties` with
+  `--module-version=…`).
 - **`JdkProcessBuildStep`** extends `ProcessBuildStep` with a single twist: it serializes `Runtime.version()`
   into its config hash so a JDK upgrade invalidates every cached `javac`/`java`/`javadoc` output without any
   per-step opt-in.
@@ -1468,9 +1466,10 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   both from the `Implementation-Version` manifest entries of the Jupiter API and Platform Commons jars
   discovered on the inherited paths. New frameworks slot in by implementing `TestEngine` and choosing
   whatever argument shape the runner needs.
-- **`JavaModule`** is the canonical `BuildExecutorModule` for "compile sources, package as a jar, optionally run
-  tests". It delegates to `Javac`, `Jar`, and `TestModule`. Build scripts that don't have multi-project structure
-  (`Minimal.java`, `Manual.java`) wire it directly.
+- **`JavaModule`** is the canonical `BuildExecutorModule` for "compile sources, version-stamp `module-info.class`,
+  package as a jar". It delegates to `Javac`, `Versions`, and `Jar`. Build scripts that don't have multi-project
+  structure (`Minimal.java`, `Manual.java`) wire it directly; test execution is a separate `TestModule` that
+  `JavaMultiProjectAssembler` wires as a sibling when the project enables tests.
 - **`ModuleInfoParser` / `ModuleInfo`** parse `module-info.java` via the `javax.tools` / `com.sun.source` APIs
   and surface the module name, its `requires` set (including `requires transitive`, `requires static`, and
   `requires static transitive`), and a `versions` map extracted from `@jenesis.pin <module> <version>` Javadoc tags
@@ -1575,8 +1574,8 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
 Same uniform pattern as Java support: `BuildStep` for cached units of work, `BuildExecutorModule` for sub-graph
 wiring, `Resolver`/`Repository` for dependency lookup. A user wiring Maven into a build never touches the
 resolver mechanics directly - they pass a `Map<String, Resolver>` keyed by prefix (`"maven"`, `"module"`) to
-`JavaModule.testIfAvailable(...)` or `DependenciesModule`, and the generic infrastructure dispatches
-coordinates to the right resolver by prefix.
+`DependenciesModule` (or to `TestModule` for the test runner side-channel), and the generic infrastructure
+dispatches coordinates to the right resolver by prefix.
 
 Project metadata
 ----------------

@@ -335,6 +335,14 @@ public record Project(
                       %{name}pinAlgorithm%{reset}                     Algorithm for pin checksums (default: SHA-256)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
 
+                    %{header}Cache invalidation:%{reset}
+                      Changes to the sources of the project being built are always
+                      detected. When working on the build itself, in-code-only changes
+                      to a custom build step are not detected because the incremental
+                      cache keys each step by its serialized form; bump the step class's
+                      %{name}serialVersionUID%{reset} to force re-execution of such steps, or pass
+                      %{name}-Djenesis.executor.rebuild=true%{reset} for a full rebuild.
+
                     %{header}Custom Javadoc tags in module-info.java:%{reset}
                       %{name}@jenesis.release%{reset} <V>             Java release target
                       %{name}@jenesis.main%{reset} <class>            Main class for the module
