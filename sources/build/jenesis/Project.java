@@ -343,6 +343,11 @@ public record Project(
                       %{name}pinAlgorithm%{reset}                     Algorithm for pin checksums (default: SHA-256)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
 
+                    %{header}Test filter (-Djenesis.java.test=<patterns>):%{reset}
+                      Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
+                      tests the default JavaMultiProjectAssembler executes. Changing
+                      the value invalidates the test step's cache and forces a re-run.
+
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
                       detected. When working on the build itself, in-code-only changes
@@ -559,6 +564,17 @@ public record Project(
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
                       -Djenesis.executor.timeout=PT5M   Per-step timeout.
                       -Djenesis.verbose=true            Verbose step output.
+
+                    Test filter:
+                      -Djenesis.java.test=<patterns>    Comma-separated
+                                                        <classRegex>[#<method>]
+                                                        entries restricting which
+                                                        tests the default
+                                                        JavaMultiProjectAssembler
+                                                        executes. Changing the
+                                                        value invalidates the test
+                                                        step's cache and forces a
+                                                        re-run.
 
                     Where to read more
                     ------------------
