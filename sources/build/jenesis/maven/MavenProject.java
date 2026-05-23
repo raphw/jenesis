@@ -320,10 +320,32 @@ public class MavenProject implements BuildExecutorModule {
                 case "description" -> result.setProperty("description", node.getTextContent().trim());
                 case "url" -> result.setProperty("url", node.getTextContent().trim());
                 case "licenses" -> {
-                    Element first = firstChild(node, "license");
-                    if (first != null) {
-                        copyChildText(first, "name", result, "license.name");
-                        copyChildText(first, "url", result, "license.url");
+                    NodeList licenses = node.getChildNodes();
+                    for (int licenseIndex = 0; licenseIndex < licenses.getLength(); licenseIndex++) {
+                        Node licenseNode = licenses.item(licenseIndex);
+                        if (licenseNode.getNodeType() != Node.ELEMENT_NODE) {
+                            continue;
+                        }
+                        String licenseName = licenseNode.getLocalName() == null
+                                ? licenseNode.getNodeName()
+                                : licenseNode.getLocalName();
+                        if (!"license".equals(licenseName)) {
+                            continue;
+                        }
+                        Element license = (Element) licenseNode;
+                        Element nameElement = firstChild(license, "name");
+                        if (nameElement == null) {
+                            continue;
+                        }
+                        String licenseTitle = nameElement.getTextContent().trim();
+                        if (licenseTitle.isEmpty()) {
+                            continue;
+                        }
+                        String id = licenseTitle.toLowerCase(Locale.ROOT)
+                                .replace(' ', '_')
+                                .replace('.', '_');
+                        result.setProperty("license." + id + ".name", licenseTitle);
+                        copyChildText(license, "url", result, "license." + id + ".url");
                     }
                 }
                 case "developers" -> {

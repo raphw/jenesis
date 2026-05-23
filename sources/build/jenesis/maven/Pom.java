@@ -144,11 +144,28 @@ public class Pom implements BuildStep {
         if (metadata.isEmpty()) {
             return null;
         }
-        List<MavenPomEmitter.Metadata.License> licenses = List.of();
-        String licenseName = metadata.getProperty("license.name");
-        String licenseUrl = metadata.getProperty("license.url");
-        if (licenseName != null || licenseUrl != null) {
-            licenses = List.of(new MavenPomEmitter.Metadata.License(licenseName, licenseUrl));
+        SequencedMap<String, String[]> licensesById = new LinkedHashMap<>();
+        for (String key : metadata.stringPropertyNames()) {
+            if (!key.startsWith("license.")) {
+                continue;
+            }
+            String suffix = key.substring("license.".length());
+            int dot = suffix.lastIndexOf('.');
+            if (dot <= 0) {
+                continue;
+            }
+            String id = suffix.substring(0, dot);
+            String attribute = suffix.substring(dot + 1);
+            String[] entry = licensesById.computeIfAbsent(id, _ -> new String[2]);
+            if ("name".equals(attribute)) {
+                entry[0] = metadata.getProperty(key);
+            } else if ("url".equals(attribute)) {
+                entry[1] = metadata.getProperty(key);
+            }
+        }
+        List<MavenPomEmitter.Metadata.License> licenses = new ArrayList<>();
+        for (String[] entry : licensesById.values()) {
+            licenses.add(new MavenPomEmitter.Metadata.License(entry[0], entry[1]));
         }
         SequencedMap<String, String[]> developersById = new LinkedHashMap<>();
         for (String key : metadata.stringPropertyNames()) {

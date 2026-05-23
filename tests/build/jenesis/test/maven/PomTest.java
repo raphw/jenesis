@@ -218,8 +218,8 @@ public class PomTest {
         metadata.setProperty("name", "Jenesis");
         metadata.setProperty("description", "A build tool.");
         metadata.setProperty("url", "https://example.com/jenesis");
-        metadata.setProperty("license.name", "Apache-2.0");
-        metadata.setProperty("license.url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
+        metadata.setProperty("license.apache-2_0.name", "Apache-2.0");
+        metadata.setProperty("license.apache-2_0.url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
         metadata.setProperty("developer.alice.name", "Alice Example");
         metadata.setProperty("developer.alice.email", "alice@example.com");
         metadata.setProperty("developer.bob.name", "Bob Example");
@@ -299,7 +299,7 @@ public class PomTest {
         pomDerived.store(argument.resolve(BuildStep.METADATA));
         Path userMetadata = Files.createDirectory(root.resolve("user-metadata"));
         SequencedProperties user = new SequencedProperties();
-        user.setProperty("license.name", "Apache-2.0");
+        user.setProperty("license.apache-2_0.name", "Apache-2.0");
         user.store(userMetadata.resolve(BuildStep.METADATA));
         LinkedHashMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("pom", new BuildStepArgument(argument, Map.of(

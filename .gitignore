@@ -1,5 +1,6 @@
 target/
 .jenesis/
+cache/
 /sdk/*
 !/sdk/bin/
 
