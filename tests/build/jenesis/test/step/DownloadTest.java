@@ -108,7 +108,9 @@ public class DownloadTest {
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
-                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, _) -> {
+                    throw new AssertionError("repository must not be fetched");
+                }
         )).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -176,7 +178,9 @@ public class DownloadTest {
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
-                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, _) -> {
+                    throw new AssertionError("repository must not be fetched");
+                }
         )).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),

@@ -37,6 +37,10 @@ public class Download implements DependencyProcessingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
+                    if (previous != null && Files.exists(previous) && !strictPinning) {
+                        BuildStep.linkOrCopy(libs.resolve(name), previous);
+                        continue;
+                    }
                     CompletableFuture<?> future = new CompletableFuture<>();
                     executor.execute(() -> {
                         try {
