@@ -103,7 +103,7 @@ public record Project(
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>();
                 repositories.put("module",
-                        new JenesisModuleRepository()
+                        new JenesisModuleRepository(true)
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache()))
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 repositories.putAll(project.repositories());

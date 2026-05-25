@@ -6,14 +6,18 @@ import build.jenesis.RepositoryItem;
 
 public class JenesisModuleRepository implements Repository {
 
-    public static final URI DEFAULT = URI.create("https://repo.jenesis.build/modules/");
-
     private final URI root;
     private final String token;
 
-    public JenesisModuleRepository() {
+    public JenesisModuleRepository(boolean requireNamedModules) {
         String uri = System.getenv("JENESIS_REPOSITORY_URI");
-        this(uri == null ? DEFAULT : URI.create(uri), System.getenv("JENESIS_REPOSITORY_TOKEN"));
+        if (uri == null) {
+            uri = "https://repo.jenesis.build/";
+        } else if (!uri.endsWith("/")) {
+            uri = uri + "/";
+        }
+        this.root = URI.create(uri + (requireNamedModules ? "module/" : "artifact/"));
+        this.token = System.getenv("JENESIS_REPOSITORY_TOKEN");
     }
 
     public JenesisModuleRepository(URI root) {
