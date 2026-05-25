@@ -189,6 +189,26 @@ public class ModularJarResolverTest {
     }
 
     @Test
+    public void rejects_module_with_unexpected_name() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("imposter");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("root")
+                .hasMessageContaining("imposter");
+    }
+
+    @Test
     public void input_pin_drives_versioned_fetch() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
@@ -213,7 +233,7 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("root", "1.0");
+                        case "root/9.9" -> () -> toJar("root", "1.0");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
@@ -227,13 +247,53 @@ public class ModularJarResolverTest {
     }
 
     @Test
+    public void input_pin_does_not_fall_back_to_unversioned_coordinate() {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", "9.9")),
+                true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No module found for root");
+        assertThat(fetched).containsOnlyKeys("root/9.9");
+    }
+
+    @Test
+    public void tolerates_version_mismatch_when_automatic_modules_are_allowed() throws IOException {
+        SequencedMap<String, String> dependencies = new ModularJarResolver(true).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root/9.9" -> () -> toJar("root", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", "9.9")),
+                true);
+        assertThat(dependencies).containsExactly(Map.entry("foo/root/9.9", ""));
+    }
+
+    @Test
     public void input_pin_supplies_version_for_unversioned_module() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("root", (String) null);
+                        case "root/7.0" -> () -> toJar("root", (String) null);
                         default -> null;
                     };
                     return Optional.ofNullable(item);

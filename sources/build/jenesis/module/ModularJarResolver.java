@@ -64,14 +64,7 @@ public class ModularJarResolver implements Resolver {
             Repository repository = repositories.getOrDefault(prefix, Repository.empty());
             RepositoryItem item = requested == null
                     ? repository.fetch(executor, current).orElse(null)
-                    : repository.fetch(executor, current + "/" + requested)
-                            .or(() -> {
-                                try {
-                                    return repository.fetch(executor, current);
-                                } catch (IOException e) {
-                                    throw new UncheckedIOException(e);
-                                }
-                            }).orElse(null);
+                    : repository.fetch(executor, current + "/" + requested).orElse(null);
             if (item == null) {
                 if (fallback == null) {
                     throw new IllegalArgumentException("No module found for " + current);
