@@ -108,7 +108,7 @@ public record Project(
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
-                resolvers.put("module", new ModularJarResolver(true));
+                resolvers.put("module", new ModularJarResolver(false));
                 resolvers.putAll(project.resolvers());
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
@@ -161,7 +161,7 @@ public record Project(
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
                 repositories.putAll(project.repositories());
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
-                resolvers.put("module", new ModularJarResolver(false,
+                resolvers.put("module", new ModularJarResolver(true,
                         resolver.translated("maven",
                                 (_, coordinate) -> parser.apply(coordinate))));
                 resolvers.put("maven", resolver);

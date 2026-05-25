@@ -127,7 +127,16 @@ public class ModularJarResolver implements Resolver {
                     }
                     throw new IllegalArgumentException("No module-info.class found for " + current);
                 }
-                String version = requested != null ? requested : descriptor.rawVersion().orElse(null);
+                if (!descriptor.name().equals(current)) {
+                    throw new IllegalArgumentException(
+                            "Expected module " + current + " but jar declares " + descriptor.name());
+                }
+                String declared = descriptor.rawVersion().orElse(null);
+                if (!resolveAutomaticModules && declared != null && requested != null && !declared.equals(requested)) {
+                    throw new IllegalArgumentException(
+                            "Expected version " + requested + " for " + current + " but jar declares " + declared);
+                }
+                String version = requested != null ? requested : declared;
                 dependencies.put(prefix + "/" + current + (version == null ? "" : "/" + version),
                         checksum == null ? "" : checksum);
                 resolved.add(current);
