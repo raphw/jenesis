@@ -88,6 +88,46 @@ public class MavenPomResolver implements Resolver {
                         Set.of()), new HashMap<>(), new HashMap<>());
     }
 
+    public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
+            Executor executor,
+            MavenRepository repository,
+            List<RootPom> rootPoms,
+            MavenDependencyScope scope) throws IOException {
+        Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
+        Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
+        Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        for (RootPom rootPom : rootPoms) {
+            UnresolvedPom assembled;
+            try (InputStream stream = rootPom.pom()) {
+                assembled = assemble(executor, repository, stream, false, null, null, new HashSet<>(), unresolved);
+            } catch (SAXException | ParserConfigurationException e) {
+                throw new IllegalStateException("Failed to parse provided root POM", e);
+            }
+            ResolvedPom resolvedRoot = resolve(executor, repository, assembled, unresolved);
+            String groupId = property(assembled.groupId(), assembled.properties());
+            String artifactId = property(assembled.artifactId(), assembled.properties());
+            String version = property(assembled.version(), assembled.properties());
+            DependencyCoordinate coordinate = new DependencyCoordinate(groupId, artifactId, version);
+            unresolved.putIfAbsent(coordinate, assembled);
+            resolved.putIfAbsent(coordinate, resolvedRoot);
+            resolvedRoot.managedDependencies().forEach(managedDependencies::putIfAbsent);
+            dependencies.put(
+                    new MavenDependencyKey(groupId, artifactId, "jar", null),
+                    new MavenDependencyValue(version, scope, null, null, null, rootPom.checksum()));
+        }
+        return dependencies(executor, repository,
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of()),
+                unresolved, resolved);
+    }
+
+    public record RootPom(InputStream pom, String checksum) {
+
+        public RootPom(InputStream pom) {
+            this(pom, null);
+        }
+    }
+
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
                                                                                MavenRepository repository,
                                                                                String groupId,
@@ -104,7 +144,6 @@ public class MavenPomResolver implements Resolver {
                 version,
                 resolved,
                 unresolved), true, scope, Set.of()), unresolved, resolved);
-
     }
 
     private SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(

@@ -6,7 +6,7 @@ import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryExport;
-import build.jenesis.maven.MavenPomTranslator;
+import build.jenesis.maven.MavenModuleResolver;
 import build.jenesis.maven.MavenRepositoryStaging;
 import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
@@ -159,7 +159,7 @@ public record Project(
                         .cached(project.cache() == null ? null : Files.createDirectories(project.cache()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(true,
-                        resolver.translated("maven", new MavenPomTranslator(discovery))));
+                        new MavenModuleResolver("maven", resolver, discovery)));
                 resolvers.put("maven", resolver);
                 resolvers.putAll(project.resolvers());
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
