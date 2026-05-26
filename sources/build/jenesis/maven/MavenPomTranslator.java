@@ -5,8 +5,6 @@ import module java.xml;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 
-import static java.util.Objects.requireNonNull;
-
 public class MavenPomTranslator implements BiFunction<String, String, String>, Serializable {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
@@ -51,11 +49,16 @@ public class MavenPomTranslator implements BiFunction<String, String, String>, S
         } catch (SAXException | ParserConfigurationException e) {
             throw new IllegalStateException("Failed to parse POM for " + coordinate, e);
         }
-        return requireNonNull(groupId, "Missing groupId in POM for " + coordinate)
-                + "/"
-                + requireNonNull(artifactId, "Missing artifactId in POM for " + coordinate)
-                + "/"
-                + requireNonNull(version, "Missing version in POM for " + coordinate);
+        if (groupId == null) {
+            throw new IllegalArgumentException("Missing groupId in POM for " + coordinate);
+        }
+        if (artifactId == null) {
+            throw new IllegalArgumentException("Missing artifactId in POM for " + coordinate);
+        }
+        if (version == null) {
+            throw new IllegalArgumentException("Missing version in POM for " + coordinate);
+        }
+        return groupId + "/" + artifactId + "/" + version;
     }
 
     private static String textChild(Node parent, String name) {
