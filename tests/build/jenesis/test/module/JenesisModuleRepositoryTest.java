@@ -89,4 +89,43 @@ public class JenesisModuleRepositoryTest {
 
         assertThat(item).isEmpty();
     }
+
+    @Test
+    public void fetches_unversioned_artifact_with_explicit_type() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis.pom"), "pom-bytes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis:pom");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("pom-bytes");
+        }
+    }
+
+    @Test
+    public void fetches_versioned_artifact_with_explicit_type() throws IOException {
+        Path versionDir = Files.createDirectories(root.resolve("build.jenesis/1.0.0"));
+        Files.writeString(versionDir.resolve("build.jenesis.pom"), "v1-pom-bytes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis/1.0.0:pom");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("v1-pom-bytes");
+        }
+    }
+
+    @Test
+    public void does_not_serve_jar_when_pom_is_requested() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis.jar"), "classes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis:pom");
+
+        assertThat(item).isEmpty();
+    }
 }

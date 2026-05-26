@@ -6,11 +6,10 @@ import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryExport;
+import build.jenesis.maven.MavenPomTranslator;
 import build.jenesis.maven.MavenRepositoryStaging;
-import build.jenesis.maven.MavenUriParser;
 import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
-import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.JenesisModuleRepositoryExport;
 import build.jenesis.module.ModularJarResolver;
@@ -150,20 +149,17 @@ public record Project(
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MavenPomResolver resolver = new MavenPomResolver();
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
-            executor.addStep("download", new DownloadModuleUris(null));
             executor.addModule(BUILD, (sub, inherited) -> {
-                Function<String, String> parser = MavenUriParser.ofUris(new MavenUriParser(),
-                        DownloadModuleUris.URIS,
-                        inherited.values());
                 Map<String, Repository> repositories = new LinkedHashMap<>();
                 repositories.put("maven",
                         new MavenDefaultRepository()
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
                 repositories.putAll(project.repositories());
+                Repository discovery = new JenesisModuleRepository(false)
+                        .cached(project.cache() == null ? null : Files.createDirectories(project.cache()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>();
                 resolvers.put("module", new ModularJarResolver(true,
-                        resolver.translated("maven",
-                                (_, coordinate) -> parser.apply(coordinate))));
+                        resolver.translated("maven", new MavenPomTranslator(discovery))));
                 resolvers.put("maven", resolver);
                 resolvers.putAll(project.resolvers());
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
@@ -183,7 +179,7 @@ public record Project(
                                                 project.strictPinning()),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
-            }, "download", METADATA);
+            }, METADATA);
             executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), BUILD);
             executor.addStep(EXPORT, new MavenRepositoryExport(), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;

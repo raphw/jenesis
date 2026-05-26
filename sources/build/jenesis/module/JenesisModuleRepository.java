@@ -40,12 +40,15 @@ public class JenesisModuleRepository implements Repository {
 
     @Override
     public Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
-        int slash = coordinate.indexOf('/');
-        String moduleName = slash < 0 ? coordinate : coordinate.substring(0, slash);
-        String version = slash < 0 ? null : coordinate.substring(slash + 1);
+        int colon = coordinate.lastIndexOf(':');
+        String type = colon < 0 ? "jar" : coordinate.substring(colon + 1);
+        String identifier = colon < 0 ? coordinate : coordinate.substring(0, colon);
+        int slash = identifier.indexOf('/');
+        String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
+        String version = slash < 0 ? null : identifier.substring(slash + 1);
         String relative = version == null
-                ? moduleName + "/" + moduleName + ".jar"
-                : moduleName + "/" + version + "/" + moduleName + ".jar";
+                ? moduleName + "/" + moduleName + "." + type
+                : moduleName + "/" + version + "/" + moduleName + "." + type;
         URI uri = root.resolve(relative);
         if ("file".equals(uri.getScheme())) {
             Path file = Path.of(uri);
