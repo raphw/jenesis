@@ -100,15 +100,13 @@ public record Project(
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             executor.addModule(BUILD, (sub, inherited) -> {
-                Map<String, Repository> repositories = new LinkedHashMap<>();
-                repositories.put("module",
+                Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
+                repositories.putIfAbsent("module",
                         new JenesisModuleRepository(true)
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache()))
                                 .prepend(JenesisModuleRepository.ofLocal()));
-                repositories.putAll(project.repositories());
-                Map<String, Resolver> resolvers = new LinkedHashMap<>();
-                resolvers.put("module", new ModularJarResolver(false));
-                resolvers.putAll(project.resolvers());
+                Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
+                resolvers.putIfAbsent("module", new ModularJarResolver(false));
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
@@ -147,21 +145,19 @@ public record Project(
             executor.addModule(HELP, new HelpModule("modular_to_maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
-            MavenPomResolver resolver = new MavenPomResolver();
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
-                Map<String, Repository> repositories = new LinkedHashMap<>();
-                repositories.put("maven",
+                Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
+                repositories.putIfAbsent("maven",
                         new MavenDefaultRepository()
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
-                repositories.putAll(project.repositories());
-                Repository discovery = new JenesisModuleRepository(false)
-                        .cached(project.cache() == null ? null : Files.createDirectories(project.cache()));
-                Map<String, Resolver> resolvers = new LinkedHashMap<>();
-                resolvers.put("module", new ModularJarResolver(true,
-                        new MavenModuleResolver("maven", resolver, discovery)));
-                resolvers.put("maven", resolver);
-                resolvers.putAll(project.resolvers());
+                repositories.putIfAbsent("module",
+                        new JenesisModuleRepository(false)
+                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache()));)
+                Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
+                resolvers.putIfAbsent("maven", new MavenPomResolver());
+                resolvers.putIfAbsent("module", new ModularJarResolver(true,
+                        new MavenModuleResolver("maven", new MavenPomResolver(), repositories.get("module"))));
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
