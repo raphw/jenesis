@@ -163,7 +163,7 @@ public record Project(
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
                 resolvers.putIfAbsent("module", new ModularJarResolver(true,
-                        new MavenModuleResolver("maven", MavenResolver.of(resolvers.get("module")), repositories.get("module"))));
+                        new MavenModuleResolver("maven", MavenResolver.of(resolvers.get("maven")), repositories.get("module"))));
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
