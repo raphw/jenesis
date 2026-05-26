@@ -441,11 +441,14 @@ public record Project(
                                                produce a Maven-repository layout;
                                                MODULAR produces <module>/<version>/.
 
-                    Treat target/ as ephemeral: delete it freely; the build
-                    recreates whatever is needed. Pass
-                    `-Djenesis.executor.rebuild=true` to wipe it before a build.
-                    Browse this path when debugging a selector or diffing a
-                    behaviour change.
+                    Do not delete target/ and do not pass
+                    `-Djenesis.executor.rebuild=true` to wipe it. Jenesis tracks
+                    source changes and predecessor checksums on every step and
+                    will re-run exactly the steps whose inputs changed;
+                    clearing the cache by hand only forces the next build to
+                    repeat work it would otherwise skip. Browse this path when
+                    debugging a selector or diffing a behaviour change, but
+                    leave its contents in place.
 
                     4. Derive a selector from target/ for minimal recreation
                     --------------------------------------------------------
@@ -534,11 +537,16 @@ public record Project(
                     Project source changes are always detected. Changes to a
                     build step's *code* (the body of `apply(...)`, switched tool
                     flags, etc.) do NOT alter the serialized form, so cached
-                    outputs are NOT invalidated. After such an edit, either bump
-                    the step class's `serialVersionUID` to force re-execution of
-                    that step, or run with `-Djenesis.executor.rebuild=true` to
-                    wipe `target/` for a full rebuild. If you edit a custom build
-                    step and skip this, expect stale outputs.
+                    outputs are NOT invalidated. After such an edit, bump the
+                    step class's `serialVersionUID` to force re-execution of
+                    that step. Do not reach for `-Djenesis.executor.rebuild=true`
+                    or delete `target/` by hand to work around this; let the
+                    cache decide what to rebuild and only nudge it through
+                    `serialVersionUID` when a step's code changes silently.
+                    `-Djenesis.executor.rebuild=true` is appropriate only when
+                    iterating on the build itself and a step's code change is
+                    not yet reflected by a `serialVersionUID` bump, not as a
+                    routine clean slate.
 
                     8. Write Javadoc tags on module-info.java when configuring a
                        module
@@ -572,6 +580,10 @@ public record Project(
 
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
+                                                        Avoid setting this; rely
+                                                        on the incremental cache
+                                                        to recompute what
+                                                        actually changed.
                       -Djenesis.executor.timeout=PT5M   Per-step timeout.
                       -Djenesis.executor.digest=<algo>  MessageDigest algorithm
                                                         for content and
