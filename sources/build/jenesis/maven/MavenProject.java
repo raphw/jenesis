@@ -31,6 +31,7 @@ import static build.jenesis.project.MultiProjectModule.MODULE;
 import static build.jenesis.project.MultiProjectModule.PREPARE;
 import static build.jenesis.project.MultiProjectModule.PRODUCE;
 import static build.jenesis.project.MultiProjectModule.SOURCES;
+import static java.util.Objects.requireNonNull;
 
 public class MavenProject implements BuildExecutorModule {
 
@@ -42,9 +43,9 @@ public class MavenProject implements BuildExecutorModule {
     private final Path root;
     private final String prefix;
     private final MavenRepository repository;
-    private final MavenPomResolver resolver;
+    private final MavenResolver resolver;
 
-    public MavenProject(Path root, String prefix, MavenRepository repository, MavenPomResolver resolver) {
+    public MavenProject(Path root, String prefix, MavenRepository repository, MavenResolver resolver) {
         this.root = root;
         this.prefix = prefix;
         this.repository = repository;
@@ -52,33 +53,41 @@ public class MavenProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), false, assembler);
+        return make(root,
+                "maven",
+                Map.of("maven", new MavenDefaultRepository()),
+                Map.of("maven", new MavenPomResolver()),
+                false,
+                assembler);
     }
 
     public static BuildExecutorModule make(Path root,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
+        return make(root, "maven", repositories, resolvers, false, assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
                                            boolean strictPinning,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return make(root, "maven", new MavenDefaultRepository(), new MavenPomResolver(), strictPinning, assembler);
+        return make(root, "maven", repositories, resolvers, strictPinning, assembler);
     }
 
     public static BuildExecutorModule make(Path root,
                                            String prefix,
-                                           MavenRepository mavenRepository,
-                                           MavenPomResolver mavenResolver,
-                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return make(root, prefix, mavenRepository, mavenResolver, false, assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           String prefix,
-                                           MavenRepository mavenRepository,
-                                           MavenPomResolver mavenResolver,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
                                            boolean strictPinning,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return new MultiProjectModule(new MavenProject(root, prefix, mavenRepository, mavenResolver),
+        MavenRepository repository = MavenRepository.of(requireNonNull(repositories.get(prefix)));
+        MavenResolver resolver = MavenResolver.of(resolvers.get(prefix));
+        return new MultiProjectModule(new MavenProject(root, prefix, repository, resolver),
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
-                    Map<String, Repository> mergedRepositories = Repository.prepend(Map.of(prefix, mavenRepository),
+                    Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
                             Repository.ofProperties(BuildStep.IDENTITY,
                                     inherited.entrySet().stream()
                                             .filter(entry ->
@@ -88,7 +97,6 @@ public class MavenProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
-                    Map<String, Resolver> resolverMap = Map.of(prefix, mavenResolver);
                     for (DependencyScope scope : DependencyScope.values()) {
                         buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
                             scopeExec.addStep(PREPARE,
@@ -97,7 +105,7 @@ public class MavenProject implements BuildExecutorModule {
                                             scope),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolverMap, scope == DependencyScope.COMPILE, strictPinning),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, strictPinning),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -126,7 +134,7 @@ public class MavenProject implements BuildExecutorModule {
                     buildExecutor.addModule(PRODUCE,
                             assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources),
                                     mergedRepositories,
-                                    resolverMap),
+                                    resolvers),
                             produceDeps);
                     buildExecutor.addStep(ASSIGN,
                             new Assign(),
@@ -444,10 +452,10 @@ public class MavenProject implements BuildExecutorModule {
     private static class Prepare implements BuildStep {
 
         private final String prefix;
-        private final MavenPomResolver resolver;
+        private final MavenResolver resolver;
         private final transient MavenRepository repository;
 
-        private Prepare(String prefix, MavenPomResolver resolver, MavenRepository repository) {
+        private Prepare(String prefix, MavenResolver resolver, MavenRepository repository) {
             this.prefix = prefix;
             this.resolver = resolver;
             this.repository = repository;

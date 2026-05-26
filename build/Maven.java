@@ -20,6 +20,8 @@ public class Maven {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
 
         root.addModule("build", MavenProject.make(Path.of("."),
+                repositories,
+                resolvers,
                 (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
                     buildExecutor.addModule("java", new JavaModule(),
                             descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));

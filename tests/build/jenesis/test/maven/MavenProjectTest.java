@@ -454,8 +454,9 @@ public class MavenProjectTest {
                 BuildExecutorCallback.nop());
         root.addModule("maven", MavenProject.make(project,
                 "maven",
-                new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {}),
-                new MavenPomResolver(),
+                Map.of("maven", new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenPomResolver()),
+                false,
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();

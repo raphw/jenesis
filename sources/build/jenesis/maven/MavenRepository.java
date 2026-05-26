@@ -106,6 +106,7 @@ public interface MavenRepository extends Repository {
                                                    String checksum) throws IOException {
         return Optional.empty();
     }
+
     static MavenRepository of(Repository repository) {
         return repository instanceof MavenRepository mavenRepository ? mavenRepository : (executor,
                                                                                           groupId,

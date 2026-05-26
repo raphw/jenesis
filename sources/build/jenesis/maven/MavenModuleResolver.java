@@ -8,10 +8,10 @@ import build.jenesis.Resolver;
 public class MavenModuleResolver implements Resolver {
 
     private final String mavenPrefix;
-    private final MavenPomResolver delegate;
+    private final MavenResolver delegate;
     private final transient Repository discovery;
 
-    public MavenModuleResolver(String mavenPrefix, MavenPomResolver delegate, Repository discovery) {
+    public MavenModuleResolver(String mavenPrefix, MavenResolver delegate, Repository discovery) {
         this.mavenPrefix = mavenPrefix;
         this.delegate = delegate;
         this.discovery = discovery;
@@ -30,7 +30,7 @@ public class MavenModuleResolver implements Resolver {
                         "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
             }
         });
-        List<MavenPomResolver.RootPom> rootPoms = new ArrayList<>();
+        List<MavenResolver.RootPom> rootPoms = new ArrayList<>();
         for (String coordinate : coordinates.sequencedKeySet()) {
             String pinned = versions.get(coordinate);
             String fetchCoord;
@@ -46,7 +46,7 @@ public class MavenModuleResolver implements Resolver {
             }
             RepositoryItem item = discovery.fetch(executor, fetchCoord)
                     .orElseThrow(() -> new IllegalArgumentException("No POM found for " + coordinate));
-            rootPoms.add(new MavenPomResolver.RootPom(item.toInputStream(), checksum));
+            rootPoms.add(new MavenResolver.RootPom(item.toInputStream(), checksum));
         }
         MavenRepository mavenRepo = MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty()));
         SequencedMap<String, String> result = new LinkedHashMap<>();

@@ -4,9 +4,8 @@ import module java.base;
 import module java.xml;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
-import build.jenesis.Resolver;
 
-public class MavenPomResolver implements Resolver {
+public class MavenPomResolver implements MavenResolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
@@ -88,6 +87,7 @@ public class MavenPomResolver implements Resolver {
                         Set.of()), new HashMap<>(), new HashMap<>());
     }
 
+    @Override
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
             Executor executor,
             MavenRepository repository,
@@ -119,13 +119,6 @@ public class MavenPomResolver implements Resolver {
         return dependencies(executor, repository,
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of()),
                 unresolved, resolved);
-    }
-
-    public record RootPom(InputStream pom, String checksum) {
-
-        public RootPom(InputStream pom) {
-            this(pom, null);
-        }
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,

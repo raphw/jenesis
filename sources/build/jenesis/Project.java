@@ -8,6 +8,7 @@ import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryExport;
 import build.jenesis.maven.MavenModuleResolver;
 import build.jenesis.maven.MavenRepositoryStaging;
+import build.jenesis.maven.MavenResolver;
 import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.JenesisModuleRepository;
@@ -60,23 +61,28 @@ public record Project(
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
             executor.addModule(BUILD, (sub, inherited) -> {
+                Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
+                repositories.putIfAbsent("maven",
+                        new MavenDefaultRepository()
+                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
+                Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
+                resolvers.putIfAbsent("maven", new MavenPomResolver());
                 SequencedSet<String> mavenDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
                 sub.addModule("maven", MavenProject.make(project.root(),
                                 "maven",
-                                new MavenDefaultRepository()
-                                        .cached(project.cache() == null ? null : Files.createDirectories(project.cache())),
-                                new MavenPomResolver(),
+                                Collections.unmodifiableMap(repositories),
+                                Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
-                                (descriptor, repositories, resolvers) -> pomAware.apply(
+                                (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
                                                 project.strictPinning()),
-                                        repositories, resolvers)),
+                                        mergedRepos, mergedResolvers)),
                         mavenDeps);
             }, METADATA);
             executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), BUILD);
@@ -153,11 +159,11 @@ public record Project(
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
                 repositories.putIfAbsent("module",
                         new JenesisModuleRepository(false)
-                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache()));)
+                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
                 resolvers.putIfAbsent("module", new ModularJarResolver(true,
-                        new MavenModuleResolver("maven", new MavenPomResolver(), repositories.get("module"))));
+                        new MavenModuleResolver("maven", MavenResolver.of(resolvers.get("module")), repositories.get("module"))));
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
