@@ -8,6 +8,7 @@ public class MavenDefaultRepository implements MavenRepository {
 
     private final URI repository;
     private final Path local;
+    private final boolean writable;
     private final Map<String, URI> validations;
     private final Consumer<String> callback;
     private final String token;
@@ -29,6 +30,7 @@ public class MavenDefaultRepository implements MavenRepository {
             }
             this.local = local;
         }
+        this.writable = this.local != null && Files.isWritable(this.local);
         token = System.getenv("MAVEN_REPOSITORY_TOKEN");
         validations = Map.of("SHA1", repository);
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
@@ -51,6 +53,7 @@ public class MavenDefaultRepository implements MavenRepository {
                                   String token) {
         this.repository = repository;
         this.local = local;
+        this.writable = local != null && Files.isWritable(local);
         this.validations = validations;
         this.callback = callback;
         this.token = token;
@@ -180,7 +183,7 @@ public class MavenDefaultRepository implements MavenRepository {
                         for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                             entry.getKey().storeIfNotPresent(entry.getValue());
                         }
-                    } else {
+                    } else if (writable) {
                         Files.delete(cached);
                         for (LazyRepositoryItem item : results.keySet()) {
                             item.deleteIfPresent();
@@ -190,7 +193,7 @@ public class MavenDefaultRepository implements MavenRepository {
                 if (valid) {
                     return new StoredRepositoryItem(cached);
                 }
-            } else {
+            } else if (writable) {
                 Files.createDirectories(cached.getParent());
             }
         }
@@ -211,7 +214,7 @@ public class MavenDefaultRepository implements MavenRepository {
         }
         URI uri = repository.resolve(path);
         int dash = path.lastIndexOf('/'), dot = path.indexOf('.', dash);
-        return new LatentRepositoryItem(cached,
+        return new LatentRepositoryItem(writable ? cached : null,
                 uri,
                 digests,
                 path.substring(dash + 1, dot),

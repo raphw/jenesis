@@ -1139,6 +1139,30 @@ public record Project(
             if (mavenRepositoryUri != null) {
                 docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
             }
+            String jenesisRepositoryUri = System.getenv("JENESIS_REPOSITORY_URI");
+            if (jenesisRepositoryUri != null) {
+                docker = docker.env("JENESIS_REPOSITORY_URI", jenesisRepositoryUri);
+            }
+            String mavenRepositoryLocal = System.getenv("MAVEN_REPOSITORY_LOCAL");
+            Path mavenLocal = (mavenRepositoryLocal == null
+                    ? Path.of(System.getProperty("user.home"), ".m2", "repository")
+                    : Path.of(mavenRepositoryLocal)).toAbsolutePath().normalize();
+            if (Files.isDirectory(mavenLocal)) {
+                docker = docker.mount(mavenLocal, mavenLocal.toString(), true);
+                if (mavenRepositoryLocal != null) {
+                    docker = docker.env("MAVEN_REPOSITORY_LOCAL", mavenLocal.toString());
+                }
+            }
+            String jenesisRepositoryLocal = System.getenv("JENESIS_REPOSITORY_LOCAL");
+            Path jenesisLocal = (jenesisRepositoryLocal == null
+                    ? Path.of(System.getProperty("user.home"), ".jenesis")
+                    : Path.of(jenesisRepositoryLocal)).toAbsolutePath().normalize();
+            if (Files.isDirectory(jenesisLocal)) {
+                docker = docker.mount(jenesisLocal, jenesisLocal.toString(), true);
+                if (jenesisRepositoryLocal != null) {
+                    docker = docker.env("JENESIS_REPOSITORY_LOCAL", jenesisLocal.toString());
+                }
+            }
             if (Boolean.getBoolean("jenesis.verbose")) {
                 System.out.println("Launching build within Docker image: " + docker.image());
             }
