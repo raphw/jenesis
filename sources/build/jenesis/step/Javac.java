@@ -11,16 +11,19 @@ public class Javac extends JdkProcessBuildStep {
 
     private static final Pattern VERSIONED = Pattern.compile("META-INF/versions/(\\d+)/.+");
 
-    protected Javac(Function<List<String>, ? extends ProcessHandler> factory) {
+    private final boolean includeResources;
+
+    private Javac(Function<List<String>, ? extends ProcessHandler> factory, boolean includeResources) {
         super("javac", factory);
+        this.includeResources = includeResources;
     }
 
     public static Javac tool() {
-        return new Javac(ProcessHandler.OfTool.of("javac"));
+        return new Javac(ProcessHandler.OfTool.of("javac"), true);
     }
 
     public static Javac process() {
-        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"));
+        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"), true);
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
@@ -31,6 +34,10 @@ public class Javac extends JdkProcessBuildStep {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("--release", release);
         properties.store(target.resolve("javac.properties"));
+    }
+
+    public Javac includeResources(boolean includeResources) {
+        return new Javac(factory, includeResources);
     }
 
     @Override
@@ -95,7 +102,7 @@ public class Javac extends JdkProcessBuildStep {
                             if (versionOf(relative) == null) {
                                 files.add(name);
                             }
-                        } else {
+                        } else if (includeResources) {
                             BuildStep.linkOrCopy(target.resolve(relative), file);
                         }
                         return FileVisitResult.CONTINUE;
@@ -287,7 +294,7 @@ public class Javac extends JdkProcessBuildStep {
                     .append(escaped)
                     .append("\"\n");
         }
-        if (args.length() != 0) {
+        if (!args.isEmpty()) {
             Path argFile = context.supplement().resolve("javac-" + release + ".args");
             Files.writeString(argFile, args.toString());
             commands.add("@" + argFile);

@@ -30,24 +30,38 @@ public class ScalaCompilerModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final boolean strictPinning;
+    private final boolean includeResources;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public ScalaCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, null);
+        this(repositories, resolvers, false, true, null);
     }
 
     public ScalaCompilerModule(Map<String, Repository> repositories,
                                Map<String, Resolver> resolvers,
                                boolean strictPinning,
                                Function<List<String>, ? extends ProcessHandler> factory) {
+        this(repositories, resolvers, strictPinning, true, factory);
+    }
+
+    private ScalaCompilerModule(Map<String, Repository> repositories,
+                                Map<String, Resolver> resolvers,
+                                boolean strictPinning,
+                                boolean includeResources,
+                                Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.strictPinning = strictPinning;
+        this.includeResources = includeResources;
         this.factory = factory;
     }
 
     public ScalaCompilerModule strictPinning(boolean strictPinning) {
-        return new ScalaCompilerModule(repositories, resolvers, strictPinning, factory);
+        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, factory);
+    }
+
+    public ScalaCompilerModule includeResources(boolean includeResources) {
+        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, factory);
     }
 
     @Override
@@ -63,7 +77,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
         compileInputs.add(ARTIFACTS);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile() : new Compile(factory),
+                factory == null ? new Compile(includeResources) : new Compile(includeResources, factory),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -149,12 +163,15 @@ public class ScalaCompilerModule implements BuildExecutorModule {
 
     private static class Compile extends JdkProcessBuildStep {
 
-        private Compile() {
-            super("scalac", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private final boolean includeResources;
+
+        private Compile(boolean includeResources) {
+            this(includeResources, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Compile(Function<List<String>, ? extends ProcessHandler> factory) {
+        private Compile(boolean includeResources, Function<List<String>, ? extends ProcessHandler> factory) {
             super("scalac", factory);
+            this.includeResources = includeResources;
         }
 
         @Override
@@ -196,7 +213,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                             String name = file.toString();
                             if (name.endsWith(".scala") || name.endsWith(".java")) {
                                 files.add(name);
-                            } else {
+                            } else if (includeResources) {
                                 BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                             }
                             return FileVisitResult.CONTINUE;

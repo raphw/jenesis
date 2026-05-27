@@ -73,6 +73,40 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
+    public void includeResources_false_excludes_non_kotlin_non_java_files_from_output() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("version", KOTLIN_VERSION);
+        properties.store(project.resolve("kotlin.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Sample.kt"), """
+                package sample
+                class Sample
+                """);
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "kotlin",
+                new KotlinCompilerModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver()))
+                        .includeResources(false),
+                "project");
+        executor.execute();
+
+        Path classes = root
+                .resolve("kotlin")
+                .resolve(KotlinCompilerModule.CLASSES)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(classes.resolve("sample/Sample.class")).isNotEmptyFile();
+        assertThat(classes.resolve("sample/app.properties"))
+                .as("resources are excluded when includeResources(false)")
+                .doesNotExist();
+    }
+
+    @Test
     public void kotlin_can_reference_java_sources_supplied_to_the_same_step() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("version", KOTLIN_VERSION);

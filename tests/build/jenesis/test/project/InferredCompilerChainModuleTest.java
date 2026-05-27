@@ -191,6 +191,96 @@ public class InferredCompilerChainModuleTest {
                 .doesNotExist();
     }
 
+    @Test
+    public void resource_step_copies_resources_when_multiple_compilers_are_wired() throws IOException {
+        SequencedProperties kotlinProperties = new SequencedProperties();
+        kotlinProperties.setProperty("version", KOTLIN_VERSION);
+        kotlinProperties.store(project.resolve("kotlin.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Base.java"), "package sample; public class Base { }\n");
+        Files.writeString(sampleDir.resolve("Mid.kt"), "package sample\nclass Mid\n");
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "chain",
+                new InferredCompilerChainModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+
+        Path resourceOutput = root
+                .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
+                .resolve(InferredCompilerChainModule.RESOURCE)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(resourceOutput.resolve("sample/app.properties")).content().isEqualTo("key=value");
+        Path javaClasses = root
+                .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
+                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(javaClasses.resolve("sample/app.properties"))
+                .as("with multiple compilers, Javac is forced to includeResources(false) so resources are not duplicated")
+                .doesNotExist();
+    }
+
+    @Test
+    public void resource_step_is_not_wired_when_a_single_compiler_is_present() throws IOException {
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("OnlyJava.java"), "package sample; public class OnlyJava { }\n");
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "chain",
+                new InferredCompilerChainModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+
+        assertThat(root.resolve("chain").resolve(InferredCompilerChainModule.COMPILE).resolve(InferredCompilerChainModule.RESOURCE))
+                .as("with a single compiler the resource step is not wired; Javac copies resources itself")
+                .doesNotExist();
+        Path javaClasses = root
+                .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
+                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(javaClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
+    }
+
+    @Test
+    public void resource_step_copies_resources_when_no_compilers_are_wired() throws IOException {
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "chain",
+                new InferredCompilerChainModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+
+        Path resourceOutput = root
+                .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
+                .resolve(InferredCompilerChainModule.RESOURCE)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(resourceOutput.resolve("sample/app.properties")).content().isEqualTo("key=value");
+    }
+
     private BuildExecutor newExecutor() throws IOException {
         return BuildExecutor.of(root,
                 Duration.ZERO,

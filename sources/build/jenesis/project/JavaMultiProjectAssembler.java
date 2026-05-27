@@ -10,7 +10,6 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Jar;
-import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
 
@@ -27,8 +26,9 @@ public record JavaMultiProjectAssembler(boolean process,
                                      Map<String, Resolver> resolvers) {
         return (sub, outerInherited) -> {
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
-            sub.addModule("java", new InferredCompilerChainModule(repositories, resolvers, process)
-                            .strictPinning(descriptor.strictPinning()),
+            sub.addModule("java", new JavaToolchainModule(
+                    new InferredCompilerChainModule(repositories, resolvers, process).strictPinning(descriptor.strictPinning()),
+                    (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
                     Stream.concat(
                             Stream.of(
                                     "prepare",
@@ -76,7 +76,7 @@ public record JavaMultiProjectAssembler(boolean process,
         };
     }
 
-    private record Prepare() implements BuildStep {
+    private static class Prepare implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,

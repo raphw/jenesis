@@ -333,4 +333,30 @@ public class JavacTest {
         assertThat(next.resolve(Javac.CLASSES + "sample/foo")).content().isEqualTo("bar");
         assertThat(next.resolve(Javac.CLASSES + "folder")).isDirectory();
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void includeResources_false_skips_non_java_files(boolean process) throws IOException {
+        Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(folder.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Files.writeString(folder.resolve("app.properties"), "key=value");
+        Files.writeString(folder.resolve("Other.kt"), "package sample\nclass Other\n");
+        BuildStepResult result = (process ? Javac.process() : Javac.tool())
+                .includeResources(false)
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                                sources,
+                                Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                        Path.of("sources/sample/app.properties"), ChecksumStatus.ADDED,
+                                        Path.of("sources/sample/Other.kt"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "sample/app.properties"))
+                .as("resources are excluded from output when includeResources(false)")
+                .doesNotExist();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Other.kt"))
+                .as("foreign-language sources are excluded from output when includeResources(false)")
+                .doesNotExist();
+    }
 }

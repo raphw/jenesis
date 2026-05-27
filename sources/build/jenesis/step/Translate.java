@@ -9,8 +9,9 @@ public class Translate implements DependencyProcessingBuildStep {
 
     private final Map<String, Function<String, String>> translators;
 
+    @SuppressWarnings("unchecked")
     public <F extends Function<String, String> & Serializable> Translate(Map<String, F> translators) {
-        this.translators = new LinkedHashMap<>(translators);
+        this.translators = (Map<String, Function<String, String>>) (Object) translators;
     }
 
     @Override
