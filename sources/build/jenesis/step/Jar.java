@@ -35,6 +35,33 @@ public class Jar extends JdkProcessBuildStep {
                         .resolve(sort.file)
                         .toString(),
                 "--date=1980-01-01T00:00:02Z"));
+        List<Path> manifestFiles = new ArrayList<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path candidate = argument.folder().resolve("manifest.mf");
+            if (Files.exists(candidate)) {
+                manifestFiles.add(candidate);
+            }
+        }
+        if (!manifestFiles.isEmpty()) {
+            Manifest merged = new Manifest();
+            for (Path path : manifestFiles) {
+                Manifest current;
+                try (InputStream in = Files.newInputStream(path)) {
+                    current = new Manifest(in);
+                }
+                mergeAttributes(merged.getMainAttributes(), current.getMainAttributes(), path);
+                for (Map.Entry<String, java.util.jar.Attributes> entry : current.getEntries().entrySet()) {
+                    java.util.jar.Attributes target = merged.getEntries().computeIfAbsent(entry.getKey(), _ -> new java.util.jar.Attributes());
+                    mergeAttributes(target, entry.getValue(), path);
+                }
+            }
+            Path output = context.supplement().resolve("manifest.mf");
+            try (OutputStream out = Files.newOutputStream(output)) {
+                merged.write(out);
+            }
+            commands.add("--manifest");
+            commands.add(output.toString());
+        }
         for (BuildStepArgument argument : arguments.values()) {
             for (String name : sort.folders) {
                 Path folder = argument.folder().resolve(name);
@@ -46,6 +73,25 @@ public class Jar extends JdkProcessBuildStep {
             }
         }
         return CompletableFuture.completedStage(commands);
+    }
+
+    private static void mergeAttributes(java.util.jar.Attributes target, java.util.jar.Attributes source, Path file) {
+        for (Map.Entry<Object, Object> entry : source.entrySet()) {
+            Object key = entry.getKey(), value = entry.getValue(), existing = target.get(key);
+            if (existing == null) {
+                target.put(key, value);
+            } else if (!existing.equals(value)) {
+                throw new IllegalStateException("Conflicting manifest attribute '"
+                        + key
+                        + "' in "
+                        + file
+                        + ": '"
+                        + existing
+                        + "' vs '"
+                        + value
+                        + "'");
+            }
+        }
     }
 
     public enum Sort {

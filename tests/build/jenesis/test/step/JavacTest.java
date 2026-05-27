@@ -132,6 +132,187 @@ public class JavacTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    public void compiles_versioned_sources_with_release_under_meta_inf_versions(boolean process) throws IOException {
+        Path main = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(main.resolve("Sample.java"), """
+                package sample;
+                public class Sample { public String greet() { return "base"; } }
+                """);
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/21/sample"));
+        Files.writeString(versioned.resolve("Sample.java"), """
+                package sample;
+                public class Sample { public String greet() { return "21"; } }
+                """);
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Path mainClass = next.resolve(Javac.CLASSES + "sample/Sample.class");
+        Path overlayClass = next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Sample.class");
+        assertThat(Files.readString(mainClass, StandardCharsets.ISO_8859_1))
+                .contains("base")
+                .doesNotContain("21");
+        assertThat(Files.readString(overlayClass, StandardCharsets.ISO_8859_1))
+                .contains("21")
+                .doesNotContain("base");
+        assertThat(next.resolve("manifest.mf")).content()
+                .contains("Multi-Release: true");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void versioned_compilation_mixes_overlay_and_additional_files(boolean process) throws IOException {
+        Path main = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(main.resolve("Sample.java"), """
+                package sample;
+                public class Sample { public String greet() { return "base"; } }
+                """);
+        Files.writeString(main.resolve("Helper.java"), """
+                package sample;
+                public class Helper { public static String name() { return "helper"; } }
+                """);
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/21/sample"));
+        Files.writeString(versioned.resolve("Sample.java"), """
+                package sample;
+                public class Sample { public String greet() { return new Caller().forward(); } }
+                """);
+        Files.writeString(versioned.resolve("Caller.java"), """
+                package sample;
+                public class Caller { public String forward() { return Helper.name() + "/21"; } }
+                """);
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/sample/Helper.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Caller.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Helper.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Caller.class"))
+                .as("Caller is only in the overlay and must not be compiled into the main classes")
+                .doesNotExist();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Caller.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Helper.class"))
+                .as("Helper is not overlaid and must not be re-emitted into the versioned tree")
+                .doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void versioned_compilation_can_reference_main_class_via_classpath(boolean process) throws IOException {
+        Path main = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(main.resolve("Helper.java"), """
+                package sample;
+                public class Helper { public static String name() { return "helper"; } }
+                """);
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/17/sample"));
+        Files.writeString(versioned.resolve("Caller.java"), """
+                package sample;
+                public class Caller { public String value() { return Helper.name(); } }
+                """);
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Helper.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/17/sample/Caller.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Helper.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/17/sample/Caller.class")).isNotEmptyFile();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void versioned_compilation_patches_module_for_modular_main(boolean process) throws IOException {
+        Path main = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sources.resolve(BuildStep.SOURCES).resolve("module-info.java"),
+                "module sample { exports sample; }\n");
+        Files.writeString(main.resolve("Helper.java"), """
+                package sample;
+                public class Helper { public static String name() { return "helper"; } }
+                """);
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/21/sample"));
+        Files.writeString(versioned.resolve("Caller.java"), """
+                package sample;
+                public class Caller { public String value() { return Helper.name(); } }
+                """);
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/sample/Helper.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Caller.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "module-info.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Caller.class")).isNotEmptyFile();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void multi_release_manifest_is_not_emitted_when_predecessor_already_supplies_one(boolean process) throws IOException {
+        Path main = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(main.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/21/sample"));
+        Files.writeString(versioned.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Files.writeString(sources.resolve("manifest.mf"),
+                "Manifest-Version: 1.0\r\nMulti-Release: true\r\nMain-Class: sample.Sample\r\n");
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve("manifest.mf"))
+                .as("Javac defers to the predecessor's manifest when it already declares Multi-Release")
+                .doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void multi_release_manifest_is_still_emitted_when_predecessor_manifest_lacks_multi_release(boolean process) throws IOException {
+        Path main = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(main.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/21/sample"));
+        Files.writeString(versioned.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Files.writeString(sources.resolve("manifest.mf"),
+                "Manifest-Version: 1.0\r\nMain-Class: sample.Sample\r\n");
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED,
+                                Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve("manifest.mf")).content().contains("Multi-Release: true");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void plain_compilation_does_not_emit_manifest(boolean process) throws IOException {
+        Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(folder.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        sources,
+                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve("manifest.mf")).doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     public void can_execute_javac_with_resources(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {

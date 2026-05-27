@@ -15,6 +15,7 @@ import sample.Sample;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class JarTest {
 
@@ -92,6 +93,114 @@ public class JarTest {
                         Map.of(Path.of("sample/Sample.html"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DOCUMENTATION + "javadoc.jar")).isNotEmptyFile();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void classes_jar_includes_multi_release_manifest_when_supplied(boolean process) throws IOException {
+        Path folder = Files.createDirectory(classes.resolve(Javac.CLASSES));
+        try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
+            Files.copy(requireNonNull(inputStream), Files
+                    .createDirectory(folder.resolve("sample"))
+                    .resolve("Sample.class"));
+        }
+        Files.writeString(classes.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
+        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                        classes,
+                        Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED,
+                                Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Path jar = next.resolve(BuildStep.ARTIFACTS + "classes.jar");
+        assertThat(jar).isNotEmptyFile();
+        assertThat(supplement.resolve("manifest.mf"))
+                .as("merged manifest is staged into supplement, not the step output")
+                .isRegularFile();
+        assertThat(next.resolve("manifest.mf")).doesNotExist();
+        try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(jar))) {
+            assertThat(jarStream.getManifest().getMainAttributes().getValue("Multi-Release"))
+                    .isEqualTo("true");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void classes_jar_merges_manifests_from_multiple_predecessors(boolean process) throws IOException {
+        Path firstFolder = Files.createDirectory(classes.resolve(Javac.CLASSES));
+        try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
+            Files.copy(requireNonNull(inputStream), Files
+                    .createDirectory(firstFolder.resolve("sample"))
+                    .resolve("Sample.class"));
+        }
+        Files.writeString(classes.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
+        Path second = Files.createDirectory(root.resolve("second"));
+        Files.writeString(second.resolve("manifest.mf"),
+                "Manifest-Version: 1.0\r\nMain-Class: sample.Sample\r\nImplementation-Title: example\r\n");
+        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of(
+                        "classes", new BuildStepArgument(
+                                classes,
+                                Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED,
+                                        Path.of("manifest.mf"), ChecksumStatus.ADDED)),
+                        "second", new BuildStepArgument(
+                                second,
+                                Map.of(Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(
+                next.resolve(BuildStep.ARTIFACTS + "classes.jar")))) {
+            java.util.jar.Attributes attributes = jarStream.getManifest().getMainAttributes();
+            assertThat(attributes.getValue("Multi-Release")).isEqualTo("true");
+            assertThat(attributes.getValue("Main-Class")).isEqualTo("sample.Sample");
+            assertThat(attributes.getValue("Implementation-Title")).isEqualTo("example");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void identical_manifest_values_across_predecessors_do_not_conflict(boolean process) throws IOException {
+        Path firstFolder = Files.createDirectory(classes.resolve(Javac.CLASSES));
+        try (InputStream inputStream = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
+            Files.copy(requireNonNull(inputStream), Files
+                    .createDirectory(firstFolder.resolve("sample"))
+                    .resolve("Sample.class"));
+        }
+        Files.writeString(classes.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
+        Path second = Files.createDirectory(root.resolve("second"));
+        Files.writeString(second.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
+        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of(
+                        "classes", new BuildStepArgument(
+                                classes,
+                                Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED,
+                                        Path.of("manifest.mf"), ChecksumStatus.ADDED)),
+                        "second", new BuildStepArgument(
+                                second,
+                                Map.of(Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+    }
+
+    @Test
+    public void conflicting_manifest_attributes_across_predecessors_throw() throws IOException {
+        Files.writeString(classes.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMain-Class: a.A\r\n");
+        Path second = Files.createDirectory(root.resolve("second"));
+        Files.writeString(second.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMain-Class: b.B\r\n");
+        LinkedHashMap<String, BuildStepArgument> args = new LinkedHashMap<>();
+        args.put("classes", new BuildStepArgument(classes, Map.of(Path.of("manifest.mf"), ChecksumStatus.ADDED)));
+        args.put("second", new BuildStepArgument(second, Map.of(Path.of("manifest.mf"), ChecksumStatus.ADDED)));
+        assertThatThrownBy(() -> Jar.tool(Jar.Sort.CLASSES).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                args).toCompletableFuture().join())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Conflicting manifest attribute 'Main-Class' in "
+                        + second.resolve("manifest.mf")
+                        + ": 'a.A' vs 'b.B'");
     }
 
     @ParameterizedTest
