@@ -53,6 +53,7 @@ public class InferredCompilerChainModuleTest {
 
         Path javaClasses = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.JAVA)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -98,6 +99,7 @@ public class InferredCompilerChainModuleTest {
 
         Path javaClasses = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.JAVA)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -106,6 +108,7 @@ public class InferredCompilerChainModuleTest {
                 .isNotEmptyFile();
         Path kotlinClasses = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.KOTLIN)
                 .resolve(KotlinCompilerModule.CLASSES)
                 .resolve("output")
@@ -115,6 +118,7 @@ public class InferredCompilerChainModuleTest {
                 .isNotEmptyFile();
         Path scalaClasses = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.SCALA)
                 .resolve(ScalaCompilerModule.CLASSES)
                 .resolve("output")
@@ -125,12 +129,14 @@ public class InferredCompilerChainModuleTest {
 
         Path kotlinArtifacts = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.KOTLIN)
                 .resolve(KotlinCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
         Path scalaArtifacts = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.SCALA)
                 .resolve(ScalaCompilerModule.ARTIFACTS)
                 .resolve("output")
@@ -174,20 +180,15 @@ public class InferredCompilerChainModuleTest {
 
         Path kotlinClasses = root
                 .resolve("chain")
+                .resolve(InferredCompilerChainModule.COMPILE)
                 .resolve(InferredCompilerChainModule.KOTLIN)
                 .resolve(KotlinCompilerModule.CLASSES)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(kotlinClasses.resolve("sample/Sample.class")).isNotEmptyFile();
-        Path scalaClasses = root
-                .resolve("chain")
-                .resolve(InferredCompilerChainModule.SCALA)
-                .resolve(ScalaCompilerModule.CLASSES)
-                .resolve("output")
-                .resolve(BuildStep.CLASSES);
-        assertThat(scalaClasses)
-                .as("Scala compile self-skipped (no .scala sources); Versions still copies through Kotlin's output")
-                .isDirectory();
+        assertThat(root.resolve("chain").resolve(InferredCompilerChainModule.COMPILE).resolve(InferredCompilerChainModule.SCALA))
+                .as("Scala module was not wired because no .scala sources were detected")
+                .doesNotExist();
     }
 
     private BuildExecutor newExecutor() throws IOException {

@@ -4,52 +4,147 @@ import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
+import build.jenesis.BuildStepContext;
+import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Javac;
 
 public class InferredCompilerChainModule implements BuildExecutorModule {
 
-    public static final String JAVA = "java", KOTLIN = "kotlin", SCALA = "scala";
+    public static final String JAVA = "java", KOTLIN = "kotlin", SCALA = "scala", COMPILE = "compile";
+    private static final String SCAN = "scan";
+    private static final String SCAN_FILE = "scan.properties";
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
+    private final boolean process;
     private final boolean strictPinning;
-    private final BuildStep javac;
 
     public InferredCompilerChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, Javac.tool(), false);
+        this(repositories, resolvers, false, false);
     }
 
     public InferredCompilerChainModule(Map<String, Repository> repositories,
                                        Map<String, Resolver> resolvers,
-                                       BuildStep javac,
-                                       boolean strictPinning) {
+                                       boolean process) {
+        this(repositories, resolvers, process, false);
+    }
+
+    private InferredCompilerChainModule(Map<String, Repository> repositories,
+                                        Map<String, Resolver> resolvers,
+                                        boolean process,
+                                        boolean strictPinning) {
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.javac = javac;
+        this.process = process;
         this.strictPinning = strictPinning;
     }
 
     public InferredCompilerChainModule strictPinning(boolean strictPinning) {
-        return new InferredCompilerChainModule(repositories, resolvers, javac, strictPinning);
+        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(JAVA, javac, upstream);
-        SequencedSet<String> kotlinInputs = new LinkedHashSet<>();
-        kotlinInputs.add(JAVA);
-        kotlinInputs.addAll(upstream);
-        buildExecutor.addModule(KOTLIN,
-                new KotlinCompilerModule(repositories, resolvers).strictPinning(strictPinning),
-                kotlinInputs);
-        SequencedSet<String> scalaInputs = new LinkedHashSet<>();
-        scalaInputs.add(KOTLIN);
-        scalaInputs.addAll(kotlinInputs);
-        buildExecutor.addModule(SCALA,
-                new ScalaCompilerModule(repositories, resolvers).strictPinning(strictPinning),
-                scalaInputs);
+        buildExecutor.addStep(SCAN, new Scan(), inherited.sequencedKeySet());
+        SequencedSet<String> compileInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
+        compileInputs.add(SCAN);
+        buildExecutor.addModule(COMPILE,
+                new Compile(repositories, resolvers, process, strictPinning),
+                compileInputs);
+    }
+
+    @Override
+    public Optional<String> resolve(String path) {
+        return path.equals(SCAN) ? Optional.empty() : Optional.of(path);
+    }
+
+    private record Scan() implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            boolean[] flags = new boolean[3];
+            for (BuildStepArgument argument : arguments.values()) {
+                Path sources = argument.folder().resolve(BuildStep.SOURCES);
+                if (!Files.exists(sources)) {
+                    continue;
+                }
+                Files.walkFileTree(sources, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        String name = file.getFileName().toString();
+                        if (name.endsWith(".java")) {
+                            flags[0] = true;
+                        } else if (name.endsWith(".kt")) {
+                            flags[1] = true;
+                        } else if (name.endsWith(".scala")) {
+                            flags[2] = true;
+                        }
+                        return flags[0] && flags[1] && flags[2] ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
+                    }
+                });
+                if (flags[0] && flags[1] && flags[2]) {
+                    break;
+                }
+            }
+            SequencedProperties properties = new SequencedProperties();
+            properties.setProperty(JAVA, Boolean.toString(flags[0]));
+            properties.setProperty(KOTLIN, Boolean.toString(flags[1]));
+            properties.setProperty(SCALA, Boolean.toString(flags[2]));
+            properties.store(context.next().resolve(SCAN_FILE));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private record Compile(Map<String, Repository> repositories,
+                           Map<String, Resolver> resolvers,
+                           boolean process,
+                           boolean strictPinning) implements BuildExecutorModule {
+
+        @Override
+        public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+            Path scanFolder = inherited.get(PREVIOUS + SCAN);
+            if (scanFolder == null) {
+                throw new IllegalStateException("Compile sub-module is missing its upstream scan input");
+            }
+            SequencedProperties scan = SequencedProperties.ofFiles(scanFolder.resolve(SCAN_FILE));
+            boolean hasJava = Boolean.parseBoolean(scan.getProperty(JAVA));
+            boolean hasKotlin = Boolean.parseBoolean(scan.getProperty(KOTLIN));
+            boolean hasScala = Boolean.parseBoolean(scan.getProperty(SCALA));
+
+            SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
+            sourceInputs.remove(PREVIOUS + SCAN);
+
+            SequencedSet<String> previous = new LinkedHashSet<>(sourceInputs);
+            if (hasJava) {
+                buildExecutor.addStep(JAVA,
+                        process ? Javac.process() : Javac.tool(),
+                        previous);
+                SequencedSet<String> updated = new LinkedHashSet<>();
+                updated.add(JAVA);
+                updated.addAll(sourceInputs);
+                previous = updated;
+            }
+            if (hasKotlin) {
+                buildExecutor.addModule(KOTLIN,
+                        new KotlinCompilerModule(repositories, resolvers).strictPinning(strictPinning),
+                        previous);
+                SequencedSet<String> updated = new LinkedHashSet<>();
+                updated.add(KOTLIN);
+                updated.addAll(previous);
+                previous = updated;
+            }
+            if (hasScala) {
+                buildExecutor.addModule(SCALA,
+                        new ScalaCompilerModule(repositories, resolvers).strictPinning(strictPinning),
+                        previous);
+            }
+        }
     }
 }
