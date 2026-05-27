@@ -13,7 +13,7 @@ import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
-import build.jenesis.project.JavaModule;
+import build.jenesis.project.JavaToolchainModule;
 import build.jenesis.project.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -493,7 +493,7 @@ public class MavenProjectTest {
                                     "../../module-foo/inventory");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
-                        buildExecutor.addModule("java", new JavaModule(),
+                        buildExecutor.addModule("java", new JavaToolchainModule(),
                                 "../sources", "../manifests",
                                 "../compile/dependencies/artifacts",
                                 "../runtime/dependencies/artifacts");

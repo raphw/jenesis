@@ -25,7 +25,7 @@ public record JavaMultiProjectAssembler(boolean process, String filter) implemen
                                      Map<String, Resolver> resolvers) {
         return (sub, outerInherited) -> {
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
-            sub.addModule("java", new JavaModule(process),
+            sub.addModule("java", new JavaToolchainModule(process),
                     Stream.concat(
                             Stream.of(
                                     "prepare",

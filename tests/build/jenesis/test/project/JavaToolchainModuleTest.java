@@ -9,7 +9,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
-import build.jenesis.project.JavaModule;
+import build.jenesis.project.JavaToolchainModule;
 import build.jenesis.project.TestModule;
 import sample.Sample;
 
@@ -17,7 +17,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class JavaModuleTest {
+public class JavaToolchainModuleTest {
 
     @TempDir
     private Path input, root;
@@ -53,7 +53,7 @@ public class JavaModuleTest {
             inputStream.transferTo(outputStream);
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output", new JavaToolchainModule(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts");
         assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("other/Sample.class")).exists();
@@ -80,7 +80,7 @@ public class JavaModuleTest {
             writer.newLine();
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output", new JavaToolchainModule(), "input");
         buildExecutor.addModule("output-test", new TestModule(Map.of(), Map.of()).requireEngine(true), "output", "input");
         assertThatThrownBy(() -> buildExecutor.execute())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
@@ -98,7 +98,7 @@ public class JavaModuleTest {
             writer.newLine();
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output", new JavaToolchainModule(), "input");
         buildExecutor.addModule("output-test", new TestModule(Map.of(), Map.of()).requireEngine(false), "output", "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/classes", "output/artifacts");
@@ -135,7 +135,7 @@ public class JavaModuleTest {
                     StandardCharsets.UTF_8) + ".jar"));
         }
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new JavaModule(), "input");
+        buildExecutor.addModule("output", new JavaToolchainModule(), "input");
         buildExecutor.addModule("output-test", new TestModule(
                 Map.of("maven", new MavenDefaultRepository(
                         URI.create("https://repo1.maven.org/maven2/"),

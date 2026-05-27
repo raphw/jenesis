@@ -20,7 +20,7 @@ public class InternalModule implements BuildExecutorModule {
             JAVA = "java",
             DELEGATE = "delegate";
 
-    private static final String MAIN_ARTIFACTS = JAVA + "/" + JavaModule.ARTIFACTS;
+    private static final String MAIN_ARTIFACTS = JAVA + "/" + JavaToolchainModule.ARTIFACTS;
     private static final String COMPILE_ARTIFACTS = DependencyScope.COMPILE.label() + "/" + DependenciesModule.ARTIFACTS;
     private static final String RUNTIME_ARTIFACTS = DependencyScope.RUNTIME.label() + "/" + DependenciesModule.ARTIFACTS;
 
@@ -88,7 +88,7 @@ public class InternalModule implements BuildExecutorModule {
                     new DependenciesModule(repositories, resolvers, compile),
                     requiresId);
         }
-        buildExecutor.addModule(JAVA, new JavaModule(), Stream.concat(
+        buildExecutor.addModule(JAVA, new JavaToolchainModule(), Stream.concat(
                 Stream.of(SOURCE, COMPILE_ARTIFACTS),
                 inherited.sequencedKeySet().stream()));
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {

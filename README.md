@@ -240,9 +240,9 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   base descriptor (`MavenProject.MavenModuleDescriptor` or `ModularProject.ModularModuleDescriptor`) and adds
   the project-level flags `tests`, `source`, `javadoc`. The default assembler `JavaMultiProjectAssembler` is
   stateless and reads those flags off the descriptor it receives - no `Context` object: a `prepare` step plus a
-  `JavaModule` is wired against the six descriptor paths and the module's resources, and when `descriptor.test()`
+  `JavaToolchainModule` is wired against the six descriptor paths and the module's resources, and when `descriptor.test()`
   is set and the module's `module.properties` flags it as a test variant a `TestModule` sub-module is wired
-  alongside the `JavaModule`, with optional `sources` and `javadoc` steps appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
+  alongside the `JavaToolchainModule`, with optional `sources` and `javadoc` steps appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
   user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded with project-wide
   metadata read once from `metadata.properties` (when configured); `MODULAR` does not. Each layout adds a
   top-level `pin` module (sibling of `build`) that walks the BUILD outputs and rewrites every discovered
@@ -258,8 +258,8 @@ entries with the same key override the layout default.
 
 | Layout               | Pipeline                                                                                  | Mirrors                |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
-| `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaModule` + per-module `Pom` step + `MavenRepositoryStaging` + `MavenRepositoryExport` | `build/Maven.java`     |
-| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `ModularProject` over `JenesisModuleRepository` (public overlay, cached under `.jenesis/cache/`) with `JenesisModuleRepository.ofLocal()` prepended + per-project `JavaModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `build/Modular.java`   |
+| `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaToolchainModule` + per-module `Pom` step + `MavenRepositoryStaging` + `MavenRepositoryExport` | `build/Maven.java`     |
+| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `ModularProject` over `JenesisModuleRepository` (public overlay, cached under `.jenesis/cache/`) with `JenesisModuleRepository.ofLocal()` prepended + per-project `JavaToolchainModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `build/Modular.java`   |
 | `Layout.MODULAR_TO_MAVEN` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `ModularProject` against a `MavenDefaultRepository` driven by `MavenModuleResolver`, which fetches each declared module's `:pom` artifact from a permissive `JenesisModuleRepository(false)` and feeds the bytes straight into `MavenPomResolver` as the root POM (so the first layer is never re-fetched from Maven Central). Per-module `Pom` step on top of the assembler, plus `MavenRepositoryStaging` + `MavenRepositoryExport` | `build/ModularToMaven.java` |
 | `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
 
@@ -642,7 +642,7 @@ The modules listed here are pre-implemented for convenience; the build tool itse
 In every diagram below, blue rounded nodes are inputs (folders or files), yellow rectangles are steps, and
 purple rectangles are nested sub-modules.
 
-### `JavaModule`
+### `JavaToolchainModule`
 
 Used for compiling and packaging a single Java module from its sources and its resolved dependencies. Between
 compilation and packaging it runs a `Versions` step that consults the compile-scope `requires.properties` and
@@ -651,7 +651,7 @@ jar carries the same versions that were used to assemble its module path. The re
 chooses between the in-process tool APIs (`Javac.tool()` / `Jar.tool(...)`) and out-of-process invocations
 (`Javac.process()` / `Jar.process(...)`); the latter is what `JavaMultiProjectAssembler` selects when
 `-Djenesis.java.process=true` is set so the build can run under a stricter sandbox. Running the compiled tests
-is not part of `JavaModule` itself - that is wired separately by `JavaMultiProjectAssembler` as a sibling
+is not part of `JavaToolchainModule` itself - that is wired separately by `JavaMultiProjectAssembler` as a sibling
 `TestModule` when the project enables tests and the module is flagged as a test variant (see *`TestModule`*
 below).
 
@@ -810,7 +810,7 @@ it streams the bytes through a digest and fails the build if they do not match t
 integrity story extends to POMs the build pulls in for reference, not just to artifact jars.
 `MavenProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs
 `prepare` (`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
-`build` (caller-supplied, typically `JavaModule`), `assign` (`Assign`), and `inventory` (`Inventory`,
+`build` (caller-supplied, typically `JavaToolchainModule`), `assign` (`Assign`), and `inventory` (`Inventory`,
 producing the per-module `inventory.properties` consumed by `Execute`) for each project.
 
 ```xml
@@ -897,7 +897,7 @@ hash computation in the build - validation is opt-in by declaring hashes in sour
 
 `ModularProject.make(...)` returns the full wrapped `MultiProjectModule` whose factory runs `prepare`
 (`MultiProjectDependencies`), `dependencies` (`DependenciesModule`: `Resolve` then `Download`),
-`build` (caller-supplied, typically `JavaModule`), `assign` (`Assign`), and `inventory` (`Inventory`,
+`build` (caller-supplied, typically `JavaToolchainModule`), `assign` (`Assign`), and `inventory` (`Inventory`,
 producing the per-module `inventory.properties` consumed by `Execute`) for each project.
 
 ```mermaid
@@ -982,7 +982,7 @@ repository.
   Both steps re-run only when `sources/module-info.java` actually changes.
 - `compile` and `runtime` are scope-specific `DependenciesModule` instances that download the two
   classpaths separately.
-- `java` is a `JavaModule` that compiles the source against the compile classpath.
+- `java` is a `JavaToolchainModule` that compiles the source against the compile classpath.
 - `delegate` builds a `ModuleLayer` over the compiled jar plus the runtime classpath and runs the
   plug-in.
 
@@ -1356,7 +1356,7 @@ new prefixes - or override the layout's defaults on the same prefix - by passing
 `Map<String, Repository>` and `Map<String, Resolver>` through `Project.repositories(...)` /
 `Project.resolvers(...)`; the user maps are `putAll`-merged *after* the layout defaults, so a user entry
 under the same key wins, and the merged maps are forwarded through `JavaMultiProjectAssembler` into every
-per-module `JavaModule` / `TestModule`.
+per-module `JavaToolchainModule` / `TestModule`.
 
 ### Jenesis Repository layout for Java modules
 
@@ -1514,7 +1514,7 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   both from the `Implementation-Version` manifest entries of the Jupiter API and Platform Commons jars
   discovered on the inherited paths. New frameworks slot in by implementing `TestEngine` and choosing
   whatever argument shape the runner needs.
-- **`JavaModule`** is the canonical `BuildExecutorModule` for "compile sources, version-stamp `module-info.class`,
+- **`JavaToolchainModule`** is the canonical `BuildExecutorModule` for "compile sources, version-stamp `module-info.class`,
   package as a jar". It delegates to `Javac`, `Versions`, and `Jar`. Build scripts that don't have multi-project
   structure (`Minimal.java`, `Manual.java`) wire it directly; test execution is a separate `TestModule` that
   `JavaMultiProjectAssembler` wires as a sibling when the project enables tests.
@@ -1547,12 +1547,12 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   builds a `<module-name> → <version>` map from every `<prefix>/<name>/<version>` entry, and rewrites every
   `module-info.class` it finds under the predecessor `classes/` folders to stamp those versions onto each
   matching `requires` directive's `compiledVersion`. Non-`module-info` files are hard-linked through to the
-  output unchanged. `JavaModule` wires this step between `Javac` and `Jar` so the packaged jar's
+  output unchanged. `JavaToolchainModule` wires this step between `Javac` and `Jar` so the packaged jar's
   `module-info.class` carries the resolved versions.
 - **`DownloadModuleUris`** is a `BuildStep` that materializes a properties file mapping module name → URI.
   `Modular.java` and similar scripts feed it the `sormuras/modules` registry plus a project-local override.
 - **`ModularProject`** is the equivalent of `MavenProject` but for module-based multi-project builds: it walks
-  a directory tree, identifies modules from their `module-info.java`, and registers a `JavaModule` per module
+  a directory tree, identifies modules from their `module-info.java`, and registers a `JavaToolchainModule` per module
   via `MultiProjectModule`.
 
 The wiring pattern is uniform: anything Java-specific that runs as part of a step is a `BuildStep` (cached on
@@ -1623,7 +1623,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   Maven's per-module data and `MultiProjectModule`'s generic factory contract.
 - **`MavenProject`** is the `BuildExecutorModule` entry point: scans a directory tree of `pom.xml` files,
   produces one `MavenModuleDescriptor` per module, and feeds them into `MultiProjectModule` along with a
-  `JavaModule` factory. The scan is itself a step (`Pom`) so it caches; the per-module wiring runs in
+  `JavaToolchainModule` factory. The scan is itself a step (`Pom`) so it caches; the per-module wiring runs in
   `MultiProjectModule`'s body each build.
 
 Same uniform pattern as Java support: `BuildStep` for cached units of work, `BuildExecutorModule` for sub-graph

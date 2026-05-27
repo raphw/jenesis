@@ -7,9 +7,9 @@ import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Versions;
 
-public record JavaModule(boolean process) implements BuildExecutorModule {
+public record JavaToolchainModule(boolean process) implements BuildExecutorModule {
 
-    public JavaModule() {
+    public JavaToolchainModule() {
         this(false);
     }
 

@@ -7,7 +7,7 @@ import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
-import build.jenesis.project.JavaModule;
+import build.jenesis.project.JavaToolchainModule;
 import build.jenesis.project.TestModule;
 import build.jenesis.project.DependencyScope;
 
@@ -23,7 +23,7 @@ public class Maven {
                 repositories,
                 resolvers,
                 (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
-                    buildExecutor.addModule("java", new JavaModule(),
+                    buildExecutor.addModule("java", new JavaToolchainModule(),
                             descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));
                     buildExecutor.addModule("test", new TestModule(mergedRepos, mergedResolvers).requireEngine(false),
                             "java", descriptor.sources(), descriptor.manifests(), descriptor.artifacts(DependencyScope.COMPILE), descriptor.artifacts(DependencyScope.RUNTIME));

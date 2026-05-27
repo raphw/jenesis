@@ -10,7 +10,7 @@ import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
-import build.jenesis.project.JavaModule;
+import build.jenesis.project.JavaToolchainModule;
 import build.jenesis.project.MultiProjectModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -199,7 +199,7 @@ public class ModularProjectTest {
                                     "../../module-foo/inventory");
                             default -> fail("Unexpected module: " + descriptor.name());
                         }
-                        buildExecutor.addModule("java", new JavaModule(),
+                        buildExecutor.addModule("java", new JavaToolchainModule(),
                                 "../sources", "../manifests",
                                 "../compile/dependencies/artifacts",
                                 "../runtime/dependencies/artifacts");

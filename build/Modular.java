@@ -8,7 +8,7 @@ import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.module.DownloadModuleUris;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
-import build.jenesis.project.JavaModule;
+import build.jenesis.project.JavaToolchainModule;
 import build.jenesis.project.TestModule;
 import build.jenesis.project.DependencyScope;
 
@@ -31,7 +31,7 @@ public class Modular {
                     repositories,
                     resolvers,
                     (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
-                        buildExecutor.addModule("java", new JavaModule(),
+                        buildExecutor.addModule("java", new JavaToolchainModule(),
                                 descriptor.sources(),
                                 descriptor.manifests(),
                                 descriptor.resolved(DependencyScope.COMPILE),
