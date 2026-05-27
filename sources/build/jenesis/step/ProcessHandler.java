@@ -51,7 +51,7 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             this.commands = commands;
         }
 
-        static Function<List<String>, OfProcess> ofJavaHome(String command) {
+        public static Function<List<String>, OfProcess> ofJavaHome(String command) {
             String home = System.getProperty("java.home");
             if (home == null) {
                 home = System.getenv("JAVA_HOME");
