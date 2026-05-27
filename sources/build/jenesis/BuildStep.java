@@ -24,12 +24,12 @@ public interface BuildStep extends Serializable {
         return new BuildExecutorModule() {
             @Override
             public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-                buildExecutor.addStep(name, BuildStep.this);
+                buildExecutor.addStep(name, BuildStep.this, inherited.sequencedKeySet());
             }
 
             @Override
             public Optional<String> resolve(String path) {
-                return Optional.of(path.substring(name.length() + 1));
+                return path.equals(name) ? Optional.of("") : Optional.empty();
             }
         };
     }

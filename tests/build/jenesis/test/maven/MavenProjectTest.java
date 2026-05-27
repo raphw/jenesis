@@ -505,7 +505,7 @@ public class MavenProjectTest {
                 .resolve(BuildStep.IDENTITY));
         assertThat(foo.stringPropertyNames()).containsExactly("maven/group/foo/1", "maven/group/foo/pom/1");
         assertThat(foo.getProperty("maven/group/foo/1"))
-                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+                .isEqualTo("../../produce/java/artifacts/jar/output/artifacts/classes.jar");
         assertThat(foo.getProperty("maven/group/foo/pom/1"))
                 .isEqualTo("../../../../../identifier/scan/output/pom/foo/pom.xml");
         SequencedProperties bar = SequencedProperties.ofFiles(results
@@ -513,7 +513,7 @@ public class MavenProjectTest {
                 .resolve(BuildStep.IDENTITY));
         assertThat(bar.stringPropertyNames()).containsExactly("maven/group/bar/1", "maven/group/bar/pom/1");
         assertThat(bar.getProperty("maven/group/bar/1"))
-                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+                .isEqualTo("../../produce/java/artifacts/jar/output/artifacts/classes.jar");
         assertThat(bar.getProperty("maven/group/bar/pom/1"))
                 .isEqualTo("../../../../../identifier/scan/output/pom/bar/pom.xml");
         assertThat(results.keySet())

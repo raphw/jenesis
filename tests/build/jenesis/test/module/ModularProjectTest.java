@@ -211,13 +211,13 @@ public class ModularProjectTest {
                 .resolve(BuildStep.IDENTITY));
         assertThat(foo.stringPropertyNames()).containsExactly("module/foo");
         assertThat(foo.getProperty("module/foo"))
-                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+                .isEqualTo("../../produce/java/artifacts/jar/output/artifacts/classes.jar");
         SequencedProperties bar = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/assign")
                 .resolve(BuildStep.IDENTITY));
         assertThat(bar.stringPropertyNames()).containsExactly("module/bar");
         assertThat(bar.getProperty("module/bar"))
-                .isEqualTo("../../produce/java/artifacts/output/artifacts/classes.jar");
+                .isEqualTo("../../produce/java/artifacts/jar/output/artifacts/classes.jar");
         assertThat(results.keySet())
                 .contains("modules/module-foo/inventory", "modules/module-bar/inventory")
                 .doesNotContain("modules/module-foo/coordinates", "modules/module-bar/coordinates");
