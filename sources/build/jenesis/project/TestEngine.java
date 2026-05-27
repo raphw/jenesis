@@ -1,4 +1,4 @@
-package build.jenesis.step;
+package build.jenesis.project;
 
 import module java.base;
 import java.util.jar.Attributes;

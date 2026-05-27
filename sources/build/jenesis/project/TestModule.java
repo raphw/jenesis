@@ -14,7 +14,6 @@ import build.jenesis.step.Download;
 import build.jenesis.step.Java;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Resolve;
-import build.jenesis.step.TestEngine;
 
 public class TestModule implements BuildExecutorModule {
 

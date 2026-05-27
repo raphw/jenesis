@@ -2,7 +2,7 @@ package build.jenesis.test.step;
 
 import module java.base;
 import module org.junit.jupiter.api;
-import build.jenesis.step.TestNG;
+import build.jenesis.project.TestNG;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
