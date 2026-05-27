@@ -20,6 +20,20 @@ public interface BuildStep extends Serializable {
             SCOPES = "scopes.properties",
             EXCLUSIONS = "exclusions.properties";
 
+    default BuildExecutorModule asModule(String name) {
+        return new BuildExecutorModule() {
+            @Override
+            public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+                buildExecutor.addStep(name, BuildStep.this);
+            }
+
+            @Override
+            public Optional<String> resolve(String path) {
+                return Optional.of(path.substring(name.length() + 1));
+            }
+        };
+    }
+
     default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(BuildStepArgument::hasChanged);
     }
