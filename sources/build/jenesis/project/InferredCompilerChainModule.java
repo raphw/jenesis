@@ -121,29 +121,27 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
             sourceInputs.remove(PREVIOUS + SCAN);
 
-            SequencedSet<String> previous = new LinkedHashSet<>(sourceInputs);
+            SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
             if (hasJava) {
                 buildExecutor.addStep(JAVA,
                         process ? Javac.process() : Javac.tool(),
-                        previous);
-                SequencedSet<String> updated = new LinkedHashSet<>();
+                        dependencies);
+                SequencedSet<String> updated = new LinkedHashSet<>(sourceInputs);
                 updated.add(JAVA);
-                updated.addAll(sourceInputs);
-                previous = updated;
+                dependencies = updated;
             }
             if (hasKotlin) {
                 buildExecutor.addModule(KOTLIN,
                         new KotlinCompilerModule(repositories, resolvers).strictPinning(strictPinning),
-                        previous);
-                SequencedSet<String> updated = new LinkedHashSet<>();
+                        dependencies);
+                SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(KOTLIN);
-                updated.addAll(previous);
-                previous = updated;
+                dependencies = updated;
             }
             if (hasScala) {
                 buildExecutor.addModule(SCALA,
                         new ScalaCompilerModule(repositories, resolvers).strictPinning(strictPinning),
-                        previous);
+                        dependencies);
             }
         }
     }
