@@ -14,7 +14,8 @@ import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
 
-public record JavaMultiProjectAssembler(boolean process, String filter) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+public record JavaMultiProjectAssembler(boolean process,
+                                        String filter) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
         this(Boolean.getBoolean("jenesis.java.process"), System.getProperty("jenesis.java.test"));

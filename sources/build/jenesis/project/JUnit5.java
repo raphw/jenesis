@@ -11,7 +11,7 @@ public record JUnit5() implements TestEngine {
 
     @Override
     public Map<String, String> markers() {
-        return Map.of("Implementation-Title", "junit-jupiter-api");
+        return Map.of("Implementation-Title", "junit-platform-engine");
     }
 
     @Override
