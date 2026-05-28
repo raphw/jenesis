@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 
 public class Javac extends JdkProcessBuildStep {
@@ -38,6 +39,52 @@ public class Javac extends JdkProcessBuildStep {
 
     public Javac includeResources(boolean includeResources) {
         return new Javac(factory, includeResources);
+    }
+
+    @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return hasRelevantChange(arguments, Set.of(".java"), Set.of("javac.properties"));
+    }
+
+    public static boolean hasRelevantChange(SequencedMap<String, BuildStepArgument> arguments,
+                                            Set<String> sourceExtensions,
+                                            Set<String> processProperties) {
+        Path sourcesDir = Path.of(SOURCES);
+        Path classesDir = Path.of(CLASSES);
+        Path artifactsDir = Path.of(ARTIFACTS);
+        Path dependenciesDir = Path.of(DEPENDENCIES);
+        Set<Path> processFiles = new LinkedHashSet<>();
+        for (String name : processProperties) {
+            processFiles.add(Path.of(ProcessBuildStep.PROCESS + name));
+        }
+        for (BuildStepArgument argument : arguments.values()) {
+            for (Map.Entry<Path, ChecksumStatus> entry : argument.files().entrySet()) {
+                if (entry.getValue() == ChecksumStatus.RETAINED) {
+                    continue;
+                }
+                Path path = entry.getKey();
+                if (processFiles.contains(path)) {
+                    return true;
+                }
+                if (path.startsWith(classesDir)
+                        || path.startsWith(artifactsDir)
+                        || path.startsWith(dependenciesDir)) {
+                    return true;
+                }
+                if (path.startsWith(sourcesDir)) {
+                    Path leaf = path.getFileName();
+                    if (leaf != null) {
+                        String name = leaf.toString();
+                        for (String extension : sourceExtensions) {
+                            if (name.endsWith(extension)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override

@@ -12,7 +12,9 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Download;
+import build.jenesis.step.Javac;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Resolve;
 import build.jenesis.step.Versions;
@@ -86,9 +88,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
 
     @Override
     public Optional<String> resolve(String path) {
-        return path.equals(REQUIRED) || path.equals(RESOLVED) || path.equals(COMPILED)
-                ? Optional.empty()
-                : Optional.of(path);
+        return path.equals(CLASSES) ? Optional.of(path) : Optional.empty();
     }
 
     private record Requires(Set<String> prefixes) implements BuildStep {
@@ -171,6 +171,13 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         }
 
         @Override
+        public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+            return Javac.hasRelevantChange(arguments,
+                    Set.of(".kt", ".java"),
+                    Set.of("kotlinc.properties", "javac.properties"));
+        }
+
+        @Override
         public CompletionStage<List<String>> process(Executor executor,
                                                      BuildStepContext context,
                                                      SequencedMap<String, BuildStepArgument> arguments,
@@ -178,7 +185,16 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                 throws IOException {
             Path target = Files.createDirectory(context.next().resolve(CLASSES));
             List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            String release = null;
             for (BuildStepArgument argument : arguments.values()) {
+                Path javacProperties = argument.folder().resolve(ProcessBuildStep.PROCESS + "javac.properties");
+                if (Files.exists(javacProperties)) {
+                    SequencedProperties loaded = SequencedProperties.ofFiles(javacProperties);
+                    String value = loaded.getProperty("--release");
+                    if (value != null && !value.isEmpty()) {
+                        release = value;
+                    }
+                }
                 Path classes = argument.folder().resolve(CLASSES);
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
@@ -241,6 +257,10 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                     "-no-stdlib",
                     "-no-reflect",
                     "-classpath", String.join(File.pathSeparator, userClasspath)));
+            if (release != null) {
+                commands.add("-jvm-target");
+                commands.add(release);
+            }
             commands.addAll(files);
             return CompletableFuture.completedStage(commands);
         }

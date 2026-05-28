@@ -105,6 +105,45 @@ public class ScalaCompilerModuleTest {
     }
 
     @Test
+    public void picks_up_release_from_upstream_javac_properties() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("version", SCALA_VERSION);
+        properties.store(project.resolve("scala.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Sample.scala"), """
+                package sample
+                class Sample
+                """);
+        Path processFolder = Files.createDirectories(project.resolve("process"));
+        SequencedProperties javacProperties = new SequencedProperties();
+        javacProperties.setProperty("--release", "11");
+        javacProperties.store(processFolder.resolve("javac.properties"));
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "scala",
+                new ScalaCompilerModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+
+        Path classes = root
+                .resolve("scala")
+                .resolve(ScalaCompilerModule.CLASSES)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        Path sampleClass = classes.resolve("sample/Sample.class");
+        assertThat(sampleClass).isNotEmptyFile();
+        byte[] bytes = Files.readAllBytes(sampleClass);
+        int majorVersion = ((bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF);
+        assertThat(majorVersion)
+                .as("--release=11 propagated to -release so the .class file carries major version 55 (Java 11)")
+                .isEqualTo(55);
+    }
+
+    @Test
     public void scala_can_reference_java_sources_supplied_to_the_same_step() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("version", SCALA_VERSION);

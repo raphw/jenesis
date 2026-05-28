@@ -281,6 +281,224 @@ public class InferredCompilerChainModuleTest {
         assertThat(resourceOutput.resolve("sample/app.properties")).content().isEqualTo("key=value");
     }
 
+    @Test
+    public void scala_only_project_runs_scala_and_resource_only() throws IOException {
+        SequencedProperties scalaProperties = new SequencedProperties();
+        scalaProperties.setProperty("version", SCALA_VERSION);
+        scalaProperties.store(project.resolve("scala.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Sample.scala"), """
+                package sample
+                class Sample:
+                  def greet(): String = "Hello"
+                """);
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        runChain();
+
+        Path scalaClasses = chainCompile()
+                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(ScalaCompilerModule.CLASSES)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(scalaClasses.resolve("sample/Sample.class")).isNotEmptyFile();
+        assertThat(scalaClasses.resolve("sample/app.properties"))
+                .as("single Scala compiler copies the resource into its Versions output")
+                .content().isEqualTo("key=value");
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.RESOURCE))
+                .as("resource step is not wired when a single compiler is present")
+                .doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.JAVA)).doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.KOTLIN)).doesNotExist();
+        assertNoSourceFilesInClassOutputs();
+    }
+
+    @Test
+    public void java_and_scala_only_routes_resource_through_dedicated_step() throws IOException {
+        SequencedProperties scalaProperties = new SequencedProperties();
+        scalaProperties.setProperty("version", SCALA_VERSION);
+        scalaProperties.store(project.resolve("scala.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Base.java"), "package sample; public class Base { }\n");
+        Files.writeString(sampleDir.resolve("Sample.scala"), """
+                package sample
+                class Sample(b: Base)
+                """);
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        runChain();
+
+        Path resourceClasses = chainCompile()
+                .resolve(InferredCompilerChainModule.RESOURCE)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(resourceClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
+        Path javaClasses = chainCompile()
+                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(javaClasses.resolve("sample/app.properties"))
+                .as("Javac suppressed resources because Scala is also wired")
+                .doesNotExist();
+        Path scalaCompileOnly = chainCompile()
+                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve("compiled")
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(scalaCompileOnly.resolve("sample/app.properties"))
+                .as("Scala compile step suppressed resources because Java is also wired")
+                .doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.KOTLIN)).doesNotExist();
+        assertNoSourceFilesInClassOutputs();
+    }
+
+    @Test
+    public void kotlin_and_scala_only_routes_resource_through_dedicated_step() throws IOException {
+        SequencedProperties kotlinProperties = new SequencedProperties();
+        kotlinProperties.setProperty("version", KOTLIN_VERSION);
+        kotlinProperties.store(project.resolve("kotlin.properties"));
+        SequencedProperties scalaProperties = new SequencedProperties();
+        scalaProperties.setProperty("version", SCALA_VERSION);
+        scalaProperties.store(project.resolve("scala.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Mid.kt"), "package sample\nclass Mid\n");
+        Files.writeString(sampleDir.resolve("Sample.scala"), """
+                package sample
+                class Sample
+                """);
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        runChain();
+
+        Path resourceClasses = chainCompile()
+                .resolve(InferredCompilerChainModule.RESOURCE)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(resourceClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
+        Path kotlinCompileOnly = chainCompile()
+                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve("compiled")
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(kotlinCompileOnly.resolve("sample/app.properties"))
+                .as("Kotlin compile step suppressed resources because Scala is also wired")
+                .doesNotExist();
+        Path scalaCompileOnly = chainCompile()
+                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve("compiled")
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(scalaCompileOnly.resolve("sample/app.properties"))
+                .as("Scala compile step suppressed resources because Kotlin is also wired")
+                .doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.JAVA)).doesNotExist();
+        assertNoSourceFilesInClassOutputs();
+    }
+
+    @Test
+    public void all_three_compilers_route_resource_through_dedicated_step() throws Exception {
+        SequencedProperties kotlinProperties = new SequencedProperties();
+        kotlinProperties.setProperty("version", KOTLIN_VERSION);
+        kotlinProperties.store(project.resolve("kotlin.properties"));
+        SequencedProperties scalaProperties = new SequencedProperties();
+        scalaProperties.setProperty("version", SCALA_VERSION);
+        scalaProperties.store(project.resolve("scala.properties"));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Base.java"), "package sample; public class Base { }\n");
+        Files.writeString(sampleDir.resolve("Mid.kt"), "package sample\nclass Mid\n");
+        Files.writeString(sampleDir.resolve("Top.scala"), "package sample\nclass Top\n");
+        Files.writeString(sampleDir.resolve("app.properties"), "key=value");
+
+        runChain();
+
+        Path resourceClasses = chainCompile()
+                .resolve(InferredCompilerChainModule.RESOURCE)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(resourceClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
+        Path javaClasses = chainCompile()
+                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(javaClasses.resolve("sample/app.properties"))
+                .as("Javac suppressed resources because Kotlin and Scala are also wired")
+                .doesNotExist();
+        Path kotlinCompileOnly = chainCompile()
+                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve("compiled")
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(kotlinCompileOnly.resolve("sample/app.properties"))
+                .as("Kotlin compile step suppressed resources because other compilers are wired")
+                .doesNotExist();
+        Path scalaCompileOnly = chainCompile()
+                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve("compiled")
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(scalaCompileOnly.resolve("sample/app.properties"))
+                .as("Scala compile step suppressed resources because other compilers are wired")
+                .doesNotExist();
+        assertNoSourceFilesInClassOutputs();
+    }
+
+    private void runChain() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "chain",
+                new InferredCompilerChainModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+    }
+
+    private Path chainCompile() {
+        return root.resolve("chain").resolve(InferredCompilerChainModule.COMPILE);
+    }
+
+    private void assertNoSourceFilesInClassOutputs() throws IOException {
+        Path compileRoot = chainCompile();
+        if (!Files.exists(compileRoot)) {
+            return;
+        }
+        List<Path> leakedSources = new ArrayList<>();
+        try (Stream<Path> walk = Files.walk(compileRoot)) {
+            for (Path candidate : (Iterable<Path>) walk::iterator) {
+                if (!Files.isRegularFile(candidate)) {
+                    continue;
+                }
+                String name = candidate.getFileName().toString();
+                if (!name.endsWith(".java") && !name.endsWith(".kt") && !name.endsWith(".scala")) {
+                    continue;
+                }
+                if (isUnderOutputClasses(candidate)) {
+                    leakedSources.add(candidate);
+                }
+            }
+        }
+        assertThat(leakedSources)
+                .as("No language source files should appear in any compile output's classes/ folder")
+                .isEmpty();
+    }
+
+    private static boolean isUnderOutputClasses(Path file) {
+        Path cursor = file.getParent();
+        while (cursor != null) {
+            if (cursor.getFileName() != null && cursor.getFileName().toString().equals("classes")) {
+                Path classesParent = cursor.getParent();
+                if (classesParent != null
+                        && classesParent.getFileName() != null
+                        && classesParent.getFileName().toString().equals("output")) {
+                    return true;
+                }
+            }
+            cursor = cursor.getParent();
+        }
+        return false;
+    }
+
     private BuildExecutor newExecutor() throws IOException {
         return BuildExecutor.of(root,
                 Duration.ZERO,

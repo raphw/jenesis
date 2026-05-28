@@ -64,6 +64,58 @@ public class JavacTest {
         assertThat(folder.resolve("process")).doesNotExist();
     }
 
+    @Test
+    public void shouldRun_skips_when_only_irrelevant_files_changed() {
+        BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
+                Path.of("sources/sample/note.txt"), ChecksumStatus.ADDED,
+                Path.of("sources/sample/Sample.kt"), ChecksumStatus.ADDED,
+                Path.of("metadata.properties"), ChecksumStatus.ADDED));
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("input", argument);
+        assertThat(Javac.tool().shouldRun(arguments)).isFalse();
+    }
+
+    @Test
+    public void shouldRun_fires_when_a_java_source_changed() {
+        BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
+                Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED));
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("input", argument);
+        assertThat(Javac.tool().shouldRun(arguments)).isTrue();
+    }
+
+    @Test
+    public void shouldRun_fires_when_upstream_classpath_or_dependencies_changed() {
+        for (String prefix : List.of("classes/", "artifacts/", "dependencies/")) {
+            BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
+                    Path.of(prefix + "x.jar"), ChecksumStatus.ADDED));
+            SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+            arguments.put("input", argument);
+            assertThat(Javac.tool().shouldRun(arguments))
+                    .as("change under " + prefix + " triggers Javac")
+                    .isTrue();
+        }
+    }
+
+    @Test
+    public void shouldRun_fires_when_javac_properties_changed() {
+        BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
+                Path.of("process/javac.properties"), ChecksumStatus.ADDED));
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("input", argument);
+        assertThat(Javac.tool().shouldRun(arguments)).isTrue();
+    }
+
+    @Test
+    public void shouldRun_ignores_retained_files() {
+        BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
+                Path.of("sources/sample/Sample.java"), ChecksumStatus.RETAINED,
+                Path.of("classes/Other.class"), ChecksumStatus.RETAINED));
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("input", argument);
+        assertThat(Javac.tool().shouldRun(arguments)).isFalse();
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     public void release_in_process_javac_properties_is_forwarded_to_javac(boolean process) throws IOException {
