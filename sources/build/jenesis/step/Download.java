@@ -23,6 +23,15 @@ public class Download implements DependencyProcessingBuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        // A binary might change even if it has the same coordinate as in a previous run. This is
+        // in particularly true for internal dependencies which are built as part of the same
+        // program execution. To avoid additional downloads, this step attempts to recover external
+        // artifacts instead of downloading them again.
+        return true;
+    }
+
+    @Override
     public CompletionStage<SequencedProperties> transform(Executor executor,
                                                           BuildStepContext context,
                                                           SequencedMap<String, BuildStepArgument> arguments,
@@ -37,10 +46,6 @@ public class Download implements DependencyProcessingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
-                    if (previous != null && Files.exists(previous) && !strictPinning) {
-                        BuildStep.linkOrCopy(libs.resolve(name), previous);
-                        continue;
-                    }
                     CompletableFuture<?> future = new CompletableFuture<>();
                     executor.execute(() -> {
                         try {
@@ -50,7 +55,7 @@ public class Download implements DependencyProcessingBuildStep {
                                 throw new IllegalStateException(
                                         "No checksum pinned for " + dependency + " (strict pinning is enabled)");
                             }
-                            if (previous != null && Files.exists(previous)) {
+                            if (!source.internal() && previous != null && Files.exists(previous)) {
                                 BuildStep.linkOrCopy(libs.resolve(name), previous);
                                 future.complete(null);
                                 return;
