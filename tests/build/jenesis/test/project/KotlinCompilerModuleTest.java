@@ -27,8 +27,8 @@ public class KotlinCompilerModuleTest {
     @Test
     public void compiles_a_kotlin_source_against_a_downloaded_compiler() throws IOException, ReflectiveOperationException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
+        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
                 package sample
@@ -75,8 +75,8 @@ public class KotlinCompilerModuleTest {
     @Test
     public void includeResources_false_excludes_non_kotlin_non_java_files_from_output() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
+        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
                 package sample
@@ -109,8 +109,8 @@ public class KotlinCompilerModuleTest {
     @Test
     public void picks_up_release_from_upstream_javac_properties() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
+        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
                 package sample
@@ -148,8 +148,8 @@ public class KotlinCompilerModuleTest {
     @Test
     public void kotlin_can_reference_java_sources_supplied_to_the_same_step() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
+        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Greeter.java"), """
                 package sample;
@@ -187,8 +187,8 @@ public class KotlinCompilerModuleTest {
     @Test
     public void downloads_the_full_compiler_dependency_set_from_the_kotlin_pom() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
+        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), "package sample\nclass Sample\n");
 
@@ -215,29 +215,7 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
-    public void defaults_to_release_when_no_kotlin_properties_is_present_upstream() throws IOException {
-        BuildExecutor executor = newExecutor();
-        executor.addSource("project", project);
-        executor.addModule(
-                "kotlin",
-                new KotlinCompilerModule(
-                        Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
-                "project");
-        executor.execute("kotlin/" + "required");
-
-        Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
-        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
-        assertThat(requires.stringPropertyNames())
-                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
-    }
-
-    @Test
     public void requires_step_picks_module_coordinate_when_module_resolver_available() throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
-
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
@@ -252,16 +230,11 @@ public class KotlinCompilerModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("module/kotlin.compiler.embeddable");
-        SequencedProperties versions = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.VERSIONS));
-        assertThat(versions).containsEntry("module/kotlin.compiler.embeddable", KOTLIN_VERSION);
+        assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
     @Test
     public void requires_step_picks_maven_coordinate_when_only_maven_resolver_available() throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
-
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
@@ -275,16 +248,12 @@ public class KotlinCompilerModuleTest {
         Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/" + KOTLIN_VERSION);
+                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
     @Test
     public void requires_step_prefers_module_over_maven_when_both_available() throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
-
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
@@ -306,10 +275,6 @@ public class KotlinCompilerModuleTest {
 
     @Test
     public void requires_step_fails_when_no_supported_prefix_is_registered() throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", KOTLIN_VERSION);
-        properties.store(project.resolve("kotlin.properties"));
-
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
@@ -323,28 +288,6 @@ public class KotlinCompilerModuleTest {
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
                 .hasMessageContaining("No suitable resolver");
-    }
-
-    @Test
-    public void defaults_to_release_when_kotlin_properties_lacks_version() throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo", "bar");
-        properties.store(project.resolve("kotlin.properties"));
-
-        BuildExecutor executor = newExecutor();
-        executor.addSource("project", project);
-        executor.addModule(
-                "kotlin",
-                new KotlinCompilerModule(
-                        Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
-                "project");
-        executor.execute("kotlin/" + "required");
-
-        Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
-        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
-        assertThat(requires.stringPropertyNames())
-                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
     }
 
     private BuildExecutor newExecutor() throws IOException {

@@ -95,8 +95,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-            return arguments.values().stream().anyMatch(
-                    argument -> argument.hasChanged(Path.of("kotlin.properties")));
+            return false;
         }
 
         @Override
@@ -104,38 +103,10 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            String version = null;
-            Path versionFile = null;
-            for (BuildStepArgument argument : arguments.values()) {
-                Path file = argument.folder().resolve("kotlin.properties");
-                if (Files.exists(file)) {
-                    SequencedProperties loaded = SequencedProperties.ofFiles(file);
-                    String declared = loaded.getProperty("version");
-                    if (declared == null || declared.isEmpty()) {
-                        continue;
-                    }
-                    if (version != null && !version.equals(declared)) {
-                        throw new IllegalStateException("Conflicting Kotlin compiler versions: "
-                                + version + " (" + versionFile + ") vs. "
-                                + declared + " (" + file + ")");
-                    }
-                    version = declared;
-                    versionFile = file;
-                }
-            }
-            if (version == null) {
-                version = "RELEASE";
-            }
             String selectedPrefix = null;
-            String coordinate = null;
             for (String prefix : PREFERRED_PREFIXES) {
                 if (prefixes.contains(prefix)) {
                     selectedPrefix = prefix;
-                    coordinate = switch (prefix) {
-                        case "module" -> "module/" + MODULE_NAME;
-                        case "maven" -> "maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
-                        default -> throw new IllegalStateException("Unreachable");
-                    };
                     break;
                 }
             }
@@ -144,14 +115,14 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                         "No suitable resolver for Kotlin compiler. Available prefixes: " + prefixes
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
+            String coordinate = switch (selectedPrefix) {
+                case "module" -> "module/" + MODULE_NAME;
+                case "maven" -> "maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
+                default -> throw new IllegalStateException("Unreachable");
+            };
             SequencedProperties requires = new SequencedProperties();
             requires.setProperty(coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
-            if ("module".equals(selectedPrefix)) {
-                SequencedProperties versions = new SequencedProperties();
-                versions.setProperty(coordinate, version);
-                versions.store(context.next().resolve(BuildStep.VERSIONS));
-            }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
