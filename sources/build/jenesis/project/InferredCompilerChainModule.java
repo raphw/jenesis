@@ -144,7 +144,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                                 .includeResources(!hasJava && !hasScala),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
-                updated.add(KOTLIN);
+                updated.add(KOTLIN + "/" + KotlinCompilerModule.CLASSES);
                 dependencies = updated;
             }
             if (hasScala) {

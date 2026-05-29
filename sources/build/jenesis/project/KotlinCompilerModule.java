@@ -88,7 +88,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
 
     @Override
     public Optional<String> resolve(String path) {
-        return path.equals(CLASSES) ? Optional.of(path) : Optional.empty();
+        return path.equals(CLASSES) || path.equals(RESOLVED) ? Optional.of(path) : Optional.empty();
     }
 
     private record Requires(Set<String> prefixes) implements BuildStep {

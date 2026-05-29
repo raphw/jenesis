@@ -290,6 +290,21 @@ public class KotlinCompilerModuleTest {
                 .hasMessageContaining("No suitable resolver");
     }
 
+    @Test
+    public void exposes_resolved_alongside_classes_so_coordinates_reach_the_pin_stage() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "kotlin",
+                new KotlinCompilerModule(
+                        Map.of(),
+                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                "project");
+        SequencedMap<String, Path> outputs = executor.execute();
+
+        assertThat(outputs).containsKeys("kotlin/classes", "kotlin/resolved");
+    }
+
     private BuildExecutor newExecutor() throws IOException {
         return BuildExecutor.of(root,
                 Duration.ZERO,
