@@ -157,9 +157,9 @@ public class ModularStagingTest {
         }
         for (String artifactFile : artifactFiles) {
             switch (artifactFile) {
-                case "classes.jar" -> inventory.setProperty(prefix + ".artifacts.0.path", "artifacts/" + artifactFile);
-                case "sources.jar" -> inventory.setProperty(prefix + ".sources.0.path", "sources/" + artifactFile);
-                case "javadoc.jar" -> inventory.setProperty(prefix + ".documentation.0.path", "documentation/" + artifactFile);
+                case "classes.jar" -> inventory.setProperty(prefix + ".artifacts.0", "artifacts/" + artifactFile);
+                case "sources.jar" -> inventory.setProperty(prefix + ".sources.0", "sources/" + artifactFile);
+                case "javadoc.jar" -> inventory.setProperty(prefix + ".documentation.0", "documentation/" + artifactFile);
                 default -> throw new IllegalArgumentException("Unknown artifact file: " + artifactFile);
             }
         }

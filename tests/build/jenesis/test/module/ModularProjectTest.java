@@ -226,17 +226,17 @@ public class ModularProjectTest {
                 .get("modules/module-foo/inventory")
                 .resolve("inventory.properties"));
         assertThat(fooInventory.getProperty("module-foo.module")).isEqualTo("foo");
-        assertThat(fooInventory.getProperty("module-foo.runtime.0.path"))
+        assertThat(fooInventory.getProperty("module-foo.runtime.0"))
                 .endsWith("/classes.jar");
-        assertThat(fooInventory.getProperty("module-foo.artifacts.0.path"))
+        assertThat(fooInventory.getProperty("module-foo.artifacts.0"))
                 .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/inventory")
                 .resolve("inventory.properties"));
         assertThat(barInventory.getProperty("module-bar.module")).isEqualTo("bar");
-        assertThat(barInventory.getProperty("module-bar.runtime.0.path"))
+        assertThat(barInventory.getProperty("module-bar.runtime.0"))
                 .endsWith("/classes.jar");
-        assertThat(barInventory.getProperty("module-bar.artifacts.0.path"))
+        assertThat(barInventory.getProperty("module-bar.artifacts.0"))
                 .endsWith("/classes.jar");
     }
 

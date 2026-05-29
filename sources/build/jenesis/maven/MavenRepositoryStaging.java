@@ -42,7 +42,7 @@ public class MavenRepositoryStaging implements BuildStep {
             }
             SequencedProperties inventory = SequencedProperties.ofFiles(inventoryFile);
             String prefix = inventoryPrefix(inventory, inventoryFile);
-            Path pom = resolve(argument.folder(), inventory.getProperty(prefix + ".pom.path"));
+            Path pom = resolve(argument.folder(), inventory.getProperty(prefix + ".pom"));
             if (pom == null) {
                 continue;
             }

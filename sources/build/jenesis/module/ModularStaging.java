@@ -46,8 +46,7 @@ public class ModularStaging implements BuildStep {
                     prefix, "sources", false, inventoryFile);
             Path javadoc = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".documentation"),
                     prefix, "documentation", false, inventoryFile);
-            String versionValue = inventory.getProperty(prefix + ".version");
-            String version = versionValue == null ? null : versionValue.split(" ", 2)[0];
+            String version = inventory.getProperty(prefix + ".version");
             Path target = version == null
                     ? context.next().resolve(moduleName)
                     : context.next().resolve(moduleName).resolve(version);

@@ -523,16 +523,16 @@ public class MavenProjectTest {
         SequencedProperties fooInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-foo/inventory")
                 .resolve("inventory.properties"));
-        assertThat(fooInventory.getProperty("module-foo.runtime.0.path"))
+        assertThat(fooInventory.getProperty("module-foo.runtime.0"))
                 .endsWith("/classes.jar");
-        assertThat(fooInventory.getProperty("module-foo.artifacts.0.path"))
+        assertThat(fooInventory.getProperty("module-foo.artifacts.0"))
                 .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-bar/inventory")
                 .resolve("inventory.properties"));
-        assertThat(barInventory.getProperty("module-bar.runtime.0.path"))
+        assertThat(barInventory.getProperty("module-bar.runtime.0"))
                 .endsWith("/classes.jar");
-        assertThat(barInventory.getProperty("module-bar.artifacts.0.path"))
+        assertThat(barInventory.getProperty("module-bar.artifacts.0"))
                 .endsWith("/classes.jar");
     }
 

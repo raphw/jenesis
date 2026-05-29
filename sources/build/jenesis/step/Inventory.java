@@ -5,19 +5,12 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 
 public class Inventory implements BuildStep {
 
     public static final String INVENTORY = "inventory.properties";
     public static final String POM = "pom.xml";
-
-    private final HashDigestFunction digest;
-
-    public Inventory(HashDigestFunction digest) {
-        this.digest = digest;
-    }
 
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -87,15 +80,14 @@ public class Inventory implements BuildStep {
         SequencedSet<Path> runtime = new LinkedHashSet<>();
         runtime.addAll(artifacts);
         runtime.addAll(dependencies);
-        String primaryHash = writePaths(inventory, context, digest, prefix + "artifacts", artifacts);
-        writePaths(inventory, context, digest, prefix + "sources", sources);
-        writePaths(inventory, context, digest, prefix + "documentation", documentation);
+        writePaths(inventory, context, prefix + "artifacts", artifacts);
+        writePaths(inventory, context, prefix + "sources", sources);
+        writePaths(inventory, context, prefix + "documentation", documentation);
         if (pomFile != null) {
-            inventory.setProperty(prefix + "pom.path", relativize(context, pomFile));
-            inventory.setProperty(prefix + "pom.hash", digest.encodedHash(pomFile));
+            inventory.setProperty(prefix + "pom", relativize(context, pomFile));
         }
         if (version != null) {
-            inventory.setProperty(prefix + "version", primaryHash == null ? version : version + " " + primaryHash);
+            inventory.setProperty(prefix + "version", version);
         }
         if (tests != null) {
             inventory.setProperty(prefix + "test", tests);
@@ -106,36 +98,28 @@ public class Inventory implements BuildStep {
         if (modular && module != null) {
             inventory.setProperty(prefix + "module", module);
         }
-        writePaths(inventory, context, digest, prefix + "runtime", runtime);
+        writePaths(inventory, context, prefix + "runtime", runtime);
         if (!inventory.isEmpty()) {
             inventory.store(context.next().resolve(INVENTORY));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private static String writePaths(SequencedProperties inventory,
-                                     BuildStepContext context,
-                                     HashDigestFunction digest,
-                                     String key,
-                                     Collection<Path> files) throws IOException {
-        String first = null;
+    private static void writePaths(SequencedProperties inventory,
+                                   BuildStepContext context,
+                                   String key,
+                                   Collection<Path> files) {
         int index = 0;
         for (Path file : files) {
-            String hash = digest.encodedHash(file);
-            if (index == 0) {
-                first = hash;
-            }
-            inventory.setProperty(key + "." + index + ".path", relativize(context, file));
-            inventory.setProperty(key + "." + index + ".hash", hash);
+            inventory.setProperty(key + "." + index, relativize(context, file));
             index++;
         }
-        return first;
     }
 
     public static List<Path> paths(SequencedProperties inventory, Path folder, String key) {
         List<Path> resolved = new ArrayList<>();
         for (int index = 0; ; index++) {
-            String value = inventory.getProperty(key + "." + index + ".path");
+            String value = inventory.getProperty(key + "." + index);
             if (value == null) {
                 return resolved;
             }

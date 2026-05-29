@@ -6,7 +6,6 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Inventory;
 
@@ -55,17 +54,13 @@ public class InventoryTest {
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
         assertThat(inventory.getProperty("module-foo.mainClass")).isEqualTo("com.example.Foo");
         assertThat(inventory.getProperty("module-foo.module")).isEqualTo("com.example.foo");
-        assertThat(inventory.getProperty("module-foo.version")).isEqualTo("1.2.3 " + hash(classes));
-        assertThat(inventory.getProperty("module-foo.artifacts.0.path")).isEqualTo(relativize(classes));
-        assertThat(inventory.getProperty("module-foo.artifacts.0.hash")).isEqualTo(hash(classes));
-        assertThat(inventory.getProperty("module-foo.sources.0.path")).isEqualTo(relativize(sources));
-        assertThat(inventory.getProperty("module-foo.sources.0.hash")).isEqualTo(hash(sources));
-        assertThat(inventory.getProperty("module-foo.documentation.0.path")).isEqualTo(relativize(javadoc));
-        assertThat(inventory.getProperty("module-foo.documentation.0.hash")).isEqualTo(hash(javadoc));
-        assertThat(inventory.getProperty("module-foo.pom.path")).isEqualTo(relativize(pom));
-        assertThat(inventory.getProperty("module-foo.pom.hash")).isEqualTo(hash(pom));
-        assertThat(inventory.getProperty("module-foo.runtime.0.path")).isEqualTo(relativize(classes));
-        assertThat(inventory.getProperty("module-foo.runtime.1.path")).isEqualTo(relativize(lib));
+        assertThat(inventory.getProperty("module-foo.version")).isEqualTo("1.2.3");
+        assertThat(inventory.getProperty("module-foo.artifacts.0")).isEqualTo(relativize(classes));
+        assertThat(inventory.getProperty("module-foo.sources.0")).isEqualTo(relativize(sources));
+        assertThat(inventory.getProperty("module-foo.documentation.0")).isEqualTo(relativize(javadoc));
+        assertThat(inventory.getProperty("module-foo.pom")).isEqualTo(relativize(pom));
+        assertThat(inventory.getProperty("module-foo.runtime.0")).isEqualTo(relativize(classes));
+        assertThat(inventory.getProperty("module-foo.runtime.1")).isEqualTo(relativize(lib));
     }
 
     @Test
@@ -150,7 +145,7 @@ public class InventoryTest {
         run(args("manifests", manifests, "pom", pomFolder));
 
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("module-foo.pom.path")).isEqualTo(relativize(pom));
+        assertThat(inventory.getProperty("module-foo.pom")).isEqualTo(relativize(pom));
     }
 
     @Test
@@ -169,8 +164,8 @@ public class InventoryTest {
         run(args("manifests", manifests, "first", firstDeps, "second", secondDeps));
 
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("module-foo.runtime.0.path")).isEqualTo(relativize(libA));
-        assertThat(inventory.getProperty("module-foo.runtime.1.path")).isEqualTo(relativize(libB));
+        assertThat(inventory.getProperty("module-foo.runtime.0")).isEqualTo(relativize(libA));
+        assertThat(inventory.getProperty("module-foo.runtime.1")).isEqualTo(relativize(libB));
     }
 
     @Test
@@ -185,16 +180,12 @@ public class InventoryTest {
         return next.relativize(file).toString().replace(File.separatorChar, '/');
     }
 
-    private static String hash(Path file) throws IOException {
-        return new HashDigestFunction("MD5").encodedHash(file);
-    }
-
     private BuildStepResult run(SequencedMap<String, Path> argumentFolders) throws IOException {
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : argumentFolders.entrySet()) {
             arguments.put(entry.getKey(), new BuildStepArgument(entry.getValue(), Map.of()));
         }
-        return new Inventory(new HashDigestFunction("MD5")).apply(Runnable::run,
+        return new Inventory().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         arguments)
                 .toCompletableFuture()
