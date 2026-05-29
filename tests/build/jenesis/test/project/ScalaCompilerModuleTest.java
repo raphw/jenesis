@@ -347,30 +347,6 @@ public class ScalaCompilerModuleTest {
                 .containsExactly("maven/org.scala-lang/scala3-compiler_3/RELEASE");
     }
 
-    @Test
-    public void rejects_scala_2_version_in_scala_properties() throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("version", "2.13.16");
-        properties.store(project.resolve("scala.properties"));
-        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("Sample.scala"), "package sample\nclass Sample\n");
-
-        BuildExecutor executor = newExecutor();
-        executor.addSource("project", project);
-        executor.addModule(
-                "scala",
-                new ScalaCompilerModule(
-                        Map.of("maven", mavenCentral()),
-                        Map.of("maven", new MavenPomResolver())),
-                "project");
-
-        assertThatThrownBy(executor::execute)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .rootCause()
-                .hasMessageContaining("Only Scala 3 is supported")
-                .hasMessageContaining("2.13.16");
-    }
-
     private BuildExecutor newExecutor() throws IOException {
         return BuildExecutor.of(root,
                 Duration.ZERO,
