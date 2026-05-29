@@ -249,7 +249,10 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `pom.xml` / `module-info.java` so the full transitive closure (with checksums where available) is pinned at
   source level. Pin is opt-in - it's not part of the default target - and it skips coordinates that come from
   within the project (i.e. anything advertised through an `assign` step's `identity.properties`), so internal
-  modules never leak into the dependency-management block.
+  modules never leak into the dependency-management block. Within a module, pin records exactly one version per
+  dependency coordinate: when the same coordinate resolves to more than one version across that module's build
+  (for example a library that is both a project dependency and part of the toolchain that compiles it), a single
+  version is pinned rather than one per context. This restraint will likely be relaxed in the future.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, a chained
 Jenesis module repository for `MODULAR`) with any user-provided ones. The merged map then has each sub-module's `assign`
