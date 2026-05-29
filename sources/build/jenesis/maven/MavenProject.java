@@ -189,13 +189,15 @@ public class MavenProject implements BuildExecutorModule {
                             active = true;
                         }
                         int index = 0;
-                        if (!properties.getProperty("resources").isEmpty()) {
-                            for (String resource : properties.getProperty("resources").split(",")) {
-                                Path resources = base.resolve(resource);
-                                if (Files.exists(resources)) {
-                                    module.addSource("resources-" + ++index, Bind.asResources(), resources);
-                                    active = true;
-                                }
+                        for (int resourceIndex = 0; ; resourceIndex++) {
+                            String resource = properties.getProperty("resources." + resourceIndex);
+                            if (resource == null) {
+                                break;
+                            }
+                            Path resources = base.resolve(resource);
+                            if (Files.exists(resources)) {
+                                module.addSource("resources-" + ++index, Bind.asResources(), resources);
+                                active = true;
                             }
                         }
                         if (active) {
@@ -568,11 +570,17 @@ public class MavenProject implements BuildExecutorModule {
             String sourceDirectory = test ? value.testSourceDirectory() : value.sourceDirectory();
             properties.setProperty("sources", sourceDirectory == null
                     ? (test ? "src/test/java" : "src/main/java")
-                    : sourceDirectory);
+                    : sourceDirectory.replace(File.separatorChar, '/'));
             List<String> resourceDirectories = test ? value.testResourceDirectories() : value.resourceDirectories();
-            properties.setProperty("resources", resourceDirectories == null
-                    ? (test ? "src/test/resources" : "src/main/resources")
-                    : resourceDirectories.stream().sorted().collect(Collectors.joining(",")));
+            List<String> resources = resourceDirectories == null
+                    ? List.of(test ? "src/test/resources" : "src/main/resources")
+                    : resourceDirectories.stream()
+                            .map(directory -> directory.replace(File.separatorChar, '/'))
+                            .sorted()
+                            .toList();
+            for (int index = 0; index < resources.size(); index++) {
+                properties.setProperty("resources." + index, resources.get(index));
+            }
             properties.store(maven.resolve((test ? "test-module-" : "module-")
                     + BuildExecutorModule.encode(relativePath) + ".properties"));
         }
