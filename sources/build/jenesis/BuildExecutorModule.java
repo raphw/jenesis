@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.SequencedMap;
 
-
 @FunctionalInterface
 public interface BuildExecutorModule {
 
