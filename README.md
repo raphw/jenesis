@@ -711,8 +711,8 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
   regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. When wired by
   `JavaMultiProjectAssembler`, the filter is sourced from the `-Djenesis.java.test=<patterns>` system property;
   callers that construct `TestModule` directly pass the filter explicitly. Class entries are emitted via the
-  engine's `prefix()` (e.g. JUnit 5's `-select-class=`); method entries via `methodPrefix()` (e.g.
-  `-select-method=`). The filter is part of the step's serialized state (so changing it invalidates the cache);
+  engine's `prefix()` (e.g. JUnit 5's `--select-class=`); method entries via `methodPrefix()` (e.g.
+  `--select-method=`). The filter is part of the step's serialized state (so changing it invalidates the cache);
   when set, the step is also forced to re-run regardless of cache consistency. `Java` scans each argument's
   `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on its own `modular`
   flag.

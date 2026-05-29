@@ -46,11 +46,11 @@ public record JUnit5() implements TestEngine {
     public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
         List<String> commands = new ArrayList<>();
         for (String className : classes) {
-            commands.add("-select-class=" + className);
+            commands.add("--select-class=" + className);
         }
         for (Map.Entry<String, List<String>> entry : methods.entrySet()) {
             for (String method : entry.getValue()) {
-                commands.add("-select-method=" + entry.getKey() + "#" + method);
+                commands.add("--select-method=" + entry.getKey() + "#" + method);
             }
         }
         return commands;
