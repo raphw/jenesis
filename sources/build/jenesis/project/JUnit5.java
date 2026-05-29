@@ -23,7 +23,7 @@ public record JUnit5() implements TestEngine {
     public SequencedSet<String> coordinates() {
         SequencedSet<String> coordinates = new LinkedHashSet<>();
         coordinates.add("module/org.junit.platform.console");
-        coordinates.add("maven/org.junit.platform/junit-platform-console/1.11.4");
+        coordinates.add("maven/org.junit.platform/junit-platform-console/RELEASE");
         return coordinates;
     }
 

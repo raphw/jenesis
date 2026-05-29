@@ -112,7 +112,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                     SequencedProperties loaded = SequencedProperties.ofFiles(file);
                     String declared = loaded.getProperty("version");
                     if (declared == null || declared.isEmpty()) {
-                        throw new IllegalStateException("Missing 'version' property in " + file);
+                        continue;
                     }
                     if (version != null && !version.equals(declared)) {
                         throw new IllegalStateException("Conflicting Kotlin compiler versions: "
@@ -124,8 +124,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                 }
             }
             if (version == null) {
-                throw new IllegalStateException(
-                        "No 'kotlin.properties' with a 'version' property found in upstream inputs");
+                version = "RELEASE";
             }
             String selectedPrefix = null;
             String coordinate = null;

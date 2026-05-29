@@ -308,46 +308,43 @@ public class ScalaCompilerModuleTest {
     }
 
     @Test
-    public void fails_when_no_scala_properties_is_present_upstream() throws IOException {
-        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("Sample.scala"), "package sample\nclass Sample\n");
-
+    public void defaults_to_release_when_no_scala_properties_is_present_upstream() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
                 "scala",
                 new ScalaCompilerModule(
-                        Map.of("maven", mavenCentral()),
-                        Map.of("maven", new MavenPomResolver())),
+                        Map.of(),
+                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
+        executor.execute("scala/" + "required");
 
-        assertThatThrownBy(executor::execute)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .rootCause()
-                .hasMessageContaining("scala.properties");
+        Path requiredOutput = root.resolve("scala").resolve("required").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
+        assertThat(requires.stringPropertyNames())
+                .containsExactly("maven/org.scala-lang/scala3-compiler_3/RELEASE");
     }
 
     @Test
-    public void fails_when_scala_properties_lacks_version() throws IOException {
+    public void defaults_to_release_when_scala_properties_lacks_version() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo", "bar");
         properties.store(project.resolve("scala.properties"));
-        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("Sample.scala"), "package sample\nclass Sample\n");
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
                 "scala",
                 new ScalaCompilerModule(
-                        Map.of("maven", mavenCentral()),
-                        Map.of("maven", new MavenPomResolver())),
+                        Map.of(),
+                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
+        executor.execute("scala/" + "required");
 
-        assertThatThrownBy(executor::execute)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .rootCause()
-                .hasMessageContaining("Missing 'version'");
+        Path requiredOutput = root.resolve("scala").resolve("required").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
+        assertThat(requires.stringPropertyNames())
+                .containsExactly("maven/org.scala-lang/scala3-compiler_3/RELEASE");
     }
 
     @Test

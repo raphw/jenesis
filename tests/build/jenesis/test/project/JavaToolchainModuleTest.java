@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.JavaToolchainModule;
@@ -134,6 +135,10 @@ public class JavaToolchainModuleTest {
                     UUID.randomUUID().toString(),
                     StandardCharsets.UTF_8) + ".jar"));
         }
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("maven/org.junit.platform/junit-platform-console",
+                "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
+        versions.store(input.resolve(BuildStep.VERSIONS));
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new JavaToolchainModule(), "input");
         buildExecutor.addModule("output-test", new TestModule(

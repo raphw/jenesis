@@ -215,23 +215,21 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
-    public void fails_when_no_kotlin_properties_is_present_upstream() throws IOException {
-        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("Sample.kt"), "package sample\nclass Sample\n");
-
+    public void defaults_to_release_when_no_kotlin_properties_is_present_upstream() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
-                        Map.of("maven", new MavenPomResolver())),
+                        Map.of(),
+                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
+        executor.execute("kotlin/" + "required");
 
-        assertThatThrownBy(executor::execute)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .rootCause()
-                .hasMessageContaining("kotlin.properties");
+        Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
+        assertThat(requires.stringPropertyNames())
+                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
     }
 
     @Test
@@ -328,26 +326,25 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
-    public void fails_when_kotlin_properties_lacks_version() throws IOException {
+    public void defaults_to_release_when_kotlin_properties_lacks_version() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo", "bar");
         properties.store(project.resolve("kotlin.properties"));
-        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("Sample.kt"), "package sample\nclass Sample\n");
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
-                        Map.of("maven", new MavenPomResolver())),
+                        Map.of(),
+                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
+        executor.execute("kotlin/" + "required");
 
-        assertThatThrownBy(executor::execute)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .rootCause()
-                .hasMessageContaining("Missing 'version'");
+        Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
+        assertThat(requires.stringPropertyNames())
+                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
     }
 
     private BuildExecutor newExecutor() throws IOException {

@@ -51,18 +51,21 @@ public class MavenPomResolver implements MavenResolver {
                             })
                             .collect(Collectors.toList());
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.tryParse(coordinate);
-            if (parsed.version() != null) {
-                dependencies.put(parsed.key(),
-                        new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, exclusions, null));
-                return;
-            }
             MavenDependencyValue managed = managedDependencies.get(parsed.key());
-            if (managed == null) {
+            String declared = parsed.version();
+            if (declared != null && !isFloating(declared)) {
+                dependencies.put(parsed.key(),
+                        new MavenDependencyValue(declared, MavenDependencyScope.COMPILE, null, exclusions, null));
+            } else if (managed != null) {
+                dependencies.put(parsed.key(), new MavenDependencyValue(
+                        managed.version(), MavenDependencyScope.COMPILE, null, exclusions, null, managed.checksum()));
+            } else if (declared != null) {
+                dependencies.put(parsed.key(),
+                        new MavenDependencyValue(declared, MavenDependencyScope.COMPILE, null, exclusions, null));
+            } else {
                 throw new IllegalStateException(
                         "No version pinned for " + coordinate + " (add to dependencyManagement)");
             }
-            dependencies.put(parsed.key(), new MavenDependencyValue(
-                    managed.version(), MavenDependencyScope.COMPILE, null, exclusions, null, managed.checksum()));
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
@@ -740,6 +743,12 @@ public class MavenPomResolver implements MavenResolver {
         } else {
             return text;
         }
+    }
+
+    private static boolean isFloating(String version) {
+        return version.equals("RELEASE")
+                || version.equals("LATEST")
+                || MavenDefaultVersionNegotiator.isRange(version);
     }
 
     private static MavenDependencyValue merge(MavenDependencyValue left, MavenDependencyValue right) {

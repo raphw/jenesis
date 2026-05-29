@@ -112,7 +112,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                     SequencedProperties loaded = SequencedProperties.ofFiles(file);
                     String declared = loaded.getProperty("version");
                     if (declared == null || declared.isEmpty()) {
-                        throw new IllegalStateException("Missing 'version' property in " + file);
+                        continue;
                     }
                     if (version != null && !version.equals(declared)) {
                         throw new IllegalStateException("Conflicting Scala compiler versions: "
@@ -124,12 +124,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                 }
             }
             if (version == null) {
-                throw new IllegalStateException(
-                        "No 'scala.properties' with a 'version' property found in upstream inputs");
-            }
-            if (!version.startsWith("3.")) {
-                throw new IllegalStateException(
-                        "Only Scala 3 is supported, but 'version' property declares: " + version);
+                version = "RELEASE";
             }
             String selectedPrefix = null;
             String coordinate = null;
