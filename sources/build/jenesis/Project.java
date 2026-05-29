@@ -76,6 +76,7 @@ public record Project(
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
+                                new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
@@ -121,6 +122,7 @@ public record Project(
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
                         project.strictPinning(),
+                        new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                 new ProjectModuleDescriptor(descriptor,
                                         project.tests(),
@@ -173,6 +175,7 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
                                 false,
+                                new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),

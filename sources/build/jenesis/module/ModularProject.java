@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -51,27 +52,31 @@ public class ModularProject implements BuildExecutorModule {
 
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 repositories,
                 Map.of("module", new ModularJarResolver(true)),
                 false,
+                digest,
                 assembler);
     }
 
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, repositories, resolvers, false, assembler);
+        return make(root, repositories, resolvers, false, digest, assembler);
     }
 
     public static BuildExecutorModule make(Path root,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            boolean strictPinning,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, repositories, resolvers, strictPinning, true, assembler);
+        return make(root, repositories, resolvers, strictPinning, true, digest, assembler);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -79,6 +84,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            boolean strictPinning,
                                            boolean modular,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 "module",
@@ -87,6 +93,7 @@ public class ModularProject implements BuildExecutorModule {
                 resolvers,
                 strictPinning,
                 modular,
+                digest,
                 assembler);
     }
 
@@ -95,8 +102,9 @@ public class ModularProject implements BuildExecutorModule {
                                            Predicate<Path> filter,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, prefix, filter, repositories, resolvers, false, assembler);
+        return make(root, prefix, filter, repositories, resolvers, false, digest, assembler);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -105,8 +113,9 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            boolean strictPinning,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, prefix, filter, repositories, resolvers, strictPinning, true, assembler);
+        return make(root, prefix, filter, repositories, resolvers, strictPinning, true, digest, assembler);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -116,6 +125,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            boolean strictPinning,
                                            boolean modular,
+                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter, modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
@@ -136,7 +146,8 @@ public class ModularProject implements BuildExecutorModule {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            scope),
+                                            scope,
+                                            digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
                                     new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, strictPinning),
@@ -166,7 +177,7 @@ public class ModularProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
                             PRODUCE);
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
-                            new Inventory(),
+                            new Inventory(digest),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,

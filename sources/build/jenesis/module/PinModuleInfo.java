@@ -64,7 +64,7 @@ public class PinModuleInfo implements BuildStep {
         for (BuildStepArgument argument : arguments) {
             Path jar = argument.folder().resolve(BuildStep.DEPENDENCIES).resolve(filename);
             if (Files.isRegularFile(jar)) {
-                return hashFunction.algorithm() + "/" + HexFormat.of().formatHex(hashFunction.hash(jar));
+                return hashFunction.encodedHash(jar);
             }
         }
         return null;

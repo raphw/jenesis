@@ -5,16 +5,21 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 
 public class MultiProjectDependencies implements BuildStep {
 
     private final Predicate<String> isModule;
     private final DependencyScope scope;
+    private final HashDigestFunction digest;
 
-    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule, DependencyScope scope) {
+    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule,
+                                                                                 DependencyScope scope,
+                                                                                 HashDigestFunction digest) {
         this.isModule = isModule;
         this.scope = scope;
+        this.digest = digest;
     }
 
     @Override
@@ -24,7 +29,8 @@ public class MultiProjectDependencies implements BuildStep {
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
                 Path.of(EXCLUSIONS),
-                Path.of(IDENTITY)));
+                Path.of(IDENTITY),
+                Path.of(ARTIFACTS)));
     }
 
     @Override
@@ -92,7 +98,9 @@ public class MultiProjectDependencies implements BuildStep {
         for (Map.Entry<String, String> entry : dependencies.entrySet()) {
             String candidate = coordinates.get(entry.getKey());
             properties.setProperty(entry.getKey(),
-                    candidate != null && !candidate.isEmpty() ? "" : entry.getValue());
+                    candidate != null && !candidate.isEmpty()
+                            ? digest.encodedHash(Path.of(candidate))
+                            : entry.getValue());
         }
         properties.store(context.next().resolve(REQUIRES));
         if (!versions.isEmpty()) {

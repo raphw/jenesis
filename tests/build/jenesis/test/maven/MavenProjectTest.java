@@ -457,6 +457,7 @@ public class MavenProjectTest {
                 Map.of("maven", new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})),
                 Map.of("maven", new MavenPomResolver()),
                 false,
+                new HashDigestFunction("MD5"),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();
@@ -522,16 +523,16 @@ public class MavenProjectTest {
         SequencedProperties fooInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-foo/inventory")
                 .resolve("inventory.properties"));
-        assertThat(fooInventory.getProperty("module-foo.runtime").split(","))
-                .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(fooInventory.getProperty("module-foo.artifacts"))
+        assertThat(fooInventory.getProperty("module-foo.runtime.0.path"))
+                .endsWith("/classes.jar");
+        assertThat(fooInventory.getProperty("module-foo.artifacts.0.path"))
                 .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("maven/module-bar/inventory")
                 .resolve("inventory.properties"));
-        assertThat(barInventory.getProperty("module-bar.runtime").split(","))
-                .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(barInventory.getProperty("module-bar.artifacts"))
+        assertThat(barInventory.getProperty("module-bar.runtime.0.path"))
+                .endsWith("/classes.jar");
+        assertThat(barInventory.getProperty("module-bar.artifacts.0.path"))
                 .endsWith("/classes.jar");
     }
 

@@ -2,6 +2,7 @@ package build;
 
 import module java.base;
 import build.jenesis.BuildExecutor;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -30,6 +31,7 @@ public class Modular {
                     Path.of("."),
                     repositories,
                     resolvers,
+                    new HashDigestFunction("MD5"),
                     (descriptor, mergedRepos, mergedResolvers) -> (buildExecutor, _) -> {
                         buildExecutor.addModule("java", new JavaToolchainModule(),
                                 descriptor.sources(),

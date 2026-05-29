@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.DependencyScope;
@@ -29,7 +30,7 @@ public class MultiProjectDependenciesTest {
     }
 
     @Test
-    public void sibling_artifact_dependency_writes_empty_value() throws IOException {
+    public void sibling_artifact_dependency_writes_artifact_checksum() throws IOException {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "");
         dependencies.store(module.resolve(BuildStep.REQUIRES));
@@ -38,7 +39,7 @@ public class MultiProjectDependenciesTest {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("baz", file.toString());
         coordinates.store(dependency.resolve(BuildStep.IDENTITY));
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE, new HashDigestFunction("MD5")).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -52,7 +53,7 @@ public class MultiProjectDependenciesTest {
         assertThat(result.next()).isTrue();
         SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(properties.stringPropertyNames()).containsExactly("baz");
-        assertThat(properties.getProperty("baz")).isEmpty();
+        assertThat(properties.getProperty("baz")).isEqualTo(new HashDigestFunction("MD5").encodedHash(file));
     }
 
     @Test
@@ -60,7 +61,7 @@ public class MultiProjectDependenciesTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "SHA256/cafebabe");
         dependencies.store(module.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE, new HashDigestFunction("MD5")).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(

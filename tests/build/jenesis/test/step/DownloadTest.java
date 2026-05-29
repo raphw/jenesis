@@ -169,7 +169,7 @@ public class DownloadTest {
     }
 
     @Test
-    public void can_retain_external_dependency_from_previous_run_no_hash() throws IOException {
+    public void can_retain_dependency_from_previous_run_no_hash() throws IOException {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
@@ -178,7 +178,9 @@ public class DownloadTest {
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
-                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, _) -> {
+                    throw new AssertionError("repository must not be fetched");
+                }
         )).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -226,34 +228,5 @@ public class DownloadTest {
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
-    }
-
-    @Test
-    public void refetches_internal_dependency_instead_of_retaining_previous() throws IOException {
-        Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
-                .resolve("foo-bar.jar"), "stale");
-        Path fresh = Files.writeString(files.resolve("fresh"), "fresh");
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "");
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Download(Map.of(
-                "foo",
-                (_, _) -> Optional.of(RepositoryItem.ofFile(fresh, true))
-        )).apply(
-                Runnable::run,
-                new BuildStepContext(previous, next, supplement),
-                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
-                        dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
-        assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("fresh");
-    }
-
-    @Test
-    public void shouldRun_is_always_true_even_without_input_change() {
-        assertThat(new Download(Map.of()).shouldRun(new LinkedHashMap<>(Map.of(
-                "dependencies",
-                new BuildStepArgument(dependencies, Map.of()))))).isTrue();
     }
 }

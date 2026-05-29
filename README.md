@@ -499,6 +499,16 @@ Concretely:
   hard-link into another build's cache, ship between machines, or move between `target/` directories. The
   inverse - storing absolute paths or paths anchored to some shared root - couples the file's validity to
   its physical location and breaks the moment the build tree moves.
+- **A self-anchored path is an identifier, not a content fingerprint, so pair it with a content hash.** The
+  same path value persists unchanged when the bytes it points at change, so a step whose output records only
+  the path will not re-trigger its consumers when an internal artifact is rebuilt in place: the properties
+  file stays byte-identical, its checksum is unchanged, and the stale artifact is silently reused. Any value
+  that is a stable identifier (a path, or a version) must therefore travel with the referenced content's
+  checksum, written in the project's `BuildExecutor` digest as `<algorithm>/<hex>` (`BuildStep.checksum`), so
+  the file's content tracks the artifact's content. The step that emits it must also *watch* the artifact
+  (depend on `ARTIFACTS`) so it actually re-runs to recompute the hash. `requires.properties` does this for
+  internal sibling-module coordinates (`MultiProjectDependencies` hashes the resolved artifact rather than
+  writing an empty checksum), and `versions.properties` does it inline as `<version> <hash>`.
 - **Schema-level vocabulary in those properties files is matched as literal strings.** The values written to
   `scopes.properties` (e.g. `COMPILE`, `RUNTIME`) are an open-ended token set documented in the table below;
   new steps and producers are free to introduce additional tokens without touching the shared `DependencyScope`

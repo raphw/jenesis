@@ -163,6 +163,7 @@ public class ModularProjectTest {
                 _ -> true,
                 Map.of(),
                 Map.of("module", new ModularJarResolver(false)),
+                new HashDigestFunction("MD5"),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();
@@ -225,17 +226,17 @@ public class ModularProjectTest {
                 .get("modules/module-foo/inventory")
                 .resolve("inventory.properties"));
         assertThat(fooInventory.getProperty("module-foo.module")).isEqualTo("foo");
-        assertThat(fooInventory.getProperty("module-foo.runtime").split(","))
-                .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(fooInventory.getProperty("module-foo.artifacts"))
+        assertThat(fooInventory.getProperty("module-foo.runtime.0.path"))
+                .endsWith("/classes.jar");
+        assertThat(fooInventory.getProperty("module-foo.artifacts.0.path"))
                 .endsWith("/classes.jar");
         SequencedProperties barInventory = SequencedProperties.ofFiles(results
                 .get("modules/module-bar/inventory")
                 .resolve("inventory.properties"));
         assertThat(barInventory.getProperty("module-bar.module")).isEqualTo("bar");
-        assertThat(barInventory.getProperty("module-bar.runtime").split(","))
-                .anyMatch(part -> part.endsWith("/classes.jar"));
-        assertThat(barInventory.getProperty("module-bar.artifacts"))
+        assertThat(barInventory.getProperty("module-bar.runtime.0.path"))
+                .endsWith("/classes.jar");
+        assertThat(barInventory.getProperty("module-bar.artifacts.0.path"))
                 .endsWith("/classes.jar");
     }
 

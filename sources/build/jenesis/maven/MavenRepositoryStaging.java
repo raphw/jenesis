@@ -42,16 +42,16 @@ public class MavenRepositoryStaging implements BuildStep {
             }
             SequencedProperties inventory = SequencedProperties.ofFiles(inventoryFile);
             String prefix = inventoryPrefix(inventory, inventoryFile);
-            Path pom = resolve(argument.folder(), inventory.getProperty(prefix + ".pom"));
+            Path pom = resolve(argument.folder(), inventory.getProperty(prefix + ".pom.path"));
             if (pom == null) {
                 continue;
             }
             Coordinates coordinates = parseCoordinates(pom);
-            Path artifact = singleJar(argument.folder(), inventory.getProperty(prefix + ".artifacts"),
+            Path artifact = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".artifacts"),
                     prefix, "artifacts", true, inventoryFile);
-            Path sources = singleJar(argument.folder(), inventory.getProperty(prefix + ".sources"),
+            Path sources = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".sources"),
                     prefix, "sources", false, inventoryFile);
-            Path javadoc = singleJar(argument.folder(), inventory.getProperty(prefix + ".documentation"),
+            Path javadoc = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".documentation"),
                     prefix, "documentation", false, inventoryFile);
             String testsOf = inventory.getProperty(prefix + ".test");
             Module module = new Module(prefix, coordinates, artifact, sources, javadoc, pom, testsOf);
@@ -209,13 +209,12 @@ public class MavenRepositoryStaging implements BuildStep {
         return Files.isRegularFile(resolved) ? resolved : null;
     }
 
-    private static Path singleJar(Path base,
-                                  String value,
+    private static Path singleJar(List<Path> entries,
                                   String prefix,
                                   String kind,
                                   boolean required,
                                   Path inventoryFile) {
-        if (value == null || value.isEmpty()) {
+        if (entries.isEmpty()) {
             if (required) {
                 throw new IllegalStateException("Missing '"
                         + prefix
@@ -227,13 +226,8 @@ public class MavenRepositoryStaging implements BuildStep {
             return null;
         }
         List<Path> jars = new ArrayList<>();
-        for (String entry : value.split(",")) {
-            String trimmed = entry.trim();
-            if (trimmed.isEmpty() || !trimmed.endsWith(".jar")) {
-                continue;
-            }
-            Path candidate = base.resolve(trimmed).normalize();
-            if (Files.isRegularFile(candidate)) {
+        for (Path candidate : entries) {
+            if (candidate.getFileName().toString().endsWith(".jar") && Files.isRegularFile(candidate)) {
                 jars.add(candidate);
             }
         }
@@ -243,8 +237,8 @@ public class MavenRepositoryStaging implements BuildStep {
                         + prefix
                         + "."
                         + kind
-                        + "' (value: "
-                        + value
+                        + "' ("
+                        + entries
                         + ") in inventory: "
                         + inventoryFile);
             }

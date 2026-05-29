@@ -5,12 +5,19 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 
 public class Inventory implements BuildStep {
 
     public static final String INVENTORY = "inventory.properties";
     public static final String POM = "pom.xml";
+
+    private final HashDigestFunction digest;
+
+    public Inventory(HashDigestFunction digest) {
+        this.digest = digest;
+    }
 
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -80,20 +87,15 @@ public class Inventory implements BuildStep {
         SequencedSet<Path> runtime = new LinkedHashSet<>();
         runtime.addAll(artifacts);
         runtime.addAll(dependencies);
-        if (!artifacts.isEmpty()) {
-            inventory.setProperty(prefix + "artifacts", relativize(context, artifacts));
-        }
-        if (!sources.isEmpty()) {
-            inventory.setProperty(prefix + "sources", relativize(context, sources));
-        }
-        if (!documentation.isEmpty()) {
-            inventory.setProperty(prefix + "documentation", relativize(context, documentation));
-        }
+        String primaryHash = writePaths(inventory, context, digest, prefix + "artifacts", artifacts);
+        writePaths(inventory, context, digest, prefix + "sources", sources);
+        writePaths(inventory, context, digest, prefix + "documentation", documentation);
         if (pomFile != null) {
-            inventory.setProperty(prefix + "pom", relativize(context, pomFile));
+            inventory.setProperty(prefix + "pom.path", relativize(context, pomFile));
+            inventory.setProperty(prefix + "pom.hash", digest.encodedHash(pomFile));
         }
         if (version != null) {
-            inventory.setProperty(prefix + "version", version);
+            inventory.setProperty(prefix + "version", primaryHash == null ? version : version + " " + primaryHash);
         }
         if (tests != null) {
             inventory.setProperty(prefix + "test", tests);
@@ -104,13 +106,41 @@ public class Inventory implements BuildStep {
         if (modular && module != null) {
             inventory.setProperty(prefix + "module", module);
         }
-        if (!runtime.isEmpty()) {
-            inventory.setProperty(prefix + "runtime", relativize(context, runtime));
-        }
+        writePaths(inventory, context, digest, prefix + "runtime", runtime);
         if (!inventory.isEmpty()) {
             inventory.store(context.next().resolve(INVENTORY));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static String writePaths(SequencedProperties inventory,
+                                     BuildStepContext context,
+                                     HashDigestFunction digest,
+                                     String key,
+                                     Collection<Path> files) throws IOException {
+        String first = null;
+        int index = 0;
+        for (Path file : files) {
+            String hash = digest.encodedHash(file);
+            if (index == 0) {
+                first = hash;
+            }
+            inventory.setProperty(key + "." + index + ".path", relativize(context, file));
+            inventory.setProperty(key + "." + index + ".hash", hash);
+            index++;
+        }
+        return first;
+    }
+
+    public static List<Path> paths(SequencedProperties inventory, Path folder, String key) {
+        List<Path> resolved = new ArrayList<>();
+        for (int index = 0; ; index++) {
+            String value = inventory.getProperty(key + "." + index + ".path");
+            if (value == null) {
+                return resolved;
+            }
+            resolved.add(folder.resolve(value).normalize());
+        }
     }
 
     private static void collect(Path folder, SequencedSet<Path> sink) throws IOException {
@@ -128,9 +158,5 @@ public class Inventory implements BuildStep {
 
     private static String relativize(BuildStepContext context, Path file) {
         return context.next().relativize(file).toString().replace(File.separatorChar, '/');
-    }
-
-    private static String relativize(BuildStepContext context, Collection<Path> files) {
-        return files.stream().map(file -> relativize(context, file)).collect(Collectors.joining(","));
     }
 }

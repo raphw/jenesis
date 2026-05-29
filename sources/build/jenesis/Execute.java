@@ -70,7 +70,7 @@ public record Execute(Project project, String mainClass, String module) {
             candidates.put(prefix, new Candidate(userPath,
                     resolvedMainClass,
                     merged.getProperty(prefixDot + "module"),
-                    merged.getProperty(prefixDot + "runtime"),
+                    Inventory.paths(merged, entry.getValue(), prefixDot + "runtime"),
                     entry.getValue()));
         }
         if (candidates.isEmpty()) {
@@ -95,8 +95,7 @@ public record Execute(Project project, String mainClass, String module) {
                     + (candidate.path.isEmpty() ? "<root>" : candidate.path));
         }
         List<String> jars = new ArrayList<>();
-        for (String part : candidate.runtime.split(",")) {
-            Path resolved = candidate.folder.resolve(part).normalize();
+        for (Path resolved : candidate.runtime) {
             if (!Files.isRegularFile(resolved)) {
                 throw new IllegalStateException("Missing runtime artifact for module "
                         + (candidate.path.isEmpty() ? "<root>" : candidate.path)
@@ -167,7 +166,7 @@ public record Execute(Project project, String mainClass, String module) {
     private record Candidate(String path,
                              String mainClass,
                              String module,
-                             String runtime,
+                             List<Path> runtime,
                              Path folder) {
     }
 }

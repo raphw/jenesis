@@ -189,7 +189,7 @@ public class ExecuteTest {
         SequencedProperties properties = new SequencedProperties();
         String prefix = ((path == null || path.isEmpty()) ? "module" : "module-" + path) + ".";
         if (runtime != null) {
-            properties.setProperty(prefix + "runtime", runtime);
+            properties.setProperty(prefix + "runtime.0.path", runtime);
         }
         if (mainClass != null) {
             properties.setProperty(prefix + "mainClass", mainClass);

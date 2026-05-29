@@ -358,12 +358,12 @@ public class MavenRepositoryStagingTest {
         Files.writeString(folder.resolve("pom.xml"), buildPom(groupId, artifactId, version, deps));
         SequencedProperties inventory = new SequencedProperties();
         String prefix = "module-" + name;
-        inventory.setProperty(prefix + ".pom", "pom.xml");
+        inventory.setProperty(prefix + ".pom.path", "pom.xml");
         for (String artifactFile : artifactFiles) {
             switch (artifactFile) {
-                case "classes.jar" -> inventory.setProperty(prefix + ".artifacts", "artifacts/" + artifactFile);
-                case "sources.jar" -> inventory.setProperty(prefix + ".sources", "sources/" + artifactFile);
-                case "javadoc.jar" -> inventory.setProperty(prefix + ".documentation", "documentation/" + artifactFile);
+                case "classes.jar" -> inventory.setProperty(prefix + ".artifacts.0.path", "artifacts/" + artifactFile);
+                case "sources.jar" -> inventory.setProperty(prefix + ".sources.0.path", "sources/" + artifactFile);
+                case "javadoc.jar" -> inventory.setProperty(prefix + ".documentation.0.path", "documentation/" + artifactFile);
                 default -> throw new IllegalArgumentException("Unknown artifact file: " + artifactFile);
             }
         }
