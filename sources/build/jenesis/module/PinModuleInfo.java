@@ -13,7 +13,6 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern MODULE_DECLARATION = Pattern.compile("(?m)^(open\\s+)?module\\s+");
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
-    private static final Pattern REQUIRES_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.requires\\s+\\S+.*$");
 
     private final String prefix;
     private final List<Path> moduleInfoFiles;
@@ -220,8 +219,8 @@ public class PinModuleInfo implements BuildStep {
                         continue;
                     }
                     String prefix = key.substring(0, at);
-                    String token = (prefix.equals("module") ? "" : prefix + "/")
-                            + key.substring(at + 1, slash) + "@" + key.substring(slash + 1);
+                    String token = (prefix.equals("module") ? "@" : prefix + "@")
+                            + key.substring(at + 1, slash) + "/" + key.substring(slash + 1);
                     String value = properties.getProperty(key);
                     int space = value.indexOf(' ');
                     String version = space < 0 ? value : value.substring(0, space);
@@ -252,8 +251,8 @@ public class PinModuleInfo implements BuildStep {
                         continue;
                     }
                     String prefix = key.substring(0, at);
-                    String token = (prefix.equals("module") ? "" : prefix + "/")
-                            + key.substring(at + 1, slash) + "@" + suffix.substring(0, lastSlash);
+                    String token = (prefix.equals("module") ? "@" : prefix + "@")
+                            + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
                     String version = suffix.substring(lastSlash + 1);
                     String existing = properties.getProperty(key);
                     String computed = computeChecksum(arguments.values(), key, hashFunction);
@@ -315,7 +314,7 @@ public class PinModuleInfo implements BuildStep {
         int index = 0;
         while (it.hasNext()) {
             String line = it.next();
-            if (PIN_TAG.matcher(line).matches() || REQUIRES_TAG.matcher(line).matches()) {
+            if (PIN_TAG.matcher(line).matches()) {
                 if (insertAt < 0) {
                     insertAt = index;
                 }
@@ -340,7 +339,7 @@ public class PinModuleInfo implements BuildStep {
             tags.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
         }
         for (Map.Entry<String, String> entry : qualified.entrySet()) {
-            tags.add(" * @jenesis.requires " + entry.getKey() + " " + entry.getValue());
+            tags.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
         }
         lines.addAll(insertAt, tags);
         return String.join("\n", lines);
@@ -352,7 +351,7 @@ public class PinModuleInfo implements BuildStep {
             sb.append(" * @jenesis.pin ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
         }
         for (Map.Entry<String, String> entry : qualified.entrySet()) {
-            sb.append(" * @jenesis.requires ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+            sb.append(" * @jenesis.pin ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
         }
         sb.append(" */");
         return sb.toString();

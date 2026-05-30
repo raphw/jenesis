@@ -234,10 +234,9 @@ public class ModularProject implements BuildExecutorModule {
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             scopes.store(context.next().resolve(BuildStep.SCOPES));
-            if (!info.versions().isEmpty() || !info.qualifiedRequires().isEmpty()) {
+            if (!info.versions().isEmpty()) {
                 SequencedProperties properties = new SequencedProperties();
-                info.versions().forEach((module, version) -> properties.setProperty(prefix + "/" + module, version));
-                info.qualifiedRequires().forEach(properties::setProperty);
+                info.versions().forEach(properties::setProperty);
                 properties.store(context.next().resolve(BuildStep.VERSIONS));
             }
             Javac.writeRelease(context.next(), info.release());

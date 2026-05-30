@@ -56,7 +56,7 @@ public class PinPomTest {
     }
 
     @Test
-    public void writes_qualified_requires_to_a_comment_block() throws IOException {
+    public void writes_qualified_dependencies_to_a_comment_block() throws IOException {
         Path pom = root.resolve("pom.xml");
         Files.writeString(pom, """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -71,9 +71,9 @@ public class PinPomTest {
                 "maven@kotlin/org.jetbrains/something", "1.2.3",
                 "maven2@kotlin/org.example/other", "4.5.6"));
         String result = run(pom);
-        assertThat(result).contains("<!--jenesis.requires");
-        assertThat(result).contains("kotlin@org.jetbrains/something 1.2.3");
-        assertThat(result).contains("maven2/kotlin@org.example/other 4.5.6");
+        assertThat(result).contains("<!--jenesis.pin");
+        assertThat(result).contains("@kotlin/org.jetbrains/something 1.2.3");
+        assertThat(result).contains("maven2@kotlin/org.example/other 4.5.6");
         assertThat(result).doesNotContain("<dependencyManagement>");
     }
 
@@ -91,8 +91,8 @@ public class PinPomTest {
                 """);
         writeVersions(Map.of("maven@kotlin/org.jetbrains/something", "1.2--3"));
         String result = run(pom);
-        assertThat(result).contains("kotlin@org.jetbrains/something 1.2&#45;&#45;3");
-        int blockStart = result.indexOf("<!--jenesis.requires");
+        assertThat(result).contains("@kotlin/org.jetbrains/something 1.2&#45;&#45;3");
+        int blockStart = result.indexOf("<!--jenesis.pin");
         int blockEnd = result.indexOf("-->", blockStart);
         assertThat(result.substring(blockStart + "<!--".length(), blockEnd)).doesNotContain("--");
     }

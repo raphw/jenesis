@@ -78,7 +78,7 @@ public class PinModuleInfoTest {
     }
 
     @Test
-    public void writes_qualified_requires_as_jenesis_requires_tags() throws IOException {
+    public void writes_qualified_dependencies_as_jenesis_pin_tags() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """
                 module foo {
@@ -89,8 +89,8 @@ public class PinModuleInfoTest {
                 "maven@kotlin/org.jetbrains/something", "1.2.3",
                 "module@scala/some.module", "3.5.2"));
         String result = run(file);
-        assertThat(result).contains("@jenesis.requires maven/kotlin@org.jetbrains/something 1.2.3");
-        assertThat(result).contains("@jenesis.requires scala@some.module 3.5.2");
+        assertThat(result).contains("@jenesis.pin maven@kotlin/org.jetbrains/something 1.2.3");
+        assertThat(result).contains("@jenesis.pin @scala/some.module 3.5.2");
     }
 
     @Test

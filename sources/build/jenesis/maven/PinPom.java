@@ -16,7 +16,7 @@ public class PinPom implements BuildStep {
     private static final Pattern PROJECT_CLOSE = Pattern.compile("\\n([ \\t]*)</project>");
     private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--Checksum/[^>]*-->\\s*\\n");
     private static final Pattern INDENT = Pattern.compile("\\n([ \\t]+)<");
-    private static final Pattern REQUIRES_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--jenesis\\.requires\\b.*?-->\\s*\\n");
+    private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--jenesis\\.pin\\b.*?-->\\s*\\n");
 
     private final String prefix;
     private final List<Path> pomFiles;
@@ -79,7 +79,7 @@ public class PinPom implements BuildStep {
             }
         }
         String requires = qualified.isEmpty() ? "" : renderRequires(qualified, indent);
-        Matcher requiresMatcher = REQUIRES_COMMENT.matcher(updated);
+        Matcher requiresMatcher = PIN_COMMENT.matcher(updated);
         if (requiresMatcher.find()) {
             updated = requiresMatcher.replaceFirst(Matcher.quoteReplacement(requires));
         } else if (!requires.isEmpty()) {
@@ -170,8 +170,8 @@ public class PinPom implements BuildStep {
                         continue;
                     }
                     String prefix = key.substring(0, at);
-                    String token = (prefix.equals("maven") ? "" : prefix + "/")
-                            + key.substring(at + 1, slash) + "@" + key.substring(slash + 1);
+                    String token = (prefix.equals("maven") ? "@" : prefix + "@")
+                            + key.substring(at + 1, slash) + "/" + key.substring(slash + 1);
                     String value = properties.getProperty(key);
                     int space = value.indexOf(' ');
                     String version = space < 0 ? value : value.substring(0, space);
@@ -202,8 +202,8 @@ public class PinPom implements BuildStep {
                         continue;
                     }
                     String prefix = key.substring(0, at);
-                    String token = (prefix.equals("maven") ? "" : prefix + "/")
-                            + key.substring(at + 1, slash) + "@" + suffix.substring(0, lastSlash);
+                    String token = (prefix.equals("maven") ? "@" : prefix + "@")
+                            + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
                     String version = suffix.substring(lastSlash + 1);
                     String existing = properties.getProperty(key);
                     String computed = computeChecksum(arguments.values(), key, hashFunction);
@@ -217,7 +217,7 @@ public class PinPom implements BuildStep {
 
     private static String renderRequires(SequencedMap<String, String> qualified, String indent) {
         StringBuilder sb = new StringBuilder();
-        sb.append(indent).append("<!--jenesis.requires\n");
+        sb.append(indent).append("<!--jenesis.pin\n");
         for (Map.Entry<String, String> entry : qualified.entrySet()) {
             sb.append((entry.getKey() + " " + entry.getValue()).replace("--", "&#45;&#45;")).append("\n");
         }

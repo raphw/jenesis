@@ -728,9 +728,9 @@ public class MavenPomResolver implements MavenResolver {
                 .map(Node::getNodeValue)
                 .filter(Objects::nonNull)
                 .map(String::trim)
-                .filter(text -> text.startsWith("jenesis.requires"))
+                .filter(text -> text.startsWith("jenesis.pin"))
                 .forEach(text -> {
-                    for (String line : text.substring("jenesis.requires".length()).replace("&#45;", "-").split("\n")) {
+                    for (String line : text.substring("jenesis.pin".length()).replace("&#45;", "-").split("\n")) {
                         String trimmed = line.trim();
                         if (trimmed.isEmpty()) {
                             continue;
@@ -744,17 +744,24 @@ public class MavenPomResolver implements MavenResolver {
                         if (value.isEmpty()) {
                             continue;
                         }
-                        String prefix = "maven";
-                        int slash = token.indexOf('/'), firstAt = token.indexOf('@');
-                        if (slash > 0 && (firstAt < 0 || slash < firstAt)) {
-                            prefix = token.substring(0, slash);
-                            token = token.substring(slash + 1);
-                        }
                         int at = token.indexOf('@');
-                        if (at < 1 || at == token.length() - 1) {
-                            continue;
+                        String key;
+                        if (at < 0) {
+                            key = "maven/" + token;
+                        } else if (at == 0) {
+                            int slash = token.indexOf('/');
+                            if (slash < 2 || slash == token.length() - 1) {
+                                continue;
+                            }
+                            key = "maven" + token;
+                        } else {
+                            int slash = token.indexOf('/', at);
+                            if (slash <= at + 1 || slash == token.length() - 1) {
+                                continue;
+                            }
+                            key = token;
                         }
-                        entries.put(prefix + "@" + token.substring(0, at) + "/" + token.substring(at + 1), value);
+                        entries.put(key, value);
                     }
                 });
         return entries;
