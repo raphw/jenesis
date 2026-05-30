@@ -78,6 +78,22 @@ public class PinModuleInfoTest {
     }
 
     @Test
+    public void writes_qualified_requires_as_jenesis_requires_tags() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                    requires bar;
+                }
+                """);
+        writeVersions(Map.of(
+                "maven@kotlin/org.jetbrains/something", "1.2.3",
+                "module@scala/some.module", "3.5.2"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.requires maven/kotlin@org.jetbrains/something 1.2.3");
+        assertThat(result).contains("@jenesis.requires scala@some.module 3.5.2");
+    }
+
+    @Test
     public void inserts_javadoc_when_absent() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """

@@ -21,35 +21,39 @@ public class ExternalModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
+    private final String qualifier;
 
     public ExternalModule(String coordinate,
+                          String qualifier,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null);
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
-                           String buildModuleName) {
+                           String buildModuleName,
+                           String qualifier) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
+        this.qualifier = qualifier;
     }
 
     public ExternalModule withDependencies(String... dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)), buildModuleName);
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
     }
 
     public ExternalModule withDependencies(SequencedSet<String> dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName);
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
     }
 
     public ExternalModule withBuildModuleName(String name) {
-        return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name);
+        return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name, qualifier);
     }
 
     @Override
@@ -66,8 +70,10 @@ public class ExternalModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         List<String> coordinates = new ArrayList<>(additionalDependencies.size() + 1);
-        coordinates.add(coordinate);
-        coordinates.addAll(additionalDependencies);
+        coordinates.add(Resolver.qualify(coordinate, qualifier));
+        for (String dependency : additionalDependencies) {
+            coordinates.add(Resolver.qualify(dependency, qualifier));
+        }
         buildExecutor.addStep(COORDINATE, new WriteCoordinates(coordinates));
         buildExecutor.addModule(DEPENDENCIES,
                 new DependenciesModule(repositories, resolvers, false),

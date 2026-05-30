@@ -30,12 +30,14 @@ public class InternalModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
+    private final String qualifier;
 
     public InternalModule(String prefix,
+                          String qualifier,
                           Path source,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null);
+        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
     }
 
     private InternalModule(String prefix,
@@ -43,27 +45,29 @@ public class InternalModule implements BuildExecutorModule {
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
-                           String buildModuleName) {
+                           String buildModuleName,
+                           String qualifier) {
         this.prefix = prefix;
         this.source = source;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
+        this.qualifier = qualifier;
     }
 
     public InternalModule withDependencies(String... dependencies) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(List.of(dependencies)), buildModuleName);
+                new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
     }
 
     public InternalModule withDependencies(SequencedSet<String> dependencies) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(dependencies), buildModuleName);
+                new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
     }
 
     public InternalModule withBuildModuleName(String name) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, name);
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, name, qualifier);
     }
 
     @Override
@@ -83,7 +87,7 @@ public class InternalModule implements BuildExecutorModule {
         for (DependencyScope scope : DependencyScope.values()) {
             String requiresId = scope.label() + "-requires";
             boolean compile = scope == DependencyScope.COMPILE;
-            buildExecutor.addStep(requiresId, new ParseModuleInfo(prefix, compile, additionalDependencies), SOURCE);
+            buildExecutor.addStep(requiresId, new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier), SOURCE);
             buildExecutor.addModule(scope.label(),
                     new DependenciesModule(repositories, resolvers, compile),
                     requiresId);
@@ -120,7 +124,7 @@ public class InternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record ParseModuleInfo(String prefix, boolean compile, SequencedSet<String> additionalDependencies) implements BuildStep {
+    private record ParseModuleInfo(String prefix, boolean compile, SequencedSet<String> additionalDependencies, String qualifier) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -142,10 +146,10 @@ public class InternalModule implements BuildExecutorModule {
             ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
             for (String dependency : compile ? info.requires() : info.runtimeRequires()) {
-                properties.setProperty(prefix + "/" + dependency, "");
+                properties.setProperty(Resolver.qualify(prefix + "/" + dependency, qualifier), "");
             }
             for (String dependency : additionalDependencies) {
-                properties.setProperty(dependency, "");
+                properties.setProperty(Resolver.qualify(dependency, qualifier), "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));

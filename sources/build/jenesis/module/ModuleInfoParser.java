@@ -39,6 +39,7 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
+            SequencedMap<String, String> qualifiedRequires = new LinkedHashMap<>();
             String release = null;
             String name = null;
             String description = null;
@@ -81,6 +82,28 @@ public class ModuleInfoParser {
                                 }
                                 versions.put(dependency, version);
                             }
+                            case "jenesis.requires" -> {
+                                int split = content.indexOf(' ');
+                                if (split < 1 || split == content.length() - 1) {
+                                    continue;
+                                }
+                                String token = content.substring(0, split).trim();
+                                String value = content.substring(split + 1).trim();
+                                if (value.isEmpty()) {
+                                    continue;
+                                }
+                                String prefix = "module";
+                                int slash = token.indexOf('/'), firstAt = token.indexOf('@');
+                                if (slash > 0 && (firstAt < 0 || slash < firstAt)) {
+                                    prefix = token.substring(0, slash);
+                                    token = token.substring(slash + 1);
+                                }
+                                int at = token.indexOf('@');
+                                if (at < 1 || at == token.length() - 1) {
+                                    continue;
+                                }
+                                qualifiedRequires.put(prefix + "@" + token.substring(0, at) + "/" + token.substring(at + 1), value);
+                            }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
                                     release = content;
@@ -104,7 +127,8 @@ public class ModuleInfoParser {
                     main,
                     dependencies,
                     runtimeDependencies,
-                    versions);
+                    versions,
+                    qualifiedRequires);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
     }

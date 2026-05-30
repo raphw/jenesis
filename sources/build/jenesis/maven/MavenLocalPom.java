@@ -13,5 +13,6 @@ public record MavenLocalPom(String groupId,
                             List<String> testResourceDirectories,
                             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
                             SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies,
+                            SequencedMap<String, String> qualifiedDependencies,
                             String mainClass) {
 }

@@ -13,6 +13,7 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern MODULE_DECLARATION = Pattern.compile("(?m)^(open\\s+)?module\\s+");
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
+    private static final Pattern REQUIRES_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.requires\\s+\\S+.*$");
 
     private final String prefix;
     private final List<Path> moduleInfoFiles;
@@ -51,8 +52,11 @@ public class PinModuleInfo implements BuildStep {
         SequencedMap<String, String> entries = fromJars
                 ? collectFromJars(arguments, hashFunction)
                 : collectEntries(arguments, prefix, hashFunction);
+        SequencedMap<String, String> qualified = fromJars
+                ? new LinkedHashMap<>()
+                : collectQualified(arguments, hashFunction);
         for (Path file : moduleInfoFiles) {
-            updateModuleInfo(file, entries);
+            updateModuleInfo(file, entries, qualified);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
@@ -70,7 +74,7 @@ public class PinModuleInfo implements BuildStep {
         return null;
     }
 
-    private static void updateModuleInfo(Path file, SequencedMap<String, String> entries) throws IOException {
+    private static void updateModuleInfo(Path file, SequencedMap<String, String> entries, SequencedMap<String, String> qualified) throws IOException {
         String existing = Files.readString(file);
         Matcher moduleDeclarationMatcher = MODULE_DECLARATION.matcher(existing);
         if (!moduleDeclarationMatcher.find()) {
@@ -79,7 +83,7 @@ public class PinModuleInfo implements BuildStep {
         int moduleStart = moduleDeclarationMatcher.start();
         String prelude = existing.substring(0, moduleStart);
         String body = existing.substring(moduleStart);
-        String updatedPrelude = updateJavadoc(prelude, entries);
+        String updatedPrelude = updateJavadoc(prelude, entries, qualified);
         String updated = updatedPrelude + body;
         if (!updated.equals(existing)) {
             Files.writeString(file, updated);
@@ -195,6 +199,72 @@ public class PinModuleInfo implements BuildStep {
         return entries;
     }
 
+    static SequencedMap<String, String> collectQualified(SequencedMap<String, BuildStepArgument> arguments,
+                                                         HashDigestFunction hashFunction) throws IOException {
+        Set<String> internal = collectInternal(arguments);
+        SequencedMap<String, String> entries = new TreeMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path versionsFile = argument.folder().resolve(VERSIONS);
+            if (Files.exists(versionsFile)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
+                for (String key : properties.stringPropertyNames()) {
+                    if (internal.contains(key)) {
+                        continue;
+                    }
+                    int slash = key.indexOf('/');
+                    if (slash < 0) {
+                        continue;
+                    }
+                    int at = key.substring(0, slash).indexOf('@');
+                    if (at < 1) {
+                        continue;
+                    }
+                    String prefix = key.substring(0, at);
+                    String token = (prefix.equals("module") ? "" : prefix + "/")
+                            + key.substring(at + 1, slash) + "@" + key.substring(slash + 1);
+                    String value = properties.getProperty(key);
+                    int space = value.indexOf(' ');
+                    String version = space < 0 ? value : value.substring(0, space);
+                    String existing = space < 0 ? null : value.substring(space + 1).trim();
+                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
+                    String checksum = computed != null ? computed : existing;
+                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
+                }
+            }
+            Path requiresFile = argument.folder().resolve(REQUIRES);
+            if (Files.exists(requiresFile)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
+                for (String key : properties.stringPropertyNames()) {
+                    if (internal.contains(key)) {
+                        continue;
+                    }
+                    int slash = key.indexOf('/');
+                    if (slash < 0) {
+                        continue;
+                    }
+                    int at = key.substring(0, slash).indexOf('@');
+                    if (at < 1) {
+                        continue;
+                    }
+                    String suffix = key.substring(slash + 1);
+                    int lastSlash = suffix.lastIndexOf('/');
+                    if (lastSlash <= 0) {
+                        continue;
+                    }
+                    String prefix = key.substring(0, at);
+                    String token = (prefix.equals("module") ? "" : prefix + "/")
+                            + key.substring(at + 1, slash) + "@" + suffix.substring(0, lastSlash);
+                    String version = suffix.substring(lastSlash + 1);
+                    String existing = properties.getProperty(key);
+                    String computed = computeChecksum(arguments.values(), key, hashFunction);
+                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
+                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
+                }
+            }
+        }
+        return entries;
+    }
+
     static Set<String> collectInternal(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
         Set<String> internal = new LinkedHashSet<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -215,7 +285,7 @@ public class PinModuleInfo implements BuildStep {
         return internal;
     }
 
-    private static String updateJavadoc(String prelude, SequencedMap<String, String> entries) {
+    private static String updateJavadoc(String prelude, SequencedMap<String, String> entries, SequencedMap<String, String> qualified) {
         int javadocEnd = -1;
         int javadocStart = -1;
         Matcher javadocEndMatcher = JAVADOC_END.matcher(prelude);
@@ -226,26 +296,26 @@ public class PinModuleInfo implements BuildStep {
             javadocStart = prelude.lastIndexOf("/**", javadocEnd);
         }
         if (javadocStart < 0 || javadocEnd < 0) {
-            if (entries.isEmpty()) {
+            if (entries.isEmpty() && qualified.isEmpty()) {
                 return prelude;
             }
-            return prelude + renderJavadoc(entries) + "\n";
+            return prelude + renderJavadoc(entries, qualified) + "\n";
         }
         String before = prelude.substring(0, javadocStart);
         String javadoc = prelude.substring(javadocStart, javadocEnd);
         String after = prelude.substring(javadocEnd);
-        String rewritten = rewriteJavadoc(javadoc, entries);
+        String rewritten = rewriteJavadoc(javadoc, entries, qualified);
         return before + rewritten + after;
     }
 
-    private static String rewriteJavadoc(String javadoc, SequencedMap<String, String> entries) {
+    private static String rewriteJavadoc(String javadoc, SequencedMap<String, String> entries, SequencedMap<String, String> qualified) {
         List<String> lines = new ArrayList<>(List.of(javadoc.split("\\n", -1)));
         int insertAt = -1;
         Iterator<String> it = lines.iterator();
         int index = 0;
         while (it.hasNext()) {
             String line = it.next();
-            if (PIN_TAG.matcher(line).matches()) {
+            if (PIN_TAG.matcher(line).matches() || REQUIRES_TAG.matcher(line).matches()) {
                 if (insertAt < 0) {
                     insertAt = index;
                 }
@@ -265,18 +335,24 @@ public class PinModuleInfo implements BuildStep {
                 insertAt = Math.max(1, lines.size() - 1);
             }
         }
-        List<String> requires = new ArrayList<>();
+        List<String> tags = new ArrayList<>();
         for (Map.Entry<String, String> entry : entries.entrySet()) {
-            requires.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
+            tags.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
         }
-        lines.addAll(insertAt, requires);
+        for (Map.Entry<String, String> entry : qualified.entrySet()) {
+            tags.add(" * @jenesis.requires " + entry.getKey() + " " + entry.getValue());
+        }
+        lines.addAll(insertAt, tags);
         return String.join("\n", lines);
     }
 
-    private static String renderJavadoc(SequencedMap<String, String> entries) {
+    private static String renderJavadoc(SequencedMap<String, String> entries, SequencedMap<String, String> qualified) {
         StringBuilder sb = new StringBuilder("/**\n");
         for (Map.Entry<String, String> entry : entries.entrySet()) {
             sb.append(" * @jenesis.pin ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+        }
+        for (Map.Entry<String, String> entry : qualified.entrySet()) {
+            sb.append(" * @jenesis.requires ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
         }
         sb.append(" */");
         return sb.toString();

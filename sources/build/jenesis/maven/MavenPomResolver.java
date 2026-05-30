@@ -4,6 +4,7 @@ import module java.base;
 import module java.xml;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.Resolver;
 
 public class MavenPomResolver implements MavenResolver {
 
@@ -69,7 +70,7 @@ public class MavenPomResolver implements MavenResolver {
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
-                MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
+                MavenRepository.of(repositories.getOrDefault(Resolver.base(prefix), Repository.empty())),
                 managedDependencies,
                 dependencies).forEach((key, value) -> resolved.put(
                         key.coordinate(prefix, value.version()),
@@ -356,6 +357,7 @@ public class MavenPomResolver implements MavenResolver {
                             .toList(),
                     dependencies,
                     managedDependencies,
+                    pom.qualifiedDependencies(),
                     pom.properties().get("mainClass")));
         });
         return results;
@@ -504,7 +506,10 @@ public class MavenPomResolver implements MavenResolver {
                                 .toList(),
                         properties,
                         managedDependencies,
-                        dependencies);
+                        dependencies,
+                        extended
+                                ? toQualifiedDependencies(document.getDocumentElement())
+                                : new LinkedHashMap<>());
             }
             default -> throw new IllegalArgumentException("Unknown namespace: " + namespace);
         };
@@ -541,7 +546,8 @@ public class MavenPomResolver implements MavenResolver {
                             null,
                             Map.of(),
                             Map.of(),
-                            Collections.emptyNavigableMap());
+                            Collections.emptyNavigableMap(),
+                            new LinkedHashMap<>());
                 } else {
                     InputStream stream = candidate.toInputStream();
                     Path localPath = candidate.file().map(Path::getParent).orElse(null);
@@ -715,6 +721,45 @@ public class MavenPomResolver implements MavenResolver {
         return matches.stream().findFirst();
     }
 
+    private static SequencedMap<String, String> toQualifiedDependencies(Node node) {
+        SequencedMap<String, String> entries = new LinkedHashMap<>();
+        toChildren(node)
+                .filter(child -> child.getNodeType() == Node.COMMENT_NODE)
+                .map(Node::getNodeValue)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(text -> text.startsWith("jenesis.requires"))
+                .forEach(text -> {
+                    for (String line : text.substring("jenesis.requires".length()).replace("&#45;", "-").split("\n")) {
+                        String trimmed = line.trim();
+                        if (trimmed.isEmpty()) {
+                            continue;
+                        }
+                        int space = trimmed.indexOf(' ');
+                        if (space < 1) {
+                            continue;
+                        }
+                        String token = trimmed.substring(0, space).trim();
+                        String value = trimmed.substring(space + 1).trim();
+                        if (value.isEmpty()) {
+                            continue;
+                        }
+                        String prefix = "maven";
+                        int slash = token.indexOf('/'), firstAt = token.indexOf('@');
+                        if (slash > 0 && (firstAt < 0 || slash < firstAt)) {
+                            prefix = token.substring(0, slash);
+                            token = token.substring(slash + 1);
+                        }
+                        int at = token.indexOf('@');
+                        if (at < 1 || at == token.length() - 1) {
+                            continue;
+                        }
+                        entries.put(prefix + "@" + token.substring(0, at) + "/" + token.substring(at + 1), value);
+                    }
+                });
+        return entries;
+    }
+
     private static String property(String text, Map<String, String> properties) {
         return property(text, properties, Set.of());
     }
@@ -822,7 +867,8 @@ public class MavenPomResolver implements MavenResolver {
                                  List<String> modules,
                                  Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
-                                 SequencedMap<DependencyKey, DependencyValue> dependencies) {
+                                 SequencedMap<DependencyKey, DependencyValue> dependencies,
+                                 SequencedMap<String, String> qualifiedDependencies) {
     }
 
     private record ResolvedPom(Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,

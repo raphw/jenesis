@@ -26,7 +26,7 @@ public class ScalaCompilerModuleTest {
     @Test
     public void compiles_a_scala_source_against_a_downloaded_compiler() throws IOException, ReflectiveOperationException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        properties.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.scala"), """
@@ -73,7 +73,7 @@ public class ScalaCompilerModuleTest {
     @Test
     public void includeResources_false_excludes_non_scala_non_java_files_from_output() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        properties.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.scala"), """
@@ -107,7 +107,7 @@ public class ScalaCompilerModuleTest {
     @Test
     public void picks_up_release_from_upstream_javac_properties() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        properties.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.scala"), """
@@ -146,7 +146,7 @@ public class ScalaCompilerModuleTest {
     @Test
     public void scala_can_reference_java_sources_supplied_to_the_same_step() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        properties.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Greeter.java"), """
@@ -184,7 +184,7 @@ public class ScalaCompilerModuleTest {
     @Test
     public void downloads_the_full_compiler_dependency_set_from_the_scala_pom() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        properties.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.scala"), "package sample\nclass Sample\n");
@@ -229,7 +229,7 @@ public class ScalaCompilerModuleTest {
         Path requiredOutput = root.resolve("scala").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("module/org.scala.lang.scala3.compiler");
+                .containsExactly("module@scala/org.scala.lang.scala3.compiler");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -248,7 +248,7 @@ public class ScalaCompilerModuleTest {
         Path requiredOutput = root.resolve("scala").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("maven/org.scala-lang/scala3-compiler_3/RELEASE");
+                .containsExactly("maven@scala/org.scala-lang/scala3-compiler_3/RELEASE");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -270,7 +270,7 @@ public class ScalaCompilerModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .singleElement()
-                .satisfies(name -> assertThat(name).startsWith("module/"));
+                .satisfies(name -> assertThat(name).startsWith("module@scala/"));
     }
 
     @Test

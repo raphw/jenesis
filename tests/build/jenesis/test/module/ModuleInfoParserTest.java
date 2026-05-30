@@ -13,6 +13,23 @@ public class ModuleInfoParserTest {
     private Path folder;
 
     @Test
+    public void parses_jenesis_requires_into_qualified_requires() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.requires kotlin@some.module 1.2.3 SHA256/ABCD
+                 * @jenesis.requires maven/scala@org.scala-lang/scala3-library_3 3.5.2
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.qualifiedRequires())
+                .containsEntry("module@kotlin/some.module", "1.2.3 SHA256/ABCD")
+                .containsEntry("maven@scala/org.scala-lang/scala3-library_3", "3.5.2");
+    }
+
+    @Test
     public void can_identify_module_info() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 module foo {

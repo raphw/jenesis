@@ -60,6 +60,28 @@ public class ResolveTest {
     }
 
     @Test
+    public void resolves_a_qualified_trail_through_the_base_resolver() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("maven@kotlin/org.jetbrains/something", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Resolve(Map.of("maven", Repository.empty()), Map.of("maven", (_, prefix, _, descriptors, _, _) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    return resolved;
+                }), true).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        assertThat(resolved.stringPropertyNames()).containsExactly("maven@kotlin/org.jetbrains/something");
+    }
+
+    @Test
     public void can_resolve_dependencies_with_predefined_checksum() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/qux", "bar");

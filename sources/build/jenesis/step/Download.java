@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 
 public class Download implements DependencyProcessingBuildStep {
@@ -32,7 +33,7 @@ public class Download implements DependencyProcessingBuildStep {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
-            Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
+            Repository repository = repositories.getOrDefault(Resolver.base(group.getKey()), Repository.empty());
             for (Map.Entry<String, String> entry : group.getValue().entrySet()) {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);

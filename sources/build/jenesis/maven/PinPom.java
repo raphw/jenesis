@@ -16,6 +16,7 @@ public class PinPom implements BuildStep {
     private static final Pattern PROJECT_CLOSE = Pattern.compile("\\n([ \\t]*)</project>");
     private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--Checksum/[^>]*-->\\s*\\n");
     private static final Pattern INDENT = Pattern.compile("\\n([ \\t]+)<");
+    private static final Pattern REQUIRES_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--jenesis\\.requires\\b.*?-->\\s*\\n");
 
     private final String prefix;
     private final List<Path> pomFiles;
@@ -42,13 +43,14 @@ public class PinPom implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         SequencedMap<String, String> entries = collectEntries(arguments, prefix, hashFunction);
+        SequencedMap<String, String> qualified = collectQualified(arguments, hashFunction);
         for (Path pomFile : pomFiles) {
-            updatePom(pomFile, entries);
+            updatePom(pomFile, entries, qualified);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private void updatePom(Path pomFile, SequencedMap<String, String> entries) throws IOException {
+    private void updatePom(Path pomFile, SequencedMap<String, String> entries, SequencedMap<String, String> qualified) throws IOException {
         String existing = Files.readString(pomFile);
         Matcher dependencyManagementMatcher = DEPENDENCY_MANAGEMENT.matcher(existing);
         String indent;
@@ -75,6 +77,17 @@ public class PinPom implements BuildStep {
                 }
                 updated = existing.substring(0, projectCloseMatcher.start() + 1) + block + existing.substring(projectCloseMatcher.start() + 1);
             }
+        }
+        String requires = qualified.isEmpty() ? "" : renderRequires(qualified, indent);
+        Matcher requiresMatcher = REQUIRES_COMMENT.matcher(updated);
+        if (requiresMatcher.find()) {
+            updated = requiresMatcher.replaceFirst(Matcher.quoteReplacement(requires));
+        } else if (!requires.isEmpty()) {
+            Matcher projectCloseMatcher = PROJECT_CLOSE.matcher(updated);
+            if (!projectCloseMatcher.find()) {
+                throw new IllegalStateException("No </project> tag in " + pomFile);
+            }
+            updated = updated.substring(0, projectCloseMatcher.start() + 1) + requires + updated.substring(projectCloseMatcher.start() + 1);
         }
         updated = stripDirectDependencyChecksums(updated);
         if (!updated.equals(existing)) {
@@ -134,6 +147,82 @@ public class PinPom implements BuildStep {
             }
         }
         return entries;
+    }
+
+    static SequencedMap<String, String> collectQualified(SequencedMap<String, BuildStepArgument> arguments,
+                                                         HashDigestFunction hashFunction) throws IOException {
+        Set<String> internal = collectInternal(arguments);
+        SequencedMap<String, String> entries = new TreeMap<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path versionsFile = argument.folder().resolve(VERSIONS);
+            if (Files.exists(versionsFile)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
+                for (String key : properties.stringPropertyNames()) {
+                    if (internal.contains(key)) {
+                        continue;
+                    }
+                    int slash = key.indexOf('/');
+                    if (slash < 0) {
+                        continue;
+                    }
+                    int at = key.substring(0, slash).indexOf('@');
+                    if (at < 1) {
+                        continue;
+                    }
+                    String prefix = key.substring(0, at);
+                    String token = (prefix.equals("maven") ? "" : prefix + "/")
+                            + key.substring(at + 1, slash) + "@" + key.substring(slash + 1);
+                    String value = properties.getProperty(key);
+                    int space = value.indexOf(' ');
+                    String version = space < 0 ? value : value.substring(0, space);
+                    String existing = space < 0 ? null : value.substring(space + 1).trim();
+                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
+                    String checksum = computed != null ? computed : existing;
+                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
+                }
+            }
+            Path requiresFile = argument.folder().resolve(REQUIRES);
+            if (Files.exists(requiresFile)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
+                for (String key : properties.stringPropertyNames()) {
+                    if (internal.contains(key)) {
+                        continue;
+                    }
+                    int slash = key.indexOf('/');
+                    if (slash < 0) {
+                        continue;
+                    }
+                    int at = key.substring(0, slash).indexOf('@');
+                    if (at < 1) {
+                        continue;
+                    }
+                    String suffix = key.substring(slash + 1);
+                    int lastSlash = suffix.lastIndexOf('/');
+                    if (lastSlash <= 0) {
+                        continue;
+                    }
+                    String prefix = key.substring(0, at);
+                    String token = (prefix.equals("maven") ? "" : prefix + "/")
+                            + key.substring(at + 1, slash) + "@" + suffix.substring(0, lastSlash);
+                    String version = suffix.substring(lastSlash + 1);
+                    String existing = properties.getProperty(key);
+                    String computed = computeChecksum(arguments.values(), key, hashFunction);
+                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
+                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
+                }
+            }
+        }
+        return entries;
+    }
+
+    private static String renderRequires(SequencedMap<String, String> qualified, String indent) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent).append("<!--jenesis.requires\n");
+        for (Map.Entry<String, String> entry : qualified.entrySet()) {
+            sb.append((entry.getKey() + " " + entry.getValue()).replace("--", "&#45;&#45;")).append("\n");
+        }
+        sb.append(indent).append("-->\n");
+        return sb.toString();
     }
 
     private static String computeChecksum(Iterable<BuildStepArgument> arguments,

@@ -92,6 +92,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -134,6 +135,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -171,6 +173,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -208,6 +211,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -238,6 +242,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -262,6 +267,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -302,6 +308,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),

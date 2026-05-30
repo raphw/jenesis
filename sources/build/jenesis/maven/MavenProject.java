@@ -490,8 +490,11 @@ public class MavenProject implements BuildExecutorModule {
                         .coordinate(prefix, value.version());
                 MavenDependencyKey selfPom = new MavenDependencyKey(value.groupId(), value.artifactId(), "pom", null);
                 String relativePath = entry.getKey().toString().replace(File.separatorChar, '/');
-                writeModule(maven, value, relativePath, coordinate, selfPom, false);
-                writeModule(maven, value, relativePath, coordinate, selfPom, true);
+                String qualifiedDependencies = value.qualifiedDependencies() == null ? "" : value.qualifiedDependencies().entrySet().stream()
+                        .map(requires -> requires.getKey() + "=" + requires.getValue())
+                        .collect(Collectors.joining(","));
+                writeModule(maven, value, relativePath, coordinate, selfPom, false, qualifiedDependencies);
+                writeModule(maven, value, relativePath, coordinate, selfPom, true, qualifiedDependencies);
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -501,7 +504,8 @@ public class MavenProject implements BuildExecutorModule {
                                  String relativePath,
                                  String coordinate,
                                  MavenDependencyKey selfPom,
-                                 boolean test) throws IOException {
+                                 boolean test,
+                                 String qualifiedDependencies) throws IOException {
             SequencedProperties properties = new SequencedProperties();
             properties.setProperty("coordinate", test
                     ? new MavenDependencyKey(value.groupId(), value.artifactId(), "jar", "tests")
@@ -552,12 +556,15 @@ public class MavenProject implements BuildExecutorModule {
                     }
                 });
             }
-            properties.setProperty("managedDependencies",
-                    value.managedDependencies() == null ? "" : value.managedDependencies().entrySet().stream()
-                            .map(dep -> dep.getKey().coordinate(prefix, null)
-                                    + "=" + dep.getValue().version()
-                                    + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
-                            .collect(Collectors.joining(",")));
+            String managed = value.managedDependencies() == null ? "" : value.managedDependencies().entrySet().stream()
+                    .map(dep -> dep.getKey().coordinate(prefix, null)
+                            + "=" + dep.getValue().version()
+                            + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
+                    .collect(Collectors.joining(","));
+            if (!qualifiedDependencies.isEmpty()) {
+                managed = managed.isEmpty() ? qualifiedDependencies : managed + "," + qualifiedDependencies;
+            }
+            properties.setProperty("managedDependencies", managed);
             properties.setProperty("checksums",
                     value.dependencies() == null ? "" : value.dependencies().entrySet().stream()
                             .filter(dep -> dep.getValue().checksum() != null

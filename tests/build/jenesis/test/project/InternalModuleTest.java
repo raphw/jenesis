@@ -89,6 +89,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -129,6 +130,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -164,6 +166,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -179,6 +182,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -216,6 +220,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
@@ -244,6 +249,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
@@ -274,6 +280,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));
@@ -312,6 +319,7 @@ public class InternalModuleTest {
 
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
+                null,
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true))));

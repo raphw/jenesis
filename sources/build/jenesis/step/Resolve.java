@@ -66,8 +66,8 @@ public class Resolve implements DependencyProcessingBuildStep {
                 coordinates.put(coordinate, groupExclusions.getOrDefault(coordinate, Collections.emptyNavigableSet()));
             }
             for (Map.Entry<String, String> entry : requireNonNull(
-                    resolvers.get(group.getKey()),
-                    "Unknown resolver: " + group.getKey()).dependencies(
+                    resolvers.get(Resolver.base(group.getKey())),
+                    "Unknown resolver: " + Resolver.base(group.getKey())).dependencies(
                     executor,
                     group.getKey(),
                     repositories,

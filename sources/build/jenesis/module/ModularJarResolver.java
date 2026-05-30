@@ -61,7 +61,7 @@ public class ModularJarResolver implements Resolver {
             }
             String hint = propagated.get(current);
             String requested = pin != null ? pin : (hint != null ? hint : inlineVersion);
-            Repository repository = repositories.getOrDefault(prefix, Repository.empty());
+            Repository repository = repositories.getOrDefault(Resolver.base(prefix), Repository.empty());
             RepositoryItem item = requested == null
                     ? repository.fetch(executor, current).orElse(null)
                     : repository.fetch(executor, current + "/" + requested).orElse(null);

@@ -33,43 +33,50 @@ public class ScalaCompilerModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final boolean strictPinning;
     private final boolean includeResources;
+    private final String qualifier;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public ScalaCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, true, null);
+        this(repositories, resolvers, false, true, "scala", null);
     }
 
     public ScalaCompilerModule(Map<String, Repository> repositories,
                                Map<String, Resolver> resolvers,
                                boolean strictPinning,
                                Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, strictPinning, true, factory);
+        this(repositories, resolvers, strictPinning, true, "scala", factory);
     }
 
     private ScalaCompilerModule(Map<String, Repository> repositories,
                                 Map<String, Resolver> resolvers,
                                 boolean strictPinning,
                                 boolean includeResources,
+                                String qualifier,
                                 Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.strictPinning = strictPinning;
         this.includeResources = includeResources;
+        this.qualifier = qualifier;
         this.factory = factory;
     }
 
     public ScalaCompilerModule strictPinning(boolean strictPinning) {
-        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, factory);
+        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
     }
 
     public ScalaCompilerModule includeResources(boolean includeResources) {
-        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, factory);
+        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+    }
+
+    public ScalaCompilerModule qualifier(String qualifier) {
+        return new ScalaCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet())), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), qualifier), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -91,7 +98,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
         return path.equals(CLASSES) || path.equals(RESOLVED) ? Optional.of(path) : Optional.empty();
     }
 
-    private record Requires(Set<String> prefixes) implements BuildStep {
+    private record Requires(Set<String> prefixes, String qualifier) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -115,9 +122,10 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                         "No suitable resolver for Scala compiler. Available prefixes: " + prefixes
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
+            String namespace = qualifier == null ? selectedPrefix : selectedPrefix + "@" + qualifier;
             String coordinate = switch (selectedPrefix) {
-                case "module" -> "module/" + MODULE_NAME;
-                case "maven" -> "maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
+                case "module" -> namespace + "/" + MODULE_NAME;
+                case "maven" -> namespace + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
@@ -218,10 +226,19 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                     }
                 }
             }
+            List<String> launch = new ArrayList<>();
+            for (String jar : jars) {
+                if (new File(jar).getName().indexOf('@') != -1) {
+                    launch.add(jar);
+                }
+            }
+            if (launch.isEmpty()) {
+                launch = jars;
+            }
             List<String> userClasspath = new ArrayList<>(jars);
             userClasspath.addAll(classpath);
             List<String> commands = new ArrayList<>(List.of(
-                    "-cp", String.join(File.pathSeparator, jars),
+                    "-cp", String.join(File.pathSeparator, launch),
                     "dotty.tools.dotc.Main",
                     "-d", target.toString(),
                     "-classpath", String.join(File.pathSeparator, userClasspath)));

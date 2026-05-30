@@ -27,7 +27,7 @@ public class KotlinCompilerModuleTest {
     @Test
     public void compiles_a_kotlin_source_against_a_downloaded_compiler() throws IOException, ReflectiveOperationException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
@@ -75,7 +75,7 @@ public class KotlinCompilerModuleTest {
     @Test
     public void includeResources_false_excludes_non_kotlin_non_java_files_from_output() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
@@ -109,7 +109,7 @@ public class KotlinCompilerModuleTest {
     @Test
     public void picks_up_release_from_upstream_javac_properties() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
@@ -148,7 +148,7 @@ public class KotlinCompilerModuleTest {
     @Test
     public void kotlin_can_reference_java_sources_supplied_to_the_same_step() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Greeter.java"), """
@@ -187,7 +187,7 @@ public class KotlinCompilerModuleTest {
     @Test
     public void downloads_the_full_compiler_dependency_set_from_the_kotlin_pom() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), "package sample\nclass Sample\n");
@@ -229,7 +229,7 @@ public class KotlinCompilerModuleTest {
         Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("module/kotlin.compiler.embeddable");
+                .containsExactly("module@kotlin/kotlin.compiler.embeddable");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -248,7 +248,7 @@ public class KotlinCompilerModuleTest {
         Path requiredOutput = root.resolve("kotlin").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
+                .containsExactly("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -270,7 +270,7 @@ public class KotlinCompilerModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .singleElement()
-                .satisfies(name -> assertThat(name).startsWith("module/"));
+                .satisfies(name -> assertThat(name).startsWith("module@kotlin/"));
     }
 
     @Test
@@ -288,6 +288,23 @@ public class KotlinCompilerModuleTest {
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
                 .hasMessageContaining("No suitable resolver");
+    }
+
+    @Test
+    public void qualifier_emits_an_independent_resolution_trail() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "kotlin",
+                new KotlinCompilerModule(Map.of(), Map.of("maven", Resolver.identity()))
+                        .qualifier("kotlin"),
+                "project");
+        executor.execute("kotlin/" + "resolved");
+
+        Path resolvedOutput = root.resolve("kotlin").resolve("resolved").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.REQUIRES));
+        assertThat(requires.stringPropertyNames())
+                .containsExactly("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
     }
 
     @Test

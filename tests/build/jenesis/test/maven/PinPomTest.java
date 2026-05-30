@@ -56,6 +56,48 @@ public class PinPomTest {
     }
 
     @Test
+    public void writes_qualified_requires_to_a_comment_block() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        writeVersions(Map.of(
+                "maven@kotlin/org.jetbrains/something", "1.2.3",
+                "maven2@kotlin/org.example/other", "4.5.6"));
+        String result = run(pom);
+        assertThat(result).contains("<!--jenesis.requires");
+        assertThat(result).contains("kotlin@org.jetbrains/something 1.2.3");
+        assertThat(result).contains("maven2/kotlin@org.example/other 4.5.6");
+        assertThat(result).doesNotContain("<dependencyManagement>");
+    }
+
+    @Test
+    public void encodes_double_hyphen_in_a_comment_block() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        writeVersions(Map.of("maven@kotlin/org.jetbrains/something", "1.2--3"));
+        String result = run(pom);
+        assertThat(result).contains("kotlin@org.jetbrains/something 1.2&#45;&#45;3");
+        int blockStart = result.indexOf("<!--jenesis.requires");
+        int blockEnd = result.indexOf("-->", blockStart);
+        assertThat(result.substring(blockStart + "<!--".length(), blockEnd)).doesNotContain("--");
+    }
+
+    @Test
     public void inserts_dependency_management_when_absent() throws IOException {
         Path pom = root.resolve("pom.xml");
         Files.writeString(pom, """

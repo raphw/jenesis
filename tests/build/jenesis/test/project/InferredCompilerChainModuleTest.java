@@ -57,8 +57,8 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void chain_compiles_java_then_kotlin_then_scala_when_all_three_languages_present() throws Exception {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
-        versions.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        versions.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        versions.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Base.java"), """
@@ -147,7 +147,7 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void kotlin_only_project_runs_kotlin_skipping_scala() throws Exception {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        versions.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.kt"), """
@@ -183,7 +183,7 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void resource_step_copies_resources_when_multiple_compilers_are_wired() throws IOException {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        versions.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Base.java"), "package sample; public class Base { }\n");
@@ -273,7 +273,7 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void scala_only_project_runs_scala_and_resource_only() throws IOException {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        versions.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.scala"), """
@@ -305,7 +305,7 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void java_and_scala_only_routes_resource_through_dedicated_step() throws IOException {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        versions.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Base.java"), "package sample; public class Base { }\n");
@@ -344,8 +344,8 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void kotlin_and_scala_only_routes_resource_through_dedicated_step() throws IOException {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
-        versions.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        versions.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        versions.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Mid.kt"), "package sample\nclass Mid\n");
@@ -385,8 +385,8 @@ public class InferredCompilerChainModuleTest {
     @Test
     public void all_three_compilers_route_resource_through_dedicated_step() throws Exception {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
-        versions.setProperty("maven/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
+        versions.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        versions.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Base.java"), "package sample; public class Base { }\n");

@@ -31,6 +31,19 @@ public interface Resolver extends Serializable {
         };
     }
 
+    static String base(String prefix) {
+        int at = prefix.indexOf('@');
+        return at < 0 ? prefix : prefix.substring(0, at);
+    }
+
+    static String qualify(String coordinate, String qualifier) {
+        if (qualifier == null) {
+            return coordinate;
+        }
+        int slash = coordinate.indexOf('/');
+        return slash < 0 ? coordinate : coordinate.substring(0, slash) + "@" + qualifier + coordinate.substring(slash);
+    }
+
     private static String pinVersion(String coordinate, String version) {
         if (version == null || version.isEmpty()) {
             return coordinate;
