@@ -175,6 +175,7 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
                                 true,
+                                true,
                                 new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
@@ -454,14 +455,16 @@ public record Project(
                                         plus pom.xml.
                       modular           module-info.java per module; emits a
                                         modular jar, no pom.xml.
-                      modular_to_maven  Both module-info.java and pom.xml; emits
-                                        modular jars laid out in a Maven repo.
+                      modular_to_maven  module-info.java per module; emits a
+                                        modular jar plus a generated pom.xml,
+                                        staged as both a module and a Maven repo.
 
                     Trust the default: `auto` inspects the project root and picks
-                    `maven` or `modular` (it never picks `modular_to_maven`, which
-                    you must force). Override with
-                    `-Djenesis.project.layout=<name>` only when you need a layout
-                    other than what `auto` would select.
+                    `maven` when a root `pom.xml` is present, otherwise
+                    `modular_to_maven` for a `module-info.java` project (it never
+                    picks the plain `modular` layout, which you must force).
+                    Override with `-Djenesis.project.layout=<name>` only when you
+                    need a layout other than what `auto` would select.
 
                     3. Inspect target/
                     ------------------
@@ -704,8 +707,12 @@ public record Project(
                                         Maven dependency.
                       java-pom-multi    Multi-module POM (a library and a consumer
                                         module).
-                      java-modular      Modular layout: a pinned named-module
-                                        dependency, emits a modular jar.
+                      java-modular      MODULAR_TO_MAVEN layout: a pinned
+                                        named-module dependency, emits a modular
+                                        jar plus a generated POM.
+                      java-modular-multi Multi-module MODULAR_TO_MAVEN (a library
+                                        and a consumer requiring it plus an
+                                        external named module).
                       kotlin/scala/     Mixed-language compiler chains; the
                       groovy            compiler closure is pinned on a qualified
                                         trail.

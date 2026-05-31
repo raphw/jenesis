@@ -8,9 +8,10 @@ isolation from inside its own directory - no installation step.
 | Demo                | Shows                                                                 | Run from the demo dir              |
 | ------------------- | -------------------------------------------------------------------- | ---------------------------------- |
 | `java-pom`          | POM layout: plain `javac` + a real Maven dependency, pinned          | `java build/jenesis/Project.java`  |
-| `java-modular`      | MODULAR layout: a `module-info.java`, no `pom.xml`; a named-module dependency, pinned; emits a modular jar | `java build/jenesis/Project.java`  |
+| `java-modular`      | MODULAR_TO_MAVEN layout: a `module-info.java`, no `pom.xml`; a named-module dependency, pinned; emits a modular jar and a generated POM | `java build/jenesis/Project.java`  |
 | `java-pom-multi`    | Multi-module POM layout: a library module + a consumer module depending on it and on a real Maven dependency, pinned | `java build/jenesis/Project.java`  |
-| `kotlin`            | MODULAR layout: Java + Kotlin, no `pom.xml`; Kotlin compiler pinned (qualified) | `java build/jenesis/Project.java`  |
+| `java-modular-multi`| Multi-module MODULAR_TO_MAVEN layout: a library module + a consumer module requiring it and an external named module, pinned | `java build/jenesis/Project.java`  |
+| `kotlin`            | MODULAR_TO_MAVEN layout: Java + Kotlin, no `pom.xml`; Kotlin compiler pinned (qualified) | `java build/jenesis/Project.java`  |
 | `scala`             | POM layout: Java + Scala 3 in one project; Scala compiler pinned (qualified) | `java build/jenesis/Project.java`  |
 | `groovy`            | POM layout: a Groovy source; Groovy compiler pinned (qualified)     | `java build/jenesis/Project.java`  |
 | `internal-module`   | Wrap the assembler to preprocess sources from a build module loaded with `InternalModule`, using an external dependency | `java build/Demo.java`             |
@@ -21,7 +22,8 @@ isolation from inside its own directory - no installation step.
 The `java-pom`, `scala`, and `groovy` demos are Maven-layout projects (a
 `pom.xml`) driven by the shipped `Project` entry point. The `java-modular` and
 `kotlin` demos have no `pom.xml` - only a `module-info.java` - so Jenesis
-auto-detects a modular layout and emits a modular jar. The `scala` demo mixes a
+auto-detects the MODULAR_TO_MAVEN layout, emitting a modular jar alongside a
+generated POM. The `scala` demo mixes a
 `.java` source with `Sample.scala`, and `kotlin` mixes one with `Sample.kt`, so
 `javac` participates in the inferred compiler chain; `groovy` ships a single
 `.groovy` source (see its `README.md` for why it does not add a Java companion).
@@ -30,8 +32,11 @@ published as single named Java modules; see those demos' `README.md` for the
 detail. The `java-pom-multi` demo extends the POM layout to more than one module:
 a library module and a consumer module that depends on it, where the consumer
 also pulls one real external dependency, so a single build resolves both an
-intra-project sibling and an external artifact. The
-`custom-assembler` demo keeps a standard modular layout but swaps the assembler:
+intra-project sibling and an external artifact. The `java-modular-multi` demo is
+its modular counterpart: two `module-info.java` modules where the consumer
+`requires` both the sibling library and an external named module, so the same
+intra-project plus external resolution runs through the MODULAR_TO_MAVEN layout.
+The `custom-assembler` demo keeps a standard MODULAR_TO_MAVEN layout but swaps the assembler:
 its `build/Demo.java` wraps the stock `JavaMultiProjectAssembler` so each
 module's sources pass through a preprocessing step before the regular compile,
 jar, and test flow runs unchanged. The `internal-module` demo is the same idea,

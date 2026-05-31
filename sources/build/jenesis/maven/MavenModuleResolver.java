@@ -30,16 +30,17 @@ public class MavenModuleResolver implements Resolver {
                         "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
             }
         });
+        Repository repository = repositories.getOrDefault(Resolver.base(prefix), discovery);
         List<MavenResolver.RootPom> rootPoms = new ArrayList<>();
         for (String coordinate : coordinates.sequencedKeySet()) {
-            rootPoms.add(toRootPom(executor, coordinate, versions.get(coordinate)));
+            rootPoms.add(toRootPom(executor, repository, coordinate, versions.get(coordinate)));
         }
         List<MavenResolver.RootPom> managedPoms = new ArrayList<>();
         for (Map.Entry<String, String> pin : versions.entrySet()) {
             if (coordinates.containsKey(pin.getKey())) {
                 continue;
             }
-            managedPoms.add(toRootPom(executor, pin.getKey(), pin.getValue()));
+            managedPoms.add(toRootPom(executor, repository, pin.getKey(), pin.getValue()));
         }
         MavenRepository mavenRepo = MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty()));
         SequencedMap<String, String> result = new LinkedHashMap<>();
@@ -50,7 +51,10 @@ public class MavenModuleResolver implements Resolver {
         return result;
     }
 
-    private MavenResolver.RootPom toRootPom(Executor executor, String coordinate, String pinned) throws IOException {
+    private MavenResolver.RootPom toRootPom(Executor executor,
+                                            Repository repository,
+                                            String coordinate,
+                                            String pinned) throws IOException {
         String fetchCoord;
         String checksum;
         if (pinned == null || pinned.isEmpty()) {
@@ -62,7 +66,7 @@ public class MavenModuleResolver implements Resolver {
             checksum = space < 0 ? null : pinned.substring(space + 1).trim();
             fetchCoord = coordinate + "/" + version + ":pom";
         }
-        RepositoryItem item = discovery.fetch(executor, fetchCoord)
+        RepositoryItem item = repository.fetch(executor, fetchCoord)
                 .orElseThrow(() -> new IllegalArgumentException("No POM found for " + coordinate));
         return new MavenResolver.RootPom(item.toInputStream(), checksum);
     }

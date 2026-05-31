@@ -1,11 +1,12 @@
 Java (modular) demo
 ===================
 
-A purely **modular** Java project: its only build descriptor is
+A single-module **modular** Java project: its only build descriptor is
 `sources/module-info.java` - there is no `pom.xml`. Jenesis auto-detects the
-MODULAR layout, resolves the declared module dependency through the Jenesis
-module repository, and emits a modular jar. Its POM-based counterpart is
-`../java-pom`.
+MODULAR_TO_MAVEN layout, resolves the declared module dependency through the
+Jenesis module repository, and emits a modular jar alongside a generated POM. Its
+POM-based counterpart is `../java-pom`, and its multi-module counterpart is
+`../java-modular-multi`.
 
 Layout
 ------
@@ -16,11 +17,13 @@ Layout
         |-- module-info.java     module demo.modular { requires org.slf4j; exports sample; }
         `-- sample/Sample.java    uses org.slf4j.Logger
 
-With a `module-info.java` and no `pom.xml`, Jenesis selects the MODULAR layout
-(`Project.Layout.of`). The build resolves `org.slf4j` as a *named module* (served
-from the `https://repo.jenesis.build/module/` overlay), compiles the module
-against it, and produces a modular jar under `target/build/modules/...` rather
-than the `target/build/maven/...` tree of the POM-based demos.
+With a `module-info.java` and no `pom.xml`, Jenesis selects the MODULAR_TO_MAVEN
+layout (`Project.Layout.of`; it is what `auto` resolves to for a modular
+project). The build resolves `org.slf4j` as a *named module* (served from the
+`https://repo.jenesis.build/module/` overlay), compiles the module against it,
+and emits a modular jar plus a generated POM under `target/build/modules/...`;
+`stage` then lays them out as both a module repository (`target/stage/modular`)
+and a Maven repository (`target/stage/maven`).
 
 `org.slf4j` is a genuine named Java module (`module-info` with a declared
 version), which is what lets the module overlay resolve it by module name -
@@ -36,7 +39,7 @@ From this directory:
 Pinned dependency
 -----------------
 
-This demo ships **already pinned**. In the modular layout a dependency is pinned
+This demo ships **already pinned**. In a module-info layout a dependency is pinned
 with an `@jenesis.pin <module> <version>` Javadoc tag on the module declaration:
 
     /**

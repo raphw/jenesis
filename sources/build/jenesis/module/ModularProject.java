@@ -38,16 +38,22 @@ public class ModularProject implements BuildExecutorModule {
     private final Path root;
     private final Predicate<Path> filter;
     private final boolean modular;
+    private final boolean bridge;
 
     public ModularProject(String prefix, Path root, Predicate<Path> filter) {
         this(prefix, root, filter, true);
     }
 
     public ModularProject(String prefix, Path root, Predicate<Path> filter, boolean modular) {
+        this(prefix, root, filter, modular, false);
+    }
+
+    public ModularProject(String prefix, Path root, Predicate<Path> filter, boolean modular, boolean bridge) {
         this.prefix = prefix;
         this.root = root;
         this.filter = filter;
         this.modular = modular;
+        this.bridge = bridge;
     }
 
     public static BuildExecutorModule make(Path root,
@@ -119,6 +125,26 @@ public class ModularProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           boolean strictPinning,
+                                           boolean modular,
+                                           boolean bridge,
+                                           HashDigestFunction digest,
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
+        return make(root,
+                "module",
+                _ -> true,
+                repositories,
+                resolvers,
+                strictPinning,
+                modular,
+                bridge,
+                digest,
+                assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
                                            String prefix,
                                            Predicate<Path> filter,
                                            Map<String, Repository> repositories,
@@ -127,7 +153,29 @@ public class ModularProject implements BuildExecutorModule {
                                            boolean modular,
                                            HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return new MultiProjectModule(new ModularProject(prefix, root, filter, modular),
+        return make(root,
+                prefix,
+                filter,
+                repositories,
+                resolvers,
+                strictPinning,
+                modular,
+                false,
+                digest,
+                assembler);
+    }
+
+    public static BuildExecutorModule make(Path root,
+                                           String prefix,
+                                           Predicate<Path> filter,
+                                           Map<String, Repository> repositories,
+                                           Map<String, Resolver> resolvers,
+                                           boolean strictPinning,
+                                           boolean modular,
+                                           boolean bridge,
+                                           HashDigestFunction digest,
+                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
+        return new MultiProjectModule(new ModularProject(prefix, root, filter, modular, bridge),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
@@ -172,10 +220,22 @@ public class ModularProject implements BuildExecutorModule {
                                     mergedRepositories,
                                     resolvers),
                             produceDeps);
+                    if (bridge) {
+                        buildExecutor.addStep("maven",
+                                new MavenIdentity(prefix),
+                                MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
+                                PRODUCE);
+                    }
                     buildExecutor.addStep(ASSIGN,
                             new Assign(),
-                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
-                            PRODUCE);
+                            bridge
+                                    ? new String[] {
+                                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
+                                            PRODUCE,
+                                            "maven"}
+                                    : new String[] {
+                                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES,
+                                            PRODUCE});
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
                             new Inventory(),
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
@@ -198,6 +258,55 @@ public class ModularProject implements BuildExecutorModule {
             SequencedProperties coordinates = new SequencedProperties();
             coordinates.setProperty(prefix + "/" + module.getProperty("module"), "");
             coordinates.store(context.next().resolve(BuildStep.IDENTITY));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private record MavenIdentity(String prefix) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Path pomFile = null;
+            String groupId = null;
+            String artifactId = null;
+            String version = null;
+            String module = null;
+            for (BuildStepArgument argument : arguments.values()) {
+                Path folder = argument.folder();
+                Path pomCandidate = folder.resolve("pom.xml");
+                if (pomFile == null && Files.isRegularFile(pomCandidate)) {
+                    pomFile = pomCandidate;
+                }
+                Path metadataFile = folder.resolve(BuildStep.METADATA);
+                if (groupId == null && Files.isRegularFile(metadataFile)) {
+                    SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);
+                    groupId = metadata.getProperty("project");
+                    artifactId = metadata.getProperty("artifact");
+                    version = metadata.getProperty("version");
+                }
+                Path moduleFile = folder.resolve(BuildStep.MODULE);
+                if (module == null && Files.isRegularFile(moduleFile)) {
+                    module = SequencedProperties.ofFiles(moduleFile).getProperty("module");
+                }
+            }
+            if (pomFile == null) {
+                throw new IllegalStateException("No produced POM found for module " + module);
+            }
+            if (groupId == null || artifactId == null || version == null) {
+                throw new IllegalStateException("Incomplete Maven metadata for module " + module);
+            }
+            if (module == null) {
+                throw new IllegalStateException("Missing module coordinate for produced POM " + pomFile);
+            }
+            String pom = context.next().relativize(pomFile).toString().replace(File.separatorChar, '/');
+            SequencedProperties identity = new SequencedProperties();
+            identity.setProperty("maven/" + groupId + "/" + artifactId + "/" + version, "");
+            identity.setProperty("maven/" + groupId + "/" + artifactId + "/pom/" + version, pom);
+            identity.setProperty(prefix + "/" + module + ":pom", pom);
+            identity.store(context.next().resolve(BuildStep.IDENTITY));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }

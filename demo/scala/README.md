@@ -59,9 +59,17 @@ closure on its own qualified trail (`scala`), separate from the project's own
 dependencies:
 
     <!--jenesis.pin
-    @scala/org.scala-lang/scala3-compiler_3 3.8.4-RC3
-    @scala/org.scala-lang/scala3-library_3 3.8.4-RC3
+    @scala/org.scala-lang/scala3-compiler_3 3.8.3
+    @scala/org.scala-lang/scala3-library_3 3.8.3
     ...
     -->
 
 Re-running `java build/jenesis/Project.java pin` is idempotent.
+
+The Scala line publishes `scala-library` and the `scala3-*` artifacts in lockstep,
+and the latest `<release>` on Maven Central is often a release candidate, so an
+unpinned build floats the compiler to an `-RC` version. Pinning
+`scala3-compiler_3` to a stable version (here `3.8.3`) holds the whole resolved
+closure on a non-RC release. The pin records versions only; the compiler trail's
+downloaded jars are not exposed downstream, so `pin` cannot yet attach content
+checksums to these entries the way it does for a module's own dependencies.

@@ -18,9 +18,9 @@ Layout
         |-- module-info.java     module demo.custom { exports sample; } (@jenesis.main)
         `-- sample/Sample.java    prints GREETING = "${greeting}"
 
-With a `module-info.java` and no `pom.xml`, Jenesis auto-detects a modular
-layout and emits a modular jar, exactly as the `java-modular` demo does. The
-only difference is the assembler.
+With a `module-info.java` and no `pom.xml`, Jenesis auto-detects the
+MODULAR_TO_MAVEN layout and emits a modular jar (plus a generated POM), exactly
+as the `java-modular` demo does. The only difference is the assembler.
 
 Run it
 ------
