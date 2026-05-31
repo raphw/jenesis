@@ -15,6 +15,7 @@ isolation from inside its own directory - no installation step.
 | `groovy`            | POM layout: a Groovy source; Groovy compiler pinned (qualified)     | `java build/jenesis/Project.java`  |
 | `internal-module`   | `InternalModule`: load + run a build module from local source        | `java build/Demo.java`             |
 | `external-module`   | `ExternalModule`: resolve + run a build module from a coordinate     | `java build/Demo.java`             |
+| `custom-assembler`  | Wrap `JavaMultiProjectAssembler` to preprocess sources before the regular flow | `java build/Custom.java`           |
 
 The `java-pom`, `scala`, and `groovy` demos are Maven-layout projects (a
 `pom.xml`) driven by the shipped `Project` entry point. The `java-modular` and
@@ -31,7 +32,11 @@ also pulls one real external dependency, so a single build resolves both an
 intra-project sibling and an external artifact. The `internal-module` and
 `external-module` demos use a small
 programmatic `BuildExecutor` launcher (`build/Demo.java`), because loading a
-foreign build module is a library feature rather than a project layout.
+foreign build module is a library feature rather than a project layout. The
+`custom-assembler` demo keeps a standard modular layout but swaps the assembler:
+its `build/Custom.java` wraps the stock `JavaMultiProjectAssembler` so each
+module's sources pass through a preprocessing step before the regular compile,
+jar, and test flow runs unchanged.
 
 Each demo writes to a local `target/` directory; delete it to rebuild from
 scratch. See the per-demo `README.md` for details.
