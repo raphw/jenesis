@@ -15,8 +15,8 @@ isolation from inside its own directory - no installation step.
 | `groovy`            | POM layout: a Groovy source; Groovy compiler pinned (qualified)     | `java build/jenesis/Project.java`  |
 | `internal-module`   | Wrap the assembler to preprocess sources from a build module loaded with `InternalModule`, using an external dependency | `java build/Demo.java`             |
 | `external-module`   | Same as `internal-module`, but stages the build module to a jar and resolves it as an `ExternalModule` coordinate | `java build/Demo.java`             |
-| `custom-assembler`  | Wrap `JavaMultiProjectAssembler` to preprocess sources before the regular flow | `java build/Custom.java`           |
-| `custom-build`      | No `Project` at all: steps wired directly to a `BuildExecutor`, with a code-generation step | `java build/Build.java`            |
+| `custom-assembler`  | Wrap `JavaMultiProjectAssembler` to preprocess sources before the regular flow | `java build/Demo.java`           |
+| `custom-build`      | No `Project` at all: steps wired directly to a `BuildExecutor`, with a code-generation step | `java build/Demo.java`            |
 
 The `java-pom`, `scala`, and `groovy` demos are Maven-layout projects (a
 `pom.xml`) driven by the shipped `Project` entry point. The `java-modular` and
@@ -32,7 +32,7 @@ a library module and a consumer module that depends on it, where the consumer
 also pulls one real external dependency, so a single build resolves both an
 intra-project sibling and an external artifact. The
 `custom-assembler` demo keeps a standard modular layout but swaps the assembler:
-its `build/Custom.java` wraps the stock `JavaMultiProjectAssembler` so each
+its `build/Demo.java` wraps the stock `JavaMultiProjectAssembler` so each
 module's sources pass through a preprocessing step before the regular compile,
 jar, and test flow runs unchanged. The `internal-module` demo is the same idea,
 but the preprocessing lives in a build module that `InternalModule` loads from

@@ -24,12 +24,12 @@ import build.jenesis.step.Javac;
  *
  * Run from this directory with:
  *
- *     java build/Build.java
+ *     java build/Demo.java
  *
  * It produces a classpath jar under {@code target/jar/output/artifacts/}. Run it
  * with {@code java -cp <that jar> sample.Sample}.
  */
-public class Build {
+public class Demo {
 
     static void main(String[] args) throws Exception {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));

@@ -13,7 +13,7 @@ import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 
-public class Custom {
+public class Demo {
 
     static void main(String[] args) throws Exception {
         // Wrap the stock JavaMultiProjectAssembler so that every module's Java

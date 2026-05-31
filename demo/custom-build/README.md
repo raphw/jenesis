@@ -30,7 +30,7 @@ Layout
 
     demo/custom-build
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- build/Build.java     the hand-wired BuildExecutor
+    |-- build/Demo.java     the hand-wired BuildExecutor
     `-- sources/
         `-- sample/Sample.java   prints Generated.MESSAGE (Generated is synthesized)
 
@@ -54,7 +54,7 @@ Run it
 
 From this directory:
 
-    java build/Build.java
+    java build/Demo.java
 
 The build emits a classpath jar at
 `target/jar/output/artifacts/classes.jar`. Run the result with:
@@ -65,6 +65,6 @@ which prints:
 
     Hello from a generated source, compiled by a hand-wired BuildExecutor!
 
-Re-running `java build/Build.java` reuses the cache: `generate` has no inputs, so
+Re-running `java build/Demo.java` reuses the cache: `generate` has no inputs, so
 once its output exists it is not rewritten, and `compile`/`jar` are skipped while
 their predecessors' checksums are unchanged.

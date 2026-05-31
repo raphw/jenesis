@@ -13,7 +13,7 @@ Layout
 
     demo/custom-assembler
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- build/Custom.java    the launcher: wires the wrapping assembler, builds, runs
+    |-- build/Demo.java    the launcher: wires the wrapping assembler, builds, runs
     `-- sources/
         |-- module-info.java     module demo.custom { exports sample; } (@jenesis.main)
         `-- sample/Sample.java    prints GREETING = "${greeting}"
@@ -27,7 +27,7 @@ Run it
 
 From this directory:
 
-    java build/Custom.java
+    java build/Demo.java
 
 You should see the build graph resolve and run, with a line reporting the
 substitution as the `preprocess` step rewrites the source:
@@ -81,7 +81,7 @@ Java toolchain, it only interposes a source transformation in front of it. Any
 preprocessing that produces a `sources/` tree (template expansion, code
 generation, license-header stamping) fits the same shape.
 
-`Custom.java` only runs the build; running the produced jar is left to you (see
+`Demo.java` only runs the build; running the produced jar is left to you (see
 above). Note that the companion `build/jenesis/Execute.java` launcher would
 build with the *stock* `Project` configuration rather than this custom one, so
 it would not apply the preprocessing.
