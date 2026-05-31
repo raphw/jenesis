@@ -6,32 +6,32 @@ public enum ModulePathPredicate {
 
     CLASS_PATH(false) {
         @Override
-        public boolean test(Path entry) {
+        public boolean test(Path path) {
             return false;
         }
 
         @Override
-        public build.jenesis.ModulePathPredicate requiresModules(boolean requiresModules) {
+        public ModulePathPredicate requiresModules(boolean requiresModules) {
             return requiresModules ? INFERRED : this;
         }
     },
 
     MODULE_PATH(true) {
         @Override
-        public boolean test(Path entry) {
+        public boolean test(Path path) {
             return true;
         }
     },
 
     INFERRED(true) {
         @Override
-        public boolean test(Path entry) throws IOException {
-            if (Files.isDirectory(entry)) {
-                return Files.exists(entry.resolve("module-info.class"));
+        public boolean test(Path path) throws IOException {
+            if (Files.isDirectory(path)) {
+                return Files.exists(path.resolve("module-info.class"));
             }
             ModuleReference reference;
             try {
-                reference = ModuleFinder.of(entry).findAll().stream().findFirst().orElse(null);
+                reference = ModuleFinder.of(path).findAll().stream().findFirst().orElse(null);
             } catch (FindException _) {
                 return false;
             }
@@ -41,7 +41,7 @@ public enum ModulePathPredicate {
             if (!reference.descriptor().isAutomatic()) {
                 return true;
             }
-            try (JarFile jar = new JarFile(entry.toFile())) {
+            try (JarFile jar = new JarFile(path.toFile())) {
                 Manifest manifest = jar.getManifest();
                 return manifest != null
                         && manifest.getMainAttributes().getValue("Automatic-Module-Name") != null;
@@ -55,7 +55,7 @@ public enum ModulePathPredicate {
         this.modular = modular;
     }
 
-    public abstract boolean test(Path entry) throws IOException;
+    public abstract boolean test(Path path) throws IOException;
 
     public boolean modular() {
         return modular;

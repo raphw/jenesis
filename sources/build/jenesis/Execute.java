@@ -105,8 +105,18 @@ public record Execute(Project project, String mainClass, String module) {
         }
         List<String> javaArgs = new ArrayList<>();
         if (candidate.module != null) {
+            List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
+            for (String jar : jars) {
+                (ModulePathPredicate.INFERRED.test(Path.of(jar)) ? modulePath : classPath).add(jar);
+            }
             javaArgs.add("--module-path");
-            javaArgs.add(String.join(File.pathSeparator, jars));
+            javaArgs.add(String.join(File.pathSeparator, modulePath));
+            if (!classPath.isEmpty()) {
+                javaArgs.add("--class-path");
+                javaArgs.add(String.join(File.pathSeparator, classPath));
+                javaArgs.add("--add-modules");
+                javaArgs.add("ALL-MODULE-PATH");
+            }
             javaArgs.add("-m");
             javaArgs.add(candidate.module + "/" + candidate.mainClass);
         } else {

@@ -147,9 +147,6 @@ public abstract class Java extends JdkProcessBuildStep {
                 prefixes.add(String.join(File.pathSeparator, paths.getValue()));
             }
         }
-        // An INFERRED split leaves plain jars on the class path that are only reachable
-        // through the automatic modules on the module path; root the whole module path so
-        // those automatics are resolved and can bridge to the unnamed module.
         if (this.modulePath == ModulePathPredicate.INFERRED && !modulePath.isEmpty()) {
             prefixes.add("--add-modules");
             prefixes.add("ALL-MODULE-PATH");
