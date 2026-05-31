@@ -1,4 +1,5 @@
 module demo.plugin {
     requires build.jenesis;
-    provides build.jenesis.BuildExecutorModule with demo.plugin.GreetingModule;
+    requires org.json;
+    provides build.jenesis.BuildExecutorModule with demo.plugin.SubstitutionModule;
 }

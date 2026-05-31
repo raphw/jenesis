@@ -10,6 +10,8 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.module.JenesisModuleRepository;
+import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModuleInfo;
 import build.jenesis.module.ModuleInfoParser;
 import build.jenesis.step.Bind;
@@ -31,13 +33,25 @@ public class InternalModule implements BuildExecutorModule {
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
     private final String qualifier;
+    private final SequencedSet<String> shadowed;
+
+    public InternalModule(String prefix,
+                          String qualifier,
+                          Path source) {
+        this(prefix,
+                qualifier,
+                source,
+                Map.of(prefix, new JenesisModuleRepository(true).prepend(JenesisModuleRepository.ofLocal())),
+                Map.of(prefix, new ModularJarResolver(true)));
+    }
 
     public InternalModule(String prefix,
                           String qualifier,
                           Path source,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
+        this(prefix, source, repositories, resolvers,
+                Collections.emptyNavigableSet(), null, qualifier, Collections.emptyNavigableSet());
     }
 
     private InternalModule(String prefix,
@@ -46,7 +60,8 @@ public class InternalModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
-                           String qualifier) {
+                           String qualifier,
+                           SequencedSet<String> shadowed) {
         this.prefix = prefix;
         this.source = source;
         this.repositories = repositories;
@@ -54,20 +69,32 @@ public class InternalModule implements BuildExecutorModule {
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
+        this.shadowed = shadowed;
     }
 
     public InternalModule withDependencies(String... dependencies) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
+                new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier, shadowed);
     }
 
     public InternalModule withDependencies(SequencedSet<String> dependencies) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
+                new LinkedHashSet<>(dependencies), buildModuleName, qualifier, shadowed);
     }
 
     public InternalModule withBuildModuleName(String name) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, name, qualifier);
+        return new InternalModule(prefix, source, repositories, resolvers,
+                additionalDependencies, name, qualifier, shadowed);
+    }
+
+    public InternalModule withShadowed(String... shadowed) {
+        return new InternalModule(prefix, source, repositories, resolvers,
+                additionalDependencies, buildModuleName, qualifier, new LinkedHashSet<>(List.of(shadowed)));
+    }
+
+    public InternalModule withShadowed(SequencedSet<String> shadowed) {
+        return new InternalModule(prefix, source, repositories, resolvers,
+                additionalDependencies, buildModuleName, qualifier, new LinkedHashSet<>(shadowed));
     }
 
     @Override
@@ -92,9 +119,13 @@ public class InternalModule implements BuildExecutorModule {
                     new DependenciesModule(repositories, resolvers, compile),
                     requiresId);
         }
+        SequencedSet<String> shadowedKeys = new LinkedHashSet<>();
+        for (String dependency : shadowed) {
+            shadowedKeys.add(PREVIOUS + dependency);
+        }
         buildExecutor.addModule(JAVA, new JavaToolchainModule(), Stream.concat(
                 Stream.of(SOURCE, COMPILE_ARTIFACTS),
-                inherited.sequencedKeySet().stream()));
+                inherited.sequencedKeySet().stream().filter(key -> !shadowedKeys.contains(key))));
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
             Path depArtifacts = delegated.get(PREVIOUS + RUNTIME_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
