@@ -3,6 +3,7 @@ package build.jenesis.step;
 import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
+import build.jenesis.ModulePathPredicate;
 
 public abstract class Java extends JdkProcessBuildStep {
 
@@ -103,7 +104,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
                     if (Files.isDirectory(candidate)) {
-                        (isModular.placeOnModulePath(candidate) ? modulePath : classPath).add(candidate.toString());
+                        (isModular.test(candidate) ? modulePath : classPath).add(candidate.toString());
                     }
                 }
             }
@@ -112,8 +113,8 @@ public abstract class Java extends JdkProcessBuildStep {
                 if (Files.exists(candidate)) {
                     Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
                         @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            (isModular.placeOnModulePath(file) ? modulePath : classPath).add(file.toString());
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                            (isModular.test(file) ? modulePath : classPath).add(file.toString());
                             return FileVisitResult.CONTINUE;
                         }
                     });
@@ -149,11 +150,5 @@ public abstract class Java extends JdkProcessBuildStep {
         return commands(executor, context, arguments).thenApplyAsync(commands -> Stream.concat(
                 prefixes.stream(),
                 commands.stream()).toList(), executor);
-    }
-
-    @FunctionalInterface
-    public interface ModulePathPredicate extends Serializable {
-
-        boolean placeOnModulePath(Path path);
     }
 }

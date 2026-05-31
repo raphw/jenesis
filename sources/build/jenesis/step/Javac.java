@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.ModulePathPredicate;
 import build.jenesis.SequencedProperties;
 
 public class Javac extends JdkProcessBuildStep {
@@ -13,18 +14,22 @@ public class Javac extends JdkProcessBuildStep {
     private static final Pattern VERSIONED = Pattern.compile("META-INF/versions/(\\d+)/.+");
 
     private final boolean includeResources;
+    private final ModulePathPredicate modulePathPredicate;
 
-    private Javac(Function<List<String>, ? extends ProcessHandler> factory, boolean includeResources) {
+    private Javac(Function<List<String>, ? extends ProcessHandler> factory,
+                  boolean includeResources,
+                  ModulePathPredicate modulePathPredicate) {
         super("javac", factory);
         this.includeResources = includeResources;
+        this.modulePathPredicate = modulePathPredicate;
     }
 
     public static Javac tool() {
-        return new Javac(ProcessHandler.OfTool.of("javac"), true);
+        return new Javac(ProcessHandler.OfTool.of("javac"), true, ModulePathPredicate.INFERRED);
     }
 
     public static Javac process() {
-        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"), true);
+        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"), true, ModulePathPredicate.INFERRED);
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
@@ -38,7 +43,11 @@ public class Javac extends JdkProcessBuildStep {
     }
 
     public Javac includeResources(boolean includeResources) {
-        return new Javac(factory, includeResources);
+        return new Javac(factory, includeResources, modulePathPredicate);
+    }
+
+    public Javac modulePath(ModulePathPredicate modulePathPredicate) {
+        return new Javac(factory, includeResources, modulePathPredicate);
     }
 
     @Override
@@ -168,11 +177,27 @@ public class Javac extends JdkProcessBuildStep {
                             "Path entry contains separator '" + File.pathSeparator + "': " + entry);
                 }
             }
-            String escaped = String.join(File.pathSeparator, path)
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"");
+            List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
+            if (module) {
+                for (String entry : path) {
+                    (modulePathPredicate.test(Path.of(entry)) ? modulePath : classPath).add(entry);
+                }
+            } else {
+                classPath.addAll(path);
+            }
+            StringBuilder args = new StringBuilder();
+            if (!modulePath.isEmpty()) {
+                args.append("--module-path\n\"")
+                        .append(String.join(File.pathSeparator, modulePath).replace("\\", "\\\\").replace("\"", "\\\""))
+                        .append("\"\n");
+            }
+            if (!classPath.isEmpty()) {
+                args.append("--class-path\n\"")
+                        .append(String.join(File.pathSeparator, classPath).replace("\\", "\\\\").replace("\"", "\\\""))
+                        .append("\"\n");
+            }
             Path file = context.supplement().resolve("javac.args");
-            Files.writeString(file, (module ? "--module-path" : "--class-path") + "\n\"" + escaped + "\"\n");
+            Files.writeString(file, args.toString());
             commands.add("@" + file);
         }
         commands.addAll(files);
@@ -302,7 +327,9 @@ public class Javac extends JdkProcessBuildStep {
             if (Files.exists(mainTarget)) {
                 modulePath.add(mainTarget.toString());
             }
-            modulePath.addAll(dependencyPath);
+            for (String entry : dependencyPath) {
+                (modulePathPredicate.test(Path.of(entry)) ? modulePath : classPath).add(entry);
+            }
             patchModule.addAll(versionedRoots);
         } else {
             if (Files.exists(mainTarget)) {
