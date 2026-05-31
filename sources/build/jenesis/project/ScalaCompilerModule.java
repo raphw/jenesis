@@ -95,7 +95,10 @@ public class ScalaCompilerModule implements BuildExecutorModule {
 
     @Override
     public Optional<String> resolve(String path) {
-        return path.equals(CLASSES) || path.equals(RESOLVED) ? Optional.of(path) : Optional.empty();
+        return switch (path) {
+            case CLASSES, RESOLVED -> Optional.of(path);
+            default -> Optional.empty();
+        };
     }
 
     private record Requires(Set<String> prefixes, String qualifier) implements BuildStep {
