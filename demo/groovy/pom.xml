@@ -10,6 +10,6 @@
         <sourceDirectory>sources</sourceDirectory>
     </build>
     <!--jenesis.pin
-@groovy/org.apache.groovy/groovy 5.0.1
+    @groovy/org.apache.groovy/groovy 5.0.1
     -->
 </project>

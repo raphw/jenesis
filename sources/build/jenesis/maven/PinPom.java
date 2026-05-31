@@ -219,7 +219,7 @@ public class PinPom implements BuildStep {
         StringBuilder sb = new StringBuilder();
         sb.append(indent).append("<!--jenesis.pin\n");
         for (Map.Entry<String, String> entry : qualified.entrySet()) {
-            sb.append((entry.getKey() + " " + entry.getValue()).replace("--", "&#45;&#45;")).append("\n");
+            sb.append(indent).append((entry.getKey() + " " + entry.getValue()).replace("--", "&#45;&#45;")).append("\n");
         }
         sb.append(indent).append("-->\n");
         return sb.toString();
