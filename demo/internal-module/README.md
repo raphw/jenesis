@@ -1,26 +1,43 @@
 InternalModule demo
-====================
+===================
 
-`InternalModule` loads a *build module* (a `BuildExecutorModule` service
-provider) straight from local source, compiles it, and runs it as part of the
-host build graph. This is how a project consumes an in-repo build extension
-without publishing it first.
+This demo does the same thing as `../custom-assembler`: it wraps the stock
+`JavaMultiProjectAssembler` so the project's Java sources are preprocessed (a
+`${greeting}` substitution) before the regular compile, jar, and test flow runs.
+The difference is *where the preprocessing lives*. Instead of an inline build
+step, the substitution is performed by a **build module** (`BuildExecutorModule`
+service provider) that `InternalModule` loads straight from local source - and
+that build module uses an **external dependency** (`org.json`) to drive the
+substitution.
+
+> **Status:** this demo currently fails at the `preprocess/delegate` step. The
+> plugin's `build.jenesis` dependency is resolved from the default Jenesis
+> repository, whose published `build.jenesis` lags the local sources the host
+> runs against, so the class-loader bridge rejects the version mismatch. It will
+> work once a matching `build.jenesis` is released.
 
 Layout
 ------
 
     demo/internal-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
-    |-- build/Demo.java          the launcher (programmatic BuildExecutor)
+    |-- build/Demo.java          the launcher (Project + wrapping assembler)
     |-- plugin/
+    |   |-- .jenesis.build       marks plugin/ as its own build root, so the
+    |   |                        project's module discovery skips it
     |   |-- module-info.java     module demo.plugin { requires build.jenesis;
+    |   |                                requires org.json;
     |   |                                provides build.jenesis.BuildExecutorModule
-    |   |                                with demo.plugin.GreetingModule; }
-    |   `-- demo/plugin/GreetingModule.java
+    |   |                                with demo.plugin.SubstitutionModule; }
+    |   `-- demo/plugin/SubstitutionModule.java
+    `-- sources/
+        |-- module-info.java     module demo.internal { exports sample; }
+        `-- sample/Sample.java    prints GREETING = "${greeting}"
 
-The plugin is an ordinary modular project. Its `module-info.java` declares a
-`provides build.jenesis.BuildExecutorModule`, which is what `InternalModule`
-discovers and runs.
+The project under `sources/` is an ordinary modular project, exactly like
+`custom-assembler`. The build module under `plugin/` is a separate modular
+project; its `.jenesis.build` marker keeps the host project's module discovery
+from mistaking it for a second project module.
 
 Run it
 ------
@@ -29,38 +46,34 @@ From this directory:
 
     java build/Demo.java
 
-You should see the build graph run and then:
+How it works
+------------
 
-    InternalModule ran the plugin. It produced:
-      Hello from an InternalModule plugin, compiled from local sources!
+`Demo.java` builds a `Project` whose assembler is a `PreprocessingAssembler`
+wrapping the stock `JavaMultiProjectAssembler`. For each module the wrapper:
 
-What the launcher does
-----------------------
+1. Adds a `preprocess` node that is an `InternalModule` pointed at `plugin/`.
+   `InternalModule` compiles the plugin from source, resolves its declared
+   dependencies, loads the `BuildExecutorModule` service provider, and runs it.
+   The three-argument constructor wires the **default Jenesis repository**, so
+   the plugin's `build.jenesis` and `org.json` dependencies resolve from there -
+   nothing is downloaded explicitly.
+2. Redirects the descriptor's sources to the module's output with
+   `descriptor.withSources("preprocess/substitute")`, so the stock assembler's
+   regular flow compiles, jars, and tests the preprocessed sources.
 
-The plugin's `module-info` says `requires build.jenesis`, so to compile and run
-it `InternalModule` needs a `build.jenesis` module jar. `Demo.java`:
+The project's sources are passed to the module as inherited steps.
+`InternalModule` compiles the plugin in isolation - against only its own sources
+and resolved dependencies - and forwards the inherited steps to the plugin only
+at run time, where the `substitute` step reads and rewrites them. The substituted
+copy the plugin emits then stands in for the originals downstream.
 
-1. Compiles the Jenesis sources (reached through the `build/jenesis` symlink)
-   into a `build.jenesis` module jar with the JDK's `javac`/`jar` tools.
-2. Exposes that jar through a one-line `Repository` that resolves the
-   `build.jenesis` module name to it. (A real project would resolve the
-   published module from a repository instead.)
-3. Constructs the module:
+Inside the plugin, `SubstitutionModule` parses a small substitution map with
+`org.json` (the external dependency) and replaces each `${key}` placeholder in
+every `.java` file. Built with the stock assembler the `${greeting}` literal
+would survive verbatim; here it is rewritten before compilation, so the value
+that ends up in the jar is the substituted one.
 
-        new InternalModule(
-                "module",                                 // resolution prefix
-                "tool",                                   // qualifier -> independent trail
-                Path.of("plugin"),                        // plugin source directory
-                Map.of("module", jenesisRepository),
-                Map.of("module", new ModularJarResolver(true)))
-
-The second constructor argument is the **qualifier** (nullable, but an explicit
-choice). Passing `"tool"` puts the plugin's own dependency closure on an
-independent resolution trail (`module@tool/...`), keeping it separate from the
-host project's dependencies when pinning - exactly like the Kotlin/Scala
-compilers are qualified `kotlin` / `scala`. Pass `null` for the unqualified
-trail.
-
-The plugin's `greeting` step is reachable in the result map as
-`plugin/greeting` (the delegated module's steps surface directly under the
-module name).
+The plugin's `substitute` step is reachable in the build graph as
+`preprocess/substitute` (the delegated module's steps surface directly under the
+module name), which is exactly the key the assembler redirects the sources to.

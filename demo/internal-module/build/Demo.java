@@ -19,9 +19,10 @@ import build.jenesis.project.ProjectModuleDescriptor;
  * {@code InternalModule}, and that module uses an external dependency
  * ({@code org.json}) to drive the substitution.
  *
- * Both the plugin's {@code build.jenesis} dependency and its {@code org.json}
- * dependency are resolved through the default Jenesis repository - the demo
- * downloads nothing explicitly.
+ * The three-argument {@code InternalModule} constructor wires the default
+ * Jenesis repository, so both the plugin's {@code build.jenesis} and
+ * {@code org.json} dependencies resolve from there - the demo downloads nothing
+ * explicitly.
  *
  * Run from this directory with:
  *
@@ -47,14 +48,11 @@ public class Demo {
                                          Map<String, Resolver> resolvers) {
             // Load the preprocessing logic from the plugin/ build module via
             // InternalModule, and let the stock assembler wire the regular flow
-            // against its output. The module shadows the project's sources: it
-            // receives them (forwarded to the plugin's runtime so it can read and
-            // rewrite them) but they are kept out of the plugin's own compilation,
-            // and the substituted copy it emits stands in for them downstream.
-            //
-            // The three-argument InternalModule constructor wires the default
-            // Jenesis repository, so the plugin's build.jenesis and org.json
-            // dependencies resolve without any explicit download here.
+            // against its output. The project's sources are passed to the module
+            // as inherited steps: InternalModule compiles the plugin in isolation
+            // and forwards those sources to it only at run time, where the plugin
+            // reads and rewrites them. The substituted copy it emits stands in for
+            // them downstream.
             SequencedSet<String> original = descriptor.sources();
             ProjectModuleDescriptor redirected = descriptor.withSources("preprocess/substitute");
             BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
@@ -62,7 +60,7 @@ public class Demo {
                 InternalModule preprocess = new InternalModule(
                         "module",                           // resolution prefix for the plugin's requires
                         "tool",                             // qualifier: an independent trail
-                        pluginSource).withShadowed(original);
+                        pluginSource);
                 sub.addModule("preprocess", preprocess, original.stream());
                 inner.accept(sub, inherited);
             };

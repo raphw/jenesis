@@ -174,7 +174,7 @@ public record Project(
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
-                                false,
+                                true,
                                 new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
@@ -185,8 +185,14 @@ public record Project(
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, METADATA);
-            executor.addStep(STAGE, new MavenRepositoryStaging(project.stageTests()), BUILD);
-            executor.addStep(EXPORT, new MavenRepositoryExport(), STAGE);
+            executor.addModule(STAGE, (stage, inherited) -> {
+                stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
+            }, BUILD);
+            executor.addModule(EXPORT, (export, _) -> {
+                export.addStep("maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven");
+                export.addStep("modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular");
+            }, STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
@@ -440,9 +446,13 @@ public record Project(
                       build/.../<step>/        Auxiliary files (command-line
                         supplement/            argument files, intermediates).
                       stage/output/            The tree built by `stage`, ready for
-                                               `export`. MAVEN / MODULAR_TO_MAVEN
-                                               produce a Maven-repository layout;
-                                               MODULAR produces <module>/<version>/.
+                                               `export`. MAVEN produces a
+                                               Maven-repository layout; MODULAR
+                                               produces <module>/<version>/.
+                                               MODULAR_TO_MAVEN stages both, under
+                                               stage/maven/output (Maven layout)
+                                               and stage/modular/output (module
+                                               layout), and `export` publishes each.
 
                     Do not delete target/ and do not pass
                     `-Djenesis.executor.rebuild=true` to wipe it. Jenesis tracks

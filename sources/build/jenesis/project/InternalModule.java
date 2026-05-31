@@ -33,7 +33,6 @@ public class InternalModule implements BuildExecutorModule {
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
     private final String qualifier;
-    private final SequencedSet<String> shadowed;
 
     public InternalModule(String prefix,
                           String qualifier,
@@ -50,8 +49,7 @@ public class InternalModule implements BuildExecutorModule {
                           Path source,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(prefix, source, repositories, resolvers,
-                Collections.emptyNavigableSet(), null, qualifier, Collections.emptyNavigableSet());
+        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
     }
 
     private InternalModule(String prefix,
@@ -60,8 +58,7 @@ public class InternalModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
-                           String qualifier,
-                           SequencedSet<String> shadowed) {
+                           String qualifier) {
         this.prefix = prefix;
         this.source = source;
         this.repositories = repositories;
@@ -69,32 +66,21 @@ public class InternalModule implements BuildExecutorModule {
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
-        this.shadowed = shadowed;
     }
 
     public InternalModule withDependencies(String... dependencies) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier, shadowed);
+                new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
     }
 
     public InternalModule withDependencies(SequencedSet<String> dependencies) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(dependencies), buildModuleName, qualifier, shadowed);
+                new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
     }
 
     public InternalModule withBuildModuleName(String name) {
         return new InternalModule(prefix, source, repositories, resolvers,
-                additionalDependencies, name, qualifier, shadowed);
-    }
-
-    public InternalModule withShadowed(String... shadowed) {
-        return new InternalModule(prefix, source, repositories, resolvers,
-                additionalDependencies, buildModuleName, qualifier, new LinkedHashSet<>(List.of(shadowed)));
-    }
-
-    public InternalModule withShadowed(SequencedSet<String> shadowed) {
-        return new InternalModule(prefix, source, repositories, resolvers,
-                additionalDependencies, buildModuleName, qualifier, new LinkedHashSet<>(shadowed));
+                additionalDependencies, name, qualifier);
     }
 
     @Override
@@ -119,13 +105,7 @@ public class InternalModule implements BuildExecutorModule {
                     new DependenciesModule(repositories, resolvers, compile),
                     requiresId);
         }
-        SequencedSet<String> shadowedKeys = new LinkedHashSet<>();
-        for (String dependency : shadowed) {
-            shadowedKeys.add(PREVIOUS + dependency);
-        }
-        buildExecutor.addModule(JAVA, new JavaToolchainModule(), Stream.concat(
-                Stream.of(SOURCE, COMPILE_ARTIFACTS),
-                inherited.sequencedKeySet().stream().filter(key -> !shadowedKeys.contains(key))));
+        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, COMPILE_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
             Path depArtifacts = delegated.get(PREVIOUS + RUNTIME_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);

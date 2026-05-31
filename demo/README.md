@@ -13,9 +13,10 @@ isolation from inside its own directory - no installation step.
 | `kotlin`            | MODULAR layout: Java + Kotlin, no `pom.xml`; Kotlin compiler pinned (qualified) | `java build/jenesis/Project.java`  |
 | `scala`             | POM layout: Java + Scala 3 in one project; Scala compiler pinned (qualified) | `java build/jenesis/Project.java`  |
 | `groovy`            | POM layout: a Groovy source; Groovy compiler pinned (qualified)     | `java build/jenesis/Project.java`  |
-| `internal-module`   | `InternalModule`: load + run a build module from local source        | `java build/Demo.java`             |
-| `external-module`   | `ExternalModule`: resolve + run a build module from a coordinate     | `java build/Demo.java`             |
+| `internal-module`   | Wrap the assembler to preprocess sources from a build module loaded with `InternalModule`, using an external dependency | `java build/Demo.java`             |
+| `external-module`   | Same as `internal-module`, but stages the build module to a jar and resolves it as an `ExternalModule` coordinate | `java build/Demo.java`             |
 | `custom-assembler`  | Wrap `JavaMultiProjectAssembler` to preprocess sources before the regular flow | `java build/Custom.java`           |
+| `custom-build`      | No `Project` at all: steps wired directly to a `BuildExecutor`, with a code-generation step | `java build/Build.java`            |
 
 The `java-pom`, `scala`, and `groovy` demos are Maven-layout projects (a
 `pom.xml`) driven by the shipped `Project` entry point. The `java-modular` and
@@ -29,14 +30,23 @@ published as single named Java modules; see those demos' `README.md` for the
 detail. The `java-pom-multi` demo extends the POM layout to more than one module:
 a library module and a consumer module that depends on it, where the consumer
 also pulls one real external dependency, so a single build resolves both an
-intra-project sibling and an external artifact. The `internal-module` and
-`external-module` demos use a small
-programmatic `BuildExecutor` launcher (`build/Demo.java`), because loading a
-foreign build module is a library feature rather than a project layout. The
+intra-project sibling and an external artifact. The
 `custom-assembler` demo keeps a standard modular layout but swaps the assembler:
 its `build/Custom.java` wraps the stock `JavaMultiProjectAssembler` so each
 module's sources pass through a preprocessing step before the regular compile,
-jar, and test flow runs unchanged.
+jar, and test flow runs unchanged. The `internal-module` demo is the same idea,
+but the preprocessing lives in a build module that `InternalModule` loads from
+local source and that uses an external dependency (`org.json`) for the rewrite.
+The `external-module` demo is identical to `internal-module` except that its
+`build/Demo.java` first stages that build module to a jar in a nested target
+folder and then resolves it as an `ExternalModule` coordinate instead of
+compiling it in place. Both `internal-module` and `external-module` currently
+fail at the build-module load step until a matching `build.jenesis` is released
+(see their `README.md`s). The `custom-build` demo goes the other direction
+entirely: it uses no `Project`, layout, or assembler, wiring sources and steps
+directly to a `BuildExecutor` - including a code-generation step that synthesizes
+a source the compiler then sees - to show that a build can be assembled fully by
+hand when the templates do not fit.
 
 Each demo writes to a local `target/` directory; delete it to rebuild from
 scratch. See the per-demo `README.md` for details.

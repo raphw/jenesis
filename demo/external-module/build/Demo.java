@@ -2,15 +2,32 @@ package build;
 
 import module java.base;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorModule;
+import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.Resolver;
+import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.project.ExternalModule;
+import build.jenesis.project.InternalModule;
+import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.MultiProjectAssembler;
+import build.jenesis.project.ProjectModuleDescriptor;
 
 /**
- * Showcase for {@code ExternalModule}: resolve a build module from a repository
- * coordinate, download it, and run it - the plugin is consumed as a published
- * artifact rather than compiled from local source.
+ * The {@code ExternalModule} counterpart of the {@code ../internal-module} demo.
+ * It does exactly the same thing - wraps the stock {@code JavaMultiProjectAssembler}
+ * so a build module preprocesses the project's sources (a {@code ${greeting}}
+ * substitution driven by the {@code org.json} dependency) before the regular
+ * flow - but the build module is consumed as a published artifact rather than
+ * compiled from local source.
+ *
+ * To stand in for that published artifact, {@code main} first stages the build
+ * module: it compiles and jars {@code plugin/} into a nested {@code target/}
+ * folder (separate from this build's own {@code target/}) without running it,
+ * then serves the resulting jar under a custom coordinate. The custom
+ * {@code Project} wires that coordinate as an {@code ExternalModule}.
  *
  * Run from this directory with:
  *
@@ -19,63 +36,70 @@ import build.jenesis.project.ExternalModule;
 public class Demo {
 
     static void main(String[] args) throws Exception {
-        Path jenesisSources = Path.of("build", "jenesis").toRealPath().getParent().getParent();
+        // Stage the build module: compile and jar plugin/ with InternalModule
+        // into a nested target folder. Selecting the jar step stops before the
+        // module would run, so staging only produces its artifact.
+        Path stagingTarget = Path.of("target", "internal");
+        Files.createDirectories(stagingTarget.getParent());
+        BuildExecutor staging = BuildExecutor.of(stagingTarget);
+        staging.addModule("plugin", new InternalModule("module", "tool", Path.of("plugin")));
+        staging.execute("plugin/java/artifacts");
+        Path pluginJar;
+        try (Stream<Path> walk = Files.walk(stagingTarget)) {
+            pluginJar = walk
+                    .filter(path -> path.toString().contains("java/artifacts") && path.toString().endsWith(".jar"))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Staging did not produce a plugin jar"));
+        }
 
-        // Pre-build the two module jars the demo serves "from a repository":
-        //  - build.jenesis (the plugin's dependency)
-        //  - demo.external.plugin (the published build module itself)
-        Path jenesisJar = buildModuleJar("build.jenesis", List.of(jenesisSources), List.of());
-        Path pluginJar = buildModuleJar("demo.external.plugin", List.of(Path.of("plugin-src")), List.of(jenesisJar));
-
-        // A module repository resolving each module name to its jar. This stands
-        // in for a real Jenesis/Maven module repository.
-        Map<String, Path> published = Map.of(
-                "demo.external.plugin", pluginJar,
-                "build.jenesis", jenesisJar);
-        Repository repository = (executor, coordinate) -> {
+        // Serve the staged jar under the custom coordinate demo.plugin, ahead of
+        // the default Jenesis repository that resolves its build.jenesis and
+        // org.json dependencies.
+        Repository local = (executor, coordinate) -> {
             int slash = coordinate.indexOf('/');
             String module = slash < 0 ? coordinate : coordinate.substring(0, slash);
-            Path jar = published.get(module);
-            return jar == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(jar));
+            return module.equals("demo.plugin")
+                    ? Optional.of(RepositoryItem.ofFile(pluginJar))
+                    : Optional.empty();
         };
+        Repository repository = new JenesisModuleRepository(true).prepend(local);
 
-        BuildExecutor root = BuildExecutor.of(Path.of("target"));
-        root.addModule("plugin", new ExternalModule(
-                "module/demo.external.plugin",              // the coordinate to resolve
-                "tool",                                     // qualifier: an independent trail
-                Map.of("module", repository),
-                Map.of("module", new ModularJarResolver(true))));
-
-        SequencedMap<String, Path> steps = root.execute();
-        Path stamp = steps.get("plugin/stamp").resolve("stamp.txt");
-        System.out.println();
-        System.out.println("ExternalModule resolved and ran the plugin. It produced:");
-        System.out.println("  " + Files.readString(stamp));
+        new Project()
+                .assembler(new PreprocessingAssembler(
+                        new JavaMultiProjectAssembler(),
+                        Map.of("module", repository),
+                        Map.of("module", new ModularJarResolver(true))))
+                .resolveProperties()
+                .build(args);
     }
 
-    private static Path buildModuleJar(String moduleName, List<Path> sourceRoots, List<Path> modulePath) throws Exception {
-        Path classes = Files.createTempDirectory(moduleName + "-classes");
-        List<String> javac = new ArrayList<>(List.of("--release", "25", "-d", classes.toString()));
-        if (!modulePath.isEmpty()) {
-            javac.add("--module-path");
-            javac.add(modulePath.stream().map(Path::toString).collect(Collectors.joining(File.pathSeparator)));
+    private record PreprocessingAssembler(
+            MultiProjectAssembler<? super ProjectModuleDescriptor> delegate,
+            Map<String, Repository> pluginRepositories,
+            Map<String, Resolver> pluginResolvers)
+            implements MultiProjectAssembler<ProjectModuleDescriptor> {
+
+        @Override
+        public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
+                                         Map<String, Repository> repositories,
+                                         Map<String, Resolver> resolvers) {
+            // Resolve the build module from its coordinate with ExternalModule and
+            // let the stock assembler wire the regular flow against its output.
+            // ExternalModule does not compile the plugin (it is pre-staged), so
+            // the project sources are simply forwarded to the plugin's runtime;
+            // the substituted copy it emits stands in for them downstream.
+            SequencedSet<String> original = descriptor.sources();
+            ProjectModuleDescriptor redirected = descriptor.withSources("preprocess/substitute");
+            BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
+            return (sub, inherited) -> {
+                ExternalModule preprocess = new ExternalModule(
+                        "module/demo.plugin",               // the coordinate to resolve
+                        "tool",                             // qualifier: an independent trail
+                        pluginRepositories,
+                        pluginResolvers);
+                sub.addModule("preprocess", preprocess, original.stream());
+                inner.accept(sub, inherited);
+            };
         }
-        for (Path sourceRoot : sourceRoots) {
-            try (Stream<Path> walk = Files.walk(sourceRoot)) {
-                walk.filter(path -> path.toString().endsWith(".java")).forEach(path -> javac.add(path.toString()));
-            }
-        }
-        int compiled = ToolProvider.findFirst("javac").orElseThrow()
-                .run(System.out, System.err, javac.toArray(String[]::new));
-        if (compiled != 0) {
-            throw new IllegalStateException("Failed to compile " + moduleName + ": " + compiled);
-        }
-        Path jar = Files.createTempFile(moduleName, ".jar");
-        int archived = ToolProvider.findFirst("jar").orElseThrow()
-                .run(System.out, System.err, "--create", "--file", jar.toString(), "-C", classes.toString(), ".");
-        if (archived != 0) {
-            throw new IllegalStateException("Failed to archive " + moduleName + ": " + archived);
-        }
-        return jar;
     }
 }
