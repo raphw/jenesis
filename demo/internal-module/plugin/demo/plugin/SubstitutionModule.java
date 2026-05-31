@@ -1,24 +1,9 @@
 package demo.plugin;
 
-import build.jenesis.BuildExecutor;
-import build.jenesis.BuildExecutorModule;
-import build.jenesis.BuildStep;
-import build.jenesis.BuildStepArgument;
-import build.jenesis.BuildStepContext;
-import build.jenesis.BuildStepResult;
+import module java.base;
+import module build.jenesis;
 
 import org.json.JSONObject;
-
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.SequencedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
 
 /**
  * A build module that Jenesis loads as a plugin with {@code InternalModule}. It
