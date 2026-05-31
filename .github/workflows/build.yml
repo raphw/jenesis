@@ -6,12 +6,24 @@ on:
   pull_request:
 
 jobs:
-  manual:
+  demos:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        build: [Manual, Maven, Minimal, Modular, ModularToMaven, Modules]
+        # internal-module and external-module are omitted until the next
+        # build.jenesis release: they load a build module through the
+        # class-loader bridge, which currently rejects the overlay's older
+        # build.jenesis against the local sources.
+        demo:
+          - { dir: java-pom, entry: build/jenesis/Project.java }
+          - { dir: java-modular, entry: build/jenesis/Project.java }
+          - { dir: java-pom-multi, entry: build/jenesis/Project.java }
+          - { dir: kotlin, entry: build/jenesis/Project.java }
+          - { dir: scala, entry: build/jenesis/Project.java }
+          - { dir: groovy, entry: build/jenesis/Project.java }
+          - { dir: custom-assembler, entry: build/Demo.java }
+          - { dir: custom-build, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -22,16 +34,17 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: ${{ matrix.build }}.java
+      - name: Demo ${{ matrix.demo.dir }}
         shell: bash
-        run: java build/${{ matrix.build }}.java
+        working-directory: demo/${{ matrix.demo.dir }}
+        run: java ${{ matrix.demo.entry }}
 
       - name: Upload target on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: target-manual-${{ matrix.os }}-${{ matrix.build }}
-          path: target/
+          name: target-demo-${{ matrix.os }}-${{ matrix.demo.dir }}
+          path: demo/${{ matrix.demo.dir }}/target/
           retention-days: 3
           if-no-files-found: ignore
 

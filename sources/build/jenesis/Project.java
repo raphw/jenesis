@@ -417,10 +417,9 @@ public record Project(
                     staged:
 
                       maven             pom.xml per module; emits a classic jar
-                                        plus pom.xml. Mirrors `build/Maven.java`.
+                                        plus pom.xml.
                       modular           module-info.java per module; emits a
-                                        modular jar, no pom.xml. Mirrors
-                                        `build/Modular.java`.
+                                        modular jar, no pom.xml.
                       modular_to_maven  Both module-info.java and pom.xml; emits
                                         modular jars laid out in a Maven repo.
 
@@ -671,10 +670,8 @@ public record Project(
                       Releases (changelog, downloads, the matching git tag for
                       each published version)
                         https://github.com/raphw/jenesis/releases
-                      Example build configurations bundled in the repo
-                        build/Maven.java, build/Modular.java,
-                        build/ModularToMaven.java, build/Manual.java,
-                        build/Minimal.java
+                      Worked examples covering each layout and the build API
+                        the demos under demo/ (see demo/README.md)
 
                     When stuck, read the source: every public type lives under
                     `sources/build/jenesis/` and is small enough to read
