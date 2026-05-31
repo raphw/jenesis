@@ -9,28 +9,28 @@ public abstract class Java extends JdkProcessBuildStep {
 
     private static final String MODULE_PATH = "--module-path", CLASS_PATH = "--class-path";
 
-    protected final ModulePathPredicate isModular;
+    protected final ModulePathPredicate modulePath;
     protected final boolean jarsOnly;
 
     protected Java() {
-        this(_ -> false, true);
+        this(ModulePathPredicate.CLASS_PATH, true);
     }
 
-    protected Java(ModulePathPredicate isModular, boolean jarsOnly) {
+    protected Java(ModulePathPredicate modulePath, boolean jarsOnly) {
         super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        this.isModular = isModular;
+        this.modulePath = modulePath;
         this.jarsOnly = jarsOnly;
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, _ -> false, true);
+        this(factory, ModulePathPredicate.CLASS_PATH, true);
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory,
-                   ModulePathPredicate isModular,
+                   ModulePathPredicate modulePath,
                    boolean jarsOnly) {
         super("java", factory);
-        this.isModular = isModular;
+        this.modulePath = modulePath;
         this.jarsOnly = jarsOnly;
     }
 
@@ -43,7 +43,7 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(List<String> commands) {
-        return of(_ -> false, true, commands);
+        return of(ModulePathPredicate.CLASS_PATH, true, commands);
     }
 
     public static Java of(ModulePathPredicate isModular, boolean jarsOnly, List<String> commands) {
@@ -69,7 +69,7 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, List<String> commands) {
-        return of(factory, _ -> false, true, commands);
+        return of(factory, ModulePathPredicate.CLASS_PATH, true, commands);
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
@@ -104,7 +104,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
                     if (Files.isDirectory(candidate)) {
-                        (isModular.test(candidate) ? modulePath : classPath).add(candidate.toString());
+                        (this.modulePath.test(candidate) ? modulePath : classPath).add(candidate.toString());
                     }
                 }
             }
@@ -114,7 +114,7 @@ public abstract class Java extends JdkProcessBuildStep {
                     Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                            (isModular.test(file) ? modulePath : classPath).add(file.toString());
+                            (Java.this.modulePath.test(file) ? modulePath : classPath).add(file.toString());
                             return FileVisitResult.CONTINUE;
                         }
                     });
@@ -146,6 +146,13 @@ public abstract class Java extends JdkProcessBuildStep {
                 prefixes.add(paths.getKey());
                 prefixes.add(String.join(File.pathSeparator, paths.getValue()));
             }
+        }
+        // An INFERRED split leaves plain jars on the class path that are only reachable
+        // through the automatic modules on the module path; root the whole module path so
+        // those automatics are resolved and can bridge to the unnamed module.
+        if (this.modulePath == ModulePathPredicate.INFERRED && !modulePath.isEmpty()) {
+            prefixes.add("--add-modules");
+            prefixes.add("ALL-MODULE-PATH");
         }
         return commands(executor, context, arguments).thenApplyAsync(commands -> Stream.concat(
                 prefixes.stream(),

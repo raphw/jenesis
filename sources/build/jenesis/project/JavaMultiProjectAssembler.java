@@ -28,7 +28,9 @@ public record JavaMultiProjectAssembler(boolean process,
         return (sub, outerInherited) -> {
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
             sub.addModule("java", new JavaToolchainModule(
-                    new InferredCompilerChainModule(repositories, resolvers, process).strictPinning(descriptor.strictPinning()),
+                    new InferredCompilerChainModule(repositories, resolvers, process)
+                            .strictPinning(descriptor.strictPinning())
+                            .modulePath(descriptor.modulePath()),
                     (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
                     Stream.concat(
                             Stream.of("prepare"),
@@ -46,8 +48,9 @@ public record JavaMultiProjectAssembler(boolean process,
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
                         sub.addModule("test", new TestModule(repositories, resolvers, filter)
-                                        .modular(Boolean.parseBoolean(properties.getProperty("modular", "false")))
-                                        .strictPinning(descriptor.strictPinning()),
+                                        .strictPinning(descriptor.strictPinning())
+                                        .modulePath(descriptor.modulePath())
+                                        .moduleName(properties.getProperty("module")),
                                 Stream.concat(Stream.of("java", "prepare"), inputs(descriptor)));
                     }
                 }

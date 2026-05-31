@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.ModulePathPredicate;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -23,29 +24,36 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final boolean process;
     private final boolean strictPinning;
+    private final ModulePathPredicate modulePath;
 
     public InferredCompilerChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, false);
+        this(repositories, resolvers, false, false, ModulePathPredicate.INFERRED);
     }
 
     public InferredCompilerChainModule(Map<String, Repository> repositories,
                                        Map<String, Resolver> resolvers,
                                        boolean process) {
-        this(repositories, resolvers, process, false);
+        this(repositories, resolvers, process, false, ModulePathPredicate.INFERRED);
     }
 
     private InferredCompilerChainModule(Map<String, Repository> repositories,
                                         Map<String, Resolver> resolvers,
                                         boolean process,
-                                        boolean strictPinning) {
+                                        boolean strictPinning,
+                                        ModulePathPredicate modulePath) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.process = process;
         this.strictPinning = strictPinning;
+        this.modulePath = modulePath;
     }
 
     public InferredCompilerChainModule strictPinning(boolean strictPinning) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning);
+        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
+    }
+
+    public InferredCompilerChainModule modulePath(ModulePathPredicate modulePath) {
+        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
     }
 
     @Override
@@ -54,7 +62,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         SequencedSet<String> compileInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
         compileInputs.add(SCAN);
         buildExecutor.addModule(COMPILE,
-                new Compile(repositories, resolvers, process, strictPinning),
+                new Compile(repositories, resolvers, process, strictPinning, modulePath),
                 compileInputs);
     }
 
@@ -114,7 +122,8 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private record Compile(Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            boolean process,
-                           boolean strictPinning) implements BuildExecutorModule {
+                           boolean strictPinning,
+                           ModulePathPredicate modulePath) implements BuildExecutorModule {
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
@@ -135,7 +144,9 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
             if (hasJava) {
                 buildExecutor.addStep(JAVA,
-                        (process ? Javac.process() : Javac.tool()).includeResources(!hasKotlin && !hasScala && !hasGroovy),
+                        (process ? Javac.process() : Javac.tool())
+                                .includeResources(!hasKotlin && !hasScala && !hasGroovy)
+                                .modulePath(modulePath),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(sourceInputs);
                 updated.add(JAVA);

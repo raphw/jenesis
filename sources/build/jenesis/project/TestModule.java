@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.ModulePathPredicate;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -26,17 +27,18 @@ public class TestModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final boolean jarsOnly;
-    private final boolean modular;
     private final boolean requireEngine;
     private final boolean strictPinning;
     private final String filter;
+    private final ModulePathPredicate modulePath;
+    private final String moduleName;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         this(repositories, resolvers, null);
     }
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, false, true, false, filter);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, false, filter, ModulePathPredicate.CLASS_PATH, null);
     }
 
     public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -47,7 +49,7 @@ public class TestModule implements BuildExecutorModule {
                       Map<String, Repository> repositories,
                       Map<String, Resolver> resolvers,
                       String filter) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, false, true, false, filter);
+        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, false, filter, ModulePathPredicate.CLASS_PATH, null);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
@@ -62,7 +64,7 @@ public class TestModule implements BuildExecutorModule {
                                                                    Map<String, Repository> repositories,
                                                                    Map<String, Resolver> resolvers,
                                                                    String filter) {
-        this(engine, isTest, null, repositories, resolvers, true, false, true, false, filter);
+        this(engine, isTest, null, repositories, resolvers, true, true, false, filter, ModulePathPredicate.CLASS_PATH, null);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule(
@@ -81,7 +83,7 @@ public class TestModule implements BuildExecutorModule {
             Map<String, Repository> repositories,
             Map<String, Resolver> resolvers,
             String filter) {
-        this(engine, isTest, factory, repositories, resolvers, true, false, true, false, filter);
+        this(engine, isTest, factory, repositories, resolvers, true, true, false, filter, ModulePathPredicate.CLASS_PATH, null);
     }
 
     private TestModule(TestEngine engine,
@@ -90,20 +92,22 @@ public class TestModule implements BuildExecutorModule {
                        Map<String, Repository> repositories,
                        Map<String, Resolver> resolvers,
                        boolean jarsOnly,
-                       boolean modular,
                        boolean requireEngine,
                        boolean strictPinning,
-                       String filter) {
+                       String filter,
+                       ModulePathPredicate modulePath,
+                       String moduleName) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.jarsOnly = jarsOnly;
-        this.modular = modular;
         this.requireEngine = requireEngine;
         this.strictPinning = strictPinning;
         this.filter = filter;
+        this.modulePath = modulePath;
+        this.moduleName = moduleName;
     }
 
     private static Predicate<String> defaultIsTest() {
@@ -115,19 +119,23 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
-    }
-
-    public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
     }
 
     public TestModule strictPinning(boolean strictPinning) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular, requireEngine, strictPinning, filter);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule modulePath(ModulePathPredicate modulePath) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule moduleName(String moduleName) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
     }
 
     @Override
@@ -152,8 +160,8 @@ public class TestModule implements BuildExecutorModule {
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning), REQUIRED);
         Run run = factory == null
-                ? new Run(resolved, isTest, jarsOnly, modular, filter)
-                : new Run(factory, resolved, isTest, jarsOnly, modular, filter);
+                ? new Run(resolved, isTest, jarsOnly, modulePath, moduleName, filter)
+                : new Run(factory, resolved, isTest, jarsOnly, modulePath, moduleName, filter);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
@@ -223,14 +231,19 @@ public class TestModule implements BuildExecutorModule {
 
         private final TestEngine engine;
         private final Predicate<String> isTest;
-        private final boolean modular;
+        private final String moduleName;
         private final String filter;
 
-        private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular, String filter) {
-            super(_ -> modular, jarsOnly);
+        private Run(TestEngine engine,
+                    Predicate<String> isTest,
+                    boolean jarsOnly,
+                    ModulePathPredicate modulePath,
+                    String moduleName,
+                    String filter) {
+            super(modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
-            this.modular = modular;
+            this.moduleName = moduleName;
             this.filter = filter;
         }
 
@@ -238,12 +251,13 @@ public class TestModule implements BuildExecutorModule {
                     TestEngine engine,
                     Predicate<String> isTest,
                     boolean jarsOnly,
-                    boolean modular,
+                    ModulePathPredicate modulePath,
+                    String moduleName,
                     String filter) {
-            super(factory, _ -> modular, jarsOnly);
+            super(factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
-            this.modular = modular;
+            this.moduleName = moduleName;
             this.filter = filter;
         }
 
@@ -266,9 +280,11 @@ public class TestModule implements BuildExecutorModule {
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
             }
-            if (modular && resolved.module() != null) {
-                commands.add("--add-modules");
-                commands.add("ALL-MODULE-PATH");
+            if (modulePath.modular() && resolved.module() != null) {
+                if (modulePath == ModulePathPredicate.MODULE_PATH && moduleName != null) {
+                    commands.add("--add-modules");
+                    commands.add(moduleName);
+                }
                 commands.add("-m");
                 commands.add(resolved.module() + "/" + resolved.mainClass());
             } else {

@@ -3,6 +3,7 @@ package build.jenesis.test.project;
 import module java.base;
 import module java.compiler;
 import module org.junit.jupiter.api;
+import build.jenesis.ModulePathPredicate;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
@@ -106,7 +107,7 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(ModulePathPredicate.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -157,7 +158,7 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(ModulePathPredicate.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -216,7 +217,7 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modular(false),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(ModulePathPredicate.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 

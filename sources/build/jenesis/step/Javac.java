@@ -170,6 +170,7 @@ public class Javac extends JdkProcessBuildStep {
             return CompletableFuture.completedStage(null);
         }
         boolean module = files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
+        ModulePathPredicate modulePathPredicate = this.modulePathPredicate.requiresModules(module);
         if (!path.isEmpty()) {
             for (String entry : path) {
                 if (entry.indexOf(File.pathSeparatorChar) != -1) {
@@ -178,12 +179,8 @@ public class Javac extends JdkProcessBuildStep {
                 }
             }
             List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
-            if (module) {
-                for (String entry : path) {
-                    (modulePathPredicate.test(Path.of(entry)) ? modulePath : classPath).add(entry);
-                }
-            } else {
-                classPath.addAll(path);
+            for (String entry : path) {
+                (modulePathPredicate.test(Path.of(entry)) ? modulePath : classPath).add(entry);
             }
             StringBuilder args = new StringBuilder();
             if (!modulePath.isEmpty()) {

@@ -3,6 +3,7 @@ package build.jenesis.test.project;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
+import build.jenesis.ModulePathPredicate;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
@@ -154,7 +155,7 @@ public class JavaMultiProjectAssemblerTest {
                 return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts"));
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false, ModulePathPredicate.INFERRED);
         BuildExecutorModule assembled = new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,

@@ -82,7 +82,8 @@ public record Project(
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
-                                                project.strictPinning()),
+                                                project.strictPinning(),
+                                                ModulePathPredicate.CLASS_PATH),
                                         mergedRepos, mergedResolvers)),
                         mavenDeps);
             }, METADATA);
@@ -128,7 +129,8 @@ public record Project(
                                         project.tests(),
                                         project.sources(),
                                         project.documentation(),
-                                        project.strictPinning()),
+                                        project.strictPinning(),
+                                        ModulePathPredicate.MODULE_PATH),
                                 mergedRepos,
                                 mergedResolvers)),
                         modulesDeps);
@@ -182,7 +184,8 @@ public record Project(
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
-                                                project.strictPinning()),
+                                                project.strictPinning(),
+                                                ModulePathPredicate.INFERRED),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, METADATA);
