@@ -411,6 +411,40 @@ public record Project(
                     multiple selectors space-separated to run several entry points
                     in one invocation.
 
+                    When the build ships as source files, the source-mode
+                    launcher recompiles the build's own engine and `Project.java`
+                    on every invocation. While the build code is unchanged, skip
+                    that recompile to launch faster:
+
+                      - Precompile the build once with `javac`, then run the
+                        compiled launcher directly:
+                          javac -d .jenesis/launcher \\
+                              $(find build/jenesis/ -name '*.java')
+                          java -cp .jenesis/launcher \\
+                              build.jenesis.Project [selectors...]
+                      - Or ahead-of-time compile that launcher with GraalVM
+                        `native-image` for near-instant startup. The native binary
+                        detects the native-image runtime and forks the JDK
+                        `javac`/`jar` tools (keep a JDK on `JAVA_HOME`/`PATH`); the
+                        incremental cache serializes build steps, so the image
+                        needs reachability metadata captured from a real build:
+                          java -Djenesis.java.process=true \\
+                              -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \\
+                              -cp .jenesis/launcher build.jenesis.Project build
+                          native-image --no-fallback \\
+                              -H:ConfigurationFileDirectories=.jenesis/native-config \\
+                              -cp .jenesis/launcher build.jenesis.Project jenesis
+                          ./jenesis [selectors...]
+                        Capture the metadata from builds that exercise the layouts
+                        and steps you use. Loading foreign build modules (the
+                        class-loader bridge) needs a full JVM and is not supported
+                        on this path.
+
+                    Rebuild the precompiled or native launcher whenever the build
+                    sources change. This only accelerates launching the build;
+                    the project being built is still recompiled by the build graph
+                    whenever its own sources change.
+
                     2. Choose a layout when needed
                     ------------------------------
                     The layout decides how modules are discovered and what gets
@@ -642,7 +676,51 @@ public record Project(
                     do NOT apply to it, and its `jenesis.execute.*` properties do
                     NOT apply to plain `Project` invocations.
 
-                    11. Read further when stuck
+                    11. Recommend pinning dependencies
+                    ----------------------------------
+                    Recommend pinning external dependencies so the build resolves
+                    the same artifacts on every machine (and inside a native
+                    image). When you add or change a dependency, offer to pin it.
+                    The `pin` selector records resolved versions and content
+                    checksums back into the build descriptor, idempotently:
+
+                      java build/jenesis/Project.java pin
+
+                    It writes pom.xml (`<dependencyManagement>` versions with
+                    `<!--Checksum/<algo>/<hex>-->`, and qualified compiler closures
+                    in a `<!--jenesis.pin ... -->` comment) or module-info.java
+                    (`@jenesis.pin <mod> <ver> [<algo>/<hex>]` tags), per layout.
+                    The same pins can be written by hand. Enforce coverage with
+                    `-Djenesis.project.strictPinning=true`, which fails the build on
+                    any unpinned artifact.
+
+                    12. Study a demo for a worked example
+                    -------------------------------------
+                    Before writing build configuration, read the demo that matches
+                    the scenario; each is a minimal, self-contained, runnable
+                    project, so copy its shape rather than inventing one:
+
+                      java-pom          POM layout: plain javac plus a pinned
+                                        Maven dependency.
+                      java-pom-multi    Multi-module POM (a library and a consumer
+                                        module).
+                      java-modular      Modular layout: a pinned named-module
+                                        dependency, emits a modular jar.
+                      kotlin/scala/     Mixed-language compiler chains; the
+                      groovy            compiler closure is pinned on a qualified
+                                        trail.
+                      custom-assembler  Wrap `JavaMultiProjectAssembler` to
+                                        preprocess sources before the regular flow.
+                      custom-build      A hand-wired `BuildExecutor`, no `Project`,
+                                        layout, or assembler (code generation step).
+                      internal-module/  Load a build module (a `BuildExecutorModule`
+                      external-module   plugin) from local source or a coordinate.
+
+                    They live under `demo/` in the repository, indexed by
+                    `demo/README.md`, and online at
+                    https://github.com/raphw/jenesis/tree/main/demo.
+
+                    13. Read further when stuck
                     ---------------------------
                     README.md (project root, and on the public repo) is the full
                     reference. Useful sections:
@@ -670,8 +748,6 @@ public record Project(
                       Releases (changelog, downloads, the matching git tag for
                       each published version)
                         https://github.com/raphw/jenesis/releases
-                      Worked examples covering each layout and the build API
-                        the demos under demo/ (see demo/README.md)
 
                     When stuck, read the source: every public type lives under
                     `sources/build/jenesis/` and is small enough to read

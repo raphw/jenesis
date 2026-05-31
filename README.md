@@ -181,6 +181,47 @@ default), reusing cached outputs whose inputs have not changed. The full primiti
 and the demos under `demo/` (each a self-contained project with its own `build/` launcher) are progressively
 richer working starting points.
 
+### Faster launch: precompiling and native images
+
+When the build ships as source files and is launched with `java build/jenesis/Project.java`, Java recompiles
+the build's own engine and `Project.java` on every invocation. While the build code is unchanged you can skip
+that recompile. Precompile once with `javac` and run from the classes:
+
+    javac -d .jenesis/launcher \
+        $(find build/jenesis/ -name '*.java')
+    java -cp .jenesis/launcher build.jenesis.Project [selectors...]
+
+Or ahead-of-time compile that launcher with GraalVM `native-image` for near-instant startup. Two things
+matter for the native build:
+
+- A native image has no in-process JDK tools, so Jenesis detects the native-image runtime (via the
+  `org.graalvm.nativeimage.imagecode` system property) and defaults `jenesis.java.process` to `true`, forking
+  the JDK `javac`/`jar` instead. Keep a JDK on `JAVA_HOME`/`PATH` at runtime.
+- The incremental cache serializes every `BuildStep` to key it, so that a changed step configuration (for
+  example the `jenesis.java.test` filter) invalidates that step. That serialization needs native-image
+  reachability metadata, which is captured from a real build with the native-image agent.
+
+Putting it together (after the `javac` precompile above):
+
+    # capture metadata from a representative build (process mode, so the forked-tool steps are recorded)
+    java -Djenesis.java.process=true \
+        -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \
+        -cp .jenesis/launcher build.jenesis.Project build
+
+    # build the native launcher with that metadata
+    native-image --no-fallback \
+        -H:ConfigurationFileDirectories=.jenesis/native-config \
+        -cp .jenesis/launcher build.jenesis.Project jenesis
+
+    # run it; process mode is auto-detected, no flags needed
+    ./jenesis [selectors...]
+
+Capture the metadata from builds that exercise every layout and step you use, custom steps included, since it
+only covers what the agent run reached. Loading foreign build modules (`InternalModule` / `ExternalModule`,
+which bridge classes across class loaders) needs a full JVM and is not supported in a native image. Rebuild
+the precompiled or native launcher whenever the build sources change; this only accelerates launching the
+build, while the project being built is still recompiled by the build graph when its own sources change.
+
 ### Selectors
 
 `Project.main(args)` and `Project.build(args)` accept selector strings as positional arguments. The canonical

@@ -17,7 +17,8 @@ public record JavaMultiProjectAssembler(boolean process,
                                         String filter) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(Boolean.getBoolean("jenesis.java.process"), System.getProperty("jenesis.java.test"));
+        boolean isNativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
+        this(isNativeImage || Boolean.getBoolean("jenesis.java.process"), System.getProperty("jenesis.java.test"));
     }
 
     @Override
