@@ -242,11 +242,14 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `apply(D descriptor, Map<String, Repository> repositories, Map<String, Resolver> resolvers)` receives the
   per-module descriptor *and* the per-module merged repositories/resolvers (the layout-level maps with each
   sibling sub-module's `assign` URI prepended, so a coordinate resolved locally never falls back to the global
-  repository). `Project` parameterises this over `ProjectModuleDescriptor`, a record that wraps the layout's
-  base descriptor (`MavenProject.MavenModuleDescriptor` or `ModularProject.ModularModuleDescriptor`) and adds
-  the project-level flags `test`, `source`, `documentation`. The default assembler `JavaMultiProjectAssembler` is
+  repository). `Project` parameterises this over `ProjectModuleDescriptor`, an immutable class that captures the
+  layout's base descriptor (`MavenProject.MavenModuleDescriptor` or `ModularProject.ModularModuleDescriptor`) and adds
+  the project-level flags `test`, `source`, `documentation`; it exposes a wither per property (`withSources(...)`,
+  `withArtifacts(scope, ...)`, `withTest(...)`, and so on, each with a `String...` overload) so a wrapping assembler
+  can customise any input without reimplementing the descriptor. The default assembler `JavaMultiProjectAssembler` is
   stateless and reads those flags off the descriptor it receives - no `Context` object: a `prepare` step plus a
-  `JavaToolchainModule` is wired against the six descriptor paths and the module's resources, and when `descriptor.test()`
+  `JavaToolchainModule` is wired against the descriptor's reference-key sets (`sources`, `manifests`, and the
+  compile/runtime `resolved` and `artifacts` keys) and the module's resources, and when `descriptor.test()`
   is set and the module's `module.properties` flags it as a test variant a `TestModule` sub-module is wired
   alongside the `JavaToolchainModule`, with optional `sources` and `javadoc` steps appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
   user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded with project-wide
@@ -789,9 +792,10 @@ flowchart LR
 Used as the generic shape behind multi-project layouts. An *identifier* sub-module discovers the projects in a
 source tree and writes their coordinates and dependencies; a `Group` step partitions the cross-project
 dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
-between them. Each per-project closure receives a `ModuleDescriptor` exposing `name()` and `dependencies()`; the
+between them. Each per-project closure receives a `ModuleDescriptor` exposing the module `name()` and its `dependencies()`; the
 concrete subtype (`ModularModuleDescriptor` or `MavenModuleDescriptor`) also exposes the standardised inherited
-keys as helpers (`sources()`, `manifests()`, `coordinates()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`), so a closure doesn't need to know how
+keys as helpers (`sources()`, `manifests()`, `coordinates()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`),
+each a `SequencedSet<String>` so a descriptor may contribute several folders per kind, so a closure doesn't need to know how
 the identifier laid out its outputs. The example below shows two projects `A` and `B` where `A` requires `B`,
 so `B` is built first and its output flows into `A`.
 

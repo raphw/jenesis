@@ -46,19 +46,25 @@ public class ProjectModuleDescriptorTest {
         assertThat(inherited.test()).isTrue();
         assertThat(inherited.source()).isTrue();
         assertThat(inherited.documentation()).isTrue();
-        assertThat(inherited.sources()).isEqualTo("../" + base.sources());
-        assertThat(inherited.resources()).isEqualTo(base.resources().stream()
-                .map(r -> "../" + r)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
-        assertThat(inherited.manifests()).isEqualTo("../" + base.manifests());
-        assertThat(inherited.artifacts(DependencyScope.COMPILE)).isEqualTo("../" + base.artifacts(DependencyScope.COMPILE));
-        assertThat(inherited.artifacts(DependencyScope.RUNTIME)).isEqualTo("../" + base.artifacts(DependencyScope.RUNTIME));
-        assertThat(inherited.resolved(DependencyScope.COMPILE)).isEqualTo("../" + base.resolved(DependencyScope.COMPILE));
-        assertThat(inherited.resolved(DependencyScope.RUNTIME)).isEqualTo("../" + base.resolved(DependencyScope.RUNTIME));
+        assertThat(inherited.sources()).isEqualTo(prefixed(base.sources(), "../"));
+        assertThat(inherited.resources()).isEqualTo(prefixed(base.resources(), "../"));
+        assertThat(inherited.manifests()).isEqualTo(prefixed(base.manifests(), "../"));
+        assertThat(inherited.artifacts(DependencyScope.COMPILE)).isEqualTo(prefixed(base.artifacts(DependencyScope.COMPILE), "../"));
+        assertThat(inherited.artifacts(DependencyScope.RUNTIME)).isEqualTo(prefixed(base.artifacts(DependencyScope.RUNTIME), "../"));
+        assertThat(inherited.resolved(DependencyScope.COMPILE)).isEqualTo(prefixed(base.resolved(DependencyScope.COMPILE), "../"));
+        assertThat(inherited.resolved(DependencyScope.RUNTIME)).isEqualTo(prefixed(base.resolved(DependencyScope.RUNTIME), "../"));
         ProjectModuleDescriptor twice = inherited.toInherited();
-        assertThat(twice.sources()).isEqualTo("../../" + base.sources());
-        assertThat(twice.manifests()).isEqualTo("../../" + base.manifests());
-        assertThat(twice.artifacts(DependencyScope.COMPILE)).isEqualTo("../../" + base.artifacts(DependencyScope.COMPILE));
-        assertThat(twice.resolved(DependencyScope.RUNTIME)).isEqualTo("../../" + base.resolved(DependencyScope.RUNTIME));
+        assertThat(twice.sources()).isEqualTo(prefixed(base.sources(), "../../"));
+        assertThat(twice.manifests()).isEqualTo(prefixed(base.manifests(), "../../"));
+        assertThat(twice.artifacts(DependencyScope.COMPILE)).isEqualTo(prefixed(base.artifacts(DependencyScope.COMPILE), "../../"));
+        assertThat(twice.resolved(DependencyScope.RUNTIME)).isEqualTo(prefixed(base.resolved(DependencyScope.RUNTIME), "../../"));
+    }
+
+    private static SequencedSet<String> prefixed(SequencedSet<String> values, String prefix) {
+        LinkedHashSet<String> prefixed = new LinkedHashSet<>();
+        for (String value : values) {
+            prefixed.add(prefix + value);
+        }
+        return prefixed;
     }
 }

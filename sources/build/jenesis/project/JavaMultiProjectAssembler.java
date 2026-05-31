@@ -30,31 +30,24 @@ public record JavaMultiProjectAssembler(boolean process,
                     new InferredCompilerChainModule(repositories, resolvers, process).strictPinning(descriptor.strictPinning()),
                     (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
                     Stream.concat(
-                            Stream.of(
-                                    "prepare",
-                                    descriptor.sources(),
-                                    descriptor.manifests(),
-                                    descriptor.resolved(DependencyScope.COMPILE),
-                                    descriptor.resolved(DependencyScope.RUNTIME),
-                                    descriptor.artifacts(DependencyScope.COMPILE),
-                                    descriptor.artifacts(DependencyScope.RUNTIME)),
-                            descriptor.resources().stream()));
+                            Stream.of("prepare"),
+                            Stream.concat(inputs(descriptor), descriptor.resources().stream())));
             if (descriptor.test()) {
-                Path module = outerInherited.get(descriptor.manifests()).resolve(BuildStep.MODULE);
-                if (Files.isRegularFile(module)) {
+                Path module = null;
+                for (String manifest : descriptor.manifests()) {
+                    Path candidate = outerInherited.get(manifest);
+                    if (candidate != null && Files.isRegularFile(candidate.resolve(BuildStep.MODULE))) {
+                        module = candidate.resolve(BuildStep.MODULE);
+                        break;
+                    }
+                }
+                if (module != null) {
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
                         sub.addModule("test", new TestModule(repositories, resolvers, filter)
                                         .modular(Boolean.parseBoolean(properties.getProperty("modular", "false")))
                                         .strictPinning(descriptor.strictPinning()),
-                                "java",
-                                "prepare",
-                                descriptor.sources(),
-                                descriptor.manifests(),
-                                descriptor.resolved(DependencyScope.COMPILE),
-                                descriptor.resolved(DependencyScope.RUNTIME),
-                                descriptor.artifacts(DependencyScope.COMPILE),
-                                descriptor.artifacts(DependencyScope.RUNTIME));
+                                Stream.concat(Stream.of("java", "prepare"), inputs(descriptor)));
                     }
                 }
             }
@@ -66,14 +59,20 @@ public record JavaMultiProjectAssembler(boolean process,
                     module.addStep("classes", process ? Javadoc.process() : Javadoc.tool(), inherited.sequencedKeySet().stream());
                     module.addStep("artifacts", process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC), "classes");
                 },
-                descriptor.sources(),
-                descriptor.manifests(),
-                descriptor.resolved(DependencyScope.COMPILE),
-                descriptor.resolved(DependencyScope.RUNTIME),
-                descriptor.artifacts(DependencyScope.COMPILE),
-                descriptor.artifacts(DependencyScope.RUNTIME));
+                inputs(descriptor));
             }
         };
+    }
+
+    private static Stream<String> inputs(ProjectModuleDescriptor descriptor) {
+        return Stream.of(
+                        descriptor.sources(),
+                        descriptor.manifests(),
+                        descriptor.resolved(DependencyScope.COMPILE),
+                        descriptor.resolved(DependencyScope.RUNTIME),
+                        descriptor.artifacts(DependencyScope.COMPILE),
+                        descriptor.artifacts(DependencyScope.RUNTIME))
+                .flatMap(SequencedSet::stream);
     }
 
     private static class Prepare implements BuildStep {

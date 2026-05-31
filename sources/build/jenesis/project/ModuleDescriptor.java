@@ -8,15 +8,15 @@ public interface ModuleDescriptor {
 
     SequencedSet<String> dependencies();
 
-    String sources();
+    SequencedSet<String> sources();
 
     SequencedSet<String> resources();
 
-    String manifests();
+    SequencedSet<String> manifests();
 
-    String coordinates();
+    SequencedSet<String> coordinates();
 
-    String artifacts(DependencyScope scope);
+    SequencedSet<String> artifacts(DependencyScope scope);
 
-    String resolved(DependencyScope scope);
+    SequencedSet<String> resolved(DependencyScope scope);
 }

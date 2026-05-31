@@ -598,28 +598,32 @@ public class MavenProject implements BuildExecutorModule {
                                         SequencedSet<String> resources) implements ModuleDescriptor {
 
         @Override
-        public String sources() {
-            return BuildExecutorModule.PREVIOUS + SOURCES;
+        public SequencedSet<String> sources() {
+            return of(BuildExecutorModule.PREVIOUS + SOURCES);
         }
 
         @Override
-        public String manifests() {
-            return BuildExecutorModule.PREVIOUS + MANIFESTS;
+        public SequencedSet<String> manifests() {
+            return of(BuildExecutorModule.PREVIOUS + MANIFESTS);
         }
 
         @Override
-        public String coordinates() {
-            return BuildExecutorModule.PREVIOUS + COORDINATES;
+        public SequencedSet<String> coordinates() {
+            return of(BuildExecutorModule.PREVIOUS + COORDINATES);
         }
 
         @Override
-        public String artifacts(DependencyScope scope) {
-            return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+        public SequencedSet<String> artifacts(DependencyScope scope) {
+            return of(BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         }
 
         @Override
-        public String resolved(DependencyScope scope) {
-            return BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
+        public SequencedSet<String> resolved(DependencyScope scope) {
+            return of(BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
+        }
+
+        private static SequencedSet<String> of(String value) {
+            return Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(value)));
         }
     }
 }

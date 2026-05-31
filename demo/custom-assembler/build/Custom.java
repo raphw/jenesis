@@ -9,9 +9,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
-import build.jenesis.project.DependencyScope;
 import build.jenesis.project.JavaMultiProjectAssembler;
-import build.jenesis.project.ModuleDescriptor;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 
@@ -34,56 +32,14 @@ public class Custom {
         public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers) {
-            String original = descriptor.sources();
-            ModuleDescriptor redirected = new ModuleDescriptor() {
-                @Override
-                public String name() {
-                    return descriptor.name();
-                }
-
-                @Override
-                public SequencedSet<String> dependencies() {
-                    return descriptor.dependencies();
-                }
-
-                @Override
-                public String sources() {
-                    return "preprocess";
-                }
-
-                @Override
-                public SequencedSet<String> resources() {
-                    return descriptor.resources();
-                }
-
-                @Override
-                public String manifests() {
-                    return descriptor.manifests();
-                }
-
-                @Override
-                public String coordinates() {
-                    return descriptor.coordinates();
-                }
-
-                @Override
-                public String artifacts(DependencyScope scope) {
-                    return descriptor.artifacts(scope);
-                }
-
-                @Override
-                public String resolved(DependencyScope scope) {
-                    return descriptor.resolved(scope);
-                }
-            };
-            ProjectModuleDescriptor wrapped = new ProjectModuleDescriptor(redirected,
-                    descriptor.test(),
-                    descriptor.source(),
-                    descriptor.documentation(),
-                    descriptor.strictPinning());
-            BuildExecutorModule inner = delegate.apply(wrapped, repositories, resolvers);
+            // Redirect the descriptor's sources to a preprocessing step using
+            // the ProjectModuleDescriptor wither, then let the stock assembler
+            // wire the regular flow against the preprocessed tree.
+            SequencedSet<String> original = descriptor.sources();
+            ProjectModuleDescriptor redirected = descriptor.withSources("preprocess");
+            BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
             return (sub, inherited) -> {
-                sub.addStep("preprocess", new Preprocess(), original);
+                sub.addStep("preprocess", new Preprocess(), original.stream());
                 inner.accept(sub, inherited);
             };
         }

@@ -125,8 +125,8 @@ public class JavaMultiProjectAssemblerTest {
             }
 
             @Override
-            public String sources() {
-                return BuildExecutorModule.PREVIOUS + "sources";
+            public SequencedSet<String> sources() {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "sources"));
             }
 
             @Override
@@ -135,23 +135,23 @@ public class JavaMultiProjectAssemblerTest {
             }
 
             @Override
-            public String manifests() {
-                return BuildExecutorModule.PREVIOUS + "manifests";
+            public SequencedSet<String> manifests() {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "manifests"));
             }
 
             @Override
-            public String coordinates() {
-                return BuildExecutorModule.PREVIOUS + "coordinates";
+            public SequencedSet<String> coordinates() {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "coordinates"));
             }
 
             @Override
-            public String resolved(DependencyScope scope) {
-                return BuildExecutorModule.PREVIOUS + scope.label() + "-resolved";
+            public SequencedSet<String> resolved(DependencyScope scope) {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + scope.label() + "-resolved"));
             }
 
             @Override
-            public String artifacts(DependencyScope scope) {
-                return BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts";
+            public SequencedSet<String> artifacts(DependencyScope scope) {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts"));
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false);
