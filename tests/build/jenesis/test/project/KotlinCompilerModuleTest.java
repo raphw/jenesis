@@ -253,7 +253,7 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
-    public void requires_step_prefers_module_over_maven_when_both_available() throws IOException {
+    public void requires_step_prefers_maven_over_module_when_both_available() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
@@ -270,7 +270,7 @@ public class KotlinCompilerModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .singleElement()
-                .satisfies(name -> assertThat(name).startsWith("module@kotlin/"));
+                .satisfies(name -> assertThat(name).startsWith("maven@kotlin/"));
     }
 
     @Test

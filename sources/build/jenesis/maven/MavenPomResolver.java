@@ -96,11 +96,30 @@ public class MavenPomResolver implements MavenResolver {
             Executor executor,
             MavenRepository repository,
             List<RootPom> rootPoms,
+            List<RootPom> managedPoms,
             MavenDependencyScope scope) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        for (RootPom managedPom : managedPoms) {
+            UnresolvedPom assembled;
+            try (InputStream stream = managedPom.pom()) {
+                assembled = assemble(executor, repository, stream, false, null, null, new HashSet<>(), unresolved);
+            } catch (SAXException | ParserConfigurationException e) {
+                throw new IllegalStateException("Failed to parse provided managed POM", e);
+            }
+            ResolvedPom resolvedManaged = resolve(executor, repository, assembled, unresolved);
+            String groupId = property(assembled.groupId(), assembled.properties());
+            String artifactId = property(assembled.artifactId(), assembled.properties());
+            String version = property(assembled.version(), assembled.properties());
+            DependencyCoordinate coordinate = new DependencyCoordinate(groupId, artifactId, version);
+            unresolved.putIfAbsent(coordinate, assembled);
+            resolved.putIfAbsent(coordinate, resolvedManaged);
+            managedDependencies.putIfAbsent(
+                    new MavenDependencyKey(groupId, artifactId, "jar", null),
+                    new MavenDependencyValue(version, null, null, null, null, managedPom.checksum()));
+        }
         for (RootPom rootPom : rootPoms) {
             UnresolvedPom assembled;
             try (InputStream stream = rootPom.pom()) {
@@ -115,7 +134,6 @@ public class MavenPomResolver implements MavenResolver {
             DependencyCoordinate coordinate = new DependencyCoordinate(groupId, artifactId, version);
             unresolved.putIfAbsent(coordinate, assembled);
             resolved.putIfAbsent(coordinate, resolvedRoot);
-            resolvedRoot.managedDependencies().forEach(managedDependencies::putIfAbsent);
             dependencies.put(
                     new MavenDependencyKey(groupId, artifactId, "jar", null),
                     new MavenDependencyValue(version, scope, null, null, null, rootPom.checksum()));

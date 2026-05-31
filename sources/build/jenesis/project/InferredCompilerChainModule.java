@@ -14,7 +14,7 @@ import build.jenesis.step.Javac;
 
 public class InferredCompilerChainModule implements BuildExecutorModule {
 
-    public static final String JAVA = "java", KOTLIN = "kotlin", SCALA = "scala", RESOURCE = "resource";
+    public static final String JAVA = "java", KOTLIN = "kotlin", SCALA = "scala", GROOVY = "groovy", RESOURCE = "resource";
     public static final String COMPILE = "compile";
     private static final String SCAN = "scan";
     private static final String SCAN_FILE = "scan.properties";
@@ -70,7 +70,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            boolean[] flags = new boolean[4];
+            boolean[] flags = new boolean[5];
             for (BuildStepArgument argument : arguments.values()) {
                 Path sources = argument.folder().resolve(BuildStep.SOURCES);
                 if (!Files.exists(sources)) {
@@ -86,15 +86,17 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                             flags[1] = true;
                         } else if (name.endsWith(".scala")) {
                             flags[2] = true;
-                        } else {
+                        } else if (name.endsWith(".groovy")) {
                             flags[3] = true;
+                        } else {
+                            flags[4] = true;
                         }
-                        return flags[0] && flags[1] && flags[2] && flags[3]
+                        return flags[0] && flags[1] && flags[2] && flags[3] && flags[4]
                                 ? FileVisitResult.TERMINATE
                                 : FileVisitResult.CONTINUE;
                     }
                 });
-                if (flags[0] && flags[1] && flags[2] && flags[3]) {
+                if (flags[0] && flags[1] && flags[2] && flags[3] && flags[4]) {
                     break;
                 }
             }
@@ -102,7 +104,8 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             properties.setProperty(JAVA, Boolean.toString(flags[0]));
             properties.setProperty(KOTLIN, Boolean.toString(flags[1]));
             properties.setProperty(SCALA, Boolean.toString(flags[2]));
-            properties.setProperty(RESOURCE, Boolean.toString(flags[3]));
+            properties.setProperty(GROOVY, Boolean.toString(flags[3]));
+            properties.setProperty(RESOURCE, Boolean.toString(flags[4]));
             properties.store(context.next().resolve(SCAN_FILE));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -123,6 +126,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             boolean hasJava = Boolean.parseBoolean(scan.getProperty(JAVA));
             boolean hasKotlin = Boolean.parseBoolean(scan.getProperty(KOTLIN));
             boolean hasScala = Boolean.parseBoolean(scan.getProperty(SCALA));
+            boolean hasGroovy = Boolean.parseBoolean(scan.getProperty(GROOVY));
             boolean hasResource = Boolean.parseBoolean(scan.getProperty(RESOURCE));
 
             SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
@@ -131,7 +135,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
             if (hasJava) {
                 buildExecutor.addStep(JAVA,
-                        (process ? Javac.process() : Javac.tool()).includeResources(!hasKotlin && !hasScala),
+                        (process ? Javac.process() : Javac.tool()).includeResources(!hasKotlin && !hasScala && !hasGroovy),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(sourceInputs);
                 updated.add(JAVA);
@@ -141,7 +145,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                 buildExecutor.addModule(KOTLIN,
                         new KotlinCompilerModule(repositories, resolvers)
                                 .strictPinning(strictPinning)
-                                .includeResources(!hasJava && !hasScala),
+                                .includeResources(!hasJava && !hasScala && !hasGroovy),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(KOTLIN + "/" + KotlinCompilerModule.CLASSES);
@@ -151,10 +155,17 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                 buildExecutor.addModule(SCALA,
                         new ScalaCompilerModule(repositories, resolvers)
                                 .strictPinning(strictPinning)
-                                .includeResources(!hasJava && !hasKotlin),
+                                .includeResources(!hasJava && !hasKotlin && !hasGroovy),
                         dependencies);
             }
-            int compilers = (hasJava ? 1 : 0) + (hasKotlin ? 1 : 0) + (hasScala ? 1 : 0);
+            if (hasGroovy) {
+                buildExecutor.addModule(GROOVY,
+                        new GroovyCompilerModule(repositories, resolvers)
+                                .strictPinning(strictPinning)
+                                .includeResources(!hasJava && !hasKotlin && !hasScala),
+                        dependencies);
+            }
+            int compilers = (hasJava ? 1 : 0) + (hasKotlin ? 1 : 0) + (hasScala ? 1 : 0) + (hasGroovy ? 1 : 0);
             if (hasResource && compilers != 1) {
                 buildExecutor.addStep(RESOURCE, new Resources(), sourceInputs);
             }
@@ -184,7 +195,10 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                         String name = file.getFileName().toString();
-                        if (!name.endsWith(".java") && !name.endsWith(".kt") && !name.endsWith(".scala")) {
+                        if (!name.endsWith(".java")
+                                && !name.endsWith(".kt")
+                                && !name.endsWith(".scala")
+                                && !name.endsWith(".groovy")) {
                             BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                         }
                         return FileVisitResult.CONTINUE;

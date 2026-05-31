@@ -11,6 +11,7 @@ public interface MavenResolver extends Resolver {
     SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
                                                                         MavenRepository repository,
                                                                         List<RootPom> rootPoms,
+                                                                        List<RootPom> managedPoms,
                                                                         MavenDependencyScope scope) throws IOException;
 
     static MavenResolver of(Resolver resolver) {

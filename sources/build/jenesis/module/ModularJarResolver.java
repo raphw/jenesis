@@ -115,10 +115,18 @@ public class ModularJarResolver implements Resolver {
                             .orElseGet(() -> ModuleDescriptor.newAutomaticModule(current).build());
                 }
                 if (descriptor.isAutomatic()) {
+                    if (fallback != null) {
+                        unresolved.add(current);
+                        if (requested != null) {
+                            hints.putIfAbsent(current, checksum == null ? requested : requested + " " + checksum);
+                        }
+                        continue;
+                    }
                     if (resolveAutomaticModules) {
                         continue;
                     }
-                    throw new IllegalArgumentException("No module-info.class found for " + current);
+                    throw new IllegalArgumentException("Cannot resolve automatic module " + current
+                            + " without a fallback resolver: its dependencies are not declared as modules");
                 }
                 if (!descriptor.name().equals(current)) {
                     throw new IllegalArgumentException(

@@ -39,7 +39,7 @@ public class ProjectTest {
     public void auto_detects_modular_from_module_info() throws IOException {
         Path sources = Files.createDirectory(root.resolve("sources"));
         Files.writeString(sources.resolve("module-info.java"), "module example {}");
-        assertThat(Project.Layout.of(root)).isSameAs(Project.Layout.MODULAR);
+        assertThat(Project.Layout.of(root)).isSameAs(Project.Layout.MODULAR_TO_MAVEN);
     }
 
     @Test

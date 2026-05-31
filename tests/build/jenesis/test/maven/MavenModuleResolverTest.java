@@ -174,6 +174,122 @@ public class MavenModuleResolverTest {
                 .hasMessageContaining("exclusions");
     }
 
+    @Test
+    public void does_not_hoist_declared_module_dependency_management() throws IOException {
+        addToMavenRepository("org.mid", "mid", "1.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.mid</groupId>
+                    <artifactId>mid</artifactId>
+                    <version>1.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.transitive</groupId>
+                            <artifactId>lib</artifactId>
+                            <version>2.0</version>
+                        </dependency>
+                    </dependencies>
+                </project>""");
+        addToMavenRepository("org.transitive", "lib", "2.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.transitive</groupId>
+                    <artifactId>lib</artifactId>
+                    <version>2.0</version>
+                </project>""");
+        Repository discovery = stubRepository(new LinkedHashMap<>(), Map.of("foo.bar:pom", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.example</groupId>
+                    <artifactId>example-core</artifactId>
+                    <version>1.0</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.transitive</groupId>
+                                <artifactId>lib</artifactId>
+                                <version>1.0</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.mid</groupId>
+                            <artifactId>mid</artifactId>
+                            <version>1.0</version>
+                        </dependency>
+                    </dependencies>
+                </project>"""));
+
+        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+                Runnable::run,
+                "module",
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                true);
+
+        assertThat(resolved).containsExactly(
+                Map.entry("maven/org.example/example-core/1.0", ""),
+                Map.entry("maven/org.mid/mid/1.0", ""),
+                Map.entry("maven/org.transitive/lib/2.0", ""));
+    }
+
+    @Test
+    public void applies_non_declared_pin_as_dependency_management() throws IOException {
+        addToMavenRepository("org.mid", "mid", "1.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.mid</groupId>
+                    <artifactId>mid</artifactId>
+                    <version>1.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.transitive</groupId>
+                            <artifactId>lib</artifactId>
+                            <version>1.0</version>
+                        </dependency>
+                    </dependencies>
+                </project>""");
+        addToMavenRepository("org.transitive", "lib", "2.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.transitive</groupId>
+                    <artifactId>lib</artifactId>
+                    <version>2.0</version>
+                </project>""");
+        Map<String, String> fetched = new LinkedHashMap<>();
+        Repository discovery = stubRepository(fetched, Map.of(
+                "foo.bar:pom", """
+                        <project xmlns="http://maven.apache.org/POM/4.0.0">
+                            <groupId>org.example</groupId>
+                            <artifactId>example-core</artifactId>
+                            <version>1.0</version>
+                            <dependencies>
+                                <dependency>
+                                    <groupId>org.mid</groupId>
+                                    <artifactId>mid</artifactId>
+                                    <version>1.0</version>
+                                </dependency>
+                            </dependencies>
+                        </project>""",
+                "lib.module/2.0:pom", """
+                        <project xmlns="http://maven.apache.org/POM/4.0.0">
+                            <groupId>org.transitive</groupId>
+                            <artifactId>lib</artifactId>
+                            <version>2.0</version>
+                        </project>"""));
+
+        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+                Runnable::run,
+                "module",
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("lib.module", "2.0")),
+                true);
+
+        assertThat(resolved).containsExactly(
+                Map.entry("maven/org.example/example-core/1.0", ""),
+                Map.entry("maven/org.mid/mid/1.0", ""),
+                Map.entry("maven/org.transitive/lib/2.0", ""));
+        assertThat(fetched).containsOnlyKeys("foo.bar:pom", "lib.module/2.0:pom");
+    }
+
     private static Repository stubRepository(Map<String, String> fetched, Map<String, String> bodies) {
         return (_, coordinate) -> {
             fetched.put(coordinate, "");
@@ -187,7 +303,7 @@ public class MavenModuleResolverTest {
 
     private void addToMavenRepository(String groupId, String artifactId, String version, String pom) throws IOException {
         Files.writeString(Files
-                .createDirectories(mavenRepoFolder.resolve(groupId + "/" + artifactId + "/" + version))
+                .createDirectories(mavenRepoFolder.resolve(groupId.replace('.', '/') + "/" + artifactId + "/" + version))
                 .resolve(artifactId + "-" + version + ".pom"), pom);
     }
 }

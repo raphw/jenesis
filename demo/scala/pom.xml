@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>build.jenesis.demo</groupId>
+    <artifactId>scala-demo</artifactId>
+    <version>1.0.0</version>
+
+    <build>
+        <sourceDirectory>sources</sourceDirectory>
+    </build>
+    <!--jenesis.pin
+@scala/org.scala-lang.modules/scala-asm 9.9.0-scala-1
+@scala/org.scala-lang/scala-library 3.8.4-RC3
+@scala/org.scala-lang/scala3-compiler_3 3.8.4-RC3
+@scala/org.scala-lang/scala3-interfaces 3.8.4-RC3
+@scala/org.scala-lang/scala3-library_3 3.8.4-RC3
+@scala/org.scala-lang/tasty-core_3 3.8.4-RC3
+@scala/org.scala-sbt/compiler-interface 1.10.7
+@scala/org.scala-sbt/util-interface 1.10.7
+    -->
+</project>

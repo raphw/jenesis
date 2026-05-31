@@ -164,8 +164,8 @@ public record Project(
                                 .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
-                resolvers.putIfAbsent("module", new ModularJarResolver(true,
-                        new MavenModuleResolver("maven", MavenResolver.of(resolvers.get("maven")), repositories.get("module"))));
+                resolvers.putIfAbsent("module", new MavenModuleResolver("maven",
+                        MavenResolver.of(resolvers.get("maven")), repositories.get("module")));
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
@@ -229,7 +229,7 @@ public record Project(
                 return MAVEN;
             }
             if (!moduleInfos.isEmpty()) {
-                return MODULAR;
+                return MODULAR_TO_MAVEN;
             }
             throw new IllegalStateException(
                     "No build descriptor found under " + root.toAbsolutePath()
