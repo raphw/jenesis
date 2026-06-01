@@ -63,11 +63,12 @@ public class ScalaCompilerModuleTest {
                         Stream.of(classes.toUri().toURL()),
                         Arrays.stream(runtimeUrls))
                 .toArray(URL[]::new);
-        URLClassLoader loader = new URLClassLoader(urls, null);
-        Class<?> sample = loader.loadClass("sample.Sample");
-        Object instance = sample.getConstructor().newInstance();
-        Object greeting = sample.getMethod("greet").invoke(instance);
-        assertThat(greeting).isEqualTo("Hello world!");
+        try (URLClassLoader loader = new URLClassLoader(urls, null)) {
+            Class<?> sample = loader.loadClass("sample.Sample");
+            Object instance = sample.getConstructor().newInstance();
+            Object greeting = sample.getMethod("greet").invoke(instance);
+            assertThat(greeting).isEqualTo("Hello world!");
+        }
     }
 
     @Test

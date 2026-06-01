@@ -32,7 +32,6 @@ public interface Repository {
             return this;
         }
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
-        Set<String> internal = ConcurrentHashMap.newKeySet();
         return (executor, coordinate) -> {
             try {
                 Path candidate = folder.resolve(BuildExecutorModule.encode(coordinate) + ".jar");
@@ -47,10 +46,6 @@ public interface Repository {
                             return null;
                         }
                         Path file = item.file().orElse(null);
-                        if (item.internal() && file != null) {
-                            internal.add(key);
-                            return file;
-                        }
                         if (file != null) {
                             BuildStep.linkOrCopy(candidate, file);
                         } else {
@@ -66,9 +61,7 @@ public interface Repository {
                 if (preexisting && target != null) {
                     callback.accept(target);
                 }
-                return target == null
-                        ? Optional.empty()
-                        : Optional.of(RepositoryItem.ofFile(target, internal.contains(coordinate)));
+                return target == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(target));
             } catch (UncheckedIOException e) {
                 throw e.getCause();
             }
