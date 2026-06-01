@@ -37,7 +37,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
         assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .hasRootCauseMessage("Test module 'foo' declares @jenesis.test other.module but does not"
@@ -56,7 +56,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("module/module-/sources",
                 "module/module-/manifests",
@@ -93,7 +93,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
         Path compileVersionsFile = module.resolve(BuildStep.VERSIONS);
@@ -125,7 +125,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
@@ -165,7 +165,6 @@ public class ModularProjectTest {
                 Map.of("module", new ModularJarResolver(false)),
                 false,
                 true,
-                false,
                 new HashDigestFunction("MD5"),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
@@ -258,7 +257,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties module = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.MODULE));
@@ -277,7 +276,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true));
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties module = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.MODULE));

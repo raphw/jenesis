@@ -59,7 +59,7 @@ public record Project(
             executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, null, null);
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
@@ -128,7 +128,6 @@ public record Project(
                         Collections.unmodifiableMap(resolvers),
                         project.strictPinning(),
                         true,
-                        false,
                         new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                 new ProjectModuleDescriptor(descriptor,
@@ -163,7 +162,9 @@ public record Project(
             executor.addModule(HELP, new HelpModule("modular_to_maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler,
+                    BuildExecutorModule.PREVIOUS.repeat(2) + MultiProjectModule.MANIFESTS,
+                    "module");
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
@@ -186,7 +187,6 @@ public record Project(
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
-                                true,
                                 true,
                                 new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
@@ -257,15 +257,7 @@ public record Project(
         }
     }
 
-    private static final class MetadataModule implements BuildExecutorModule {
-
-        private final SequencedMap<String, Path> files;
-        private final String version;
-
-        private MetadataModule(SequencedMap<String, Path> files, String version) {
-            this.files = files;
-            this.version = version;
-        }
+    private record MetadataModule(SequencedMap<String, Path> files, String version) implements BuildExecutorModule {
 
         static BuildExecutorModule toMetadataModule(Project project) {
             Path root = project.root().toAbsolutePath().normalize();
@@ -781,17 +773,8 @@ public record Project(
         }
     }
 
-    private static final class PinModule implements BuildExecutorModule {
-
-        private final Path root;
-        private final String fileName;
-        private final Function<Path, BuildStep> stepFactory;
-
-        private PinModule(Path root, String fileName, Function<Path, BuildStep> stepFactory) {
-            this.root = root;
-            this.fileName = fileName;
-            this.stepFactory = stepFactory;
-        }
+    private record PinModule(Path root, String fileName, Function<Path, BuildStep> stepFactory)
+            implements BuildExecutorModule {
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
@@ -819,13 +802,9 @@ public record Project(
         }
     }
 
-    private static final class PomAwareAssembler implements MultiProjectAssembler<ProjectModuleDescriptor> {
-
-        private final MultiProjectAssembler<? super ProjectModuleDescriptor> base;
-
-        private PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base) {
-            this.base = base;
-        }
+    private record PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base,
+                                     String manifests,
+                                     String prefix) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         @Override
         public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
@@ -834,10 +813,38 @@ public record Project(
             BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
             return (sub, inherited) -> {
                 sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
-                sub.addModule("describe", (describe, describeInherited) ->
-                                describe.addStep("pom", new Pom(), describeInherited.sequencedKeySet().stream()),
+                sub.addModule("describe", (describe, describeInherited) -> {
+                            describe.addStep("pom", new Pom(), describeInherited.sequencedKeySet().stream());
+                            if (manifests != null) {
+                                describe.addStep("identity", new MavenIdentity(prefix, manifests), "pom", manifests);
+                            }
+                        },
                         inherited.sequencedKeySet().stream());
             };
+        }
+    }
+
+    private record MavenIdentity(String prefix, String manifests) implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Path pomFile = arguments.get("pom").folder().resolve("pom.xml");
+            Path folder = arguments.get(manifests).folder();
+            SequencedProperties metadata = SequencedProperties.ofFiles(folder.resolve(BuildStep.METADATA));
+            String groupId = metadata.getProperty("project");
+            String artifactId = metadata.getProperty("artifact");
+            String version = metadata.getProperty("version");
+            String module = SequencedProperties.ofFiles(folder.resolve(BuildStep.MODULE)).getProperty("module");
+            String pom = context.next().relativize(pomFile).toString().replace(File.separatorChar, '/');
+            SequencedProperties identity = new SequencedProperties();
+            identity.setProperty("maven/" + groupId + "/" + artifactId + "/" + version, "");
+            identity.setProperty("maven/" + groupId + "/" + artifactId + "/pom/" + version, pom);
+            identity.setProperty(prefix + "/" + module + ":pom", pom);
+            identity.store(context.next().resolve(BuildStep.IDENTITY));
+            return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
 
