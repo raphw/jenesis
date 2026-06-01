@@ -1,86 +1,253 @@
-Jenesis demos
-=============
+Jenesis demos - a guided tour
+=============================
 
-Self-contained showcases, one per directory. Each has its own `build/jenesis`
-symlink into this repository's `sources/build/jenesis`, so every demo runs in
-isolation from inside its own directory - no installation step.
+These demos are meant to be read in order. Each one is self-contained and adds
+one idea on top of the last, so the sequence doubles as a tutorial through
+Jenesis' features: start with a single Maven project, turn it into a module,
+scale to many modules, bring in other JVM languages, and finally customize or
+replace the build template itself.
+
+Every demo has its own `build/jenesis` symlink into this repository's
+`sources/build/jenesis`, so each runs in isolation from inside its own directory
+with no installation step. There is no wrapper script, no fetched plugin tree,
+and no daemon - the build is just Java source you launch with the JDK.
+
+How to run a demo
+-----------------
+
+Most demos are driven by the shipped entry point:
+
+    java build/jenesis/Project.java
+
+That runs the default `build` goal. You pass other goals as arguments:
+
+    java build/jenesis/Project.java pin      # rewrite the source to pin resolved versions
+    java build/jenesis/Project.java stage    # lay the artifacts out as local repositories
+    java build/jenesis/Project.java export   # publish them into the local repositories
+    java build/jenesis/Project.java help     # usage; `skill` prints an agent-oriented briefing
+
+The four demos that customize or replace the template (`custom-assembler`,
+`internal-module`, `external-module`, `custom-build`) ship their own launcher and
+are run with `java build/Demo.java` instead. Each demo writes to a local
+`target/` directory; delete it to rebuild from scratch.
+
+Quick index
+-----------
 
 | Demo                | Shows                                                                 | Run from the demo dir              |
 | ------------------- | -------------------------------------------------------------------- | ---------------------------------- |
-| `java-pom`          | POM layout: plain `javac` + a real Maven dependency, pinned          | `java build/jenesis/Project.java`  |
-| `java-modular`      | MODULAR_TO_MAVEN layout: a `module-info.java`, no `pom.xml`; a named-module dependency, pinned; emits a modular jar and a generated POM | `java build/jenesis/Project.java`  |
-| `java-pom-multi`    | Multi-module POM layout: a library module + a consumer module depending on it and on a real Maven dependency, pinned | `java build/jenesis/Project.java`  |
-| `java-modular-multi`| Multi-module MODULAR_TO_MAVEN layout: a library module + a consumer module requiring it and an external named module, pinned | `java build/jenesis/Project.java`  |
-| `kotlin`            | MODULAR_TO_MAVEN layout: Java + Kotlin, no `pom.xml`; Kotlin compiler pinned (qualified) | `java build/jenesis/Project.java`  |
-| `scala`             | POM layout: Java + Scala 3 in one project; Scala compiler pinned (qualified) | `java build/jenesis/Project.java`  |
-| `groovy`            | POM layout: a Groovy source; Groovy compiler pinned (qualified)     | `java build/jenesis/Project.java`  |
-| `internal-module`   | Wrap the assembler to preprocess sources from a build module loaded with `InternalModule`, using an external dependency | `java build/Demo.java`             |
-| `external-module`   | Same as `internal-module`, but stages the build module to a jar and resolves it as an `ExternalModule` coordinate | `java build/Demo.java`             |
-| `custom-assembler`  | Wrap `JavaMultiProjectAssembler` to preprocess sources before the regular flow | `java build/Demo.java`           |
-| `custom-build`      | No `Project` at all: steps wired directly to a `BuildExecutor`, with a code-generation step | `java build/Demo.java`            |
+| `java-pom`          | A single Maven (`pom.xml`) project: `javac` + one real dependency, pinned | `java build/jenesis/Project.java`  |
+| `java-modular`      | The same project as a Java module (`module-info.java`, no `pom.xml`)  | `java build/jenesis/Project.java`  |
+| `java-pom-multi`    | Many Maven modules: a library + a consumer that depends on it and an external artifact | `java build/jenesis/Project.java`  |
+| `java-modular-multi`| The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
+| `kotlin`            | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
+| `scala`             | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
+| `groovy`            | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
+| `custom-assembler`  | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
+| `internal-module`   | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
+| `external-module`   | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
+| `custom-build`      | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
 
-The `java-pom`, `scala`, and `groovy` demos are Maven-layout projects (a
-`pom.xml`) driven by the shipped `Project` entry point. The `java-modular` and
-`kotlin` demos have no `pom.xml` - only a `module-info.java` - so Jenesis
-auto-detects the MODULAR_TO_MAVEN layout, emitting a modular jar alongside a
-generated POM. The `scala` demo mixes a
-`.java` source with `Sample.scala`, and `kotlin` mixes one with `Sample.kt`, so
-`javac` participates in the inferred compiler chain; `groovy` ships a single
-`.groovy` source (see its `README.md` for why it does not add a Java companion).
-Scala and Groovy stay on a `pom.xml` because their standard libraries are not
-published as single named Java modules; see those demos' `README.md` for the
-detail. The `java-pom-multi` demo extends the POM layout to more than one module:
-a library module and a consumer module that depends on it, where the consumer
-also pulls one real external dependency, so a single build resolves both an
-intra-project sibling and an external artifact. The `java-modular-multi` demo is
-its modular counterpart: two `module-info.java` modules where the consumer
-`requires` both the sibling library and an external named module, so the same
-intra-project plus external resolution runs through the MODULAR_TO_MAVEN layout.
-The `custom-assembler` demo keeps a standard MODULAR_TO_MAVEN layout but swaps the assembler:
-its `build/Demo.java` wraps the stock `JavaMultiProjectAssembler` so each
-module's sources pass through a preprocessing step before the regular compile,
-jar, and test flow runs unchanged. The `internal-module` demo is the same idea,
-but the preprocessing lives in a build module that `InternalModule` loads from
-local source and that uses an external dependency (`org.json`) for the rewrite.
-The `external-module` demo is identical to `internal-module` except that its
-`build/Demo.java` first stages that build module to a jar in a nested target
-folder and then resolves it as an `ExternalModule` coordinate instead of
-compiling it in place. Both `internal-module` and `external-module` currently
-fail at the build-module load step until a matching `build.jenesis` is released
-(see their `README.md`s). The `custom-build` demo goes the other direction
-entirely: it uses no `Project`, layout, or assembler, wiring sources and steps
-directly to a `BuildExecutor` - including a code-generation step that synthesizes
-a source the compiler then sees - to show that a build can be assembled fully by
-hand when the templates do not fit.
+1. A single Maven project - `java-pom`
+---------------------------------------
 
-Each demo writes to a local `target/` directory; delete it to rebuild from
-scratch. See the per-demo `README.md` for details.
+Start here. `java-pom` is the smallest real build: a `pom.xml` and one Java
+source that uses `org.apache.commons.lang3.StringUtils`. The presence of a
+`pom.xml` makes Jenesis auto-detect the **MAVEN** layout. Running it resolves
+`commons-lang3` from Maven Central (or your `~/.m2`), downloads it, and compiles
+against it.
 
-Pinning and qualifiers
+This demo introduces the two ideas every later one builds on:
+
+- **Layout auto-detection.** You declare *what* the project is (here, a Maven
+  project) and Jenesis picks the build shape. Nothing about the toolchain is
+  configured by hand.
+- **Pinning.** `java build/jenesis/Project.java pin` records each resolved
+  dependency, with its content `SHA-256`, into the POM's `<dependencyManagement>`
+  block. Subsequent builds verify every download against that checksum, so the
+  build is reproducible and resistant to supply-chain tampering. This demo ships
+  already pinned.
+
+See `java-pom/README.md` for the pinned POM in full.
+
+2. The same project as a module - `java-modular`
+------------------------------------------------
+
+`java-modular` is the modular counterpart of `java-pom`: the only descriptor is
+`sources/module-info.java`, and there is no `pom.xml`. With a `module-info.java`
+and no POM, Jenesis selects the **MODULAR_TO_MAVEN** layout (also what `auto`
+resolves to for a modular project), compiles the module, and emits *both* a
+modular jar and a generated `pom.xml`.
+
+What is new here:
+
+- **The module declaration is the build descriptor.** `requires org.slf4j`
+  drives resolution; `org.slf4j` is fetched as a *named module* from the Jenesis
+  module overlay (`https://repo.jenesis.build/module/`). `org.slf4j` works
+  because it is a genuine named module; many libraries ship only as *automatic*
+  modules and cannot be required by module name.
+- **Pinning in source, the modular way.** Instead of `<dependencyManagement>`,
+  a dependency is pinned with an `@jenesis.pin org.slf4j 2.0.16 [SHA-256/...]`
+  Javadoc tag on the module declaration.
+- **Staging.** `stage` lays the output out as both a module repository and a
+  Maven repository, and `export` publishes them locally.
+
+Compare `java-pom` and `java-modular` side by side: the same one-class project,
+expressed two ways, and Jenesis adapts the whole pipeline to the descriptor it
+finds.
+
+3. Many modules at once - `java-pom-multi` and `java-modular-multi`
+-------------------------------------------------------------------
+
+Real projects have more than one module. `java-pom-multi` is a Maven aggregator
+(`<packaging>pom</packaging>`) over two sub-modules: a `greeter` library and an
+`app` that depends on it *and* on external `commons-lang3`. Jenesis walks the
+tree, discovers every `pom.xml`, builds `greeter` first, and resolves the sibling
+coordinate from within the build while the external artifact is fetched from
+Maven Central. The same build thus resolves an intra-project sibling and an
+external dependency side by side.
+
+`java-modular-multi` is the modular twin: two `module-info.java` modules, no POM
+anywhere, where `app` `requires demo.greeter` (the sibling) and `org.slf4j` (an
+external named module). It builds in dependency order, and the published `app`
+POM declares a dependency on the published `greeter` coordinate.
+
+The new idea is **multi-project discovery and intra-project resolution**: you
+point Jenesis at the root, it finds the module graph, orders it, and lets modules
+depend on one another with no manual wiring. Pinning records the *external*
+dependency only; an intra-project sibling has no stable downloaded version to pin
+against.
+
+Both demos also **demonstrate testing**. In `java-pom-multi`, the `greeter`
+module adds a `<testSourceDirectory>` and a test-scoped JUnit dependency, which
+turns it into a main artifact plus a `tests` variant. In `java-modular-multi`, a
+separate `greeter-test` module is marked `@jenesis.test demo.greeter`. Either
+way Jenesis detects the test engine from the resolved jars (JUnit 5), wires the
+JUnit Platform console runner automatically, and runs the tests as part of the
+build. Each demo's `README.md` covers the test wiring in full.
+
+4. Other JVM languages - `kotlin`, `scala`, `groovy`
+----------------------------------------------------
+
+Jenesis drives non-Java compilers through the same inferred compiler chain, with
+no language-specific configuration beyond the sources. A *resolved* compiler
+(Kotlin, Scala, Groovy) is pinned on its own **qualified trail** - keyed
+`@kotlin/...`, `@scala/...`, `@groovy/...` - so the compiler's own closure never
+collides with the project's dependencies.
+
+- `kotlin` and `scala` are MODULAR_TO_MAVEN modules (a `module-info.java`, no
+  `pom.xml`) that each mix a `.java` source with their language source. The chain
+  compiles Kotlin/Scala *before* `javac` (their compilers read `.java` as source
+  for resolution but emit only their own classes), and `javac` then sees those
+  classes through `--patch-module`. That ordering lets the module export a
+  package that holds *only* Kotlin or *only* Scala - each demo exports such a
+  package.
+- `groovy` keeps a `pom.xml` and adds a `module-info.java` (MAVEN with a module).
+  `groovyc` resolves Java only from the compiled class path, so it must run
+  *after* `javac` and cannot populate a package before the export is validated.
+  An exported package therefore needs at least one Java type; the demo's
+  `README.md` explains why this is permanent for Groovy but not for Kotlin/Scala.
+
+These three are quick reads; each `README.md` has the detail. (The `kotlin` and
+`scala` demos currently ship unpinned, so their compilers float to the latest
+release; see "Pinning" below.)
+
+5. Customizing the build - `custom-assembler`
+---------------------------------------------
+
+The remaining demos open up the template. `custom-assembler` keeps the standard
+MODULAR_TO_MAVEN flow but **wraps** the stock `JavaMultiProjectAssembler` so each
+module's sources pass through a preprocessing step (a `${greeting}` substitution)
+before compile, jar, and test run unchanged:
+
+    new Project()
+            .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler()))
+
+The trick is small and reusable: the wrapper adds a `preprocess` step that
+rewrites the sources, then redirects the descriptor at it with
+`descriptor.withSources("preprocess")` and hands the unchanged stock assembler
+the redirected descriptor. The Java toolchain is never reimplemented - a source
+transformation is simply interposed in front of it. Any step that produces a
+`sources/` tree (template expansion, code generation, license headers) fits the
+same shape. This demo is launched with `java build/Demo.java`.
+
+6. Preprocessing in a reusable build module - `internal-module`, `external-module`
+----------------------------------------------------------------------------------
+
+`internal-module` does the same preprocessing as `custom-assembler`, but moves it
+out of an inline step and into a **build module** - a `BuildExecutorModule`
+service provider in its own `plugin/` project that even pulls its own external
+dependency (`org.json`). `InternalModule` compiles that plugin from local source,
+resolves its dependencies, loads the service, and runs it. A `.jenesis.build`
+marker in `plugin/` keeps the host project's module discovery from mistaking it
+for a second project module.
+
+`external-module` is identical except for *where the build module comes from*:
+instead of compiling it from source, it stages the plugin to a jar and resolves
+it as a published repository **coordinate** through `ExternalModule`. The
+plugin's closure rides its own `"tool"` qualifier trail.
+
+Together these show that build logic itself is just another module - it can be
+authored inline, loaded from source, or consumed as a versioned artifact.
+
+> Status: both `internal-module` and `external-module` currently fail at the
+> build-module load step, because the plugin's `build.jenesis` dependency
+> resolves to a published version that lags the local sources the host runs
+> against. They will work once a matching `build.jenesis` is released; see their
+> `README.md`s.
+
+7. Dropping the template entirely - `custom-build`
+--------------------------------------------------
+
+The last demo removes `Project`, the layout, and the assembler altogether and
+wires a `BuildExecutor` **by hand** in one `main` method. There is no `pom.xml`
+or `module-info.java` - just the steps you add. It includes a `generate` step
+that synthesizes a Java source on the fly, which the compiler then picks up next
+to the hand-written sources:
+
+    sources ----\
+                 +--> compile --> jar
+    generate ---/
+
+This is the escape hatch: when a build needs something the templates do not model
+(code generation, a bespoke packaging step, an unusual dependency wiring), you
+step down to the `BuildExecutor` primitives and build exactly the graph you want.
+Run it with `java build/Demo.java`, then `java -cp target/jar/output/artifacts/classes.jar
+sample.Sample`.
+
+Cross-cutting concepts
 ----------------------
 
-The demos are committed in their pinned state, at **stable** dependency
-versions, and each demonstrates how Jenesis records dependencies in source:
+A few ideas recur across the tour and are worth collecting in one place.
 
-- `java-pom` has an ordinary Maven dependency (`commons-lang3 3.14.0`) pinned
-  with a content checksum into `<dependencyManagement>`. `java-modular` declares
-  a *named module* dependency (`requires org.slf4j`, version `2.0.16`), pinned
-  with an `@jenesis.pin org.slf4j 2.0.16` Javadoc tag on the module declaration.
-  Neither pure-Java project has a resolved compiler, so neither has a qualified
-  trail - their pins use the plain `maven` / `module` prefix.
-- The `java-pom-multi` demo pins the same way across two modules. Only the
-  external dependency is pinned (`commons-lang3`); the intra-project sibling
-  dependency is left unpinned, since coordinates produced within the project
-  carry no stable version or checksum to pin against.
-- The `scala` and `groovy` demos pin their compiler closures on an independent
-  *qualified* trail, keyed `<prefix>@<qualifier>/<coordinate>` (`@scala/...`,
-  `@groovy/...`), stored in a Maven-ignored `<!--jenesis.pin-->` comment in
-  `pom.xml` so they never collide with the project's own dependencies. The
-  compilers are qualified `scala` / `groovy` automatically.
-- The `kotlin` demo is modular (a `module-info.java`, no `pom.xml`), so it pins
-  in source with `@jenesis.pin` Javadoc tags on the module declaration: its
-  `kotlin.stdlib` dependency on the plain `module` trail, and - like `scala` and
-  `groovy` - its Kotlin compiler is qualified `kotlin` automatically.
-- The `internal-module` / `external-module` demos pass an explicit `"tool"`
-  qualifier as the module's constructor argument, putting the loaded build
-  module's dependency closure on its own trail.
+**Layouts.** The descriptor at the project root selects the build shape, with
+`AUTO` (the default) detecting it: a `pom.xml` selects `MAVEN` (classic jar plus
+the POM); otherwise a `module-info.java` under the root selects
+`MODULAR_TO_MAVEN` (a modular jar plus a generated POM). A subtree rooted at a
+`.jenesis.build` marker is skipped during discovery, which is how the
+`internal-module` / `external-module` plugins live beside the project without
+being built as part of it.
+
+**Goals.** `build` (default) compiles, jars, and tests; `pin` rewrites the source
+descriptors to record resolved versions and checksums; `stage` lays artifacts out
+as local Maven and module repositories; `export` publishes them. A module that
+declares an entry point (`@jenesis.main` in `module-info.java`, or `<mainClass>`
+in `pom.xml`) can also be launched from its built artifacts.
+
+**Pinning, checksums, and qualifiers.** Pins live in source: a POM's
+`<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
+`module-info.java`'s `@jenesis.pin <module> <version> [<algorithm>/<hex>]`
+Javadoc tags. `Download` verifies every fetch against a pinned checksum, and
+strict pinning (`-Djenesis.project.strictPinning=true`) fails the build on any
+unpinned coordinate. A *resolved compiler* pins on an independent qualified trail
+(`@kotlin`, `@scala`, `@groovy`, or an explicit `"tool"` qualifier) so it never
+mixes with the project's own dependencies.
+
+Current pin state of the demos: `java-pom`, `java-pom-multi`, `java-modular`, and
+`java-modular-multi` are committed pinned at stable versions with checksums.
+`groovy` pins its `@groovy` compiler closure in a `pom.xml` comment (its newly
+declared `org.apache.groovy` dependency still needs a checksum). `kotlin` and
+`scala` are MODULAR_TO_MAVEN modules that ship unpinned - their compilers and
+library dependencies float to the latest release - because pinning a
+MODULAR_TO_MAVEN closure with `@jenesis.pin` tags is still pending. Note that for
+`scala` an unpinned compiler may float to a release candidate.

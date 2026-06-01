@@ -9,6 +9,14 @@
     <build>
         <sourceDirectory>sources</sourceDirectory>
     </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy</artifactId>
+            <version>5.0.6</version>
+        </dependency>
+    </dependencies>
     <!--jenesis.pin
     @groovy/org.apache.groovy/groovy 5.0.6
     -->

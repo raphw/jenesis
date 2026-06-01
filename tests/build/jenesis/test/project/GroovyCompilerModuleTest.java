@@ -21,7 +21,7 @@ public class GroovyCompilerModuleTest {
     private static final String GROOVY_VERSION = "5.0.1";
 
     @TempDir
-    private Path root, project;
+    private Path root, project, compiled;
 
     @Test
     public void compiles_a_groovy_source_against_a_downloaded_compiler() throws IOException, ReflectiveOperationException {
@@ -106,17 +106,11 @@ public class GroovyCompilerModuleTest {
     }
 
     @Test
-    public void groovy_can_reference_java_sources_supplied_to_the_same_step() throws IOException {
+    public void groovy_resolves_java_types_from_the_compiled_class_path() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("maven@groovy/org.apache.groovy/groovy", GROOVY_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("Greeter.java"), """
-                package sample;
-                public class Greeter {
-                    public String hello() { return "Hello"; }
-                }
-                """);
         Files.writeString(sampleDir.resolve("Sample.groovy"), """
                 package sample
                 class Sample {
@@ -124,14 +118,29 @@ public class GroovyCompilerModuleTest {
                 }
                 """);
 
+        Path greeterSource = Files
+                .createDirectories(compiled.resolve("src").resolve("sample"))
+                .resolve("Greeter.java");
+        Files.writeString(greeterSource, """
+                package sample;
+                public class Greeter {
+                    public String hello() { return "Hello"; }
+                }
+                """);
+        Path greeterClasses = Files.createDirectories(compiled.resolve(GroovyCompilerModule.CLASSES));
+        ToolProvider javac = ToolProvider.findFirst("javac").orElseThrow();
+        int code = javac.run(System.out, System.err, "-d", greeterClasses.toString(), greeterSource.toString());
+        assertThat(code).isZero();
+
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
+        executor.addSource("classes", compiled);
         executor.addModule(
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of("maven", mavenCentral()),
                         Map.of("maven", new MavenPomResolver())),
-                "project");
+                "project", "classes");
         executor.execute();
 
         Path classes = root
@@ -140,9 +149,16 @@ public class GroovyCompilerModuleTest {
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(classes.resolve("sample/Sample.class"))
-                .as("Sample.groovy resolved the Greeter type from the .java source companion and compiled")
+                .as("Sample.groovy resolved the Greeter type from the compiled class path and compiled")
                 .isNotEmptyFile();
-        assertThat(classes.resolve("sample/Greeter.class")).isNotEmptyFile();
+        Path groovycOutput = root
+                .resolve("groovy")
+                .resolve("compiled")
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(groovycOutput.resolve("sample/Greeter.class"))
+                .as("groovyc compiles only Groovy sources; the Java type comes from the class path, not recompilation")
+                .doesNotExist();
     }
 
     @Test

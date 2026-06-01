@@ -55,7 +55,7 @@ public class InferredCompilerChainModuleTest {
     }
 
     @Test
-    public void chain_compiles_java_then_kotlin_then_scala_when_all_three_languages_present() throws Exception {
+    public void chain_compiles_kotlin_then_scala_then_java_when_all_three_languages_present() throws Exception {
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
         versions.setProperty("maven@scala/org.scala-lang/scala3-compiler_3", SCALA_VERSION);
@@ -96,7 +96,7 @@ public class InferredCompilerChainModuleTest {
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/Base.class"))
-                .as("Javac ran first and emitted Base.class")
+                .as("Javac ran last and emitted Base.class")
                 .isNotEmptyFile();
         Path kotlinClasses = root
                 .resolve("chain")
@@ -106,7 +106,7 @@ public class InferredCompilerChainModuleTest {
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(kotlinClasses.resolve("sample/Mid.class"))
-                .as("Kotlin module ran second and emitted Mid.class against Java's output")
+                .as("Kotlin module ran first and emitted Mid.class, resolving Base from the Java source")
                 .isNotEmptyFile();
         Path scalaClasses = root
                 .resolve("chain")
@@ -116,7 +116,7 @@ public class InferredCompilerChainModuleTest {
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(scalaClasses.resolve("sample/Top.class"))
-                .as("Scala module ran last and emitted Top.class against Kotlin+Java output")
+                .as("Scala module ran second and emitted Top.class against Kotlin's output")
                 .isNotEmptyFile();
 
         Path kotlinArtifacts = root
@@ -134,7 +134,7 @@ public class InferredCompilerChainModuleTest {
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
         URL[] urls = Stream.concat(
-                        Stream.of(scalaClasses.toUri().toURL()),
+                        Stream.of(javaClasses.toUri().toURL(), kotlinClasses.toUri().toURL(), scalaClasses.toUri().toURL()),
                         Stream.concat(collectJarUrls(kotlinArtifacts).stream(), collectJarUrls(scalaArtifacts).stream()))
                 .toArray(URL[]::new);
         URLClassLoader loader = new URLClassLoader(urls, null);

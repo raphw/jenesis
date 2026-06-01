@@ -365,6 +365,44 @@ public class JavacTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    public void patches_sibling_classes_into_the_module_so_a_foreign_package_can_be_exported(boolean process) throws IOException {
+        Path siblingSource = Files.createDirectories(root.resolve("gen").resolve("pure")).resolve("Generated.java");
+        Files.writeString(siblingSource, """
+                package pure;
+                public class Generated { public String value() { return "generated"; } }
+                """);
+        Path siblingClasses = Files.createDirectories(root.resolve("sibling").resolve(Javac.CLASSES));
+        ToolProvider javac = ToolProvider.findFirst("javac").orElseThrow();
+        int code = javac.run(System.out, System.err, "-d", siblingClasses.toString(), siblingSource.toString());
+        assertThat(code).isZero();
+        Files.writeString(
+                Files.createDirectories(sources.resolve(BuildStep.SOURCES)).resolve("module-info.java"),
+                "module sample { exports pure; }\n");
+
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("sibling", new BuildStepArgument(
+                root.resolve("sibling"),
+                Map.of(Path.of(Javac.CLASSES + "pure/Generated.class"), ChecksumStatus.ADDED)));
+        arguments.put("sources", new BuildStepArgument(
+                sources,
+                Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED)));
+        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                arguments).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
+        assertThat(moduleInfo).isNotEmptyFile();
+        ModuleDescriptor descriptor = ModuleDescriptor.read(Files.newInputStream(moduleInfo));
+        assertThat(descriptor.exports().stream().map(ModuleDescriptor.Exports::source))
+                .as("javac patched the sibling-language classes into the module, exporting a package with no Java source")
+                .contains("pure");
+        assertThat(next.resolve(Javac.CLASSES + "pure/Generated.class"))
+                .as("patched classes are referenced for compilation, not re-emitted into javac's own output")
+                .doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     public void can_execute_javac_with_resources(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {

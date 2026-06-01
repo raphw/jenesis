@@ -1,18 +1,22 @@
 Groovy demo
 ===========
 
-A minimal Maven-layout project with a Groovy source. It shows Jenesis detecting
-the `.groovy` sources and driving the Groovy compiler through the default
-`JavaMultiProjectAssembler` - no Groovy-specific configuration in the `pom.xml`
-beyond the source directory.
+A Maven-layout project whose single module carries a `module-info.java` and mixes
+a Java type with a Groovy type. It shows Jenesis driving the Groovy compiler
+through the default `JavaMultiProjectAssembler`, with the module participating in
+the Java module system.
 
 Layout
 ------
 
     demo/groovy
-    |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- pom.xml              Maven coordinates + <sourceDirectory>; ships pinned (see below)
-    `-- sources/sample/Sample.groovy   a Groovy class
+    |-- build/jenesis              symlink to ../../../sources/build/jenesis
+    |-- pom.xml                    Maven coordinates, <sourceDirectory>, the Groovy dependency
+    `-- sources
+        |-- module-info.java       requires org.apache.groovy; exports sample
+        `-- sample
+            |-- Greeter.java       a Java type in the exported package
+            `-- Sample.groovy      a Groovy type that calls Greeter
 
 Build it
 --------
@@ -21,53 +25,59 @@ From this directory:
 
     java build/jenesis/Project.java
 
-Jenesis scans the sources, resolves the Groovy compiler (no version is declared,
-so it floats to the latest release), and compiles `Sample.groovy`.
+Jenesis scans the sources, resolves the Groovy compiler, compiles
+`module-info.java` and `Greeter.java` with `javac`, then compiles `Sample.groovy`
+with `groovyc`, and packages a modular jar.
 
-Unlike the `kotlin` and `scala` demos, this one does not mix in a companion
-`.java` source. Groovy performs *joint compilation*: `groovyc` compiles any
-`.java` files handed to it and emits their `.class` files itself, which collides
-with the class files the inferred chain's `javac` step already produced for the
-same sources. A single-language Groovy module sidesteps that; a Groovy class can
-still call any Java type that arrives as a compiled dependency on the class path.
+How Groovy fits the inferred compiler chain
+-------------------------------------------
 
-Why a POM and not a `module-info.java`?
----------------------------------------
+The inferred chain compiles `javac` first, then `groovyc`. `javac` compiles
+`module-info.java` and every `.java` source; `groovyc` then compiles only the
+`.groovy` sources and resolves the Java types it references from the classes
+`javac` already produced, which are on its class path.
 
-It is not that the Groovy runtime cannot be addressed as a module: the
-`org.apache.groovy:groovy` jar carries an `Automatic-Module-Name:
-org.apache.groovy` manifest entry, so a `requires org.apache.groovy` resolves as
-an automatic module and Jenesis downloads it without complaint. The blocker is
-`groovyc` itself.
+Groovy does not take part in joint compilation here. The `groovyc` joint mode
+(`-j`) runs an internal `javac` that emits class files for the Java sources,
+which would collide with the leading `javac` step. Jenesis therefore hands
+`groovyc` only the `.groovy` files, and Groovy code reaches Java types through the
+compiled class path. This is the mirror image of how `kotlinc` and `scalac` work:
+those compilers read `.java` as source for symbol resolution but never emit class
+files for it, so the leading `javac` owns the Java output in every case.
 
-The inferred chain compiles in the order `javac` then `groovyc`, and `groovyc`
-performs *joint compilation*: it is handed every `.java` source in the module -
-including `module-info.java` - and runs its own internal `javac` on a plain class
-path with no module path. A `module-info.java` therefore fails to compile under
-`groovyc` with `module not found: org.apache.groovy` (the jar is on the class
-path, not the module path) and `file should be on source path, or on patch path
-for module`. There is a second obstacle even before that: a Groovy-only package
-is empty when the chain's leading `javac` validates `exports`, because the only
-type in the package is produced later by `groovyc`, so the module would also need
-a companion Java type just to get that far - and `groovyc` still rejects the
-`module-info.java` afterwards.
+Exporting a package needs a Java type
+--------------------------------------
 
-In short, `groovyc` has no Java module system support, so the inferred chain
-cannot compile a `module-info.java` Groovy module. A Maven-layout (POM) build
-sidesteps this entirely: the Groovy runtime is consumed from the class path,
-where no `module-info.java` is compiled at all. (The `scala` demo also stays on a
-POM, but for a different reason - its standard library is split across jars that
-share packages; see that demo's `README.md`.)
+A `module-info.java` can `requires org.apache.groovy` (it resolves as the
+automatic module the Groovy jar declares through its `Automatic-Module-Name`
+manifest entry) and can `exports` a package. There is one rule to respect:
 
-Pinned toolchain
-----------------
+A package named in an `exports` directive must contain at least one Java type.
 
-This demo is committed **already pinned**: the `pom.xml` carries a
-`<!--jenesis.pin-->` comment block recording the resolved Groovy compiler on its
-own qualified trail (`groovy`), separate from the project's own dependencies:
+`javac` validates `exports sample` by checking that the package is populated in
+its output, and it runs before `groovyc`. At that point the package's Groovy
+classes do not exist yet, so only Java types count. That is why `sample` here
+contains `Greeter.java`: it makes the exported package non-empty for `javac`. The
+Groovy class `Sample` joins the same package when `groovyc` runs and ships in the
+export alongside `Greeter`. A package that holds only Groovy classes cannot be
+exported; keep it internal (declare `requires` without `exports`) or add a Java
+type to it.
 
-    <!--jenesis.pin
-    @groovy/org.apache.groovy/groovy 5.0.6
-    -->
+For Groovy this is a permanent restriction. `groovyc` resolves Java only from the
+compiled class path, so it has to run after `javac`, and its classes can never be
+present for the export check. The `kotlin` and `scala` demos do not share it:
+because `kotlinc` and `scalac` read `.java` as source, the inferred chain compiles
+them ahead of `javac`, so their classes are already in the module when `javac`
+validates the exports (`javac` sees them through `--patch-module`). Both of those
+demos export a package that holds only Kotlin or only Scala. `groovyc` cannot run
+before `javac`, so a Groovy-only package stays unexportable.
 
-Re-running `java build/jenesis/Project.java pin` is idempotent.
+Groovy dependency
+-----------------
+
+Because the module declares `requires org.apache.groovy`, the Groovy runtime is a
+real dependency of the module and is declared in the `pom.xml` so that `javac`
+finds it on the module path when it compiles `module-info.java`. The compiler
+toolchain that runs `groovyc` is resolved separately on its own qualified trail
+(`groovy`). Pinning the declared dependency with checksums is still pending; see
+the repository notes on the pin goal.

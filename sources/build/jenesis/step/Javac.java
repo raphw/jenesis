@@ -8,6 +8,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.ModulePathPredicate;
 import build.jenesis.SequencedProperties;
+import build.jenesis.module.ModuleInfoParser;
 
 public class Javac extends JdkProcessBuildStep {
 
@@ -122,13 +123,15 @@ public class Javac extends JdkProcessBuildStep {
                                                  SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
-        List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
-                "-d", target.toString()));
+        List<String> files = new ArrayList<>(),
+                path = new ArrayList<>(),
+                siblingClasses = new ArrayList<>(),
+                commands = new ArrayList<>(List.of("-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(Bind.SOURCES),
                     classes = argument.folder().resolve(CLASSES);
             if (Files.exists(classes)) {
-                path.add(classes.toString());
+                siblingClasses.add(classes.toString());
             }
             for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
                 Path jars = argument.folder().resolve(jarFolder);
@@ -169,9 +172,19 @@ public class Javac extends JdkProcessBuildStep {
         if (files.isEmpty()) {
             return CompletableFuture.completedStage(null);
         }
-        boolean module = files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
+        String moduleInfo = files.stream()
+                .filter(file -> file.endsWith(File.separator + "module-info.java"))
+                .findFirst()
+                .orElse(null);
+        boolean module = moduleInfo != null;
         ModulePathPredicate modulePathPredicate = this.modulePathPredicate.requiresModules(module);
-        if (!path.isEmpty()) {
+        String patchModule = null;
+        if (module && !siblingClasses.isEmpty()) {
+            patchModule = new ModuleInfoParser().identify(Path.of(moduleInfo)).coordinate();
+        } else {
+            path.addAll(siblingClasses);
+        }
+        if (!path.isEmpty() || patchModule != null) {
             for (String entry : path) {
                 if (entry.indexOf(File.pathSeparatorChar) != -1) {
                     throw new IllegalArgumentException(
@@ -191,6 +204,13 @@ public class Javac extends JdkProcessBuildStep {
             if (!classPath.isEmpty()) {
                 args.append("--class-path\n\"")
                         .append(String.join(File.pathSeparator, classPath).replace("\\", "\\\\").replace("\"", "\\\""))
+                        .append("\"\n");
+            }
+            if (patchModule != null) {
+                args.append("--patch-module\n\"")
+                        .append(patchModule)
+                        .append("=")
+                        .append(String.join(File.pathSeparator, siblingClasses).replace("\\", "\\\\").replace("\"", "\\\""))
                         .append("\"\n");
             }
             Path file = context.supplement().resolve("javac.args");

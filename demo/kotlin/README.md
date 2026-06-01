@@ -1,24 +1,25 @@
 Kotlin demo
 ===========
 
-A minimal Maven-layout project that mixes Java and Kotlin sources. It shows
-Jenesis detecting the `.kt` sources and driving the Kotlin compiler through the
-default `JavaMultiProjectAssembler` - no Kotlin-specific configuration in the
-`pom.xml` beyond the source directory - while `javac` also participates for the
-companion `.java` file.
+A MODULAR_TO_MAVEN project (a `module-info.java`, no `pom.xml`) that mixes Java
+and Kotlin in one module of the Java module system. It shows Jenesis detecting
+the `.kt` sources and driving the Kotlin compiler through the default
+`JavaMultiProjectAssembler`, with `javac` participating for `module-info.java`
+and the companion `.java` file. The module exports both a mixed package and a
+package that holds only Kotlin.
 
 Layout
 ------
 
     demo/kotlin
-    |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- pom.xml              Maven coordinates + <sourceDirectory>; ships pinned (see below)
-    |-- sources/sample/Greeter.java   a plain Java class
-    `-- sources/sample/Sample.kt      Kotlin that calls Greeter
-
-`Sample.kt` calls `Greeter().prefix()`, so the build compiles the Java source
-first (with `javac`) and the Kotlin source against it - one project, two
-compilers in the inferred chain.
+    |-- build/jenesis              symlink to ../../../sources/build/jenesis
+    `-- sources
+        |-- module-info.java       requires kotlin.stdlib; exports sample; exports sample.pure
+        `-- sample
+            |-- Greeter.java       a Java type in the exported 'sample' package
+            |-- Sample.kt          Kotlin that calls Greeter
+            `-- pure
+                `-- Pure.kt        a pure-Kotlin package, exported with no Java type
 
 Build it
 --------
@@ -27,25 +28,31 @@ From this directory:
 
     java build/jenesis/Project.java
 
-Jenesis scans the sources, runs `javac` for `Greeter.java`, resolves the Kotlin
-compiler (no version is declared, so it floats to the latest release), and
-compiles `Sample.kt` against the Java output.
+Jenesis auto-detects the MODULAR_TO_MAVEN layout (a `module-info.java`, no
+`pom.xml`), resolves the Kotlin compiler, compiles the module, and emits a
+modular jar alongside a generated POM.
 
-Pinned toolchain
-----------------
+Compile order and exporting a Kotlin package
+--------------------------------------------
 
-This demo is committed **already pinned**: the `pom.xml` carries a
-`<!--jenesis.pin-->` comment block recording the resolved Kotlin compiler
-closure. Because the compiler resolves on its own qualified trail (`kotlin`),
-its closure is pinned in this Maven-ignored comment rather than in
-`<dependencyManagement>`, keeping it separate from the project's own
-dependencies:
+The inferred chain compiles Kotlin first, then `javac`. `kotlinc` reads the
+`.java` sources for symbol resolution, so `Sample.kt` can call `Greeter`, but it
+emits only Kotlin classes; `javac` then compiles `Greeter.java` and
+`module-info.java`. When `javac` validates the `exports` directives, it sees the
+already-compiled Kotlin classes through `--patch-module`, so a package that
+holds only Kotlin classes can be exported.
 
-    <!--jenesis.pin
-    @kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable 2.4.0-RC2
-    @kotlin/org.jetbrains.kotlin/kotlin-stdlib 2.4.0-RC2
-    ...
-    -->
+That is what `sample.pure` shows: it contains a single Kotlin class and no Java
+type, yet `module-info.java` exports it. The order is what makes this work -
+`javac` validates `exports <package>` against the classes already in the module,
+so the Kotlin classes must exist first. `kotlinc` and `scalac` can read `.java`
+as source, so they run ahead of `javac`; `groovyc` cannot, which is why the
+`groovy` demo's exported package still needs a Java type.
 
-The leading `@` marks the `kotlin` qualifier under the POM's default `maven`
-prefix. Re-running `java build/jenesis/Project.java pin` is idempotent.
+Pinning
+-------
+
+This demo is currently unpinned: with no version declared, the Kotlin compiler
+and `kotlin.stdlib` float to the latest release. Recording a MODULAR_TO_MAVEN
+module's closure with `@jenesis.pin` tags on the module declaration is still
+pending; see the repository notes on the pin goal.

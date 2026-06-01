@@ -226,7 +226,7 @@ build, while the project being built is still recompiled by the build graph when
 
 `Project.main(args)` and `Project.build(args)` accept selector strings as positional arguments. The canonical
 example is `stage`, which runs the full release recipe (build → stage) and materialises a Maven-shaped tree
-under `target/stage/output/`:
+under `target/stage/maven/output/`:
 
     java build/jenesis/Project.java stage
 
@@ -353,15 +353,17 @@ All three concrete layouts run a `stage` target that depends directly on `BUILD`
 tree(s) by walking every per-module `inventory.properties` the assembler produced. The staging and the matching
 `export` shape differ by layout:
 
-- `MAVEN` stages with a single `MavenRepositoryStaging` step (output under `target/stage/output/`). For each
-  main module it parses `prefix.pom` for `groupId` / `artifactId` / `version` and hardlinks the artifacts as
+- `MAVEN` stages a single `MavenRepositoryStaging` step nested under a `maven` sub-step, so its output lands
+  under `target/stage/maven/output/` - the same absolute path MODULAR_TO_MAVEN uses for its Maven layout, so
+  the staged tree sits at a consistent location regardless of layout. For each main module it parses
+  `prefix.pom` for `groupId` / `artifactId` / `version` and hardlinks the artifacts as
   `<groupId-as-path>/<artifactId>/<version>/<artifactId>-<version>.<ext>` (suitable for upload to a Maven
   repository). Test variants (those whose inventory carries a `prefix.test=<main-artifactId>` marker) are
   routed onto the main coordinate with a `-tests` classifier, and the test module's `pom.xml` is parsed for
   its dependencies, which are appended to the staged main POM with `<scope>test</scope>`. Its `export` is a
-  single `MavenRepositoryExport` that copies the staged tree into the local Maven repository (default
-  `~/.m2/repository`, overridable via `MAVEN_REPOSITORY_LOCAL`) with the right `maven-metadata-local.xml` and
-  `_remote.repositories` markers.
+  matching `MavenRepositoryExport` under `export/maven` that copies the staged tree into the local Maven
+  repository (default `~/.m2/repository`, overridable via `MAVEN_REPOSITORY_LOCAL`) with the right
+  `maven-metadata-local.xml` and `_remote.repositories` markers.
 - `MODULAR_TO_MAVEN` - whose jars are genuine modules (it builds with the module marker set) - stages and
   publishes to *both* repositories, so its `stage` and `export` are each a small module with matching `maven`
   and `modular` sub-steps that line up one-to-one. `stage/maven` runs the same `MavenRepositoryStaging` (Maven
@@ -370,7 +372,9 @@ tree(s) by walking every per-module `inventory.properties` the assembler produce
   `stage/maven` into `~/.m2/repository`, and `export/modular` runs `JenesisModuleRepositoryExport` over
   `stage/modular` into the local Jenesis module repository (default `~/.jenesis`, overridable via
   `JENESIS_REPOSITORY_LOCAL`).
-- `MODULAR` uses `ModularStaging`. For each module's inventory it reads `prefix.module` (the Java module system module name)
+- `MODULAR` stages a single `ModularStaging` step nested under a `modular` sub-step, so its output lands under
+  `target/stage/modular/output/` (again matching MODULAR_TO_MAVEN's module layout, and its `export` runs as
+  `export/modular`). For each module's inventory it reads `prefix.module` (the Java module system module name)
   and the optional `prefix.version`, then hardlinks the artifacts as `<module>/<module>.jar` (plus
   `-sources.jar` / `-javadoc.jar` siblings when produced). When `prefix.version` is present, the version is
   inserted as one extra path segment: `<module>/<version>/<module>.jar`. There is no `pom.xml` to anchor a
@@ -658,7 +662,7 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | Step                       | What it does                                                                                                                                                                                   | Inputs (per predecessor folder)                                                                                                       | Outputs (under `context.next()`)                                                |
 | -------------------------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `Bind`                     | Hard-links files from each predecessor into a target layout under `context.next()`, driven by a `Map<Path, Path>` that mirrors specific subtrees under canonical names (used by the static factories `asSources()`, `asResources()`, `asIdentity(...)`, `asRequires(...)`). | a source folder, a named properties file, or any other predecessor subtree named in the map                                          | `sources/`, `resources/`, `identity.properties`, `requires.properties`, or any layout produced by the configured map |
-| `Javac`                    | Compiles each predecessor's `sources/` with the `javac` tool, using their `classes/` and `artifacts/` as class- or module-path entries; writes the resulting `.class` files to `classes/`. Source files under `sources/META-INF/versions/<N>/` are recognised as multi-release overlays and compiled in a separate pass per `<N>` with `--release <N>`, writing the resulting classes to `classes/META-INF/versions/<N>/`. For the overlay pass, main sources are made available via the just-compiled main classes - on the class-path when main is non-modular, or via `--module-path` plus `--patch-module <module>=<overlay-source-root>` when main has a `module-info.java`. When any overlay was produced, a `manifest.mf` containing `Multi-Release: true` is emitted alongside `classes/` so the downstream `Jar` step can mark the produced jar as multi-release. | `sources/`, `classes/`, `artifacts/`                                                                                                  | `classes/` (plus `classes/META-INF/versions/<N>/` for overlay passes and a top-level `manifest.mf` when an overlay was produced)  |
+| `Javac`                    | Compiles each predecessor's `sources/` with the `javac` tool, using their `artifacts/` (and, for a non-modular compile, their `classes/`) as class- or module-path entries; writes the resulting `.class` files to `classes/`. When the compiled sources include a `module-info.java`, predecessors' `classes/` directories - the same module's other-language output produced earlier in the inferred chain (Kotlin, Scala) - are instead supplied via `--patch-module <module>=<dirs>` (the module name read from the `module-info.java` source), so the module declaration can resolve and `exports` packages that only those classes populate. Source files under `sources/META-INF/versions/<N>/` are recognised as multi-release overlays and compiled in a separate pass per `<N>` with `--release <N>`, writing the resulting classes to `classes/META-INF/versions/<N>/`. For the overlay pass, main sources are made available via the just-compiled main classes - on the class-path when main is non-modular, or via `--module-path` plus `--patch-module <module>=<overlay-source-root>` when main has a `module-info.java`. When any overlay was produced, a `manifest.mf` containing `Multi-Release: true` is emitted alongside `classes/` so the downstream `Jar` step can mark the produced jar as multi-release. | `sources/`, `classes/`, `artifacts/`                                                                                                  | `classes/` (plus `classes/META-INF/versions/<N>/` for overlay passes and a top-level `manifest.mf` when an overlay was produced)  |
 | `Jar`                      | Packages the folders selected by the configured `Jar.Sort` into a single jar at the convention path that matches the sort: `CLASSES` writes `artifacts/classes.jar` (the deployable binary), `SOURCES` writes `sources/sources.jar` (alongside the source tree), `JAVADOC` writes `documentation/javadoc.jar` (alongside the docs tree); the latter two stay out of `artifacts/` since they are not deployable binaries. When one or more predecessors supply a top-level `manifest.mf`, those files are parsed and merged (matching attributes collapse, conflicting values for the same attribute fail the step) into a single manifest staged in `context.supplement()`, which is then passed to `jar` via `--manifest` so the merged attributes (notably `Multi-Release: true` emitted by a preceding multi-release `Javac` pass) land in the produced jar's `META-INF/MANIFEST.MF`. | per `Jar.Sort`: `CLASSES` reads `classes/` + `resources/`; `SOURCES` reads `sources/` + `resources/`; `JAVADOC` reads `javadoc/`; all sorts pick up each predecessor's top-level `manifest.mf`         | `artifacts/classes.jar`, `sources/sources.jar`, or `documentation/javadoc.jar` (depending on `Jar.Sort`) |
 | `Javadoc`                  | Invokes the `javadoc` tool over each predecessor's `sources/` and writes the generated documentation tree to `javadoc/`.                                                                       | `sources/`                                                                                                                            | `javadoc/`                                                                       |
 | `Java`                     | Runs `java` with each predecessor's `classes/`, `resources/` and the jars in `artifacts/` assembled into a class- and module-path; the entry point and command line are supplied by subclasses or `Java.of(...)`. | `classes/`, `resources/`, `artifacts/`                                                                                                | runs `java`; no canonical output                                                 |
@@ -1705,7 +1709,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   (`[1.0,2.0)`, `LATEST`, `RELEASE`, etc.) - picking a concrete version from a candidate list per the rules
   described in the Maven version comparison spec.
 - **`MavenRepositoryStaging`** is the `BuildStep` that materialises the Maven repository layout under
-  `target/stage/output/`. It walks every per-module `inventory.properties`, parses `prefix.pom` for
+  `target/stage/maven/output/`. It walks every per-module `inventory.properties`, parses `prefix.pom` for
   `groupId`/`artifactId`/`version`, validates that `prefix.artifacts` lists exactly one `.jar` and
   `prefix.sources`/`prefix.documentation` each list at most one, then hardlinks the binary plus the (optional)
   sources/documentation jars plus the pom as
@@ -1877,19 +1881,27 @@ documents how this repository wires those mechanisms together for its own releas
 
 ### The stage step
 
-Each of the three `Project.Layout` constants wires a `stage` step that depends directly on `BUILD`. The Maven-side
-layouts use `MavenRepositoryStaging`, which combines Maven repository placement with test-aware POM merging in
-one pass; `MODULAR` uses the simpler `ModularStaging`:
+Each of the three `Project.Layout` constants wires a `stage` *module* that depends directly on `BUILD`, nesting
+the staging step under a layout-named sub-step (`maven` and/or `modular`) so the produced tree always sits at a
+consistent path. The Maven-side layouts use `MavenRepositoryStaging`, which combines Maven repository placement
+with test-aware POM merging in one pass; `MODULAR` uses the simpler `ModularStaging`; `MODULAR_TO_MAVEN` wires
+both:
 
 ```java
-executor.addStep("stage", new MavenRepositoryStaging(project.stageTests()), BUILD); // MAVEN, MODULAR_TO_MAVEN
-executor.addStep("stage", new ModularStaging(project.stageTests()),         BUILD); // MODULAR
+// MAVEN: one "maven" sub-step
+executor.addModule("stage", (s, in) -> s.addStep(
+        "maven", new MavenRepositoryStaging(project.stageTests()), in.sequencedKeySet()), BUILD);
+// MODULAR: one "modular" sub-step
+executor.addModule("stage", (s, in) -> s.addStep(
+        "modular", new ModularStaging(project.stageTests()), in.sequencedKeySet()), BUILD);
+// MODULAR_TO_MAVEN: both "maven" and "modular" sub-steps in the one stage module.
 ```
 
 Both staging steps walk every per-module `inventory.properties` reachable through the `BUILD` predecessor and
-resolve its self-anchored paths against the inventory file's own folder. The step writes its tree under
-`target/stage/output/`. Files are hard-linked rather than copied; like every other Jenesis step, its output is
-content-hashed and skipped on re-runs when inputs are unchanged.
+resolve its self-anchored paths against the inventory file's own folder. `MavenRepositoryStaging` writes its
+tree under `target/stage/maven/output/` and `ModularStaging` under `target/stage/modular/output/`. Files are
+hard-linked rather than copied; like every other Jenesis step, its output is content-hashed and skipped on
+re-runs when inputs are unchanged.
 
 Under `MavenRepositoryStaging` (used by `MAVEN`, `MODULAR_TO_MAVEN`), each inventory is classified by reading its
 `prefix.test` value, then staged differently:
@@ -1925,13 +1937,13 @@ unset (default), test modules are simply omitted from the staging tree. When `pr
 on the inventory from `metadata.properties`' `version` key, which both layouts always populate today), it is
 inserted as an additional path segment between the module name and the jar files.
 
-The resulting trees under `target/stage/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
+The resulting trees under `target/stage/maven/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
 `-Djenesis.project.sources=true`, `-Djenesis.project.documentation=true`):
 
 `MAVEN` and `MODULAR_TO_MAVEN` (Maven repository layout, identical for the Jenesis project):
 
 ```
-target/stage/output/
+target/stage/maven/output/
 └── build/
     └── jenesis/
         └── build.jenesis/
@@ -1948,7 +1960,7 @@ target/stage/output/
 `MODULAR` with `-Djenesis.project.version=1.0.0`:
 
 ```
-target/stage/output/
+target/stage/maven/output/
 └── build.jenesis/
     └── 1.0.0/
         ├── build.jenesis.jar
@@ -1960,7 +1972,7 @@ target/stage/output/
 `metadata.properties` always carries a `version`):
 
 ```
-target/stage/output/
+target/stage/maven/output/
 └── build.jenesis/
     └── 0-SNAPSHOT/
         ├── build.jenesis.jar
@@ -1995,7 +2007,7 @@ java -Djenesis.project.version=<version> \
 ### Handing off to JReleaser
 
 [JReleaser](https://jreleaser.org) consumes the staged directory directly. A `jreleaser.yml` at the project
-root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `target/stage/output/`, plus the
+root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `target/stage/maven/output/`, plus the
 standard `JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment variables, lets
 a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2` in CI) sign and upload the
 staged artifacts to Maven Central. `JRELEASER_PROJECT_VERSION` should be set to the same value passed as
@@ -2028,10 +2040,10 @@ the `MAVEN` layout. The published coordinate is therefore `build.jenesis:build.j
 successful release produces:
 
 ```
-target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.jar
-target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>-sources.jar
-target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>-javadoc.jar
-target/stage/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.pom
+target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.jar
+target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>-sources.jar
+target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>-javadoc.jar
+target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.pom
 ```
 
 `.github/workflows/release.yml` triggers on commits whose first line begins with `[release]`. The release

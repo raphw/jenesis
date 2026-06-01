@@ -14,7 +14,6 @@ import build.jenesis.step.Bind;
 import build.jenesis.step.Download;
 import build.jenesis.step.Javac;
 import build.jenesis.step.JdkProcessBuildStep;
-import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Resolve;
 import build.jenesis.step.Versions;
@@ -166,16 +165,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 throws IOException {
             Path target = Files.createDirectory(context.next().resolve(CLASSES));
             List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
-            String release = null;
             for (BuildStepArgument argument : arguments.values()) {
-                Path javacProperties = argument.folder().resolve(ProcessBuildStep.PROCESS + "javac.properties");
-                if (Files.exists(javacProperties)) {
-                    SequencedProperties loaded = SequencedProperties.ofFiles(javacProperties);
-                    String value = loaded.getProperty("--release");
-                    if (value != null && !value.isEmpty()) {
-                        release = value;
-                    }
-                }
                 Path classes = argument.folder().resolve(CLASSES);
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
@@ -204,9 +194,9 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                             String name = file.toString();
-                            if (name.endsWith(".groovy") || name.endsWith(".java")) {
+                            if (name.endsWith(".groovy")) {
                                 files.add(name);
-                            } else if (includeResources) {
+                            } else if (includeResources && !name.endsWith(".java")) {
                                 BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                             }
                             return FileVisitResult.CONTINUE;
@@ -245,15 +235,6 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                     "org.codehaus.groovy.tools.FileSystemCompiler",
                     "-d", target.toString(),
                     "--classpath", String.join(File.pathSeparator, userClasspath)));
-            if (files.stream().anyMatch(name -> name.endsWith(".java"))) {
-                commands.add("-j");
-                if (release != null) {
-                    commands.add("-J");
-                    commands.add("source=" + release);
-                    commands.add("-J");
-                    commands.add("target=" + release);
-                }
-            }
             commands.addAll(files);
             return CompletableFuture.completedStage(commands);
         }

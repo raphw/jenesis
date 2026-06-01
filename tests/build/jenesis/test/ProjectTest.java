@@ -269,9 +269,8 @@ public class ProjectTest {
 
         Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler());
 
-        // replaceStep throws IllegalArgumentException("Unknown step: ...") if no step is registered
-        // at the given identity, so a successful no-throw call proves the layout wired up an
-        // `export` step. The replacement step is a no-op stand-in for the assertion.
+        // replaceStep throws when nothing is registered at the identity, so a no-throw call proves
+        // the layout wired the `export` registration.
         executor.replaceStep(Project.EXPORT, new JenesisModuleRepositoryExport(target.resolve("module-repository")));
     }
 

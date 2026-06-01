@@ -4,8 +4,10 @@ Java (multi-module modular) demo
 A multi-module **modular** project: every build descriptor is a
 `module-info.java` and there is no `pom.xml` anywhere. One module depends on the
 other plus a real external named module, so the demo shows intra-project and
-external resolution side by side. Its single-module counterpart is
-`../java-modular`, and its POM-based sibling is `../java-pom-multi`.
+external resolution side by side. A third module is the test variant of the
+library, so the demo doubles as a MODULAR_TO_MAVEN testing example. Its
+single-module counterpart is `../java-modular`, and its POM-based sibling is
+`../java-pom-multi`.
 
 Layout
 ------
@@ -15,6 +17,9 @@ Layout
     |-- greeter/             the library module
     |   |-- module-info.java     module demo.greeter { exports sample.greeter; }
     |   `-- sample/greeter/Greeter.java
+    |-- greeter-test/        the test variant of demo.greeter
+    |   |-- module-info.java     open module demo.greeter.test (@jenesis.test demo.greeter)
+    |   `-- greetertest/GreeterTest.java
     `-- app/                 the consumer module
         |-- module-info.java     requires demo.greeter + org.slf4j
         `-- sample/app/App.java   uses Greeter + org.slf4j.Logger
@@ -38,6 +43,34 @@ repository (`target/stage/maven/output`, keyed by the generated coordinate), and
 `export` publishes each. The sibling resolves as the Maven coordinate read from
 `greeter`'s generated POM, so the published `app` POM declares a dependency on
 the published `greeter` artifact.
+
+Tests
+-----
+
+The `greeter-test/` directory is a separate module marked as the test variant of
+`demo.greeter`:
+
+    /**
+     * @jenesis.test demo.greeter
+     * @jenesis.pin org.junit.jupiter 5.11.3 SHA-256/...
+     * ... (the rest of the JUnit closure)
+     */
+    open module demo.greeter.test {
+        requires demo.greeter;
+        requires org.junit.jupiter;
+    }
+
+The `@jenesis.test demo.greeter` tag marks the module as a test variant, so it is
+compiled and run but never staged as a published artifact. It is `open` so JUnit
+can reflect over the test classes, and its test lives in its own package
+(`greetertest`) rather than `sample.greeter`: a test module cannot share a package
+with the module it tests, since the Java module system forbids two modules from
+exporting the same package. The JUnit closure is pinned on the plain `module`
+trail, and the JUnit Platform console launcher that runs the tests is added
+automatically (its version is held to the `1.11.x` line that matches JUnit
+5.11.3). Unlike the `pin` runs of the other demos, the JUnit closure is kept on
+the test module alone rather than propagated project-wide, to keep `greeter` and
+`app` focused on their own dependencies.
 
 Build it
 --------

@@ -142,16 +142,6 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             sourceInputs.remove(PREVIOUS + SCAN);
 
             SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
-            if (hasJava) {
-                buildExecutor.addStep(JAVA,
-                        (process ? Javac.process() : Javac.tool())
-                                .includeResources(!hasKotlin && !hasScala && !hasGroovy)
-                                .modulePath(modulePath),
-                        dependencies);
-                SequencedSet<String> updated = new LinkedHashSet<>(sourceInputs);
-                updated.add(JAVA);
-                dependencies = updated;
-            }
             if (hasKotlin) {
                 buildExecutor.addModule(KOTLIN,
                         new KotlinCompilerModule(repositories, resolvers)
@@ -168,6 +158,19 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                                 .strictPinning(strictPinning)
                                 .includeResources(!hasJava && !hasKotlin && !hasGroovy),
                         dependencies);
+                SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
+                updated.add(SCALA + "/" + ScalaCompilerModule.CLASSES);
+                dependencies = updated;
+            }
+            if (hasJava) {
+                buildExecutor.addStep(JAVA,
+                        (process ? Javac.process() : Javac.tool())
+                                .includeResources(!hasKotlin && !hasScala && !hasGroovy)
+                                .modulePath(modulePath),
+                        dependencies);
+                SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
+                updated.add(JAVA);
+                dependencies = updated;
             }
             if (hasGroovy) {
                 buildExecutor.addModule(GROOVY,

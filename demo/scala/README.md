@@ -1,24 +1,25 @@
 Scala demo
 ==========
 
-A minimal Maven-layout project that mixes Java and Scala 3 sources. It shows
-Jenesis detecting the `.scala` sources and driving the Scala compiler through
-the default `JavaMultiProjectAssembler` - no Scala-specific configuration in the
-`pom.xml` beyond the source directory - while `javac` also participates for the
-companion `.java` file.
+A MODULAR_TO_MAVEN project (a `module-info.java`, no `pom.xml`) that mixes Java
+and Scala 3 in one module of the Java module system. It shows Jenesis detecting
+the `.scala` sources and driving the Scala compiler through the default
+`JavaMultiProjectAssembler`, with `javac` participating for `module-info.java`
+and the companion `.java` file. The module exports both a mixed package and a
+package that holds only Scala.
 
 Layout
 ------
 
     demo/scala
-    |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- pom.xml              Maven coordinates + <sourceDirectory>; ships pinned (see below)
-    |-- sources/sample/Greeter.java   a plain Java class
-    `-- sources/sample/Sample.scala   Scala that calls Greeter
-
-`Sample.scala` calls `Greeter().prefix()`, so the build compiles the Java source
-first (with `javac`) and the Scala source against it - one project, two
-compilers in the inferred chain.
+    |-- build/jenesis              symlink to ../../../sources/build/jenesis
+    `-- sources
+        |-- module-info.java       requires scala.library; exports sample; exports sample.pure
+        `-- sample
+            |-- Greeter.java       a Java type in the exported 'sample' package
+            |-- Sample.scala       Scala that calls Greeter
+            `-- pure
+                `-- Pure.scala     a pure-Scala package, exported with no Java type
 
 Build it
 --------
@@ -27,49 +28,46 @@ From this directory:
 
     java build/jenesis/Project.java
 
-Jenesis scans the sources, runs `javac` for `Greeter.java`, resolves the Scala
-compiler (no version is declared, so it floats to the latest release), and
-compiles `Sample.scala` against the Java output.
+Jenesis auto-detects the MODULAR_TO_MAVEN layout (a `module-info.java`, no
+`pom.xml`), resolves the Scala compiler, compiles the module, and emits a
+modular jar alongside a generated POM. The `requires scala.library` directive
+resolves to `org.scala-lang:scala-library`, the jar that carries the Scala
+standard library.
 
-Why a POM and not a `module-info.java`?
----------------------------------------
+Compile order and exporting a Scala package
+-------------------------------------------
 
-The `kotlin` demo next door is a pure module (a `module-info.java`, no `pom.xml`)
-because `kotlin.stdlib` ships as a single named module that a `requires` clause
-can resolve cleanly. Scala cannot be expressed that way. The Scala 3 standard
-library is split across several jars - `scala3-library_3` and the Scala 2.13
-`scala-library` it builds on - and they all export the same `package scala` (plus
-`scala.runtime`, `scala.util`, and so on). The Java module system forbids two
-modules on the module path from exporting the same package, so a
-`module-info.java` that `requires` the Scala stdlib fails to compile with
-"reads package scala from both ..." split-package errors. There is no module
-name that pulls in a single, conflict-free Scala stdlib.
+The inferred chain compiles Scala first, then `javac`. `scalac` reads the `.java`
+sources for symbol resolution, so `Sample.scala` can call `Greeter`, but it emits
+only Scala classes; `javac` then compiles `Greeter.java` and `module-info.java`.
+When `javac` validates the `exports` directives, it sees the already-compiled
+Scala classes through `--patch-module`, so a package that holds only Scala can be
+exported - that is what `sample.pure` shows: a single Scala class, no Java type,
+yet exported.
 
-A Maven-layout (POM) build sidesteps this entirely: the dependencies land on the
-class path rather than the module path, where the unnamed module merges packages
-across jars and the split never arises. That is why this demo keeps a `pom.xml`
-while the Kotlin one does not.
+One Scala-specific detail: `scalac` is not handed `module-info.java`. Its Java
+source parser cannot read a module declaration (it fails with "';' expected but
+'.' found" on the dotted module name), so Jenesis withholds `module-info.java`
+from `scalac` and lets `javac` own it; `scalac` still receives the other `.java`
+sources for resolution.
 
-Pinned toolchain
-----------------
+On the module path and the old split-package concern
+-----------------------------------------------------
 
-This demo is committed **already pinned**: the `pom.xml` carries a
-`<!--jenesis.pin-->` comment block recording the resolved Scala compiler
-closure on its own qualified trail (`scala`), separate from the project's own
-dependencies:
+An earlier version of this demo stayed on a `pom.xml` to avoid a split package:
+the Scala standard library used to be spread across `scala-library` and
+`scala3-library_3`, both exporting `package scala`, which the Java module system
+rejects on the module path. As of Scala 3.8.3 that no longer applies -
+`scala3-library_3` is an empty aggregator and the standard library lives entirely
+in `scala-library` - so a single `requires scala.library` pulls in a
+conflict-free module and the project builds as a module with no `pom.xml`.
 
-    <!--jenesis.pin
-    @scala/org.scala-lang/scala3-compiler_3 3.8.3
-    @scala/org.scala-lang/scala3-library_3 3.8.3
-    ...
-    -->
+Pinning
+-------
 
-Re-running `java build/jenesis/Project.java pin` is idempotent.
-
-The Scala line publishes `scala-library` and the `scala3-*` artifacts in lockstep,
-and the latest `<release>` on Maven Central is often a release candidate, so an
-unpinned build floats the compiler to an `-RC` version. Pinning
-`scala3-compiler_3` to a stable version (here `3.8.3`) holds the whole resolved
-closure on a non-RC release. The pin records versions only; the compiler trail's
-downloaded jars are not exposed downstream, so `pin` cannot yet attach content
-checksums to these entries the way it does for a module's own dependencies.
+This demo is currently unpinned: with no version declared, the Scala compiler and
+`scala-library` float to the latest release. Note that the latest Scala
+`<release>` on Maven Central is often a release candidate, so an unpinned build
+may float the compiler to an `-RC` version; recording the closure with
+`@jenesis.pin` tags on the module declaration is still pending (see the
+repository notes on the pin goal).
