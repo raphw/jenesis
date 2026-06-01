@@ -169,8 +169,8 @@ public class ModularProject implements BuildExecutorModule {
                 String key = prefix + "/" + dependency;
                 requires.setProperty(key, "");
                 scopes.setProperty(key, info.runtimeRequires().contains(dependency)
-                        ? DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name()
-                        : DependencyScope.COMPILE.name());
+                        ? DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label()
+                        : DependencyScope.COMPILE.label());
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             scopes.store(context.next().resolve(BuildStep.SCOPES));

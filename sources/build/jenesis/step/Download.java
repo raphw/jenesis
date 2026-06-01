@@ -13,14 +13,20 @@ public class Download implements DependencyProcessingBuildStep {
 
     private final transient Map<String, Repository> repositories;
     private final boolean strictPinning;
+    private final String scope;
 
     public Download(Map<String, Repository> repositories) {
-        this(repositories, false);
+        this(repositories, false, null);
     }
 
     public Download(Map<String, Repository> repositories, boolean strictPinning) {
+        this(repositories, strictPinning, null);
+    }
+
+    public Download(Map<String, Repository> repositories, boolean strictPinning, String scope) {
         this.repositories = repositories;
         this.strictPinning = strictPinning;
+        this.scope = scope;
     }
 
     @Override
@@ -32,10 +38,12 @@ public class Download implements DependencyProcessingBuildStep {
             throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
+        SequencedProperties locations = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
             Repository repository = repositories.getOrDefault(Resolver.base(group.getKey()), Repository.empty());
             for (Map.Entry<String, String> entry : group.getValue().entrySet()) {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
+                locations.setProperty(dependency, DEPENDENCIES + name);
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
                     if (previous != null && Files.exists(previous) && !strictPinning) {
@@ -123,6 +131,14 @@ public class Download implements DependencyProcessingBuildStep {
                     futures.add(future);
                 }
             }
+        }
+        locations.store(context.next().resolve(LOCATIONS));
+        if (scope != null) {
+            SequencedProperties scopes = new SequencedProperties();
+            for (String coordinate : locations.stringPropertyNames()) {
+                scopes.setProperty(coordinate, scope);
+            }
+            scopes.store(context.next().resolve(SCOPES));
         }
         return CompletableFuture
                 .allOf(futures.toArray(CompletableFuture[]::new))

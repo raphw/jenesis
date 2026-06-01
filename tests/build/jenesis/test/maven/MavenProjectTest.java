@@ -153,11 +153,11 @@ public class MavenProjectTest {
                 "maven/scope/provided-dep/1",
                 "maven/scope/runtime-dep/1");
         assertThat(mainScopesProps.getProperty("maven/scope/compile-dep/1"))
-                .isEqualTo(DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
+                .isEqualTo(DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label());
         assertThat(mainScopesProps.getProperty("maven/scope/provided-dep/1"))
-                .isEqualTo(DependencyScope.COMPILE.name());
+                .isEqualTo(DependencyScope.COMPILE.label());
         assertThat(mainScopesProps.getProperty("maven/scope/runtime-dep/1"))
-                .isEqualTo(DependencyScope.RUNTIME.name());
+                .isEqualTo(DependencyScope.RUNTIME.label());
 
         Path testRequires = results.get("maven/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES);

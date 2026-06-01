@@ -61,10 +61,10 @@ public class Pom implements BuildStep {
                 compileRequires.setProperty(name, requires.getProperty(name));
             } else {
                 List<String> parts = List.of(scope.split(","));
-                if (parts.contains(DependencyScope.COMPILE.name())) {
+                if (parts.contains(DependencyScope.COMPILE.label())) {
                     compileRequires.setProperty(name, requires.getProperty(name));
                 }
-                if (parts.contains(DependencyScope.RUNTIME.name())) {
+                if (parts.contains(DependencyScope.RUNTIME.label())) {
                     runtimeRequires.add(name);
                 }
             }

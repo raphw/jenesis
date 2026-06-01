@@ -181,9 +181,16 @@ public class PinPom implements BuildStep {
     private static String computeChecksum(Iterable<BuildStepArgument> arguments,
                                           String coordinate,
                                           HashDigestFunction hashFunction) throws IOException {
-        String filename = coordinate.replace('/', '-') + ".jar";
         for (BuildStepArgument argument : arguments) {
-            Path jar = argument.folder().resolve(BuildStep.DEPENDENCIES).resolve(filename);
+            Path locationsFile = argument.folder().resolve(BuildStep.LOCATIONS);
+            if (!Files.isRegularFile(locationsFile)) {
+                continue;
+            }
+            String relative = SequencedProperties.ofFiles(locationsFile).getProperty(coordinate);
+            if (relative == null) {
+                continue;
+            }
+            Path jar = argument.folder().resolve(relative).normalize();
             if (Files.isRegularFile(jar)) {
                 return hashFunction.encodedHash(jar);
             }

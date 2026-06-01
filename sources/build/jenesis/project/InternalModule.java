@@ -108,7 +108,8 @@ public class InternalModule implements BuildExecutorModule {
             boolean compile = scope == DependencyScope.COMPILE;
             buildExecutor.addStep(requiresId, new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier), SOURCE);
             buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, compile),
+                    new DependenciesModule(repositories, resolvers, compile, false,
+                            qualifier == null ? null : "module:" + qualifier),
                     requiresId);
         }
         buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, COMPILE_ARTIFACTS);

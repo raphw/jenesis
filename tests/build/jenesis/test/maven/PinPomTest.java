@@ -43,6 +43,12 @@ public class PinPomTest {
         properties.store(input.resolve(BuildStep.IDENTITY));
     }
 
+    private void writeLocations(Map<String, String> entries) throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        entries.forEach((coordinate, filename) -> properties.setProperty(coordinate, BuildStep.DEPENDENCIES + filename));
+        properties.store(input.resolve(BuildStep.LOCATIONS));
+    }
+
     private String run(Path pomFile) throws IOException {
         new PinPom("maven", pomFile, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
@@ -310,6 +316,7 @@ public class PinPomTest {
         Path jar = artifacts.resolve("maven-org.example-dep-1.0.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
+        writeLocations(Map.of("maven/org.example/dep/1.0", "maven-org.example-dep-1.0.jar"));
         writeResolved(Map.of("maven/org.example/dep", "1.0 SHA-256/stale"));
         String result = run(pom);
         MessageDigest digest;
@@ -339,6 +346,7 @@ public class PinPomTest {
         Path jar = artifacts.resolve("maven@kotlin-org.jetbrains-something-1.2.3.jar");
         byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
+        writeLocations(Map.of("maven@kotlin/org.jetbrains/something/1.2.3", "maven@kotlin-org.jetbrains-something-1.2.3.jar"));
         writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2.3"));
         String result = run(pom);
         MessageDigest digest;

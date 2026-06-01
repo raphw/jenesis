@@ -80,7 +80,8 @@ public class ExternalModule implements BuildExecutorModule {
         }
         buildExecutor.addStep(COORDINATE, new WriteCoordinates(coordinates));
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, false),
+                new DependenciesModule(repositories, resolvers, false, false,
+                        qualifier == null ? null : "module:" + qualifier),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path depArtifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);

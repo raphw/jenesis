@@ -49,12 +49,18 @@ public class PinModuleInfoTest {
         properties.store(input.resolve(BuildStep.IDENTITY));
     }
 
+    private void writeLocations(Map<String, String> entries) throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        entries.forEach((coordinate, filename) -> properties.setProperty(coordinate, BuildStep.DEPENDENCIES + filename));
+        properties.store(input.resolve(BuildStep.LOCATIONS));
+    }
+
     private Path writeAutomaticJar(Path artifacts, String filename, String moduleName) throws IOException {
         Path jar = artifacts.resolve(filename);
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
         manifest.getMainAttributes().putValue("Automatic-Module-Name", moduleName);
-        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+        try (JarOutputStream _ = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
             // Manifest is implicit; no further entries needed for an automatic module.
         }
         return jar;
@@ -281,6 +287,9 @@ public class PinModuleInfoTest {
         Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         writeAutomaticJar(artifacts, "maven-com.example-bar-1.2.3.jar", "com.example.bar");
         writeAutomaticJar(artifacts, "module-baz-2.0.0.jar", "com.example.baz");
+        writeLocations(Map.of(
+                "maven/com.example/bar/1.2.3", "maven-com.example-bar-1.2.3.jar",
+                "module/baz/2.0.0", "module-baz-2.0.0.jar"));
         writeRequires(new LinkedHashMap<>(Map.of(
                 "maven/com.example/bar/1.2.3", "",
                 "module/baz/2.0.0", "")));
@@ -320,6 +329,7 @@ public class PinModuleInfoTest {
         Path jar = artifacts.resolve("module-bar-1.2.3.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
+        writeLocations(Map.of("module/bar/1.2.3", "module-bar-1.2.3.jar"));
         writeResolved(Map.of("module/bar", "1.2.3 SHA-256/stale"));
         String result = run(file);
         MessageDigest digest;
@@ -362,6 +372,7 @@ public class PinModuleInfoTest {
         Path jar = artifacts.resolve("maven@kotlin-org.jetbrains-something-1.2.3.jar");
         byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
+        writeLocations(Map.of("maven@kotlin/org.jetbrains/something/1.2.3", "maven@kotlin-org.jetbrains-something-1.2.3.jar"));
         writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2.3"));
         String result = run(file);
         MessageDigest digest;
@@ -384,6 +395,7 @@ public class PinModuleInfoTest {
                 """);
         Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         writePlainJar(artifacts, "maven-org.jetbrains-annotations-13.0.jar");
+        writeLocations(Map.of("maven/org.jetbrains/annotations/13.0", "maven-org.jetbrains-annotations-13.0.jar"));
         writeRequires(new LinkedHashMap<>(Map.of(
                 "maven/org.jetbrains/annotations/13.0", "")));
         String result = runFromJars(file);
@@ -401,6 +413,7 @@ public class PinModuleInfoTest {
                 """);
         Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
         writeAutomaticJar(artifacts, "maven@kotlin-org.jetbrains-compiler-1.2.3.jar", "org.jetbrains.compiler");
+        writeLocations(Map.of("maven@kotlin/org.jetbrains/compiler/1.2.3", "maven@kotlin-org.jetbrains-compiler-1.2.3.jar"));
         writeRequires(new LinkedHashMap<>(Map.of(
                 "maven@kotlin/org.jetbrains/compiler/1.2.3", "")));
         String result = runFromJars(file);

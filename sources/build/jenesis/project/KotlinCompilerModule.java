@@ -80,7 +80,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, false), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning), RESOLVED);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning, "compiler:" + qualifier), RESOLVED);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(ARTIFACTS);
         compileInputs.addAll(upstream);

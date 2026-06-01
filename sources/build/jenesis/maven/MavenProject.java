@@ -219,18 +219,18 @@ public class MavenProject implements BuildExecutorModule {
                                         checksumByCoordinate.put(entry.substring(0, split), entry.substring(split + 1));
                                     }
                                 }
-                                String compileAndRuntime = DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name();
+                                String compileAndRuntime = DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label();
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                     scopes.setProperty(dependency, compileAndRuntime);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, DependencyScope.COMPILE.name());
+                                    scopes.setProperty(dependency, DependencyScope.COMPILE.label());
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, DependencyScope.RUNTIME.name());
+                                    scopes.setProperty(dependency, DependencyScope.RUNTIME.label());
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
                                     requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));

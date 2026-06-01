@@ -95,8 +95,8 @@ public class PomTest {
         requires.setProperty("maven/org.example/static-lib/4.5.6", "");
         requires.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties scopes = new SequencedProperties();
-        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
-        scopes.setProperty("maven/org.example/static-lib/4.5.6", DependencyScope.COMPILE.name());
+        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label());
+        scopes.setProperty("maven/org.example/static-lib/4.5.6", DependencyScope.COMPILE.label());
         scopes.store(argument.resolve(BuildStep.SCOPES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
@@ -136,8 +136,8 @@ public class PomTest {
         requires.setProperty("maven/org.example/runtime-only/4.5.6", "");
         requires.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties scopes = new SequencedProperties();
-        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.name() + "," + DependencyScope.RUNTIME.name());
-        scopes.setProperty("maven/org.example/runtime-only/4.5.6", DependencyScope.RUNTIME.name());
+        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label());
+        scopes.setProperty("maven/org.example/runtime-only/4.5.6", DependencyScope.RUNTIME.label());
         scopes.store(argument.resolve(BuildStep.SCOPES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");

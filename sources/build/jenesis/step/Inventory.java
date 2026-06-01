@@ -73,7 +73,7 @@ public class Inventory implements BuildStep {
             collect(folder.resolve(ARTIFACTS), artifacts);
             collect(folder.resolve(SOURCES), sources);
             collect(folder.resolve(DOCUMENTATION), documentation);
-            collect(folder.resolve(DEPENDENCIES), dependencies);
+            collectDependencies(folder, dependencies);
         }
         String prefix = ((path == null || path.isEmpty()) ? "module" : "module-" + path) + ".";
         SequencedProperties inventory = new SequencedProperties();
@@ -133,11 +133,34 @@ public class Inventory implements BuildStep {
         }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder)) {
             for (Path file : stream) {
-                // A '@' in the file name marks a qualified resolution trail (a compiler or
-                // build-module tool closure), which is never a dependency of the produced module.
-                if (Files.isRegularFile(file) && file.getFileName().toString().indexOf('@') < 0) {
+                if (Files.isRegularFile(file)) {
                     sink.add(file);
                 }
+            }
+        }
+    }
+
+    private static void collectDependencies(Path folder, SequencedSet<Path> sink) throws IOException {
+        Path locationsFile = folder.resolve(LOCATIONS);
+        if (!Files.isRegularFile(locationsFile)) {
+            collect(folder.resolve(DEPENDENCIES), sink);
+            return;
+        }
+        SequencedProperties locations = SequencedProperties.ofFiles(locationsFile);
+        Path scopesFile = folder.resolve(SCOPES);
+        SequencedProperties scopes = Files.isRegularFile(scopesFile)
+                ? SequencedProperties.ofFiles(scopesFile)
+                : new SequencedProperties();
+        for (String coordinate : locations.stringPropertyNames()) {
+            String scope = scopes.getProperty(coordinate);
+            // A scope carrying a ':' namespace (e.g. compiler:kotlin, module:tool) marks a build-tool
+            // closure, which is never a runtime dependency of the produced module.
+            if (scope != null && scope.indexOf(':') >= 0) {
+                continue;
+            }
+            Path file = folder.resolve(locations.getProperty(coordinate)).normalize();
+            if (Files.isRegularFile(file)) {
+                sink.add(file);
             }
         }
     }

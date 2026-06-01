@@ -49,7 +49,7 @@ public class MultiProjectDependencies implements BuildStep {
                 if (Files.exists(scopesFile)) {
                     SequencedProperties scopesProperties = SequencedProperties.ofFiles(scopesFile);
                     for (String property : scopesProperties.stringPropertyNames()) {
-                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope.name())) {
+                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope.label())) {
                             filtered.add(property);
                         }
                     }
