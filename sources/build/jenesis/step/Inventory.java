@@ -133,7 +133,9 @@ public class Inventory implements BuildStep {
         }
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder)) {
             for (Path file : stream) {
-                if (Files.isRegularFile(file)) {
+                // A '@' in the file name marks a qualified resolution trail (a compiler or
+                // build-module tool closure), which is never a dependency of the produced module.
+                if (Files.isRegularFile(file) && file.getFileName().toString().indexOf('@') < 0) {
                     sink.add(file);
                 }
             }

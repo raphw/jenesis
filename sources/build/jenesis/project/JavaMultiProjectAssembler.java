@@ -28,7 +28,8 @@ public record JavaMultiProjectAssembler(boolean process,
         return (sub, outerInherited) -> {
             sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
             sub.addModule("java", new JavaToolchainModule(
-                    new InferredCompilerChainModule(repositories, resolvers, process)
+                    new InferredCompilerChainModule(repositories, resolvers)
+                            .process(process)
                             .strictPinning(descriptor.strictPinning())
                             .modulePath(descriptor.modulePath()),
                     (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),

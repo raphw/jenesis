@@ -30,12 +30,6 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         this(repositories, resolvers, false, false, PathPlacement.INFERRED);
     }
 
-    public InferredCompilerChainModule(Map<String, Repository> repositories,
-                                       Map<String, Resolver> resolvers,
-                                       boolean process) {
-        this(repositories, resolvers, process, false, PathPlacement.INFERRED);
-    }
-
     private InferredCompilerChainModule(Map<String, Repository> repositories,
                                         Map<String, Resolver> resolvers,
                                         boolean process,
@@ -46,6 +40,10 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         this.process = process;
         this.strictPinning = strictPinning;
         this.modulePath = modulePath;
+    }
+
+    public InferredCompilerChainModule process(boolean process) {
+        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
     }
 
     public InferredCompilerChainModule strictPinning(boolean strictPinning) {
