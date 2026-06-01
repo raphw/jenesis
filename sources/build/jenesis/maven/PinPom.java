@@ -7,6 +7,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Inventory;
 
 public class PinPom implements BuildStep {
 
@@ -19,15 +20,17 @@ public class PinPom implements BuildStep {
     private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--\\s*jenesis\\.pin\\b.*?-->\\s*\\n");
 
     private final String prefix;
+    private final String path;
     private final List<Path> pomFiles;
     private final transient HashDigestFunction hashFunction;
 
-    public PinPom(String prefix, Path pomFile, HashDigestFunction hashFunction) {
-        this(prefix, List.of(pomFile), hashFunction);
+    public PinPom(String prefix, String path, Path pomFile, HashDigestFunction hashFunction) {
+        this(prefix, path, List.of(pomFile), hashFunction);
     }
 
-    public PinPom(String prefix, List<Path> pomFiles, HashDigestFunction hashFunction) {
+    public PinPom(String prefix, String path, List<Path> pomFiles, HashDigestFunction hashFunction) {
         this.prefix = prefix;
+        this.path = path;
         this.pomFiles = List.copyOf(pomFiles);
         this.hashFunction = hashFunction;
     }
@@ -42,8 +45,10 @@ public class PinPom implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> entries = collectEntries(arguments, prefix, hashFunction);
-        SequencedMap<String, String> qualified = collectQualified(arguments, hashFunction);
+        SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
+        Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
+        SequencedMap<String, String> entries = collectEntries(closure, internal, prefix, hashFunction);
+        SequencedMap<String, String> qualified = collectQualified(closure, internal, hashFunction);
         for (Path pomFile : pomFiles) {
             updatePom(pomFile, entries, qualified);
         }
@@ -95,75 +100,61 @@ public class PinPom implements BuildStep {
         }
     }
 
-    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments,
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
+                                                       Set<String> internal,
                                                        String prefix,
                                                        HashDigestFunction hashFunction) throws IOException {
-        Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            if (Files.exists(requiresFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
-                        continue;
-                    }
-                    String suffix = key.substring(slash + 1);
-                    int lastSlash = suffix.lastIndexOf('/');
-                    if (lastSlash <= 0) {
-                        continue;
-                    }
-                    String bomKey = suffix.substring(0, lastSlash);
-                    String version = suffix.substring(lastSlash + 1);
-                    String existing = properties.getProperty(key);
-                    String computed = computeChecksum(arguments.values(), key, hashFunction);
-                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
-                    entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
-                }
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            String key = dependency.getKey();
+            if (internal.contains(key)) {
+                continue;
             }
+            int slash = key.indexOf('/');
+            if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+                continue;
+            }
+            String suffix = key.substring(slash + 1);
+            int lastSlash = suffix.lastIndexOf('/');
+            if (lastSlash <= 0) {
+                continue;
+            }
+            String bomKey = suffix.substring(0, lastSlash);
+            String version = suffix.substring(lastSlash + 1);
+            String checksum = computeChecksum(dependency.getValue(), hashFunction);
+            entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
         }
         return entries;
     }
 
-    static SequencedMap<String, String> collectQualified(SequencedMap<String, BuildStepArgument> arguments,
+    static SequencedMap<String, String> collectQualified(SequencedMap<String, Inventory.Dependency> closure,
+                                                         Set<String> internal,
                                                          HashDigestFunction hashFunction) throws IOException {
-        Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            if (Files.exists(requiresFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0) {
-                        continue;
-                    }
-                    int at = key.substring(0, slash).indexOf('@');
-                    if (at < 1) {
-                        continue;
-                    }
-                    String suffix = key.substring(slash + 1);
-                    int lastSlash = suffix.lastIndexOf('/');
-                    if (lastSlash <= 0) {
-                        continue;
-                    }
-                    String prefix = key.substring(0, at);
-                    String token = (prefix.equals("maven") ? "@" : prefix + "@")
-                            + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
-                    String version = suffix.substring(lastSlash + 1);
-                    String existing = properties.getProperty(key);
-                    String computed = computeChecksum(arguments.values(), key, hashFunction);
-                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
-                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
-                }
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            String key = dependency.getKey();
+            if (internal.contains(key)) {
+                continue;
             }
+            int slash = key.indexOf('/');
+            if (slash < 0) {
+                continue;
+            }
+            int at = key.substring(0, slash).indexOf('@');
+            if (at < 1) {
+                continue;
+            }
+            String suffix = key.substring(slash + 1);
+            int lastSlash = suffix.lastIndexOf('/');
+            if (lastSlash <= 0) {
+                continue;
+            }
+            String prefix = key.substring(0, at);
+            String token = (prefix.equals("maven") ? "@" : prefix + "@")
+                    + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
+            String version = suffix.substring(lastSlash + 1);
+            String checksum = computeChecksum(dependency.getValue(), hashFunction);
+            entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
         }
         return entries;
     }
@@ -178,41 +169,22 @@ public class PinPom implements BuildStep {
         return sb.toString();
     }
 
-    private static String computeChecksum(Iterable<BuildStepArgument> arguments,
-                                          String coordinate,
+    private static String computeChecksum(Inventory.Dependency dependency,
                                           HashDigestFunction hashFunction) throws IOException {
-        for (BuildStepArgument argument : arguments) {
-            Path locationsFile = argument.folder().resolve(BuildStep.LOCATIONS);
-            if (!Files.isRegularFile(locationsFile)) {
-                continue;
-            }
-            String relative = SequencedProperties.ofFiles(locationsFile).getProperty(coordinate);
-            if (relative == null) {
-                continue;
-            }
-            Path jar = argument.folder().resolve(relative).normalize();
-            if (Files.isRegularFile(jar)) {
-                return hashFunction.encodedHash(jar);
-            }
+        if (dependency.jar() != null && Files.isRegularFile(dependency.jar())) {
+            return hashFunction.encodedHash(dependency.jar());
         }
-        return null;
+        return dependency.checksum().isEmpty() ? null : dependency.checksum();
     }
 
-    static Set<String> collectInternal(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
+    static Set<String> collectInternal(Set<String> identities) {
         Set<String> internal = new LinkedHashSet<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path identityFile = argument.folder().resolve(IDENTITY);
-            if (!Files.exists(identityFile)) {
-                continue;
-            }
-            SequencedProperties properties = SequencedProperties.ofFiles(identityFile);
-            for (String coord : properties.stringPropertyNames()) {
-                internal.add(coord);
-                int firstSlash = coord.indexOf('/');
-                int lastSlash = coord.lastIndexOf('/');
-                if (firstSlash > 0 && lastSlash > firstSlash) {
-                    internal.add(coord.substring(0, lastSlash));
-                }
+        for (String coord : identities) {
+            internal.add(coord);
+            int firstSlash = coord.indexOf('/');
+            int lastSlash = coord.lastIndexOf('/');
+            if (firstSlash > 0 && lastSlash > firstSlash) {
+                internal.add(coord.substring(0, lastSlash));
             }
         }
         return internal;

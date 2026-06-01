@@ -22,6 +22,7 @@ import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Inventory;
 
 public record Project(
         Path root,
@@ -95,7 +96,7 @@ public record Project(
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "pom.xml",
-                    file -> new PinPom("maven", file, hashFunction)), BUILD);
+                    (path, file) -> new PinPom("maven", path, file, hashFunction)), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -148,7 +149,7 @@ public record Project(
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    file -> new PinModuleInfo("module", file, hashFunction)), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, file, hashFunction)), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -211,7 +212,7 @@ public record Project(
             HashDigestFunction hashFunction = new HashDigestFunction(
                     System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    file -> new PinModuleInfo("module", file, true, hashFunction)), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, file, true, hashFunction)), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -773,55 +774,33 @@ public record Project(
         }
     }
 
-    private record PinModule(Path root, String fileName, Function<Path, BuildStep> stepFactory)
+    private record PinModule(Path root, String fileName, BiFunction<String, Path, BuildStep> stepFactory)
             implements BuildExecutorModule {
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
-            SequencedMap<String, String> segmentToPath = new LinkedHashMap<>();
-            SequencedSet<String> identityKeys = new LinkedHashSet<>();
-            for (Map.Entry<String, Path> entry : inherited.entrySet()) {
-                Path moduleFile = entry.getValue().resolve(BuildStep.MODULE);
-                if (Files.isRegularFile(moduleFile)) {
-                    String path = SequencedProperties.ofFiles(moduleFile).getProperty("path");
-                    String segment = moduleSegment(entry.getKey());
-                    if (path != null && segment != null) {
-                        segmentToPath.put(segment, path);
+            SequencedSet<String> paths = new LinkedHashSet<>();
+            for (Path folder : inherited.values()) {
+                Path inventoryFile = folder.resolve(Inventory.INVENTORY);
+                if (!Files.isRegularFile(inventoryFile)) {
+                    continue;
+                }
+                SequencedProperties inventory = SequencedProperties.ofFiles(inventoryFile);
+                for (String key : inventory.stringPropertyNames()) {
+                    if (key.endsWith(".path")) {
+                        paths.add(inventory.getProperty(key));
                     }
                 }
-                if (Files.isRegularFile(entry.getValue().resolve(BuildStep.IDENTITY))) {
-                    identityKeys.add(entry.getKey());
-                }
             }
-            SequencedMap<String, SequencedSet<String>> pathToKeys = new LinkedHashMap<>();
-            for (String key : inherited.sequencedKeySet()) {
-                String segment = moduleSegment(key);
-                String path = segment == null ? null : segmentToPath.get(segment);
-                if (path != null) {
-                    pathToKeys.computeIfAbsent(path, _ -> new LinkedHashSet<>()).add(key);
-                }
-            }
-            for (Map.Entry<String, SequencedSet<String>> entry : pathToKeys.entrySet()) {
-                Path file = root.resolve(entry.getKey()).resolve(fileName);
+            for (String path : paths) {
+                Path file = root.resolve(path).resolve(fileName);
                 if (!Files.isRegularFile(file)) {
                     continue;
                 }
-                SequencedSet<String> keys = new LinkedHashSet<>(entry.getValue());
-                keys.addAll(identityKeys);
-                buildExecutor.addStep("module-" + BuildExecutorModule.encode(entry.getKey()),
-                        stepFactory.apply(file),
-                        keys);
+                buildExecutor.addStep("module-" + BuildExecutorModule.encode(path),
+                        stepFactory.apply(path, file),
+                        new LinkedHashSet<>(inherited.sequencedKeySet()));
             }
-        }
-
-        private static String moduleSegment(String key) {
-            for (String part : key.split("/")) {
-                if (part.startsWith(MultiProjectModule.MODULE + "-")
-                        || part.startsWith("test-" + MultiProjectModule.MODULE + "-")) {
-                    return part;
-                }
-            }
-            return null;
         }
     }
 

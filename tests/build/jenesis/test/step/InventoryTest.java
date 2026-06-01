@@ -47,6 +47,9 @@ public class InventoryTest {
         Path runtime = Files.createDirectory(root.resolve("runtime"));
         Path runtimeDeps = Files.createDirectory(runtime.resolve("dependencies"));
         Path lib = Files.writeString(runtimeDeps.resolve("lib.jar"), "library");
+        SequencedProperties runtimeLocations = new SequencedProperties();
+        runtimeLocations.setProperty("maven/org.example/lib/1.0", "dependencies/lib.jar");
+        runtimeLocations.store(runtime.resolve(BuildStep.LOCATIONS));
 
         BuildStepResult result = run(args("manifests", manifests, "produce", produce, "runtime", runtime));
 
@@ -157,9 +160,15 @@ public class InventoryTest {
         Path firstDeps = Files.createDirectory(root.resolve("first"));
         Path firstDir = Files.createDirectory(firstDeps.resolve("dependencies"));
         Path libA = Files.writeString(firstDir.resolve("a.jar"), "a");
+        SequencedProperties firstLocations = new SequencedProperties();
+        firstLocations.setProperty("maven/org.example/a/1.0", "dependencies/a.jar");
+        firstLocations.store(firstDeps.resolve(BuildStep.LOCATIONS));
         Path secondDeps = Files.createDirectory(root.resolve("second"));
         Path secondDir = Files.createDirectory(secondDeps.resolve("dependencies"));
         Path libB = Files.writeString(secondDir.resolve("b.jar"), "b");
+        SequencedProperties secondLocations = new SequencedProperties();
+        secondLocations.setProperty("maven/org.example/b/1.0", "dependencies/b.jar");
+        secondLocations.store(secondDeps.resolve(BuildStep.LOCATIONS));
 
         run(args("manifests", manifests, "first", firstDeps, "second", secondDeps));
 

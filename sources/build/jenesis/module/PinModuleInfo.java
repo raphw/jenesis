@@ -7,6 +7,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Inventory;
 
 public class PinModuleInfo implements BuildStep {
 
@@ -15,24 +16,26 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
 
     private final String prefix;
+    private final String path;
     private final List<Path> moduleInfoFiles;
     private final boolean fromJars;
     private final transient HashDigestFunction hashFunction;
 
-    public PinModuleInfo(String prefix, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(prefix, List.of(moduleInfoFile), false, hashFunction);
+    public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
+        this(prefix, path, List.of(moduleInfoFile), false, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this(prefix, moduleInfoFiles, false, hashFunction);
+    public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
+        this(prefix, path, moduleInfoFiles, false, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, Path moduleInfoFile, boolean fromJars, HashDigestFunction hashFunction) {
-        this(prefix, List.of(moduleInfoFile), fromJars, hashFunction);
+    public PinModuleInfo(String prefix, String path, Path moduleInfoFile, boolean fromJars, HashDigestFunction hashFunction) {
+        this(prefix, path, List.of(moduleInfoFile), fromJars, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, List<Path> moduleInfoFiles, boolean fromJars, HashDigestFunction hashFunction) {
+    public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, boolean fromJars, HashDigestFunction hashFunction) {
         this.prefix = prefix;
+        this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
         this.fromJars = fromJars;
         this.hashFunction = hashFunction;
@@ -48,34 +51,24 @@ public class PinModuleInfo implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
+        SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
+        Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
         SequencedMap<String, String> entries = fromJars
-                ? collectFromJars(arguments, hashFunction)
-                : collectEntries(arguments, prefix, hashFunction);
-        SequencedMap<String, String> qualified = collectQualified(arguments, hashFunction);
+                ? collectFromJars(closure, internal, hashFunction)
+                : collectEntries(closure, internal, prefix, hashFunction);
+        SequencedMap<String, String> qualified = collectQualified(closure, internal, hashFunction);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries, qualified);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private static String computeChecksum(Iterable<BuildStepArgument> arguments,
-                                          String coordinate,
+    private static String computeChecksum(Inventory.Dependency dependency,
                                           HashDigestFunction hashFunction) throws IOException {
-        for (BuildStepArgument argument : arguments) {
-            Path locationsFile = argument.folder().resolve(BuildStep.LOCATIONS);
-            if (!Files.isRegularFile(locationsFile)) {
-                continue;
-            }
-            String relative = SequencedProperties.ofFiles(locationsFile).getProperty(coordinate);
-            if (relative == null) {
-                continue;
-            }
-            Path jar = argument.folder().resolve(relative).normalize();
-            if (Files.isRegularFile(jar)) {
-                return hashFunction.encodedHash(jar);
-            }
+        if (dependency.jar() != null && Files.isRegularFile(dependency.jar())) {
+            return hashFunction.encodedHash(dependency.jar());
         }
-        return null;
+        return dependency.checksum().isEmpty() ? null : dependency.checksum();
     }
 
     private static void updateModuleInfo(Path file, SequencedMap<String, String> entries, SequencedMap<String, String> qualified) throws IOException {
@@ -94,70 +87,44 @@ public class PinModuleInfo implements BuildStep {
         }
     }
 
-    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, BuildStepArgument> arguments,
+    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, Inventory.Dependency> closure,
+                                                               Set<String> internal,
                                                                HashDigestFunction hashFunction) throws IOException {
-        Set<String> internal = collectInternal(arguments);
-        SequencedMap<String, String> versionByFile = new LinkedHashMap<>();
-        SequencedMap<String, String> coordinateByFile = new LinkedHashMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            if (!Files.exists(requiresFile)) {
-                continue;
-            }
-            SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
-            for (String coordinate : properties.stringPropertyNames()) {
-                if (internal.contains(coordinate)) {
-                    continue;
-                }
-                int firstSlash = coordinate.indexOf('/');
-                int lastSlash = coordinate.lastIndexOf('/');
-                if (firstSlash <= 0 || lastSlash == firstSlash) {
-                    // Skip coordinates with no version segment (e.g. "module/foo"); the last
-                    // segment must be a real version, not the module/artifact name.
-                    continue;
-                }
-                if (coordinate.substring(0, firstSlash).indexOf('@') > 0) {
-                    continue;
-                }
-                String version = coordinate.substring(lastSlash + 1);
-                String existing = properties.getProperty(coordinate);
-                String computed = computeChecksum(arguments.values(), coordinate, hashFunction);
-                String checksum = computed != null ? computed : (existing == null || existing.isEmpty() ? null : existing);
-                String fileName = coordinate.replace('/', '-') + ".jar";
-                versionByFile.putIfAbsent(fileName, checksum == null ? version : version + " " + checksum);
-                coordinateByFile.putIfAbsent(fileName, coordinate.substring(0, lastSlash));
-            }
-        }
         SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path artifacts = argument.folder().resolve(BuildStep.DEPENDENCIES);
-            if (!Files.exists(artifacts)) {
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            String coordinate = dependency.getKey();
+            if (internal.contains(coordinate)) {
                 continue;
             }
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts, "*.jar")) {
-                for (Path jar : stream) {
-                    if (!Files.isRegularFile(jar)) {
-                        continue;
-                    }
-                    String fileName = jar.getFileName().toString();
-                    String value = versionByFile.get(fileName);
-                    if (value == null) {
-                        continue;
-                    }
-                    Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
-                    if (reference.isEmpty()) {
-                        continue;
-                    }
-                    ModuleDescriptor descriptor = reference.get().descriptor();
-                    if (descriptor.isAutomatic() && !hasAutomaticModuleName(jar)) {
-                        // A plain jar has no real module name to pin against; record it under its
-                        // explicit coordinate (e.g. maven/org.jetbrains/annotations) instead.
-                        entries.putIfAbsent(coordinateByFile.get(fileName), value);
-                        continue;
-                    }
-                    entries.putIfAbsent(descriptor.name(), value);
-                }
+            int firstSlash = coordinate.indexOf('/');
+            int lastSlash = coordinate.lastIndexOf('/');
+            if (firstSlash <= 0 || lastSlash == firstSlash) {
+                // Skip coordinates with no version segment (e.g. "module/foo"); the last
+                // segment must be a real version, not the module/artifact name.
+                continue;
             }
+            if (coordinate.substring(0, firstSlash).indexOf('@') > 0) {
+                continue;
+            }
+            Path jar = dependency.getValue().jar();
+            if (jar == null || !Files.isRegularFile(jar)) {
+                continue;
+            }
+            String version = coordinate.substring(lastSlash + 1);
+            String checksum = computeChecksum(dependency.getValue(), hashFunction);
+            String value = checksum == null ? version : version + " " + checksum;
+            Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
+            if (reference.isEmpty()) {
+                continue;
+            }
+            ModuleDescriptor descriptor = reference.get().descriptor();
+            if (descriptor.isAutomatic() && !hasAutomaticModuleName(jar)) {
+                // A plain jar has no real module name to pin against; record it under its
+                // explicit coordinate (e.g. maven/org.jetbrains/annotations) instead.
+                entries.putIfAbsent(coordinate.substring(0, lastSlash), value);
+                continue;
+            }
+            entries.putIfAbsent(descriptor.name(), value);
         }
         return entries;
     }
@@ -170,94 +137,73 @@ public class PinModuleInfo implements BuildStep {
         }
     }
 
-    static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments,
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
+                                                       Set<String> internal,
                                                        String prefix,
                                                        HashDigestFunction hashFunction) throws IOException {
-        Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            if (Files.exists(requiresFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
-                        continue;
-                    }
-                    String suffix = key.substring(slash + 1);
-                    int lastSlash = suffix.lastIndexOf('/');
-                    if (lastSlash <= 0) {
-                        continue;
-                    }
-                    String bomKey = suffix.substring(0, lastSlash);
-                    String version = suffix.substring(lastSlash + 1);
-                    String existing = properties.getProperty(key);
-                    String computed = computeChecksum(arguments.values(), key, hashFunction);
-                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
-                    entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
-                }
-            }
-        }
-        return entries;
-    }
-
-    static SequencedMap<String, String> collectQualified(SequencedMap<String, BuildStepArgument> arguments,
-                                                         HashDigestFunction hashFunction) throws IOException {
-        Set<String> internal = collectInternal(arguments);
-        SequencedMap<String, String> entries = new TreeMap<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            if (Files.exists(requiresFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0) {
-                        continue;
-                    }
-                    int at = key.substring(0, slash).indexOf('@');
-                    if (at < 1) {
-                        continue;
-                    }
-                    String suffix = key.substring(slash + 1);
-                    int lastSlash = suffix.lastIndexOf('/');
-                    if (lastSlash <= 0) {
-                        continue;
-                    }
-                    String prefix = key.substring(0, at);
-                    String token = (prefix.equals("module") ? "@" : prefix + "@")
-                            + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
-                    String version = suffix.substring(lastSlash + 1);
-                    String existing = properties.getProperty(key);
-                    String computed = computeChecksum(arguments.values(), key, hashFunction);
-                    String checksum = computed != null ? computed : (existing.isEmpty() ? null : existing);
-                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
-                }
-            }
-        }
-        return entries;
-    }
-
-    static Set<String> collectInternal(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
-        Set<String> internal = new LinkedHashSet<>();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path identityFile = argument.folder().resolve(IDENTITY);
-            if (!Files.exists(identityFile)) {
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            String key = dependency.getKey();
+            if (internal.contains(key)) {
                 continue;
             }
-            SequencedProperties properties = SequencedProperties.ofFiles(identityFile);
-            for (String coord : properties.stringPropertyNames()) {
-                internal.add(coord);
-                int firstSlash = coord.indexOf('/');
-                int lastSlash = coord.lastIndexOf('/');
-                if (firstSlash > 0 && lastSlash > firstSlash) {
-                    internal.add(coord.substring(0, lastSlash));
-                }
+            int slash = key.indexOf('/');
+            if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+                continue;
+            }
+            String suffix = key.substring(slash + 1);
+            int lastSlash = suffix.lastIndexOf('/');
+            if (lastSlash <= 0) {
+                continue;
+            }
+            String bomKey = suffix.substring(0, lastSlash);
+            String version = suffix.substring(lastSlash + 1);
+            String checksum = computeChecksum(dependency.getValue(), hashFunction);
+            entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
+        }
+        return entries;
+    }
+
+    static SequencedMap<String, String> collectQualified(SequencedMap<String, Inventory.Dependency> closure,
+                                                         Set<String> internal,
+                                                         HashDigestFunction hashFunction) throws IOException {
+        SequencedMap<String, String> entries = new TreeMap<>();
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            String key = dependency.getKey();
+            if (internal.contains(key)) {
+                continue;
+            }
+            int slash = key.indexOf('/');
+            if (slash < 0) {
+                continue;
+            }
+            int at = key.substring(0, slash).indexOf('@');
+            if (at < 1) {
+                continue;
+            }
+            String suffix = key.substring(slash + 1);
+            int lastSlash = suffix.lastIndexOf('/');
+            if (lastSlash <= 0) {
+                continue;
+            }
+            String prefix = key.substring(0, at);
+            String token = (prefix.equals("module") ? "@" : prefix + "@")
+                    + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
+            String version = suffix.substring(lastSlash + 1);
+            String checksum = computeChecksum(dependency.getValue(), hashFunction);
+            entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
+        }
+        return entries;
+    }
+
+    static Set<String> collectInternal(Set<String> identities) {
+        Set<String> internal = new LinkedHashSet<>();
+        for (String coord : identities) {
+            internal.add(coord);
+            int firstSlash = coord.indexOf('/');
+            int lastSlash = coord.lastIndexOf('/');
+            if (firstSlash > 0 && lastSlash > firstSlash) {
+                internal.add(coord.substring(0, lastSlash));
             }
         }
         return internal;

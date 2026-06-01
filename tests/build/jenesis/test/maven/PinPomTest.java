@@ -9,6 +9,7 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.PinPom;
+import build.jenesis.step.Inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,35 +27,46 @@ public class PinPomTest {
         input = Files.createDirectory(root.resolve("input"));
     }
 
+    private SequencedProperties loadInventory() throws IOException {
+        Path file = input.resolve(Inventory.INVENTORY);
+        return Files.isRegularFile(file) ? SequencedProperties.ofFiles(file) : new SequencedProperties();
+    }
+
+    private static int count(SequencedProperties properties, String prefix) {
+        return (int) properties.stringPropertyNames().stream().filter(name -> name.startsWith(prefix)).count();
+    }
+
     private void writeResolved(Map<String, String> entries) throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        entries.forEach((coordinate, value) -> {
+        SequencedProperties properties = loadInventory();
+        int index = count(properties, "module.dependency.");
+        for (Map.Entry<String, String> entry : entries.entrySet()) {
+            String value = entry.getValue();
             int space = value.indexOf(' ');
             String version = space < 0 ? value : value.substring(0, space);
             String checksum = space < 0 ? "" : value.substring(space + 1).trim();
-            properties.setProperty(coordinate + "/" + version, checksum);
-        });
-        properties.store(input.resolve(BuildStep.REQUIRES));
+            String coordinate = entry.getKey() + "/" + version;
+            String jar = BuildStep.DEPENDENCIES + coordinate.replace('/', '-') + ".jar";
+            properties.setProperty("module.dependency." + index++,
+                    coordinate + " " + jar + (checksum.isEmpty() ? "" : " " + checksum));
+        }
+        properties.store(input.resolve(Inventory.INVENTORY));
     }
 
     private void writeIdentity(Map<String, String> entries) throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        entries.forEach(properties::setProperty);
-        properties.store(input.resolve(BuildStep.IDENTITY));
-    }
-
-    private void writeLocations(Map<String, String> entries) throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        entries.forEach((coordinate, filename) -> properties.setProperty(coordinate, BuildStep.DEPENDENCIES + filename));
-        properties.store(input.resolve(BuildStep.LOCATIONS));
+        SequencedProperties properties = loadInventory();
+        int index = count(properties, "module.identity.");
+        for (String coordinate : entries.keySet()) {
+            properties.setProperty("module.identity." + index++, coordinate);
+        }
+        properties.store(input.resolve(Inventory.INVENTORY));
     }
 
     private String run(Path pomFile) throws IOException {
-        new PinPom("maven", pomFile, new HashDigestFunction("SHA-256")).apply(Runnable::run,
+        new PinPom("maven", "", pomFile, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
-                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(Inventory.INVENTORY), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         return Files.readString(pomFile);
@@ -316,7 +328,6 @@ public class PinPomTest {
         Path jar = artifacts.resolve("maven-org.example-dep-1.0.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
-        writeLocations(Map.of("maven/org.example/dep/1.0", "maven-org.example-dep-1.0.jar"));
         writeResolved(Map.of("maven/org.example/dep", "1.0 SHA-256/stale"));
         String result = run(pom);
         MessageDigest digest;
@@ -346,7 +357,6 @@ public class PinPomTest {
         Path jar = artifacts.resolve("maven@kotlin-org.jetbrains-something-1.2.3.jar");
         byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
-        writeLocations(Map.of("maven@kotlin/org.jetbrains/something/1.2.3", "maven@kotlin-org.jetbrains-something-1.2.3.jar"));
         writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2.3"));
         String result = run(pom);
         MessageDigest digest;
