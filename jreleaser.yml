@@ -30,8 +30,8 @@ release:
 files:
   artifacts:
     - path: 'sdk/jenesis-{{projectVersion}}.zip'
-    - path: 'target/stage/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}.jar'
-    - path: 'target/stage/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}-sources.jar'
+    - path: 'target/stage/maven/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}.jar'
+    - path: 'target/stage/maven/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}-sources.jar'
 
 deploy:
   maven:
@@ -41,4 +41,4 @@ deploy:
         url: https://central.sonatype.com/api/v1/publisher
         applyMavenCentralRules: true
         stagingRepositories:
-          - target/stage/output
+          - target/stage/maven/output
