@@ -42,9 +42,8 @@ public class KotlinCompilerModule implements BuildExecutorModule {
 
     public KotlinCompilerModule(Map<String, Repository> repositories,
                                 Map<String, Resolver> resolvers,
-                                boolean strictPinning,
                                 Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, strictPinning, true, "kotlin", factory);
+        this(repositories, resolvers, false, true, "kotlin", factory);
     }
 
     private KotlinCompilerModule(Map<String, Repository> repositories,

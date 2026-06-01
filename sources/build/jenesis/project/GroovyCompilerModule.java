@@ -41,9 +41,8 @@ public class GroovyCompilerModule implements BuildExecutorModule {
 
     public GroovyCompilerModule(Map<String, Repository> repositories,
                                 Map<String, Resolver> resolvers,
-                                boolean strictPinning,
                                 Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, strictPinning, true, "groovy", factory);
+        this(repositories, resolvers, false, true, "groovy", factory);
     }
 
     private GroovyCompilerModule(Map<String, Repository> repositories,
