@@ -32,6 +32,36 @@ public class ModuleInfoParserTest {
     }
 
     @Test
+    public void jenesis_pin_explicit_prefix_for_token_with_slash() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin maven/org.jetbrains/annotations 13.0 SHA256/cafebabe
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions())
+                .containsEntry("maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
+    }
+
+    @Test
+    public void jenesis_pin_tolerates_surrounding_whitespace() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 *   @jenesis.pin   maven/org.jetbrains/annotations   13.0   SHA256/cafebabe  \s
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions())
+                .containsEntry("maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
+    }
+
+    @Test
     public void can_identify_module_info() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 module foo {

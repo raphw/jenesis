@@ -60,6 +60,18 @@ public class PinModuleInfoTest {
         return jar;
     }
 
+    private Path writePlainJar(Path artifacts, String filename) throws IOException {
+        Path jar = artifacts.resolve(filename);
+        Manifest manifest = new Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            out.putNextEntry(new JarEntry("sample/Type.class"));
+            out.write(new byte[] {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE});
+            out.closeEntry();
+        }
+        return jar;
+    }
+
     private String run(Path moduleInfo) throws IOException {
         new PinModuleInfo("module", moduleInfo, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
@@ -360,6 +372,23 @@ public class PinModuleInfoTest {
         }
         String expected = HexFormat.of().formatHex(digest.digest(payload));
         assertThat(result).contains("@jenesis.pin maven@kotlin/org.jetbrains/something 1.2.3 SHA-256/" + expected);
+    }
+
+    @Test
+    public void from_jars_pins_non_modular_dependency_by_maven_coordinate() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        writePlainJar(artifacts, "maven-org.jetbrains-annotations-13.0.jar");
+        writeRequires(new LinkedHashMap<>(Map.of(
+                "maven/org.jetbrains/annotations/13.0", "")));
+        String result = runFromJars(file);
+        assertInsideJavadoc(result, "@jenesis.pin maven/org.jetbrains/annotations 13.0 SHA-256/");
+        assertThat(result).doesNotContain("@jenesis.pin maven.org.jetbrains.annotations");
     }
 
     @Test

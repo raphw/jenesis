@@ -65,14 +65,20 @@ public class Resolve implements DependencyProcessingBuildStep {
             for (String coordinate : group.getValue().sequencedKeySet()) {
                 coordinates.put(coordinate, groupExclusions.getOrDefault(coordinate, Collections.emptyNavigableSet()));
             }
-            for (Map.Entry<String, String> entry : requireNonNull(
+            Resolver resolver = requireNonNull(
                     resolvers.get(Resolver.base(group.getKey())),
-                    "Unknown resolver: " + Resolver.base(group.getKey())).dependencies(
+                    "Unknown resolver: " + Resolver.base(group.getKey()));
+            SequencedMap<String, String> groupVersions = new LinkedHashMap<>(
+                    versions.getOrDefault(group.getKey(), new LinkedHashMap<>()));
+            for (String managed : resolver.managedPrefixes()) {
+                versions.getOrDefault(managed, new LinkedHashMap<>()).forEach(groupVersions::putIfAbsent);
+            }
+            for (Map.Entry<String, String> entry : resolver.dependencies(
                     executor,
                     group.getKey(),
                     repositories,
                     coordinates,
-                    versions.getOrDefault(group.getKey(), new LinkedHashMap<>()),
+                    groupVersions,
                     compile).entrySet()) {
                 String value;
                 if (Objects.equals(group.getKey(), entry.getKey().substring(0, entry.getKey().indexOf('/')))) {

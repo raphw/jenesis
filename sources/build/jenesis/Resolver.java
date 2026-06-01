@@ -12,6 +12,10 @@ public interface Resolver extends Serializable {
                                               SequencedMap<String, String> versions,
                                               boolean compile) throws IOException;
 
+    default SequencedSet<String> managedPrefixes() {
+        return Collections.emptyNavigableSet();
+    }
+
     default <F extends BiFunction<String, String, String> & Serializable> Resolver translated(String translated, F translator) {
         return (executor, prefix, repositories, coordinates, versions, compile) -> {
             SequencedMap<String, String> translatedVersions = new LinkedHashMap<>();

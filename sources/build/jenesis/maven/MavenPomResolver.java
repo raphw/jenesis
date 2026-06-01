@@ -727,7 +727,7 @@ public class MavenPomResolver implements MavenResolver {
                 .filter(Objects::nonNull)
                 .map(String::trim)
                 .filter(text -> text.startsWith(CHECKSUM_PREFIX))
-                .map(text -> text.substring(CHECKSUM_PREFIX.length()))
+                .map(text -> text.substring(CHECKSUM_PREFIX.length()).trim())
                 .toList();
         if (matches.size() > 1) {
             throw new IllegalStateException("Multiple " + CHECKSUM_PREFIX + "* comments on dependency "
@@ -758,7 +758,7 @@ public class MavenPomResolver implements MavenResolver {
                             continue;
                         }
                         String token = trimmed.substring(0, space).trim();
-                        String value = trimmed.substring(space + 1).trim();
+                        String value = trimmed.substring(space + 1).trim().replaceAll("\\s+", " ");
                         if (value.isEmpty()) {
                             continue;
                         }

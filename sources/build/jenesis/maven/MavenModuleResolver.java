@@ -18,6 +18,11 @@ public class MavenModuleResolver implements Resolver {
     }
 
     @Override
+    public SequencedSet<String> managedPrefixes() {
+        return new LinkedHashSet<>(Set.of(mavenPrefix));
+    }
+
+    @Override
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
@@ -36,18 +41,33 @@ public class MavenModuleResolver implements Resolver {
             rootPoms.add(toRootPom(executor, repository, coordinate, versions.get(coordinate)));
         }
         List<MavenResolver.RootPom> managedPoms = new ArrayList<>();
+        SequencedMap<String, String> mavenPins = new LinkedHashMap<>();
         for (Map.Entry<String, String> pin : versions.entrySet()) {
             if (coordinates.containsKey(pin.getKey())) {
                 continue;
             }
-            managedPoms.add(toRootPom(executor, repository, pin.getKey(), pin.getValue()));
+            if (pin.getKey().indexOf('/') < 0) {
+                managedPoms.add(toRootPom(executor, repository, pin.getKey(), pin.getValue()));
+            } else {
+                mavenPins.put(pin.getKey(), pin.getValue());
+            }
         }
         MavenRepository mavenRepo = MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty()));
         SequencedMap<String, String> result = new LinkedHashMap<>();
         delegate.dependencies(executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE)
-                .forEach((key, value) -> result.put(
-                        key.coordinate(mavenPrefix, value.version()),
-                        value.checksum() == null ? "" : value.checksum()));
+                .forEach((key, value) -> {
+                    String checksum = value.checksum();
+                    if (checksum == null) {
+                        String pinned = mavenPins.get(key.coordinate(null, null));
+                        if (pinned != null) {
+                            int space = pinned.indexOf(' ');
+                            if (space > 0 && pinned.substring(0, space).equals(value.version())) {
+                                checksum = pinned.substring(space + 1).trim();
+                            }
+                        }
+                    }
+                    result.put(key.coordinate(mavenPrefix, value.version()), checksum == null ? "" : checksum);
+                });
         return result;
     }
 

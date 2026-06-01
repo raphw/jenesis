@@ -75,17 +75,25 @@ public class ModuleInfoParser {
                                     continue;
                                 }
                                 String token = content.substring(0, split).trim();
-                                String version = content.substring(split + 1).trim();
+                                String version = content.substring(split + 1).trim().replaceAll("\\s+", " ");
                                 if (token.isEmpty() || version.isEmpty()) {
                                     continue;
                                 }
                                 int at = token.indexOf('@');
                                 String key;
                                 if (at < 0) {
-                                    if (token.startsWith("java.") || token.startsWith("jdk.")) {
-                                        continue;
+                                    int slash = token.indexOf('/');
+                                    if (slash < 0) {
+                                        if (token.startsWith("java.") || token.startsWith("jdk.")) {
+                                            continue;
+                                        }
+                                        key = "module/" + token;
+                                    } else {
+                                        if (slash == 0 || slash == token.length() - 1) {
+                                            continue;
+                                        }
+                                        key = token;
                                     }
-                                    key = "module/" + token;
                                 } else if (at == 0) {
                                     int slash = token.indexOf('/');
                                     if (slash < 2 || slash == token.length() - 1) {

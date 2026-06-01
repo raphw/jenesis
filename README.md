@@ -313,11 +313,14 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   key is always `<prefix>[@<qualifier>]/<coordinate>` (e.g. `module/org.junit.jupiter`,
   `maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable`), so the project's own dependencies (the
   unqualified trail) and a tool's copy of the same library (a qualified trail - the Kotlin/Scala compiler, or an
-  `InternalModule` / `ExternalModule` build tool) never collide. A pin token is classified by its first `@`: no
-  `@` is unqualified under the source's default prefix (`org.junit.jupiter` -> `module/org.junit.jupiter`); a
-  leading `@` is qualified under the default prefix (`@kotlin/foo` -> `module@kotlin/foo`); a mid-token `@` is
-  fully explicit (`maven2@kotlin/foo`). The default prefix is `module` in `module-info.java` and `maven` in
-  `pom.xml`, so the everyday case carries no prefix at all. Qualified maven pins stay out of
+  `InternalModule` / `ExternalModule` build tool) never collide. A pin token is classified by its first `@` and
+  `/`: a token with no `/` is unqualified under the source's default prefix (`org.junit.jupiter` ->
+  `module/org.junit.jupiter`); a token that contains a `/` but no `@` carries an explicit prefix as its first
+  segment (`maven/org.jetbrains/annotations` -> `maven/org.jetbrains/annotations`), so a `module-info.java` can
+  pin a Maven coordinate it pulls in transitively (e.g. a non-modular transitive of a named module dependency)
+  even though its default prefix is `module`; a leading `@` is qualified under the default prefix (`@kotlin/foo`
+  -> `module@kotlin/foo`); a mid-token `@` is fully explicit (`maven2@kotlin/foo`). The default prefix is
+  `module` in `module-info.java` and `maven` in `pom.xml`, so the everyday case carries no prefix at all. Qualified maven pins stay out of
   `<dependencyManagement>` (where Maven would act on them) and live in the `<!--jenesis.pin-->` comment instead;
   because an XML comment cannot contain `--`, any such sequence in a POM value is stored as `&#45;&#45;`. The
   Kotlin, Scala, and Groovy

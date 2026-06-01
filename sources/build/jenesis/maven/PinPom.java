@@ -14,9 +14,9 @@ public class PinPom implements BuildStep {
             "(?s)([ \\t]*)<dependencyManagement>.*?</dependencyManagement>\\s*\\n");
     private static final Pattern DEPENDENCIES_OPEN = Pattern.compile("([ \\t]*)<dependencies>");
     private static final Pattern PROJECT_CLOSE = Pattern.compile("\\n([ \\t]*)</project>");
-    private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--Checksum/[^>]*-->\\s*\\n");
+    private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--\\s*Checksum/[^>]*-->\\s*\\n");
     private static final Pattern INDENT = Pattern.compile("\\n([ \\t]+)<");
-    private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--jenesis\\.pin\\b.*?-->\\s*\\n");
+    private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--\\s*jenesis\\.pin\\b.*?-->\\s*\\n");
 
     private final String prefix;
     private final List<Path> pomFiles;

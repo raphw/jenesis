@@ -91,6 +91,7 @@ public class PinModuleInfo implements BuildStep {
                                                                HashDigestFunction hashFunction) throws IOException {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> versionByFile = new LinkedHashMap<>();
+        SequencedMap<String, String> coordinateByFile = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (!Files.exists(requiresFile)) {
@@ -115,8 +116,9 @@ public class PinModuleInfo implements BuildStep {
                 String existing = properties.getProperty(coordinate);
                 String computed = computeChecksum(arguments.values(), coordinate, hashFunction);
                 String checksum = computed != null ? computed : (existing == null || existing.isEmpty() ? null : existing);
-                versionByFile.putIfAbsent(coordinate.replace('/', '-') + ".jar",
-                        checksum == null ? version : version + " " + checksum);
+                String fileName = coordinate.replace('/', '-') + ".jar";
+                versionByFile.putIfAbsent(fileName, checksum == null ? version : version + " " + checksum);
+                coordinateByFile.putIfAbsent(fileName, coordinate.substring(0, lastSlash));
             }
         }
         SequencedMap<String, String> entries = new TreeMap<>();
@@ -130,7 +132,8 @@ public class PinModuleInfo implements BuildStep {
                     if (!Files.isRegularFile(jar)) {
                         continue;
                     }
-                    String value = versionByFile.get(jar.getFileName().toString());
+                    String fileName = jar.getFileName().toString();
+                    String value = versionByFile.get(fileName);
                     if (value == null) {
                         continue;
                     }
@@ -140,6 +143,9 @@ public class PinModuleInfo implements BuildStep {
                     }
                     ModuleDescriptor descriptor = reference.get().descriptor();
                     if (descriptor.isAutomatic() && !hasAutomaticModuleName(jar)) {
+                        // A plain jar has no real module name to pin against; record it under its
+                        // explicit coordinate (e.g. maven/org.jetbrains/annotations) instead.
+                        entries.putIfAbsent(coordinateByFile.get(fileName), value);
                         continue;
                     }
                     entries.putIfAbsent(descriptor.name(), value);
