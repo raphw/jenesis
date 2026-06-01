@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>build.jenesis.demo</groupId>
+        <artifactId>custom-maven</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>app</artifactId>
+
+    <build>
+        <sourceDirectory>sources</sourceDirectory>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>build.jenesis.demo</groupId>
+            <artifactId>greeter</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+    </dependencies>
+</project>

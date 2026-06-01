@@ -54,32 +54,14 @@ public class MavenProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root,
-                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         return make(root,
                 "maven",
                 Map.of("maven", new MavenDefaultRepository()),
                 Map.of("maven", new MavenPomResolver()),
                 false,
-                digest,
+                new HashDigestFunction("MD5"),
                 assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return make(root, "maven", repositories, resolvers, false, digest, assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
-        return make(root, "maven", repositories, resolvers, strictPinning, digest, assembler);
     }
 
     public static BuildExecutorModule make(Path root,

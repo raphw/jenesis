@@ -122,9 +122,13 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
+                        "module",
+                        _ -> true,
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
                         project.strictPinning(),
+                        true,
+                        false,
                         new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                 new ProjectModuleDescriptor(descriptor,
@@ -177,6 +181,8 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
+                                "module",
+                                _ -> true,
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),

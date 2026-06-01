@@ -57,111 +57,16 @@ public class ModularProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root,
-                repositories,
-                Map.of("module", new ModularJarResolver(true)),
-                false,
-                digest,
-                assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, repositories, resolvers, false, digest, assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, repositories, resolvers, strictPinning, true, digest, assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
-                                           boolean modular,
-                                           HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return make(root,
                 "module",
                 _ -> true,
-                repositories,
-                resolvers,
-                strictPinning,
-                modular,
-                digest,
-                assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           String prefix,
-                                           Predicate<Path> filter,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, prefix, filter, repositories, resolvers, false, digest, assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           String prefix,
-                                           Predicate<Path> filter,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root, prefix, filter, repositories, resolvers, strictPinning, true, digest, assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
-                                           boolean modular,
-                                           boolean bridge,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root,
-                "module",
-                _ -> true,
-                repositories,
-                resolvers,
-                strictPinning,
-                modular,
-                bridge,
-                digest,
-                assembler);
-    }
-
-    public static BuildExecutorModule make(Path root,
-                                           String prefix,
-                                           Predicate<Path> filter,
-                                           Map<String, Repository> repositories,
-                                           Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
-                                           boolean modular,
-                                           HashDigestFunction digest,
-                                           MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return make(root,
-                prefix,
-                filter,
-                repositories,
-                resolvers,
-                strictPinning,
-                modular,
+                Map.of("module", new JenesisModuleRepository(true)),
+                Map.of("module", new ModularJarResolver(false)),
                 false,
-                digest,
+                true,
+                false,
+                new HashDigestFunction("MD5"),
                 assembler);
     }
 

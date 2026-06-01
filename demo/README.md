@@ -26,10 +26,11 @@ That runs the default `build` goal. You pass other goals as arguments:
     java build/jenesis/Project.java export   # publish them into the local repositories
     java build/jenesis/Project.java help     # usage; `skill` prints an agent-oriented briefing
 
-The four demos that customize or replace the template (`custom-assembler`,
-`internal-module`, `external-module`, `custom-build`) ship their own launcher and
-are run with `java build/Demo.java` instead. Each demo writes to a local
-`target/` directory; delete it to rebuild from scratch.
+The six demos that customize or replace the template (`custom-assembler`,
+`internal-module`, `external-module`, `custom-maven`, `custom-modular`,
+`custom-build`) ship their own launcher and are run with `java build/Demo.java`
+instead. Each demo writes to a local `target/` directory; delete it to rebuild
+from scratch.
 
 Quick index
 -----------
@@ -46,6 +47,8 @@ Quick index
 | `custom-assembler`  | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
 | `internal-module`   | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
 | `external-module`   | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
+| `custom-maven`      | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
+| `custom-modular`    | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
 | `custom-build`      | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
 
 1. A single Maven project - `java-pom`
@@ -196,7 +199,31 @@ authored inline, loaded from source, or consumed as a versioned artifact.
 > against. They will work once a matching `build.jenesis` is released; see their
 > `README.md`s.
 
-7. Dropping the template entirely - `custom-build`
+7. Driving the build without `Project` - `custom-maven`, `custom-modular`
+-------------------------------------------------------------------------
+
+The previous customizations still went through `Project`. These two go a step
+further: they drive a multi-module build directly from a hand-written
+`build/Demo.java` that calls the convenience `make(root, assembler)` overload and
+runs it on a `BuildExecutor`. There is no layout and no goal machinery, but the
+whole standard toolchain is reused through one call:
+
+    BuildExecutor root = BuildExecutor.of(Path.of("target"));
+    root.addModule("maven", MavenProject.make(Path.of("."), assembler));
+    root.execute(args);
+
+`custom-maven` does this for a multi-module Maven project (the same shape as
+`java-pom-multi`); `custom-modular` does it for `module-info.java` modules (like
+`java-modular-multi`). The two-argument `make` discovers the modules under the
+root and supplies sane defaults for the repositories, resolvers, and digest - the
+values a normal build would configure - so a quick trial build needs nothing but
+a root and an assembler. The assembler is the stock `JavaMultiProjectAssembler`,
+adapted with a one-line wrapper so each discovered descriptor becomes a
+`ProjectModuleDescriptor`. Reach for the full `make(...)` overload (the one
+`Project` itself uses) when you need a custom repository, strict pinning, or a
+specific digest.
+
+8. Dropping the template entirely - `custom-build`
 --------------------------------------------------
 
 The last demo removes `Project`, the layout, and the assembler altogether and
