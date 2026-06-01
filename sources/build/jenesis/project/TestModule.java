@@ -34,56 +34,7 @@ public class TestModule implements BuildExecutorModule {
     private final String moduleName;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null);
-    }
-
-    public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, String filter) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true, false, filter, PathPlacement.CLASS_PATH, null);
-    }
-
-    public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(engine, repositories, resolvers, null);
-    }
-
-    public TestModule(TestEngine engine,
-                      Map<String, Repository> repositories,
-                      Map<String, Resolver> resolvers,
-                      String filter) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true, false, filter, PathPlacement.CLASS_PATH, null);
-    }
-
-    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
-                                                                   P isTest,
-                                                                   Map<String, Repository> repositories,
-                                                                   Map<String, Resolver> resolvers) {
-        this(engine, isTest, repositories, resolvers, null);
-    }
-
-    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
-                                                                   P isTest,
-                                                                   Map<String, Repository> repositories,
-                                                                   Map<String, Resolver> resolvers,
-                                                                   String filter) {
-        this(engine, isTest, null, repositories, resolvers, true, true, false, filter, PathPlacement.CLASS_PATH, null);
-    }
-
-    public <P extends Predicate<String> & Serializable> TestModule(
-            Function<List<String>, ProcessHandler.OfProcess> factory,
-            TestEngine engine,
-            P isTest,
-            Map<String, Repository> repositories,
-            Map<String, Resolver> resolvers) {
-        this(factory, engine, isTest, repositories, resolvers, null);
-    }
-
-    public <P extends Predicate<String> & Serializable> TestModule(
-            Function<List<String>, ProcessHandler.OfProcess> factory,
-            TestEngine engine,
-            P isTest,
-            Map<String, Repository> repositories,
-            Map<String, Resolver> resolvers,
-            String filter) {
-        this(engine, isTest, factory, repositories, resolvers, true, true, false, filter, PathPlacement.CLASS_PATH, null);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, false, null, PathPlacement.CLASS_PATH, null);
     }
 
     private TestModule(TestEngine engine,
@@ -116,6 +67,22 @@ public class TestModule implements BuildExecutorModule {
                 .toList();
         return (Predicate<String> & Serializable) (name -> patterns.stream().anyMatch(pattern ->
                 pattern.matcher(name).matches()));
+    }
+
+    public TestModule engine(TestEngine engine) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule filter(String filter) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
@@ -196,7 +163,7 @@ public class TestModule implements BuildExecutorModule {
                 }
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
-            if (resolved != null && selectedPrefix != null) {
+            if (selectedPrefix != null) {
                 SequencedProperties versions = new SequencedProperties();
                 for (BuildStepArgument argument : arguments.values()) {
                     Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
@@ -209,14 +176,6 @@ public class TestModule implements BuildExecutorModule {
                         if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
                             versions.putIfAbsent(key, upstream.getProperty(key));
                         }
-                    }
-                }
-                for (Map.Entry<String, String> entry : resolved.versions().entrySet()) {
-                    String coordinate = entry.getKey();
-                    int index = coordinate.indexOf('/');
-                    String prefix = index > 0 ? coordinate.substring(0, index) : "";
-                    if (selectedPrefix.equals(prefix)) {
-                        versions.putIfAbsent(coordinate, entry.getValue());
                     }
                 }
                 if (!versions.isEmpty()) {
@@ -280,18 +239,18 @@ public class TestModule implements BuildExecutorModule {
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
             }
-            if (modulePath.modular() && resolved.module() != null) {
+            if (modulePath.modular() && resolved.runnerModule() != null) {
                 if (modulePath == PathPlacement.MODULE_PATH && moduleName != null) {
                     commands.add("--add-modules");
                     commands.add(moduleName);
                 }
                 commands.add("-m");
-                commands.add(resolved.module() + "/" + resolved.mainClass());
+                commands.add(resolved.runnerModule() + "/" + resolved.mainClass());
             } else {
                 commands.add(resolved.mainClass());
             }
             commands.addAll(resolved.arguments(context.supplement()));
-            SequencedSet<String> matchedClasses = new LinkedHashSet<>();
+            List<String> matchedClasses = new ArrayList<>();
             SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
             ClassFile classFile = ClassFile.of();
             for (BuildStepArgument argument : arguments.values()) {
@@ -307,14 +266,16 @@ public class TestModule implements BuildExecutorModule {
                                     return FileVisitResult.CONTINUE;
                                 }
                                 if (specs.isEmpty()) {
-                                    if (isTest.test(className)) {
+                                    if (isTest.test(className) && !matchedClasses.contains(className)) {
                                         matchedClasses.add(className);
                                     }
                                 } else {
                                     for (TestSpec spec : specs) {
                                         if (spec.classPattern.matcher(className).matches()) {
                                             if (spec.method == null) {
-                                                matchedClasses.add(className);
+                                                if (!matchedClasses.contains(className)) {
+                                                    matchedClasses.add(className);
+                                                }
                                             } else {
                                                 matchedMethods
                                                         .computeIfAbsent(className, _ -> new ArrayList<>())
@@ -330,7 +291,7 @@ public class TestModule implements BuildExecutorModule {
                     });
                 }
             }
-            commands.addAll(resolved.commands(new ArrayList<>(matchedClasses), matchedMethods));
+            commands.addAll(resolved.commands(matchedClasses, matchedMethods));
             return CompletableFuture.completedFuture(commands);
         }
     }

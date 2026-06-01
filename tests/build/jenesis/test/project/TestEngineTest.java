@@ -9,6 +9,7 @@ import build.jenesis.project.TestEngine;
 import build.jenesis.project.TestNG;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestEngineTest {
 
@@ -81,6 +82,39 @@ public class TestEngineTest {
     public void falls_back_to_release_without_engine_version() {
         assertThat(new JUnitPlatform().coordinates(null))
                 .contains("maven/org.junit.platform/junit-platform-console/RELEASE");
+    }
+
+    @Test
+    public void junit4_emits_class_names_positionally() {
+        assertThat(new JUnit4().commands(List.of("sample.AlphaTest", "sample.BetaTest"), new LinkedHashMap<>()))
+                .containsExactly("sample.AlphaTest", "sample.BetaTest");
+    }
+
+    @Test
+    public void junit4_rejects_method_selectors() {
+        SequencedMap<String, List<String>> methods = new LinkedHashMap<>();
+        methods.put("sample.AlphaTest", List.of("first"));
+        assertThatThrownBy(() -> new JUnit4().commands(List.of(), methods))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void junit_platform_emits_select_class_and_method_arguments() {
+        SequencedMap<String, List<String>> methods = new LinkedHashMap<>();
+        methods.put("sample.AlphaTest", List.of("first", "second"));
+        assertThat(new JUnitPlatform().commands(List.of("sample.BetaTest"), methods))
+                .containsExactly("--select-class=sample.BetaTest",
+                        "--select-method=sample.AlphaTest#first",
+                        "--select-method=sample.AlphaTest#second");
+    }
+
+    @Test
+    public void testng_joins_classes_and_methods() {
+        SequencedMap<String, List<String>> methods = new LinkedHashMap<>();
+        methods.put("sample.AlphaTest", List.of("first"));
+        assertThat(new TestNG().commands(List.of("sample.AlphaTest", "sample.BetaTest"), methods))
+                .containsExactly("-testclass", "sample.AlphaTest,sample.BetaTest",
+                        "-methods", "sample.AlphaTest.first");
     }
 
     private static void writeJar(Path folder, String name, String moduleName) throws IOException {

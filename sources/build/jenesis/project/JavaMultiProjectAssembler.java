@@ -48,7 +48,8 @@ public record JavaMultiProjectAssembler(boolean process,
                 if (module != null) {
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
-                        sub.addModule("test", new TestModule(repositories, resolvers, filter)
+                        sub.addModule("test", new TestModule(repositories, resolvers)
+                                        .filter(filter)
                                         .strictPinning(descriptor.strictPinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),

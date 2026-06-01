@@ -5,7 +5,7 @@ import build.jenesis.BuildStep;
 
 public interface TestEngine extends Serializable {
 
-    String module();
+    String runnerModule();
 
     String mainClass();
 
@@ -14,10 +14,6 @@ public interface TestEngine extends Serializable {
     boolean isRunner(ModuleDescriptor module);
 
     SequencedSet<String> coordinates(ModuleDescriptor engine);
-
-    default Map<String, String> versions() {
-        return Map.of();
-    }
 
     default Map<String, String> properties() {
         return Map.of();

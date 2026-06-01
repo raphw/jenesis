@@ -16,7 +16,12 @@ import build.jenesis.project.TestModule;
 import build.jenesis.project.JUnit4;
 import build.jenesis.project.JUnitPlatform;
 import build.jenesis.step.Javac;
+import build.jenesis.project.TestEngine;
 import build.jenesis.project.TestNG;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.attribute.ModuleAttribute;
+import java.lang.constant.ModuleDesc;
+import java.util.jar.Attributes;
 import javax.tools.ToolProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,14 +79,13 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null,
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
+                        Map.of("maven", new MavenPomResolver()))
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -100,14 +104,13 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null,
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
+                        Map.of("maven", new MavenPomResolver()))
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -151,14 +154,14 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit4(),
-                        candidate -> candidate.endsWith("JUnit4TestSample"),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnit4())
+                        .isTest(candidate -> candidate.endsWith("JUnit4TestSample")).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -210,14 +213,14 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new TestNG(),
-                        candidate -> candidate.endsWith("TestNGTestSample"),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new TestNG())
+                        .isTest(candidate -> candidate.endsWith("TestNGTestSample")).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -232,14 +235,14 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnitPlatform())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -258,13 +261,13 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnitPlatform()).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -279,15 +282,15 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        (Predicate<String> & Serializable) _ -> false,
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver()),
-                        "sample\\.TestSample").jarsOnly(false),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnitPlatform())
+                        .isTest((Predicate<String> & Serializable) _ -> false)
+                        .filter("sample\\.TestSample").jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -312,14 +315,14 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnitPlatform())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -336,15 +339,15 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        (Predicate<String> & Serializable) _ -> false,
-                        Map.of("maven", new MavenDefaultRepository(
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver()),
-                        "sample\\.TestSample#test").jarsOnly(false),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnitPlatform())
+                        .isTest((Predicate<String> & Serializable) _ -> false)
+                        .filter("sample\\.TestSample#test").jarsOnly(false),
                 "dependencies", "classes");
         executor.execute();
 
@@ -360,10 +363,8 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null,
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of()).jarsOnly(false).requireEngine(true),
+                new TestModule(Map.of(), Map.of())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false).requireEngine(true),
                 "dependencies", "classes");
 
         assertThatThrownBy(executor::execute)
@@ -379,10 +380,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        .engine(new JUnitPlatform())
+                        .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
@@ -399,10 +399,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        .engine(new JUnitPlatform())
+                        .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
@@ -419,10 +418,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of())
+                new TestModule(Map.of(), Map.of())
+                        .engine(new JUnitPlatform())
+                        .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
@@ -438,10 +436,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnitPlatform(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of()).jarsOnly(false),
+                new TestModule(Map.of(), Map.of())
+                        .engine(new JUnitPlatform())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
@@ -456,10 +453,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit4(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of()).jarsOnly(false),
+                new TestModule(Map.of(), Map.of())
+                        .engine(new JUnit4())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
@@ -474,10 +470,9 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new TestNG(),
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of()).jarsOnly(false),
+                new TestModule(Map.of(), Map.of())
+                        .engine(new TestNG())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false),
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
@@ -492,14 +487,50 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(null,
-                        candidate -> candidate.endsWith("TestSample"),
-                        Map.of(),
-                        Map.of()).jarsOnly(false).requireEngine(false),
+                new TestModule(Map.of(), Map.of())
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false).requireEngine(false),
                 "dependencies", "classes");
         SequencedMap<String, Path> outputs = executor.execute();
 
         assertThat(outputs).doesNotContainKeys("test/resolved", "test/required", "test/artifacts", "test/executed");
+    }
+
+    @Test
+    public void requires_step_derives_runner_version_from_engine_module() throws IOException {
+        writeModuleJar(emptyDependencies.resolve(BuildStep.ARTIFACTS),
+                "engine.jar", "org.junit.platform.engine", "1.11.3");
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        .engine(new JUnitPlatform())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties.stringPropertyNames())
+                .containsExactly("module/org.junit.platform.console/1.11.3");
+    }
+
+    @Test
+    public void requires_step_emits_all_coordinates_sharing_selected_prefix() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        .engine(new MultiRunnerEngine())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
+        assertThat(properties.stringPropertyNames())
+                .containsExactly("maven/com.example/runner-core/1.0", "maven/com.example/runner-cli/1.0");
     }
 
     private BuildExecutor newExecutor() throws IOException {
@@ -560,6 +591,63 @@ public class TestModuleTest {
                 continue;
             }
             Files.copy(path, artifacts.resolve(fileName + "-" + UUID.randomUUID() + ".jar"));
+        }
+    }
+
+    private static void writeModuleJar(Path folder, String name, String moduleName, String version) throws IOException {
+        Files.createDirectories(folder);
+        byte[] moduleInfo = ClassFile.of().buildModule(ModuleAttribute.of(
+                ModuleDesc.of(moduleName),
+                builder -> builder
+                        .moduleVersion(version)
+                        .requires(ModuleDesc.of("java.base"), ClassFile.ACC_MANDATED, null)));
+        Manifest manifest = new Manifest();
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(folder.resolve(name)), manifest)) {
+            output.putNextEntry(new JarEntry("module-info.class"));
+            output.write(moduleInfo);
+            output.closeEntry();
+        }
+    }
+
+    private record MultiRunnerEngine() implements TestEngine {
+
+        @Override
+        public String runnerModule() {
+            return "example.runner";
+        }
+
+        @Override
+        public String mainClass() {
+            return "example.Main";
+        }
+
+        @Override
+        public boolean isEngine(ModuleDescriptor module) {
+            return false;
+        }
+
+        @Override
+        public boolean isRunner(ModuleDescriptor module) {
+            return false;
+        }
+
+        @Override
+        public SequencedSet<String> coordinates(ModuleDescriptor engine) {
+            SequencedSet<String> coordinates = new LinkedHashSet<>();
+            coordinates.add("maven/com.example/runner-core/1.0");
+            coordinates.add("maven/com.example/runner-cli/1.0");
+            return coordinates;
+        }
+
+        @Override
+        public List<String> arguments(Path supplement) {
+            return List.of();
+        }
+
+        @Override
+        public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
+            return List.of();
         }
     }
 

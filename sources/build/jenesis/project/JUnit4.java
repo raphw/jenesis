@@ -5,7 +5,7 @@ import module java.base;
 public record JUnit4() implements TestEngine {
 
     @Override
-    public String module() {
+    public String runnerModule() {
         return "junit";
     }
 

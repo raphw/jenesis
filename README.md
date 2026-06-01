@@ -1644,8 +1644,9 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.
 - **`TestModule`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` plus the built-in
-  `JUnitPlatform`, `JUnit4`, and `TestNG` records encode per-framework metadata (main class, the module name
-  used to detect the framework via `isEngine`/`isRunner`, and the runner coordinates) and each implements
+  `JUnitPlatform`, `JUnit4`, and `TestNG` records encode per-framework metadata (the runner's `mainClass()` and
+  its `runnerModule()` name for a modular `-m` launch, the `isEngine`/`isRunner` predicates that detect the
+  framework among the scanned modules, and the runner coordinates) and each implements
   `commands(classes, methods)` to shape the CLI arguments for picking tests to run: `JUnit4` emits class
   names positionally and throws `IllegalArgumentException` if individual methods are requested, `JUnitPlatform`
   emits `--select-class=` / `--select-method=` per entry, and `TestNG` joins everything into the single
