@@ -2,7 +2,7 @@ package build.jenesis.test.project;
 
 import module java.base;
 import module org.junit.jupiter.api;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 import build.jenesis.maven.MavenProject.MavenModuleDescriptor;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.project.ModuleDescriptor;
@@ -15,7 +15,7 @@ public class ProjectModuleDescriptorTest {
     @Test
     public void carries_the_flags_unchanged() {
         ModuleDescriptor base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet());
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, true, false, ModulePathPredicate.INFERRED);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, false, true, false, PathPlacement.INFERRED);
         assertThat(descriptor.test()).isTrue();
         assertThat(descriptor.source()).isFalse();
         assertThat(descriptor.documentation()).isTrue();
@@ -25,7 +25,7 @@ public class ProjectModuleDescriptorTest {
     public void delegates_module_descriptor_accessors_to_base() {
         LinkedHashSet<String> dependencies = new LinkedHashSet<>(List.of("module-bar"));
         ModuleDescriptor base = new MavenModuleDescriptor("module-foo", dependencies, Collections.emptyNavigableSet());
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, false, false, false, false, ModulePathPredicate.INFERRED);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, false, false, false, false, PathPlacement.INFERRED);
         assertThat(descriptor.name()).isEqualTo(base.name());
         assertThat(descriptor.dependencies()).isEqualTo(base.dependencies());
         assertThat(descriptor.sources()).isEqualTo(base.sources());
@@ -40,7 +40,7 @@ public class ProjectModuleDescriptorTest {
     @Test
     public void to_inherited_prepends_one_parent_segment_per_call() {
         ModuleDescriptor base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet());
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, true, true, false, ModulePathPredicate.INFERRED);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, true, true, true, false, PathPlacement.INFERRED);
         ProjectModuleDescriptor inherited = descriptor.toInherited();
         assertThat(inherited.name()).isEqualTo(base.name());
         assertThat(inherited.dependencies()).isEqualTo(base.dependencies());

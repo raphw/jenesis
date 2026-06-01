@@ -181,7 +181,7 @@ same shape. This demo is launched with `java build/Demo.java`.
 out of an inline step and into a **build module** - a `BuildExecutorModule`
 service provider in its own `plugin/` project that even pulls its own external
 dependency (`org.json`). `InternalModule` compiles that plugin from local source,
-resolves its dependencies, loads the service, and runs it. A `.jenesis.build`
+resolves its dependencies, loads the service, and runs it. A `.jenesis.skip`
 marker in `plugin/` keeps the host project's module discovery from mistaking it
 for a second project module.
 
@@ -251,7 +251,7 @@ A few ideas recur across the tour and are worth collecting in one place.
 `AUTO` (the default) detecting it: a `pom.xml` selects `MAVEN` (classic jar plus
 the POM); otherwise a `module-info.java` under the root selects
 `MODULAR_TO_MAVEN` (a modular jar plus a generated POM). A subtree rooted at a
-`.jenesis.build` marker is skipped during discovery, which is how the
+`.jenesis.skip` marker is skipped during discovery, which is how the
 `internal-module` / `external-module` plugins live beside the project without
 being built as part of it.
 

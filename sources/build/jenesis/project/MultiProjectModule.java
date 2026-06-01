@@ -7,7 +7,10 @@ import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
 
-public class MultiProjectModule implements BuildExecutorModule {
+public record MultiProjectModule(BuildExecutorModule identifier,
+                                 Function<String, Optional<String>> resolver,
+                                 Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory)
+        implements BuildExecutorModule {
 
     public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
@@ -25,18 +28,6 @@ public class MultiProjectModule implements BuildExecutorModule {
     private static final String GROUP = "group";
 
     public static final String IDENTIFIER_PATH = PREVIOUS.repeat(3) + IDENTIFIER + "/";
-
-    private final BuildExecutorModule identifier;
-    private final Function<String, Optional<String>> resolver;
-    private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory;
-
-    public MultiProjectModule(BuildExecutorModule identifier,
-                              Function<String, Optional<String>> resolver,
-                              Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory) {
-        this.identifier = identifier;
-        this.resolver = resolver;
-        this.factory = factory;
-    }
 
     @Override
     public Optional<String> resolve(String path) {

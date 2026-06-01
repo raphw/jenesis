@@ -423,7 +423,7 @@ public class MavenProject implements BuildExecutorModule {
 
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                    if (Files.exists(dir.resolve(BuildExecutor.BUILD_MARKER))) {
+                    if (Files.exists(dir.resolve(BuildExecutor.SKIP_MARKER))) {
                         return FileVisitResult.SKIP_SUBTREE;
                     }
                     return FileVisitResult.CONTINUE;

@@ -3,31 +3,31 @@ package build.jenesis.step;
 import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 
 public abstract class Java extends JdkProcessBuildStep {
 
     private static final String MODULE_PATH = "--module-path", CLASS_PATH = "--class-path";
 
-    protected final ModulePathPredicate modulePath;
+    protected final PathPlacement modulePath;
     protected final boolean jarsOnly;
 
     protected Java() {
-        this(ModulePathPredicate.CLASS_PATH, true);
+        this(PathPlacement.CLASS_PATH, true);
     }
 
-    protected Java(ModulePathPredicate modulePath, boolean jarsOnly) {
+    protected Java(PathPlacement modulePath, boolean jarsOnly) {
         super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         this.modulePath = modulePath;
         this.jarsOnly = jarsOnly;
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, ModulePathPredicate.CLASS_PATH, true);
+        this(factory, PathPlacement.CLASS_PATH, true);
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory,
-                   ModulePathPredicate modulePath,
+                   PathPlacement modulePath,
                    boolean jarsOnly) {
         super("java", factory);
         this.modulePath = modulePath;
@@ -38,16 +38,16 @@ public abstract class Java extends JdkProcessBuildStep {
         return of(List.of(commands));
     }
 
-    public static Java of(ModulePathPredicate isModular, boolean jarsOnly, String... commands) {
-        return of(isModular, jarsOnly, List.of(commands));
+    public static Java of(PathPlacement modulePath, boolean jarsOnly, String... commands) {
+        return of(modulePath, jarsOnly, List.of(commands));
     }
 
     public static Java of(List<String> commands) {
-        return of(ModulePathPredicate.CLASS_PATH, true, commands);
+        return of(PathPlacement.CLASS_PATH, true, commands);
     }
 
-    public static Java of(ModulePathPredicate isModular, boolean jarsOnly, List<String> commands) {
-        return new Java(isModular, jarsOnly) {
+    public static Java of(PathPlacement modulePath, boolean jarsOnly, List<String> commands) {
+        return new Java(modulePath, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -62,21 +62,21 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
-                          ModulePathPredicate isModular,
+                          PathPlacement modulePath,
                           boolean jarsOnly,
                           String... commands) {
-        return of(factory, isModular, jarsOnly, List.of(commands));
+        return of(factory, modulePath, jarsOnly, List.of(commands));
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, List<String> commands) {
-        return of(factory, ModulePathPredicate.CLASS_PATH, true, commands);
+        return of(factory, PathPlacement.CLASS_PATH, true, commands);
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
-                          ModulePathPredicate isModular,
+                          PathPlacement modulePath,
                           boolean jarsOnly,
                           List<String> commands) {
-        return new Java(factory, isModular, jarsOnly) {
+        return new Java(factory, modulePath, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -147,7 +147,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 prefixes.add(String.join(File.pathSeparator, paths.getValue()));
             }
         }
-        if (this.modulePath == ModulePathPredicate.INFERRED && !modulePath.isEmpty()) {
+        if (this.modulePath == PathPlacement.INFERRED && !modulePath.isEmpty()) {
             prefixes.add("--add-modules");
             prefixes.add("ALL-MODULE-PATH");
         }

@@ -32,7 +32,7 @@ public class BuildExecutorTest implements Serializable {
                 Duration.ZERO,
                 hash,
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop());
+                BuildExecutorCallback.nop(), false);
     }
 
     @Test

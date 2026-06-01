@@ -2,7 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 import build.jenesis.BuildExecutorModule;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 
 public class ProjectModuleDescriptor implements ModuleDescriptor {
 
@@ -18,14 +18,14 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     private final boolean source;
     private final boolean documentation;
     private final boolean strictPinning;
-    private final ModulePathPredicate modulePath;
+    private final PathPlacement modulePath;
 
     public ProjectModuleDescriptor(ModuleDescriptor base,
                                    boolean test,
                                    boolean source,
                                    boolean documentation,
                                    boolean strictPinning,
-                                   ModulePathPredicate modulePath) {
+                                   PathPlacement modulePath) {
         this(base.name(),
                 immutable(base.dependencies()),
                 immutable(base.sources()),
@@ -52,7 +52,7 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
                                     boolean source,
                                     boolean documentation,
                                     boolean strictPinning,
-                                    ModulePathPredicate modulePath) {
+                                    PathPlacement modulePath) {
         this.name = name;
         this.dependencies = dependencies;
         this.sources = sources;
@@ -231,11 +231,11 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
                 artifacts, resolved, test, source, documentation, strictPinning, modulePath);
     }
 
-    public ModulePathPredicate modulePath() {
+    public PathPlacement modulePath() {
         return modulePath;
     }
 
-    public ProjectModuleDescriptor withModulePath(ModulePathPredicate modulePath) {
+    public ProjectModuleDescriptor withModulePath(PathPlacement modulePath) {
         return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
                 artifacts, resolved, test, source, documentation, strictPinning, modulePath);
     }

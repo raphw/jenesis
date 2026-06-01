@@ -60,7 +60,7 @@ public class ProjectTest {
     @Test
     public void auto_skips_module_info_under_a_nested_build_marker() throws IOException {
         Path nested = Files.createDirectory(root.resolve("nested"));
-        Files.createFile(nested.resolve(BuildExecutor.BUILD_MARKER));
+        Files.createFile(nested.resolve(BuildExecutor.SKIP_MARKER));
         Files.writeString(nested.resolve("module-info.java"), "module hidden {}");
         Files.writeString(root.resolve("pom.xml"), "<project/>");
         assertThat(Project.Layout.of(root)).isSameAs(Project.Layout.MAVEN);
@@ -180,7 +180,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop()),
+                        BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
@@ -196,7 +196,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop()),
+                        BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
@@ -212,7 +212,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop()),
+                        BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources/compile/dependencies/resolved"))
@@ -230,7 +230,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop()),
+                        BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources/compile/dependencies/resolved"))
@@ -248,7 +248,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop()),
+                        BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources/compile/dependencies/resolved"))
@@ -265,7 +265,7 @@ public class ProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop());
+                BuildExecutorCallback.nop(), false);
 
         Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler());
 
@@ -283,7 +283,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop()),
+                        BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler());
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");

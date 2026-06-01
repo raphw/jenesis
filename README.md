@@ -333,7 +333,7 @@ entries with the same key override the layout default.
 | `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaToolchainModule` + per-module `Pom` step + `MavenRepositoryStaging` + `MavenRepositoryExport` | `demo/java-pom`         |
 | `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `ModularProject` over `JenesisModuleRepository` (public overlay, cached under `.jenesis/cache/`) with `JenesisModuleRepository.ofLocal()` prepended + per-project `JavaToolchainModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `demo/java-modular`     |
 | `Layout.MODULAR_TO_MAVEN` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `ModularProject` against a `MavenDefaultRepository` driven by `MavenModuleResolver`, which fetches each declared module's `:pom` artifact from a permissive `JenesisModuleRepository(false)` to translate the module name into its Maven coordinate, then resolves through `MavenPomResolver` as if the project were a single synthetic POM declaring those coordinates as its `<dependencies>`. No `module-info.class` is ever read; `<dependencyManagement>` is taken solely from the `@jenesis.pin` tags (a pin on a non-declared module is fetched the same way and registered as a managed dependency), never hoisted from the declared modules' own POMs. The discovered first-layer POMs seed the resolver cache, so they are not re-fetched from Maven Central. Per-module `Pom` step on top of the assembler; since the jars are genuine modules, both `stage` and `export` are modules with aligned `maven`/`modular` sub-steps - `MavenRepositoryStaging` + `ModularStaging`, then `MavenRepositoryExport` into the local Maven repository + `JenesisModuleRepositoryExport` into the local Jenesis module repository | `demo/java-modular`     |
-| `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR_TO_MAVEN`. Trees rooted at a nested `.jenesis.build` marker are skipped. Falling through throws. | - |
+| `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR_TO_MAVEN`. Trees rooted at a nested `.jenesis.skip` marker are skipped. Falling through throws. | - |
 
 `MODULAR_TO_MAVEN` translates each `requires` directive into the declaring module's Maven coordinate (discovered
 from its `:pom` in the overlay) and resolves the transitive closure through `MavenPomResolver` against a
@@ -529,7 +529,7 @@ outweighs the loss of automatic discovery, and treat the value as something you 
 an explicit UID is declared the JDK no longer computes the implicit one, and there is no supported way to ask
 `ObjectOutputStream` what it would have been.
 
-The executor places a `.jenesis.build` marker at the build root so source scanners (`MavenProject`,
+The executor places a `.jenesis.skip` marker at the build root so source scanners (`MavenProject`,
 `ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `.jenesis/cache/`
 by convention for cross-build caches such as downloaded module URIs.
 
@@ -652,7 +652,7 @@ others are declared next to the step that emits them.
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
 | `.jenesis/cache/`          | by convention                    | A project-root folder for caches that outlive a single build, hardlink-shared with `target/`. The `MODULAR` layout populates `.jenesis/cache/<encoded-coordinate>.jar` via `Repository.cached(...)` so module jars survive a `target/` wipe; `MAVEN` and `MODULAR_TO_MAVEN` cache into `~/.m2/repository` instead. Relocatable via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`. See the *Repositories and resolvers* and *The `.jenesis/cache/` folder* sections below for the full picture. |
-| `.jenesis.build`           | `BuildExecutor.BUILD_MARKER`     | An empty marker file placed at the root of an active build directory. Project-tree walkers honour it as a stop signal so nested builds aren't re-discovered as part of the parent build's project graph.                                              |
+| `.jenesis.skip`           | `BuildExecutor.SKIP_MARKER`     | An empty marker file placed at the root of an active build directory. Project-tree walkers honour it as a stop signal so nested builds aren't re-discovered as part of the parent build's project graph.                                              |
 
 Build steps
 -----------

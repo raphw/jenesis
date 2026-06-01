@@ -7,7 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -24,23 +24,23 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final boolean process;
     private final boolean strictPinning;
-    private final ModulePathPredicate modulePath;
+    private final PathPlacement modulePath;
 
     public InferredCompilerChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, false, ModulePathPredicate.INFERRED);
+        this(repositories, resolvers, false, false, PathPlacement.INFERRED);
     }
 
     public InferredCompilerChainModule(Map<String, Repository> repositories,
                                        Map<String, Resolver> resolvers,
                                        boolean process) {
-        this(repositories, resolvers, process, false, ModulePathPredicate.INFERRED);
+        this(repositories, resolvers, process, false, PathPlacement.INFERRED);
     }
 
     private InferredCompilerChainModule(Map<String, Repository> repositories,
                                         Map<String, Resolver> resolvers,
                                         boolean process,
                                         boolean strictPinning,
-                                        ModulePathPredicate modulePath) {
+                                        PathPlacement modulePath) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.process = process;
@@ -52,7 +52,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
     }
 
-    public InferredCompilerChainModule modulePath(ModulePathPredicate modulePath) {
+    public InferredCompilerChainModule modulePath(PathPlacement modulePath) {
         return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
     }
 
@@ -123,7 +123,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            boolean process,
                            boolean strictPinning,
-                           ModulePathPredicate modulePath) implements BuildExecutorModule {
+                           PathPlacement modulePath) implements BuildExecutorModule {
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {

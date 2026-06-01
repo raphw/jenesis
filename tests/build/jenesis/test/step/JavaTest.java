@@ -6,7 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 import build.jenesis.step.Java;
 import build.jenesis.step.Javac;
 import sample.Sample;
@@ -34,7 +34,7 @@ public class JavaTest {
         try (InputStream input = Sample.class.getResourceAsStream(Sample.class.getSimpleName() + ".class")) {
             Files.copy(requireNonNull(input), folder.resolve("Sample.class"));
         }
-        BuildStepResult result = Java.of(ModulePathPredicate.CLASS_PATH, false, "sample.Sample").apply(
+        BuildStepResult result = Java.of(PathPlacement.CLASS_PATH, false, "sample.Sample").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(

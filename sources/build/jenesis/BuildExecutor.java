@@ -4,7 +4,7 @@ import module java.base;
 
 public interface BuildExecutor {
 
-    String BUILD_MARKER = ".jenesis.build";
+    String SKIP_MARKER = ".jenesis.skip";
 
     static BuildExecutor of(Path target) throws IOException {
         String algorithm = System.getProperty("jenesis.executor.digest", "MD5");
@@ -14,14 +14,6 @@ public interface BuildExecutor {
                 BuildStepHashFunction.ofSerializationDigest(algorithm),
                 BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target),
                 Boolean.getBoolean("jenesis.executor.rebuild"));
-    }
-
-    static BuildExecutor of(Path target,
-                            Duration timeout,
-                            HashFunction hash,
-                            BuildStepHashFunction stepHash,
-                            BuildExecutorCallback callback) throws IOException {
-        return of(target, timeout, hash, stepHash, callback, false);
     }
 
     static BuildExecutor of(Path target,
@@ -49,8 +41,8 @@ public interface BuildExecutor {
             });
         }
         BuildExecutor executor = new BuildExecutorDefault(target, timeout, hash, stepHash, callback, "", Map.of());
-        if (!Files.exists(target.resolve(BUILD_MARKER))) {
-            Files.createFile(target.resolve(BUILD_MARKER));
+        if (!Files.exists(target.resolve(SKIP_MARKER))) {
+            Files.createFile(target.resolve(SKIP_MARKER));
         }
         return executor;
     }

@@ -2,7 +2,7 @@ package build;
 
 import module java.base;
 import build.jenesis.BuildExecutor;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 import build.jenesis.module.ModularProject;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -17,7 +17,7 @@ import build.jenesis.project.ProjectModuleDescriptor;
  *
  * The only glue is the assembler: {@code make} hands each discovered module a
  * {@code ModularModuleDescriptor}, which is wrapped in a {@code ProjectModuleDescriptor}
- * (with {@code ModulePathPredicate.MODULE_PATH}, since these are genuine modules)
+ * (with {@code PathPlacement.MODULE_PATH}, since these are genuine modules)
  * so the stock {@code JavaMultiProjectAssembler} can wire the regular
  * compile/jar(/test) flow. This is the same toolchain {@code Project} uses for the
  * MODULAR layout, assembled directly here so the wiring is visible.
@@ -36,7 +36,7 @@ public class Demo {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addModule("modules", ModularProject.make(Path.of("."),
                 (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
-                        new ProjectModuleDescriptor(descriptor, true, false, false, false, ModulePathPredicate.MODULE_PATH),
+                        new ProjectModuleDescriptor(descriptor, true, false, false, false, PathPlacement.MODULE_PATH),
                         repositories,
                         resolvers)));
         root.execute(args);

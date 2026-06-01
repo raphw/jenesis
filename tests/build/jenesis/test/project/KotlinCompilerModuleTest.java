@@ -327,7 +327,7 @@ public class KotlinCompilerModuleTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop());
+                BuildExecutorCallback.nop(), false);
     }
 
     private static Repository mavenCentral() {

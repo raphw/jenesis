@@ -2,7 +2,7 @@ package build;
 
 import module java.base;
 import build.jenesis.BuildExecutor;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -34,7 +34,7 @@ public class Demo {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addModule("maven", MavenProject.make(Path.of("."),
                 (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
-                        new ProjectModuleDescriptor(descriptor, true, false, false, false, ModulePathPredicate.CLASS_PATH),
+                        new ProjectModuleDescriptor(descriptor, true, false, false, false, PathPlacement.CLASS_PATH),
                         repositories,
                         resolvers)));
         root.execute(args);

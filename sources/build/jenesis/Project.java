@@ -83,7 +83,7 @@ public record Project(
                                                 project.sources(),
                                                 project.documentation(),
                                                 project.strictPinning(),
-                                                ModulePathPredicate.CLASS_PATH),
+                                                PathPlacement.CLASS_PATH),
                                         mergedRepos, mergedResolvers)),
                         mavenDeps);
             }, METADATA);
@@ -136,7 +136,7 @@ public record Project(
                                         project.sources(),
                                         project.documentation(),
                                         project.strictPinning(),
-                                        ModulePathPredicate.MODULE_PATH),
+                                        PathPlacement.MODULE_PATH),
                                 mergedRepos,
                                 mergedResolvers)),
                         modulesDeps);
@@ -195,7 +195,7 @@ public record Project(
                                                 project.sources(),
                                                 project.documentation(),
                                                 project.strictPinning(),
-                                                ModulePathPredicate.INFERRED),
+                                                PathPlacement.INFERRED),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
             }, METADATA);
@@ -224,12 +224,15 @@ public record Project(
         Layout AUTO = (executor, project, assembler) -> of(project.root()).apply(executor, project, assembler);
 
         static Layout of(Path root) throws IOException {
+            if (Files.isRegularFile(root.resolve("pom.xml"))) {
+                return MAVEN;
+            }
             List<Path> moduleInfos = new ArrayList<>();
             Files.walkFileTree(root, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
                     if (!directory.equals(root)
-                            && Files.exists(directory.resolve(BuildExecutor.BUILD_MARKER))) {
+                            && Files.exists(directory.resolve(BuildExecutor.SKIP_MARKER))) {
                         return FileVisitResult.SKIP_SUBTREE;
                     }
                     return FileVisitResult.CONTINUE;
@@ -245,9 +248,6 @@ public record Project(
                     return FileVisitResult.CONTINUE;
                 }
             });
-            if (Files.isRegularFile(root.resolve("pom.xml"))) {
-                return MAVEN;
-            }
             if (!moduleInfos.isEmpty()) {
                 return MODULAR_TO_MAVEN;
             }

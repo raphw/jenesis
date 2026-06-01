@@ -2,7 +2,7 @@ package build.jenesis;
 
 import module java.base;
 
-public enum ModulePathPredicate {
+public enum PathPlacement {
 
     CLASS_PATH(false) {
         @Override
@@ -11,8 +11,8 @@ public enum ModulePathPredicate {
         }
 
         @Override
-        public ModulePathPredicate requiresModules(boolean requiresModules) {
-            return requiresModules ? INFERRED : this;
+        public PathPlacement forModuleInfo(boolean moduleInfoPresent) {
+            return moduleInfoPresent ? INFERRED : this;
         }
     },
 
@@ -51,17 +51,17 @@ public enum ModulePathPredicate {
 
     private final boolean modular;
 
-    ModulePathPredicate(boolean modular) {
+    PathPlacement(boolean modular) {
         this.modular = modular;
     }
-
-    public abstract boolean test(Path path) throws IOException;
 
     public boolean modular() {
         return modular;
     }
 
-    public ModulePathPredicate requiresModules(boolean requiresModules) {
-        return this;
+    public abstract boolean test(Path path) throws IOException;
+
+    public PathPlacement forModuleInfo(boolean moduleInfoPresent) {
+        return moduleInfoPresent ? this : CLASS_PATH;
     }
 }

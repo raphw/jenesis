@@ -23,7 +23,7 @@ Layout
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (stage, then Project + assembler)
     |-- plugin/                  the build module (identical to internal-module)
-    |   |-- .jenesis.build       marks plugin/ as its own build root
+    |   |-- .jenesis.skip       marks plugin/ as its own build root
     |   |-- module-info.java     module demo.plugin { requires build.jenesis;
     |   |                                requires org.json;
     |   |                                provides build.jenesis.BuildExecutorModule

@@ -3,7 +3,7 @@ package build.jenesis.test.project;
 import module java.base;
 import module java.compiler;
 import module org.junit.jupiter.api;
-import build.jenesis.ModulePathPredicate;
+import build.jenesis.PathPlacement;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
@@ -107,7 +107,7 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(ModulePathPredicate.CLASS_PATH),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -158,7 +158,7 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(ModulePathPredicate.CLASS_PATH),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -217,7 +217,7 @@ public class TestModuleTest {
                                 null,
                                 Map.of(),
                                 _ -> {})),
-                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(ModulePathPredicate.CLASS_PATH),
+                        Map.of("maven", new MavenPomResolver())).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -507,7 +507,7 @@ public class TestModuleTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop());
+                BuildExecutorCallback.nop(), false);
     }
 
     private static SequencedProperties readRequires(Path stepFolder) throws IOException {

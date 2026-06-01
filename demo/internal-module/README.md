@@ -23,7 +23,7 @@ Layout
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (Project + wrapping assembler)
     |-- plugin/
-    |   |-- .jenesis.build       marks plugin/ as its own build root, so the
+    |   |-- .jenesis.skip       marks plugin/ as its own build root, so the
     |   |                        project's module discovery skips it
     |   |-- module-info.java     module demo.plugin { requires build.jenesis;
     |   |                                requires org.json;
@@ -36,7 +36,7 @@ Layout
 
 The project under `sources/` is an ordinary modular project, exactly like
 `custom-assembler`. The build module under `plugin/` is a separate modular
-project; its `.jenesis.build` marker keeps the host project's module discovery
+project; its `.jenesis.skip` marker keeps the host project's module discovery
 from mistaking it for a second project module.
 
 Run it

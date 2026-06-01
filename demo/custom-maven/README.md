@@ -47,7 +47,7 @@ How the convenience make is wired
     BuildExecutor root = BuildExecutor.of(Path.of("target"));
     root.addModule("maven", MavenProject.make(Path.of("."),
             (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
-                    new ProjectModuleDescriptor(descriptor, true, false, false, false, ModulePathPredicate.CLASS_PATH),
+                    new ProjectModuleDescriptor(descriptor, true, false, false, false, PathPlacement.CLASS_PATH),
                     repositories,
                     resolvers)));
     root.execute(args);

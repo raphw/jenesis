@@ -107,7 +107,7 @@ public record Execute(Project project, String mainClass, String module) {
         if (candidate.module != null) {
             List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
             for (String jar : jars) {
-                (ModulePathPredicate.INFERRED.test(Path.of(jar)) ? modulePath : classPath).add(jar);
+                (PathPlacement.INFERRED.test(Path.of(jar)) ? modulePath : classPath).add(jar);
             }
             javaArgs.add("--module-path");
             javaArgs.add(String.join(File.pathSeparator, modulePath));
