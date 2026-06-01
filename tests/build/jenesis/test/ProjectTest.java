@@ -27,6 +27,7 @@ public class ProjectTest {
         System.clearProperty("jenesis.project.root");
         System.clearProperty("jenesis.project.target");
         System.clearProperty("jenesis.project.cache");
+        System.clearProperty("jenesis.project.digest");
     }
 
     @Test
@@ -153,6 +154,24 @@ public class ProjectTest {
     public void system_property_overrides_cache() {
         System.setProperty("jenesis.project.cache", "custom-cache");
         assertThat(new Project().resolveProperties().cache()).isEqualTo(Path.of("custom-cache"));
+    }
+
+    @Test
+    public void default_digest_is_sha_256() {
+        assertThat(new Project().hashFunction()).isEqualTo(new HashDigestFunction("SHA-256"));
+    }
+
+    @Test
+    public void system_property_overrides_digest() {
+        System.setProperty("jenesis.project.digest", "SHA-512");
+        assertThat(new Project().resolveProperties().hashFunction())
+                .isEqualTo(new HashDigestFunction("SHA-512"));
+    }
+
+    @Test
+    public void digest_can_be_overridden() {
+        HashDigestFunction digest = new HashDigestFunction("SHA-512");
+        assertThat(new Project().hashFunction(digest).hashFunction()).isSameAs(digest);
     }
 
     @Test

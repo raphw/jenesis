@@ -28,6 +28,7 @@ public record Project(
         Path root,
         Path target,
         Path cache,
+        HashDigestFunction hashFunction,
         Layout layout,
         boolean tests,
         boolean sources,
@@ -77,7 +78,7 @@ public record Project(
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
-                                new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
+                                project.hashFunction(),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
@@ -93,10 +94,9 @@ public record Project(
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven"), STAGE);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            HashDigestFunction hashFunction = new HashDigestFunction(
-                    System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
-            executor.addModule(PIN, new PinModule(project.root(), "pom.xml",
-                    (path, file) -> new PinPom("maven", path, file, hashFunction)), BUILD);
+            executor.addModule(PIN, new PinModule(project.root(),
+                    "pom.xml",
+                    (path, file) -> new PinPom("maven", path, file, project.hashFunction())), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -129,7 +129,7 @@ public record Project(
                         Collections.unmodifiableMap(resolvers),
                         project.strictPinning(),
                         true,
-                        new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
+                        project.hashFunction(),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                 new ProjectModuleDescriptor(descriptor,
                                         project.tests(),
@@ -146,10 +146,8 @@ public record Project(
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular"), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            HashDigestFunction hashFunction = new HashDigestFunction(
-                    System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    (path, file) -> new PinModuleInfo("module", path, file, hashFunction)), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -189,7 +187,7 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.strictPinning(),
                                 true,
-                                new HashDigestFunction(System.getProperty("jenesis.executor.digest", "MD5")),
+                                project.hashFunction(),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
@@ -209,10 +207,8 @@ public record Project(
                 export.addStep("modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular");
             }, STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            HashDigestFunction hashFunction = new HashDigestFunction(
-                    System.getProperty("jenesis.project.pinAlgorithm", "SHA-256"));
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    (path, file) -> new PinModuleInfo("module", path, file, true, hashFunction)), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, file, true, project.hashFunction())), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -354,7 +350,7 @@ public record Project(
                       %{name}strictPinning%{reset}                    Fail the build for any unpinned artifact
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}version%{reset}                          Project version
-                      %{name}pinAlgorithm%{reset}                     Algorithm for pin checksums (default: SHA-256)
+                      %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
 
                     %{header}Test filter (-Djenesis.java.test=<patterns>):%{reset}
@@ -631,7 +627,8 @@ public record Project(
                                                   metadata files.
                       version                     Stamp version onto every
                                                   produced artifact.
-                      pinAlgorithm                Algorithm for pin checksums
+                      digest                      Algorithm for pin and
+                                                  dependency checksums
                                                   (default SHA-256).
 
                     Executor-level:
@@ -854,6 +851,7 @@ public record Project(
         this(Path.of("."),
                 Path.of("target"),
                 Path.of(".jenesis", "cache"),
+                new HashDigestFunction("SHA-256"),
                 Layout.AUTO,
                 true,
                 false,
@@ -872,6 +870,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -890,6 +889,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -908,6 +908,26 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
+                layout,
+                tests,
+                sources,
+                documentation,
+                stageTests,
+                strictPinning,
+                metadata,
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers);
+    }
+
+    public Project hashFunction(HashDigestFunction hashFunction) {
+        return new Project(root,
+                target,
+                cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -926,6 +946,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -944,6 +965,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -962,6 +984,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -980,6 +1003,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -998,6 +1022,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1016,6 +1041,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1034,6 +1060,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1052,6 +1079,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1070,6 +1098,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1088,6 +1117,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1106,6 +1136,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1124,6 +1155,7 @@ public record Project(
         return new Project(root,
                 target,
                 cache,
+                hashFunction,
                 layout,
                 tests,
                 sources,
@@ -1142,6 +1174,7 @@ public record Project(
         Path resolvedRoot = root;
         Path resolvedTarget = target;
         Path resolvedCache = cache;
+        HashDigestFunction resolvedHashDigest = hashFunction;
         Layout resolvedLayout = layout;
         boolean resolvedTests = tests;
         boolean resolvedSources = sources;
@@ -1161,6 +1194,10 @@ public record Project(
         String cacheOverride = System.getProperty("jenesis.project.cache");
         if (cacheOverride != null) {
             resolvedCache = Path.of(cacheOverride);
+        }
+        String hashDigestOverride = System.getProperty("jenesis.project.digest");
+        if (hashDigestOverride != null) {
+            resolvedHashDigest = new HashDigestFunction(hashDigestOverride);
         }
         String forced = System.getProperty("jenesis.project.layout");
         if (forced != null) {
@@ -1212,6 +1249,7 @@ public record Project(
         return new Project(resolvedRoot,
                 resolvedTarget,
                 resolvedCache,
+                resolvedHashDigest,
                 resolvedLayout,
                 resolvedTests,
                 resolvedSources,
