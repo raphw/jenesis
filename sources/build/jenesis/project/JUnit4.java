@@ -10,17 +10,17 @@ public record JUnit4() implements TestEngine {
     }
 
     @Override
-    public Map<String, String> markers() {
-        return Map.of("Implementation-Title", "JUnit");
+    public boolean isEngine(ModuleDescriptor module) {
+        return module.name().equals("junit");
     }
 
     @Override
-    public Map<String, String> runnerMarkers() {
-        return Map.of("Implementation-Title", "JUnit");
+    public boolean isRunner(ModuleDescriptor module) {
+        return isEngine(module);
     }
 
     @Override
-    public SequencedSet<String> coordinates() {
+    public SequencedSet<String> coordinates(ModuleDescriptor engine) {
         return Collections.emptyNavigableSet();
     }
 

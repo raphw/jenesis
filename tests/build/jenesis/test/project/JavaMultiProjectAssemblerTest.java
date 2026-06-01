@@ -12,7 +12,7 @@ import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependencyScope;
 import build.jenesis.project.JavaMultiProjectAssembler;
-import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.ProcessBuildStep;
 
@@ -114,7 +114,7 @@ public class JavaMultiProjectAssemblerTest {
         Path compileArtifacts = Files.createDirectory(root.resolve("compile-artifacts"));
         Path runtimeArtifacts = Files.createDirectory(root.resolve("runtime-artifacts"));
         Path build = Files.createDirectory(root.resolve("build"));
-        ModuleDescriptor base = new ModuleDescriptor() {
+        ProjectModule base = new ProjectModule() {
             @Override
             public String name() {
                 return "module";

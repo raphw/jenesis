@@ -16,32 +16,38 @@ public class TestEngineTest {
     private Path root;
 
     @Test
-    public void detects_junit5_from_artifact_manifest() throws IOException {
-        writeJar(root.resolve("artifacts"), "engine.jar", "junit-platform-engine");
+    public void detects_junit5_from_engine_module() throws IOException {
+        writeJar(root.resolve("artifacts"), "engine.jar", "org.junit.platform.engine");
         assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnit5.class);
     }
 
     @Test
-    public void detects_junit4_from_artifact_manifest() throws IOException {
-        writeJar(root.resolve("artifacts"), "junit.jar", "JUnit");
+    public void detects_junit4_from_module() throws IOException {
+        writeJar(root.resolve("artifacts"), "junit.jar", "junit");
         assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnit4.class);
     }
 
     @Test
-    public void detects_testng_from_artifact_manifest() throws IOException {
-        writeJar(root.resolve("artifacts"), "testng.jar", "TestNG");
+    public void detects_testng_from_module() throws IOException {
+        writeJar(root.resolve("artifacts"), "testng.jar", "org.testng");
         assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(TestNG.class);
     }
 
     @Test
     public void detects_engine_from_dependencies_folder() throws IOException {
-        writeJar(root.resolve("dependencies"), "engine.jar", "junit-platform-engine");
+        writeJar(root.resolve("dependencies"), "engine.jar", "org.junit.platform.engine");
         assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnit5.class);
     }
 
     @Test
-    public void detects_no_engine_without_matching_marker() throws IOException {
-        writeJar(root.resolve("artifacts"), "plain.jar", "Something-Else");
+    public void detects_no_engine_for_unrelated_module() throws IOException {
+        writeJar(root.resolve("artifacts"), "plain.jar", "com.example.something");
+        assertThat(TestEngine.of(List.of(root))).isEmpty();
+    }
+
+    @Test
+    public void detects_no_engine_from_file_name_alone() throws IOException {
+        writeJar(root.resolve("artifacts"), "org.junit.platform.engine.jar", null);
         assertThat(TestEngine.of(List.of(root))).isEmpty();
     }
 
@@ -51,22 +57,39 @@ public class TestEngineTest {
     }
 
     @Test
-    public void detects_runner_from_runner_marker() throws IOException {
-        writeJar(root.resolve("artifacts"), "console.jar", "junit-platform-console");
-        assertThat(TestEngine.hasRunner(new JUnit5(), List.of(root))).isTrue();
+    public void detects_runner_from_console_module() throws IOException {
+        writeJar(root.resolve("artifacts"), "console.jar", "org.junit.platform.console");
+        assertThat(new JUnit5().hasRunner(TestEngine.scan(List.of(root)))).isTrue();
     }
 
     @Test
-    public void detects_no_runner_for_engine_only_marker() throws IOException {
-        writeJar(root.resolve("artifacts"), "engine.jar", "junit-platform-engine");
-        assertThat(TestEngine.hasRunner(new JUnit5(), List.of(root))).isFalse();
+    public void detects_no_runner_for_engine_only() throws IOException {
+        writeJar(root.resolve("artifacts"), "engine.jar", "org.junit.platform.engine");
+        assertThat(new JUnit5().hasRunner(TestEngine.scan(List.of(root)))).isFalse();
     }
 
-    private static void writeJar(Path folder, String name, String implementationTitle) throws IOException {
+    @Test
+    public void derives_console_version_from_engine_module() {
+        ModuleDescriptor engine = ModuleDescriptor.newModule("org.junit.platform.engine")
+                .version("1.11.3")
+                .build();
+        assertThat(new JUnit5().coordinates(engine))
+                .contains("maven/org.junit.platform/junit-platform-console/1.11.3");
+    }
+
+    @Test
+    public void falls_back_to_release_without_engine_version() {
+        assertThat(new JUnit5().coordinates(null))
+                .contains("maven/org.junit.platform/junit-platform-console/RELEASE");
+    }
+
+    private static void writeJar(Path folder, String name, String moduleName) throws IOException {
         Files.createDirectories(folder);
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        manifest.getMainAttributes().putValue("Implementation-Title", implementationTitle);
+        if (moduleName != null) {
+            manifest.getMainAttributes().putValue("Automatic-Module-Name", moduleName);
+        }
         try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(folder.resolve(name)), manifest)) {
             output.putNextEntry(new JarEntry("sample/resource.txt"));
             output.closeEntry();

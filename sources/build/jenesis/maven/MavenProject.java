@@ -13,7 +13,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
-import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
@@ -577,7 +577,7 @@ public class MavenProject implements BuildExecutorModule {
 
     public record MavenModuleDescriptor(String name,
                                         SequencedSet<String> dependencies,
-                                        SequencedSet<String> resources) implements ModuleDescriptor {
+                                        SequencedSet<String> resources) implements ProjectModule {
 
         @Override
         public SequencedSet<String> sources() {

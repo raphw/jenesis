@@ -1,16 +1,19 @@
 package build.jenesis.project;
 
 import module java.base;
-import java.util.jar.Attributes;
 import build.jenesis.BuildStep;
 
 public interface TestEngine extends Serializable {
 
     String module();
 
-    SequencedSet<String> coordinates();
-
     String mainClass();
+
+    boolean isEngine(ModuleDescriptor module);
+
+    boolean isRunner(ModuleDescriptor module);
+
+    SequencedSet<String> coordinates(ModuleDescriptor engine);
 
     default Map<String, String> versions() {
         return Map.of();
@@ -22,47 +25,45 @@ public interface TestEngine extends Serializable {
 
     List<String> arguments(Path supplement);
 
-    Map<String, String> markers();
-
-    Map<String, String> runnerMarkers();
-
     List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods);
 
-    static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
-        List<Attributes> manifests = scanManifests(folders);
-        for (TestEngine engine : List.<TestEngine>of(new JUnit5(), new JUnit4(), new TestNG())) {
-            if (matches(manifests, engine.markers())) {
-                return Optional.of(engine);
+    default Optional<ModuleDescriptor> match(List<ModuleDescriptor> modules) {
+        for (ModuleDescriptor module : modules) {
+            if (isEngine(module)) {
+                return Optional.of(module);
             }
         }
         return Optional.empty();
     }
 
-    static boolean hasRunner(TestEngine engine, Iterable<Path> folders) throws IOException {
-        return matches(scanManifests(folders), engine.runnerMarkers());
-    }
-
-    private static boolean matches(List<Attributes> manifests, Map<String, String> required) {
-        if (required.isEmpty()) {
-            return false;
-        }
-        for (Attributes attributes : manifests) {
-            boolean ok = true;
-            for (Map.Entry<String, String> entry : required.entrySet()) {
-                if (!Objects.equals(entry.getValue(), attributes.getValue(entry.getKey()))) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (ok) {
+    default boolean hasRunner(List<ModuleDescriptor> modules) {
+        for (ModuleDescriptor module : modules) {
+            if (isRunner(module)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static List<Attributes> scanManifests(Iterable<Path> folders) throws IOException {
-        List<Attributes> manifests = new ArrayList<>();
+    static Optional<TestEngine> of(List<ModuleDescriptor> modules) {
+        for (TestEngine engine : List.<TestEngine>of(new JUnit5(), new JUnit4(), new TestNG())) {
+            if (engine.match(modules).isPresent()) {
+                return Optional.of(engine);
+            }
+        }
+        return Optional.empty();
+    }
+
+    static Optional<TestEngine> of(Iterable<Path> folders) throws IOException {
+        return of(scan(folders));
+    }
+
+    static boolean hasRunner(TestEngine engine, Iterable<Path> folders) throws IOException {
+        return engine.hasRunner(scan(folders));
+    }
+
+    static List<ModuleDescriptor> scan(Iterable<Path> folders) throws IOException {
+        List<ModuleDescriptor> modules = new ArrayList<>();
         for (Path folder : folders) {
             for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
                 Path jars = folder.resolve(jarFolder);
@@ -74,19 +75,35 @@ public interface TestEngine extends Serializable {
                         if (!Files.isRegularFile(file)) {
                             continue;
                         }
-                        try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(file))) {
-                            Manifest manifest = jarStream.getManifest();
-                            if (manifest != null) {
-                                manifests.add(manifest.getMainAttributes());
-                            }
-                        } catch (IOException e) {
-                            throw e;
-                        } catch (Exception _) {
+                        ModuleDescriptor module = inspect(file);
+                        if (module != null) {
+                            modules.add(module);
                         }
                     }
                 }
             }
         }
-        return manifests;
+        return modules;
+    }
+
+    private static ModuleDescriptor inspect(Path file) {
+        try (JarFile jar = new JarFile(file.toFile())) {
+            JarEntry moduleInfo = jar.getJarEntry("module-info.class");
+            if (moduleInfo != null) {
+                try (InputStream input = jar.getInputStream(moduleInfo)) {
+                    return ModuleDescriptor.read(input);
+                }
+            }
+            Manifest manifest = jar.getManifest();
+            if (manifest != null) {
+                String automatic = manifest.getMainAttributes().getValue("Automatic-Module-Name");
+                if (automatic != null) {
+                    return ModuleDescriptor.newAutomaticModule(automatic).build();
+                }
+            }
+            return null;
+        } catch (Exception _) {
+            return null;
+        }
     }
 }

@@ -12,7 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.DependenciesModule;
-import build.jenesis.project.ModuleDescriptor;
+import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
@@ -246,7 +246,7 @@ public class ModularProject implements BuildExecutorModule {
         });
     }
 
-    public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies) implements ModuleDescriptor {
+    public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies) implements ProjectModule {
 
         @Override
         public SequencedSet<String> sources() {

@@ -2,7 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 
-public interface ModuleDescriptor {
+public interface ProjectModule {
 
     String name();
 

@@ -4,7 +4,7 @@ import module java.base;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.PathPlacement;
 
-public class ProjectModuleDescriptor implements ModuleDescriptor {
+public class ProjectModuleDescriptor implements ProjectModule {
 
     private final String name;
     private final SequencedSet<String> dependencies;
@@ -20,7 +20,7 @@ public class ProjectModuleDescriptor implements ModuleDescriptor {
     private final boolean strictPinning;
     private final PathPlacement modulePath;
 
-    public ProjectModuleDescriptor(ModuleDescriptor base,
+    public ProjectModuleDescriptor(ProjectModule base,
                                    boolean test,
                                    boolean source,
                                    boolean documentation,

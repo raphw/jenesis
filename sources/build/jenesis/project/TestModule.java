@@ -179,13 +179,12 @@ public class TestModule implements BuildExecutorModule {
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
             List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
-            TestEngine resolved = engine != null ? engine : TestEngine.of(folders).orElse(null);
+            List<ModuleDescriptor> artifacts = TestEngine.scan(folders);
+            TestEngine resolved = engine != null ? engine : TestEngine.of(artifacts).orElse(null);
             SequencedProperties properties = new SequencedProperties();
             String selectedPrefix = null;
-            if (resolved != null
-                    && !resolved.coordinates().isEmpty()
-                    && !TestEngine.hasRunner(resolved, folders)) {
-                for (String coordinate : resolved.coordinates()) {
+            if (resolved != null && !resolved.hasRunner(artifacts)) {
+                for (String coordinate : resolved.coordinates(resolved.match(artifacts).orElse(null))) {
                     int index = coordinate.indexOf('/');
                     String prefix = index > 0 ? coordinate.substring(0, index) : "";
                     if (prefixes.contains(prefix)) {

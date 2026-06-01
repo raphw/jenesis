@@ -10,20 +10,21 @@ public record JUnit5() implements TestEngine {
     }
 
     @Override
-    public Map<String, String> markers() {
-        return Map.of("Implementation-Title", "junit-platform-engine");
+    public boolean isEngine(ModuleDescriptor module) {
+        return module.name().equals("org.junit.platform.engine");
     }
 
     @Override
-    public Map<String, String> runnerMarkers() {
-        return Map.of("Implementation-Title", "junit-platform-console");
+    public boolean isRunner(ModuleDescriptor module) {
+        return module.name().equals("org.junit.platform.console");
     }
 
     @Override
-    public SequencedSet<String> coordinates() {
+    public SequencedSet<String> coordinates(ModuleDescriptor engine) {
+        String version = engine == null ? null : engine.rawVersion().orElse(null);
         SequencedSet<String> coordinates = new LinkedHashSet<>();
-        coordinates.add("module/org.junit.platform.console");
-        coordinates.add("maven/org.junit.platform/junit-platform-console/RELEASE");
+        coordinates.add("module/org.junit.platform.console" + (version == null ? "" : "/" + version));
+        coordinates.add("maven/org.junit.platform/junit-platform-console/" + (version == null ? "RELEASE" : version));
         return coordinates;
     }
 
