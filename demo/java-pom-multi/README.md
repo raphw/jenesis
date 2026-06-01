@@ -56,10 +56,12 @@ A `<testSourceDirectory>` turns the module into a main artifact plus a `tests`
 variant. Jenesis compiles `test/sample/greeter/GreeterTest.java` against the main
 classes and the test-scoped dependencies, detects the test engine from the
 resolved jars (JUnit 5 here), and runs it through the JUnit Platform console
-launcher as part of the build. The launcher is added automatically; the only
-reason `junit-platform-console` is pinned in `<dependencyManagement>` is to hold
-it to the `1.11.x` line that matches JUnit 5.11.3 (an unpinned launcher floats to
-a newer JUnit Platform that the 5.11 engine cannot satisfy).
+launcher as part of the build. The launcher is fetched automatically, and its
+version is derived from the discovered `org.junit.platform.engine` module
+(`1.11.3`), so it always matches the JUnit Platform line the tests compile
+against. The `junit-platform-console` entry in `<dependencyManagement>` is there
+because `pin` records the full resolved closure with its checksum, not to
+constrain the launcher's version.
 
 Build it
 --------

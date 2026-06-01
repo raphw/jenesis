@@ -2,7 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 
-public record JUnit5() implements TestEngine {
+public record JUnitPlatform() implements TestEngine {
 
     @Override
     public String module() {

@@ -46,7 +46,7 @@ public interface TestEngine extends Serializable {
     }
 
     static Optional<TestEngine> of(List<ModuleDescriptor> modules) {
-        for (TestEngine engine : List.<TestEngine>of(new JUnit5(), new JUnit4(), new TestNG())) {
+        for (TestEngine engine : List.<TestEngine>of(new JUnitPlatform(), new JUnit4(), new TestNG())) {
             if (engine.match(modules).isPresent()) {
                 return Optional.of(engine);
             }

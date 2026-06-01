@@ -187,10 +187,11 @@ public class TestModule implements BuildExecutorModule {
                 for (String coordinate : resolved.coordinates(resolved.match(artifacts).orElse(null))) {
                     int index = coordinate.indexOf('/');
                     String prefix = index > 0 ? coordinate.substring(0, index) : "";
-                    if (prefixes.contains(prefix)) {
-                        properties.setProperty(coordinate, "");
+                    if (selectedPrefix == null && prefixes.contains(prefix)) {
                         selectedPrefix = prefix;
-                        break;
+                    }
+                    if (prefix.equals(selectedPrefix)) {
+                        properties.setProperty(coordinate, "");
                     }
                 }
             }

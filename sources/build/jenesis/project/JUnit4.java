@@ -39,6 +39,6 @@ public record JUnit4() implements TestEngine {
         if (!methods.isEmpty()) {
             throw new IllegalArgumentException("JUnit4 does not support running individual methods");
         }
-        return new ArrayList<>(classes);
+        return classes;
     }
 }

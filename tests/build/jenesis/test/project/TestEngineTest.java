@@ -4,7 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import java.util.jar.Attributes;
 import build.jenesis.project.JUnit4;
-import build.jenesis.project.JUnit5;
+import build.jenesis.project.JUnitPlatform;
 import build.jenesis.project.TestEngine;
 import build.jenesis.project.TestNG;
 
@@ -16,9 +16,9 @@ public class TestEngineTest {
     private Path root;
 
     @Test
-    public void detects_junit5_from_engine_module() throws IOException {
+    public void detects_junit_platform_from_engine_module() throws IOException {
         writeJar(root.resolve("artifacts"), "engine.jar", "org.junit.platform.engine");
-        assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnit5.class);
+        assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnitPlatform.class);
     }
 
     @Test
@@ -36,7 +36,7 @@ public class TestEngineTest {
     @Test
     public void detects_engine_from_dependencies_folder() throws IOException {
         writeJar(root.resolve("dependencies"), "engine.jar", "org.junit.platform.engine");
-        assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnit5.class);
+        assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnitPlatform.class);
     }
 
     @Test
@@ -59,13 +59,13 @@ public class TestEngineTest {
     @Test
     public void detects_runner_from_console_module() throws IOException {
         writeJar(root.resolve("artifacts"), "console.jar", "org.junit.platform.console");
-        assertThat(new JUnit5().hasRunner(TestEngine.scan(List.of(root)))).isTrue();
+        assertThat(new JUnitPlatform().hasRunner(TestEngine.scan(List.of(root)))).isTrue();
     }
 
     @Test
     public void detects_no_runner_for_engine_only() throws IOException {
         writeJar(root.resolve("artifacts"), "engine.jar", "org.junit.platform.engine");
-        assertThat(new JUnit5().hasRunner(TestEngine.scan(List.of(root)))).isFalse();
+        assertThat(new JUnitPlatform().hasRunner(TestEngine.scan(List.of(root)))).isFalse();
     }
 
     @Test
@@ -73,13 +73,13 @@ public class TestEngineTest {
         ModuleDescriptor engine = ModuleDescriptor.newModule("org.junit.platform.engine")
                 .version("1.11.3")
                 .build();
-        assertThat(new JUnit5().coordinates(engine))
+        assertThat(new JUnitPlatform().coordinates(engine))
                 .contains("maven/org.junit.platform/junit-platform-console/1.11.3");
     }
 
     @Test
     public void falls_back_to_release_without_engine_version() {
-        assertThat(new JUnit5().coordinates(null))
+        assertThat(new JUnitPlatform().coordinates(null))
                 .contains("maven/org.junit.platform/junit-platform-console/RELEASE");
     }
 

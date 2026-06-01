@@ -787,20 +787,27 @@ flowchart LR
 
 ### `TestModule`
 
-A `BuildExecutorModule` that runs a configured `TestEngine` (e.g. JUnit 5) against the compiled tests of its
+A `BuildExecutorModule` that runs a configured `TestEngine` (e.g. the JUnit Platform) against the compiled tests of its
 predecessors. Construction requires `repositories` and `resolvers` maps; the runner is fetched on the side via
 an inlined `Resolve` → `Download` pipeline, so the user never has to declare it as a compile-time `requires`
 of their test module. Empty maps are valid when the runner is already present on the inherited class- or
 module-path - the `Requires` step then writes an empty `requires.properties` and nothing is fetched:
 
-- `resolved` (`TestModule.Requires`) writes the runner's coordinate to `requires.properties`, picking the
-  first entry in `TestEngine.coordinates()` whose `<prefix>` is served by one of the configured resolvers -
-  `JUnit5` ships both `module/org.junit.platform.console` and
+- `resolved` (`TestModule.Requires`) first picks the engine. `TestEngine.scan(...)` reads the module name of
+  every inherited jar (from its `module-info.class`, or a declared `Automatic-Module-Name` - a filename-derived
+  name is ignored), and `TestEngine.of(...)` tries the built-in engines in order `[JUnitPlatform, JUnit4, TestNG]`,
+  selecting the first whose `isEngine(...)` matches any scanned module (`JUnitPlatform` matches
+  `org.junit.platform.engine`, `JUnit4` matches `junit`, `TestNG` matches `org.testng`). It then asks the chosen
+  engine for the runner coordinates and writes them to `requires.properties`: it establishes the accepted prefix
+  from the first entry in `TestEngine.coordinates(...)` whose `<prefix>` is served by one of the configured
+  resolvers, then writes *every* coordinate sharing that prefix (so an engine may contribute more than one runner
+  dependency). `JUnitPlatform` ships both `module/org.junit.platform.console/<version>` and
   `maven/org.junit.platform/junit-platform-console/<version>`, so the same engine works across `Modular`,
-  `ModularToMaven`, and `Manual`-style builds. Versions baked into the coordinate act as defaults; upstream
-  `versions.properties` (project `dependencyManagement` / `module-info` pins) wins for any matching managed
-  key during the downstream resolve. If the runner is already visible on an input folder
-  (`TestEngine.hasRunner(...)`), nothing is written.
+  `ModularToMaven`, and `Manual`-style builds. The `<version>` is not a fixed default: it is derived from the
+  version of the discovered `org.junit.platform.engine` module, so the console runner always matches the JUnit
+  Platform line the tests compile against (1.x for JUnit 5, 6.x for JUnit 6); when no version can be read it
+  falls back to `RELEASE`. If the runner is already visible on an input folder (`TestEngine.hasRunner(...)`,
+  i.e. some scanned module matches the engine's `isRunner(...)`), nothing is written.
 - `required` (`Resolve`) takes the runner coordinate *together* with every upstream
   `requires.properties` (the project's already-transitively-resolved compile/runtime deps) and runs the
   resolve a second time across the combined set. The resolver dedups by coordinate key and negotiates a
@@ -812,9 +819,10 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
 - `executed` (`TestModule.Run` extends `Java`) accepts a `filter` argument: a comma-separated list of Java
   regex entries, each `<classRegex>` or `<classRegex>#<methodName>`. When wired by
   `JavaMultiProjectAssembler`, the filter is sourced from the `-Djenesis.java.test=<patterns>` system property;
-  callers that construct `TestModule` directly pass the filter explicitly. Class entries are emitted via the
-  engine's `prefix()` (e.g. JUnit 5's `--select-class=`); method entries via `methodPrefix()` (e.g.
-  `--select-method=`). The filter is part of the step's serialized state (so changing it invalidates the cache);
+  callers that construct `TestModule` directly pass the filter explicitly. The matched class and method names
+  are handed to the engine's `commands(classes, methods)`, which shapes them into the runner's argument syntax
+  (`JUnitPlatform` emits `--select-class=` / `--select-method=` per entry). The filter is part of the step's
+  serialized state (so changing it invalidates the cache);
   when set, the step is also forced to re-run regardless of cache consistency. `Java` scans each argument's
   `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on its own `modular`
   flag.
@@ -1636,16 +1644,16 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.
 - **`TestModule`** is a `BuildExecutorModule` that wires `Java` into a runner. `TestEngine` plus the built-in
-  `JUnit4`, `JUnit5`, and `TestNG` records encode per-framework metadata (main class, marker class used to
-  detect the framework on the classpath, optional Maven coordinates of the runner) and each implements
+  `JUnitPlatform`, `JUnit4`, and `TestNG` records encode per-framework metadata (main class, the module name
+  used to detect the framework via `isEngine`/`isRunner`, and the runner coordinates) and each implements
   `commands(classes, methods)` to shape the CLI arguments for picking tests to run: `JUnit4` emits class
-  names positionally and throws `IllegalArgumentException` if individual methods are requested, `JUnit5`
+  names positionally and throws `IllegalArgumentException` if individual methods are requested, `JUnitPlatform`
   emits `--select-class=` / `--select-method=` per entry, and `TestNG` joins everything into the single
-  comma-separated `-testclass` / `-methods` arguments the `org.testng.TestNG` runner expects. `JUnit5` takes
-  an explicit `jupiterVersion` and `platformVersion`; when no engine is passed, `TestEngine.of(...)` infers
-  both from the `Implementation-Version` manifest entries of the Jupiter API and Platform Commons jars
-  discovered on the inherited paths. New frameworks slot in by implementing `TestEngine` and choosing
-  whatever argument shape the runner needs.
+  comma-separated `-testclass` / `-methods` arguments the `org.testng.TestNG` runner expects. When no engine
+  is passed, `TestEngine.of(...)` selects one by scanning the inherited jars' module names (tried in order,
+  first match wins); `JUnitPlatform` then derives its `junit-platform-console` runner version from the
+  discovered `org.junit.platform.engine` module, so it serves both JUnit 5 and JUnit 6 without configuration.
+  New frameworks slot in by implementing `TestEngine` and choosing whatever argument shape the runner needs.
 - **`JavaToolchainModule`** is the canonical `BuildExecutorModule` for "compile sources, version-stamp `module-info.class`,
   package as a jar". It delegates to `Javac`, `Versions`, and `Jar`. Build scripts that don't have multi-project
   structure can wire it directly; test execution is a separate `TestModule` that

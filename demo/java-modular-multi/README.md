@@ -67,8 +67,9 @@ can reflect over the test classes, and its test lives in its own package
 with the module it tests, since the Java module system forbids two modules from
 exporting the same package. The JUnit closure is pinned on the plain `module`
 trail, and the JUnit Platform console launcher that runs the tests is added
-automatically (its version is held to the `1.11.x` line that matches JUnit
-5.11.3). Unlike the `pin` runs of the other demos, the JUnit closure is kept on
+automatically, with its version derived from the discovered
+`org.junit.platform.engine` module (`1.11.3`) so it matches the JUnit Platform
+line the tests compile against. Unlike the `pin` runs of the other demos, the JUnit closure is kept on
 the test module alone rather than propagated project-wide, to keep `greeter` and
 `app` focused on their own dependencies.
 

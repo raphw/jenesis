@@ -14,7 +14,7 @@ import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.TestModule;
 import build.jenesis.project.JUnit4;
-import build.jenesis.project.JUnit5;
+import build.jenesis.project.JUnitPlatform;
 import build.jenesis.step.Javac;
 import build.jenesis.project.TestNG;
 import javax.tools.ToolProvider;
@@ -232,7 +232,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
@@ -258,7 +258,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
                                 null,
@@ -279,7 +279,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         (Predicate<String> & Serializable) _ -> false,
                         Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
@@ -312,7 +312,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
@@ -336,7 +336,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         (Predicate<String> & Serializable) _ -> false,
                         Map.of("maven", new MavenDefaultRepository(
                                 URI.create("https://repo1.maven.org/maven2/"),
@@ -379,7 +379,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
@@ -399,7 +399,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
@@ -419,7 +419,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of())
@@ -438,7 +438,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(new JUnit5(),
+                new TestModule(new JUnitPlatform(),
                         candidate -> candidate.endsWith("TestSample"),
                         Map.of(),
                         Map.of()).jarsOnly(false),
