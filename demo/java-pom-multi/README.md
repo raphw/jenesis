@@ -57,11 +57,13 @@ variant. Jenesis compiles `test/sample/greeter/GreeterTest.java` against the mai
 classes and the test-scoped dependencies, detects the test engine from the
 resolved jars (JUnit 5 here), and runs it through the JUnit Platform console
 launcher as part of the build. The launcher is fetched automatically, and its
-version is derived from the discovered `org.junit.platform.engine` module
-(`1.11.3`), so it always matches the JUnit Platform line the tests compile
-against. The `junit-platform-console` entry in `<dependencyManagement>` is there
-because `pin` records the full resolved closure with its checksum, not to
-constrain the launcher's version.
+version defaults to the one derived from the discovered `org.junit.platform.engine`
+module (`1.11.3`), so it matches the JUnit Platform line the tests compile against
+with no configuration. That default is only a fallback: the `junit-platform-console`
+entry in `<dependencyManagement>` (written by `pin` as part of the full resolved
+closure, with its checksum) overrides it, so the pinned version always wins - you
+could pin a higher console version here than the derived default and Jenesis would
+honor it.
 
 Build it
 --------

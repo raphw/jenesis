@@ -148,10 +148,13 @@ public class TestModule implements BuildExecutorModule {
             List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
             List<ModuleDescriptor> artifacts = TestEngine.scan(folders);
             TestEngine resolved = engine != null ? engine : TestEngine.of(artifacts).orElse(null);
+            ModuleDescriptor engineModule = resolved == null ? null : resolved.match(artifacts).orElse(null);
             SequencedProperties properties = new SequencedProperties();
-            String selectedPrefix = null;
+            SequencedProperties versions = new SequencedProperties();
             if (resolved != null && !resolved.hasRunner(artifacts)) {
-                for (String coordinate : resolved.coordinates(resolved.match(artifacts).orElse(null))) {
+                SequencedMap<String, String> runners = resolved.coordinates(engineModule);
+                String selectedPrefix = null;
+                for (String coordinate : runners.sequencedKeySet()) {
                     int index = coordinate.indexOf('/');
                     String prefix = index > 0 ? coordinate.substring(0, index) : "";
                     if (selectedPrefix == null && prefixes.contains(prefix)) {
@@ -161,26 +164,32 @@ public class TestModule implements BuildExecutorModule {
                         properties.setProperty(coordinate, "");
                     }
                 }
-            }
-            properties.store(context.next().resolve(BuildStep.REQUIRES));
-            if (selectedPrefix != null) {
-                SequencedProperties versions = new SequencedProperties();
-                for (BuildStepArgument argument : arguments.values()) {
-                    Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
-                    if (!Files.exists(versionsFile)) {
-                        continue;
+                if (selectedPrefix != null) {
+                    for (BuildStepArgument argument : arguments.values()) {
+                        Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
+                        if (!Files.exists(versionsFile)) {
+                            continue;
+                        }
+                        SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
+                        for (String key : upstream.stringPropertyNames()) {
+                            int index = key.indexOf('/');
+                            if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
+                                versions.putIfAbsent(key, upstream.getProperty(key));
+                            }
+                        }
                     }
-                    SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
-                    for (String key : upstream.stringPropertyNames()) {
-                        int index = key.indexOf('/');
-                        if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
-                            versions.putIfAbsent(key, upstream.getProperty(key));
+                    for (Map.Entry<String, String> entry : runners.entrySet()) {
+                        String coordinate = entry.getKey(), version = entry.getValue();
+                        int index = coordinate.indexOf('/');
+                        if (version != null && index > 0 && selectedPrefix.equals(coordinate.substring(0, index))) {
+                            versions.putIfAbsent(coordinate, version);
                         }
                     }
                 }
-                if (!versions.isEmpty()) {
-                    versions.store(context.next().resolve(BuildStep.VERSIONS));
-                }
+            }
+            properties.store(context.next().resolve(BuildStep.REQUIRES));
+            if (!versions.isEmpty()) {
+                versions.store(context.next().resolve(BuildStep.VERSIONS));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

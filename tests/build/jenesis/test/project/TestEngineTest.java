@@ -70,18 +70,21 @@ public class TestEngineTest {
     }
 
     @Test
-    public void derives_console_version_from_engine_module() {
+    public void derives_console_default_version_from_engine_module() {
         ModuleDescriptor engine = ModuleDescriptor.newModule("org.junit.platform.engine")
                 .version("1.11.3")
                 .build();
         assertThat(new JUnitPlatform().coordinates(engine))
-                .contains("maven/org.junit.platform/junit-platform-console/1.11.3");
+                .containsEntry("maven/org.junit.platform/junit-platform-console", "1.11.3")
+                .containsEntry("module/org.junit.platform.console", "1.11.3");
     }
 
     @Test
-    public void falls_back_to_release_without_engine_version() {
-        assertThat(new JUnitPlatform().coordinates(null))
-                .contains("maven/org.junit.platform/junit-platform-console/RELEASE");
+    public void console_floats_without_a_derived_engine_version() {
+        SequencedMap<String, String> coordinates = new JUnitPlatform().coordinates(null);
+        assertThat(coordinates).containsEntry("maven/org.junit.platform/junit-platform-console", "RELEASE");
+        assertThat(coordinates).containsKey("module/org.junit.platform.console");
+        assertThat(coordinates.get("module/org.junit.platform.console")).isNull();
     }
 
     @Test

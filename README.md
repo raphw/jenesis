@@ -798,16 +798,21 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
   name is ignored), and `TestEngine.of(...)` tries the built-in engines in order `[JUnitPlatform, JUnit4, TestNG]`,
   selecting the first whose `isEngine(...)` matches any scanned module (`JUnitPlatform` matches
   `org.junit.platform.engine`, `JUnit4` matches `junit`, `TestNG` matches `org.testng`). It then asks the chosen
-  engine for the runner coordinates and writes them to `requires.properties`: it establishes the accepted prefix
-  from the first entry in `TestEngine.coordinates(...)` whose `<prefix>` is served by one of the configured
-  resolvers, then writes *every* coordinate sharing that prefix (so an engine may contribute more than one runner
-  dependency). `JUnitPlatform` ships both `module/org.junit.platform.console/<version>` and
-  `maven/org.junit.platform/junit-platform-console/<version>`, so the same engine works across `Modular`,
-  `ModularToMaven`, and `Manual`-style builds. The `<version>` is not a fixed default: it is derived from the
-  version of the discovered `org.junit.platform.engine` module, so the console runner always matches the JUnit
-  Platform line the tests compile against (1.x for JUnit 5, 6.x for JUnit 6); when no version can be read it
-  falls back to `RELEASE`. If the runner is already visible on an input folder (`TestEngine.hasRunner(...)`,
-  i.e. some scanned module matches the engine's `isRunner(...)`), nothing is written.
+  engine for its runner coordinates: `TestEngine.coordinates(<engine module>)` returns a map of version-less
+  coordinate to *default version* (a `null` value means "no default; let the coordinate float"). `Requires`
+  establishes the accepted prefix from the first key whose `<prefix>` is served by one of the configured
+  resolvers, then writes *every* coordinate sharing that prefix into `requires.properties` (so an engine may
+  contribute more than one runner dependency). `JUnitPlatform` contributes both `module/org.junit.platform.console`
+  and `maven/org.junit.platform/junit-platform-console`, so the same engine works across `Modular`,
+  `ModularToMaven`, and `Manual`-style builds. The default version is derived from the version of the discovered
+  `org.junit.platform.engine` module (1.x for JUnit 5, 6.x for JUnit 6); the `maven` entry falls back to `RELEASE`
+  and the `module` entry to `null` (float to latest) when no version can be read. The non-`null` defaults are
+  written into `versions.properties` with `putIfAbsent`, *after* folding in the project's own upstream pins - so a
+  user pin (a `dependencyManagement` entry or `@jenesis.pin` tag for the console launcher) always wins over the
+  derived default, and a user may pin a higher console version than the tests' platform line. The derived default
+  carries no checksum (a checksum only makes sense once a version is pinned). If the runner is already visible on
+  an input folder (`TestEngine.hasRunner(...)`, i.e. some scanned module matches the engine's `isRunner(...)`),
+  the whole block is skipped - neither a coordinate nor a default version is written.
 - `required` (`Resolve`) takes the runner coordinate *together* with every upstream
   `requires.properties` (the project's already-transitively-resolved compile/runtime deps) and runs the
   resolve a second time across the combined set. The resolver dedups by coordinate key and negotiates a
@@ -1652,9 +1657,11 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   emits `--select-class=` / `--select-method=` per entry, and `TestNG` joins everything into the single
   comma-separated `-testclass` / `-methods` arguments the `org.testng.TestNG` runner expects. When no engine
   is passed, `TestEngine.of(...)` selects one by scanning the inherited jars' module names (tried in order,
-  first match wins); `JUnitPlatform` then derives its `junit-platform-console` runner version from the
-  discovered `org.junit.platform.engine` module, so it serves both JUnit 5 and JUnit 6 without configuration.
-  New frameworks slot in by implementing `TestEngine` and choosing whatever argument shape the runner needs.
+  first match wins); `JUnitPlatform` then derives a *default* `junit-platform-console` runner version from the
+  discovered `org.junit.platform.engine` module (`TestEngine.coordinates(...)` maps each runner coordinate to its
+  default version), so it serves both JUnit 5 and JUnit 6 without configuration - while a user pin for the console
+  launcher still overrides that default. New frameworks slot in by implementing `TestEngine` and choosing whatever
+  argument shape the runner needs.
 - **`JavaToolchainModule`** is the canonical `BuildExecutorModule` for "compile sources, version-stamp `module-info.class`,
   package as a jar". It delegates to `Javac`, `Versions`, and `Jar`. Build scripts that don't have multi-project
   structure can wire it directly; test execution is a separate `TestModule` that

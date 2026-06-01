@@ -20,11 +20,11 @@ public record JUnitPlatform() implements TestEngine {
     }
 
     @Override
-    public SequencedSet<String> coordinates(ModuleDescriptor engine) {
+    public SequencedMap<String, String> coordinates(ModuleDescriptor engine) {
         String version = engine == null ? null : engine.rawVersion().orElse(null);
-        SequencedSet<String> coordinates = new LinkedHashSet<>();
-        coordinates.add("module/org.junit.platform.console" + (version == null ? "" : "/" + version));
-        coordinates.add("maven/org.junit.platform/junit-platform-console/" + (version == null ? "RELEASE" : version));
+        SequencedMap<String, String> coordinates = new LinkedHashMap<>();
+        coordinates.put("module/org.junit.platform.console", version);
+        coordinates.put("maven/org.junit.platform/junit-platform-console", version == null ? "RELEASE" : version);
         return coordinates;
     }
 

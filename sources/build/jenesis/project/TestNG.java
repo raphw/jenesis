@@ -20,8 +20,8 @@ public record TestNG() implements TestEngine {
     }
 
     @Override
-    public SequencedSet<String> coordinates(ModuleDescriptor engine) {
-        return Collections.emptyNavigableSet();
+    public SequencedMap<String, String> coordinates(ModuleDescriptor engine) {
+        return Collections.emptyNavigableMap();
     }
 
     @Override

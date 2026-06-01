@@ -387,9 +387,11 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
-        assertThat(properties.stringPropertyNames())
-                .containsExactly("maven/org.junit.platform/junit-platform-console/RELEASE");
+        Path stepFolder = root.resolve("test").resolve("resolved");
+        assertThat(readRequires(stepFolder).stringPropertyNames())
+                .containsExactly("maven/org.junit.platform/junit-platform-console");
+        assertThat(readVersions(stepFolder).getProperty("maven/org.junit.platform/junit-platform-console"))
+                .isEqualTo("RELEASE");
     }
 
     @Test
@@ -496,7 +498,7 @@ public class TestModuleTest {
     }
 
     @Test
-    public void requires_step_derives_runner_version_from_engine_module() throws IOException {
+    public void requires_step_writes_derived_runner_version_as_default() throws IOException {
         writeModuleJar(emptyDependencies.resolve(BuildStep.ARTIFACTS),
                 "engine.jar", "org.junit.platform.engine", "1.11.3");
         BuildExecutor executor = newExecutor();
@@ -510,9 +512,34 @@ public class TestModuleTest {
                 "dependencies", "classes");
         executor.execute("test/" + "resolved");
 
-        SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
-        assertThat(properties.stringPropertyNames())
-                .containsExactly("module/org.junit.platform.console/1.11.3");
+        Path stepFolder = root.resolve("test").resolve("resolved");
+        assertThat(readRequires(stepFolder).stringPropertyNames())
+                .containsExactly("module/org.junit.platform.console");
+        assertThat(readVersions(stepFolder).getProperty("module/org.junit.platform.console"))
+                .isEqualTo("1.11.3");
+    }
+
+    @Test
+    public void requires_step_lets_pinned_runner_version_override_derived_default() throws IOException {
+        writeModuleJar(emptyDependencies.resolve(BuildStep.ARTIFACTS),
+                "engine.jar", "org.junit.platform.engine", "1.11.3");
+        SequencedProperties pinned = new SequencedProperties();
+        pinned.setProperty("module/org.junit.platform.console", "1.12.0 SHA-256/abc");
+        pinned.store(emptyDependencies.resolve(BuildStep.VERSIONS));
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        .engine(new JUnitPlatform())
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        assertThat(readVersions(root.resolve("test").resolve("resolved"))
+                .getProperty("module/org.junit.platform.console"))
+                .isEqualTo("1.12.0 SHA-256/abc");
     }
 
     @Test
@@ -530,7 +557,7 @@ public class TestModuleTest {
 
         SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
-                .containsExactly("maven/com.example/runner-core/1.0", "maven/com.example/runner-cli/1.0");
+                .containsExactly("maven/com.example/runner-core", "maven/com.example/runner-cli");
     }
 
     private BuildExecutor newExecutor() throws IOException {
@@ -543,6 +570,10 @@ public class TestModuleTest {
 
     private static SequencedProperties readRequires(Path stepFolder) throws IOException {
         return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.REQUIRES));
+    }
+
+    private static SequencedProperties readVersions(Path stepFolder) throws IOException {
+        return SequencedProperties.ofFiles(stepFolder.resolve("output").resolve(BuildStep.VERSIONS));
     }
 
     private static Path downloadJar(Path target, String url, String expected) throws Exception {
@@ -633,10 +664,10 @@ public class TestModuleTest {
         }
 
         @Override
-        public SequencedSet<String> coordinates(ModuleDescriptor engine) {
-            SequencedSet<String> coordinates = new LinkedHashSet<>();
-            coordinates.add("maven/com.example/runner-core/1.0");
-            coordinates.add("maven/com.example/runner-cli/1.0");
+        public SequencedMap<String, String> coordinates(ModuleDescriptor engine) {
+            SequencedMap<String, String> coordinates = new LinkedHashMap<>();
+            coordinates.put("maven/com.example/runner-core", "1.0");
+            coordinates.put("maven/com.example/runner-cli", "1.0");
             return coordinates;
         }
 

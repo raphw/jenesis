@@ -13,7 +13,7 @@ public interface TestEngine extends Serializable {
 
     boolean isRunner(ModuleDescriptor module);
 
-    SequencedSet<String> coordinates(ModuleDescriptor engine);
+    SequencedMap<String, String> coordinates(ModuleDescriptor engine);
 
     default Map<String, String> properties() {
         return Map.of();
