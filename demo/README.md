@@ -35,21 +35,21 @@ from scratch.
 Quick index
 -----------
 
-| Demo                | Shows                                                                 | Run from the demo dir              |
-| ------------------- | -------------------------------------------------------------------- | ---------------------------------- |
-| `java-pom`          | A single Maven (`pom.xml`) project: `javac` + one real dependency, pinned | `java build/jenesis/Project.java`  |
-| `java-modular`      | The same project as a Java module (`module-info.java`, no `pom.xml`)  | `java build/jenesis/Project.java`  |
-| `java-pom-multi`    | Many Maven modules: a library + a consumer that depends on it and an external artifact | `java build/jenesis/Project.java`  |
-| `java-modular-multi`| The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
-| `kotlin`            | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
-| `scala`             | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
-| `groovy`            | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
-| `custom-assembler`  | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
-| `internal-module`   | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
-| `external-module`   | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
-| `custom-maven`      | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
-| `custom-modular`    | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
-| `custom-build`      | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
+| Demo                                                 | Shows                                                                 | Run from the demo dir              |
+| ---------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------- |
+| [`java-pom`](java-pom/README.md)                     | A single Maven (`pom.xml`) project: `javac` + one real dependency, pinned | `java build/jenesis/Project.java`  |
+| [`java-modular`](java-modular/README.md)             | The same project as a Java module (`module-info.java`, no `pom.xml`)  | `java build/jenesis/Project.java`  |
+| [`java-pom-multi`](java-pom-multi/README.md)         | Many Maven modules: a library + a consumer that depends on it and an external artifact | `java build/jenesis/Project.java`  |
+| [`java-modular-multi`](java-modular-multi/README.md) | The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
+| [`kotlin`](kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
+| [`scala`](scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
+| [`groovy`](groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
+| [`custom-assembler`](custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
+| [`internal-module`](internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
+| [`external-module`](external-module/README.md)       | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
+| [`custom-maven`](custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
+| [`custom-modular`](custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
+| [`custom-build`](custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
 
 1. A single Maven project - `java-pom`
 ---------------------------------------
@@ -71,7 +71,7 @@ This demo introduces the two ideas every later one builds on:
   build is reproducible and resistant to supply-chain tampering. This demo ships
   already pinned.
 
-See `java-pom/README.md` for the pinned POM in full.
+See [`java-pom/README.md`](java-pom/README.md) for the pinned POM in full.
 
 2. The same project as a module - `java-modular`
 ------------------------------------------------
