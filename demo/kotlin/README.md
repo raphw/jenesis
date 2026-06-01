@@ -52,7 +52,10 @@ as source, so they run ahead of `javac`; `groovyc` cannot, which is why the
 Pinning
 -------
 
-This demo is currently unpinned: with no version declared, the Kotlin compiler
-and `kotlin.stdlib` float to the latest release. Recording a MODULAR_TO_MAVEN
-module's closure with `@jenesis.pin` tags on the module declaration is still
-pending; see the repository notes on the pin goal.
+The module's closure is pinned with `@jenesis.pin` tags on the module
+declaration: `kotlin.stdlib` (the module's own dependency, by module name) and
+the Kotlin compiler toolchain on its independent `@kotlin` trail (each
+`maven@kotlin/...` coordinate with a version and SHA-256 checksum). Because the
+two trails are separate, the running compiler is locked independently of the
+`kotlin.stdlib` the module ships against. Run `java build/jenesis/Project.java
+pin` to record or refresh the tags; re-running leaves the declaration unchanged.

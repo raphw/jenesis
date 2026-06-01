@@ -73,4 +73,33 @@ public class RepositoryTest {
                 _ -> {});
         assertThat(repository.fetch(Runnable::run, "foo/9.9")).isEmpty();
     }
+
+    @Test
+    public void cached_does_not_cache_internal_items_and_preserves_the_flag() throws IOException {
+        Path source = Files.writeString(folder.resolve("live.jar"), "live");
+        Path cache = Files.createDirectory(folder.resolve("cache"));
+        Repository underlying = (_, _) -> Optional.of(RepositoryItem.ofFile(source, true));
+
+        Optional<RepositoryItem> item = underlying.cached(cache).fetch(Runnable::run, "module/foo/1.0");
+
+        assertThat(item).isPresent();
+        assertThat(item.get().internal()).isTrue();
+        assertThat(item.get().file()).contains(source);
+        assertThat(cache.toFile().list()).isEmpty();
+    }
+
+    @Test
+    public void cached_copies_external_items_into_the_cache() throws IOException {
+        Path source = Files.writeString(folder.resolve("remote.jar"), "remote");
+        Path cache = Files.createDirectory(folder.resolve("cache"));
+        Repository underlying = (_, _) -> Optional.of(RepositoryItem.ofFile(source, false));
+
+        Optional<RepositoryItem> item = underlying.cached(cache).fetch(Runnable::run, "module/foo/1.0");
+
+        assertThat(item).isPresent();
+        assertThat(item.get().internal()).isFalse();
+        assertThat(item.get().file()).isPresent();
+        assertThat(item.get().file().get().getParent()).isEqualTo(cache);
+        assertThat(cache.toFile().list()).isNotEmpty();
+    }
 }

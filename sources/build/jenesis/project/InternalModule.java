@@ -91,6 +91,12 @@ public class InternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
+        for (DependencyScope scope : DependencyScope.values()) {
+            if (path.equals(scope.label() + "/" + DependenciesModule.RESOLVED)
+                    || path.equals(scope.label() + "/" + DependenciesModule.ARTIFACTS)) {
+                return Optional.of(path);
+            }
+        }
         return Optional.empty();
     }
 

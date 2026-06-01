@@ -778,27 +778,50 @@ public record Project(
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
-            Set<String> paths = new LinkedHashSet<>();
-            for (Path folder : inherited.values()) {
-                Path moduleFile = folder.resolve(BuildStep.MODULE);
-                if (!Files.isRegularFile(moduleFile)) {
-                    continue;
+            SequencedMap<String, String> segmentToPath = new LinkedHashMap<>();
+            SequencedSet<String> identityKeys = new LinkedHashSet<>();
+            for (Map.Entry<String, Path> entry : inherited.entrySet()) {
+                Path moduleFile = entry.getValue().resolve(BuildStep.MODULE);
+                if (Files.isRegularFile(moduleFile)) {
+                    String path = SequencedProperties.ofFiles(moduleFile).getProperty("path");
+                    String segment = moduleSegment(entry.getKey());
+                    if (path != null && segment != null) {
+                        segmentToPath.put(segment, path);
+                    }
                 }
-                SequencedProperties properties = SequencedProperties.ofFiles(moduleFile);
-                String path = properties.getProperty("path");
-                if (path != null) {
-                    paths.add(path);
+                if (Files.isRegularFile(entry.getValue().resolve(BuildStep.IDENTITY))) {
+                    identityKeys.add(entry.getKey());
                 }
             }
-            for (String path : paths) {
-                Path file = root.resolve(path).resolve(fileName);
+            SequencedMap<String, SequencedSet<String>> pathToKeys = new LinkedHashMap<>();
+            for (String key : inherited.sequencedKeySet()) {
+                String segment = moduleSegment(key);
+                String path = segment == null ? null : segmentToPath.get(segment);
+                if (path != null) {
+                    pathToKeys.computeIfAbsent(path, _ -> new LinkedHashSet<>()).add(key);
+                }
+            }
+            for (Map.Entry<String, SequencedSet<String>> entry : pathToKeys.entrySet()) {
+                Path file = root.resolve(entry.getKey()).resolve(fileName);
                 if (!Files.isRegularFile(file)) {
                     continue;
                 }
-                buildExecutor.addStep("module-" + BuildExecutorModule.encode(path),
+                SequencedSet<String> keys = new LinkedHashSet<>(entry.getValue());
+                keys.addAll(identityKeys);
+                buildExecutor.addStep("module-" + BuildExecutorModule.encode(entry.getKey()),
                         stepFactory.apply(file),
-                        inherited.sequencedKeySet());
+                        keys);
             }
+        }
+
+        private static String moduleSegment(String key) {
+            for (String part : key.split("/")) {
+                if (part.startsWith(MultiProjectModule.MODULE + "-")
+                        || part.startsWith("test-" + MultiProjectModule.MODULE + "-")) {
+                    return part;
+                }
+            }
+            return null;
         }
     }
 

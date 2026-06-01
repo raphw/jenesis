@@ -101,26 +101,6 @@ public class PinPom implements BuildStep {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path versionsFile = argument.folder().resolve(VERSIONS);
-            if (Files.exists(versionsFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
-                        continue;
-                    }
-                    String value = properties.getProperty(key);
-                    int space = value.indexOf(' ');
-                    String version = space < 0 ? value : value.substring(0, space);
-                    String existing = space < 0 ? null : value.substring(space + 1).trim();
-                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
-                    String checksum = computed != null ? computed : existing;
-                    entries.putIfAbsent(key.substring(slash + 1), checksum == null ? version : version + " " + checksum);
-                }
-            }
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
                 SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
@@ -154,33 +134,6 @@ public class PinPom implements BuildStep {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path versionsFile = argument.folder().resolve(VERSIONS);
-            if (Files.exists(versionsFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0) {
-                        continue;
-                    }
-                    int at = key.substring(0, slash).indexOf('@');
-                    if (at < 1) {
-                        continue;
-                    }
-                    String prefix = key.substring(0, at);
-                    String token = (prefix.equals("maven") ? "@" : prefix + "@")
-                            + key.substring(at + 1, slash) + "/" + key.substring(slash + 1);
-                    String value = properties.getProperty(key);
-                    int space = value.indexOf(' ');
-                    String version = space < 0 ? value : value.substring(0, space);
-                    String existing = space < 0 ? null : value.substring(space + 1).trim();
-                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
-                    String checksum = computed != null ? computed : existing;
-                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
-                }
-            }
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
                 SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);

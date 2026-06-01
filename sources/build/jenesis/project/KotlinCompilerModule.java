@@ -95,7 +95,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
     @Override
     public Optional<String> resolve(String path) {
         return switch (path) {
-            case CLASSES, RESOLVED -> Optional.of(path);
+            case CLASSES, RESOLVED, ARTIFACTS -> Optional.of(path);
             default -> Optional.empty();
         };
     }

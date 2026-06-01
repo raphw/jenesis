@@ -1,17 +1,17 @@
 Groovy demo
 ===========
 
-A Maven-layout project whose single module carries a `module-info.java` and mixes
-a Java type with a Groovy type. It shows Jenesis driving the Groovy compiler
-through the default `JavaMultiProjectAssembler`, with the module participating in
-the Java module system.
+A MODULAR_TO_MAVEN project (a `module-info.java`, no `pom.xml`) whose single
+module mixes a Java type with a Groovy type. It shows Jenesis driving the Groovy
+compiler through the default `JavaMultiProjectAssembler`, with the module
+participating in the Java module system and emitting a modular jar alongside a
+generated POM.
 
 Layout
 ------
 
     demo/groovy
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    |-- pom.xml                    Maven coordinates, <sourceDirectory>, the Groovy dependency
     `-- sources
         |-- module-info.java       requires org.apache.groovy; exports sample
         `-- sample
@@ -25,9 +25,10 @@ From this directory:
 
     java build/jenesis/Project.java
 
-Jenesis scans the sources, resolves the Groovy compiler, compiles
+Jenesis auto-detects the MODULAR_TO_MAVEN layout (a `module-info.java`, no
+`pom.xml`), scans the sources, resolves the Groovy compiler, compiles
 `module-info.java` and `Greeter.java` with `javac`, then compiles `Sample.groovy`
-with `groovyc`, and packages a modular jar.
+with `groovyc`, and packages a modular jar plus a generated POM.
 
 How Groovy fits the inferred compiler chain
 -------------------------------------------
@@ -72,12 +73,26 @@ validates the exports (`javac` sees them through `--patch-module`). Both of thos
 demos export a package that holds only Kotlin or only Scala. `groovyc` cannot run
 before `javac`, so a Groovy-only package stays unexportable.
 
-Groovy dependency
------------------
+Groovy dependency and pinning
+-----------------------------
 
 Because the module declares `requires org.apache.groovy`, the Groovy runtime is a
-real dependency of the module and is declared in the `pom.xml` so that `javac`
-finds it on the module path when it compiles `module-info.java`. The compiler
-toolchain that runs `groovyc` is resolved separately on its own qualified trail
-(`groovy`). Pinning the declared dependency with checksums is still pending; see
-the repository notes on the pin goal.
+real dependency of the module. With no `pom.xml`, `MavenModuleResolver` translates
+the module name into its Maven coordinate (`org.apache.groovy:groovy`) and resolves
+it, so `javac` finds it on the module path when it compiles `module-info.java`. The
+compiler toolchain that runs `groovyc` is resolved separately on its own qualified
+trail (`groovy`).
+
+Both trails are pinned with version and checksum directly on the module
+declaration:
+
+    @jenesis.pin org.apache.groovy 5.0.6 SHA-256/...
+    @jenesis.pin maven@groovy/org.apache.groovy/groovy 5.0.6 SHA-256/...
+
+The first pins the module's own `org.apache.groovy` dependency; the second pins the
+compiler's copy on the independent `@groovy` trail (an explicit `maven@groovy`
+prefix, since the Groovy compiler resolves through Maven). Without a declared
+version both would float to the latest release - which for Groovy currently
+includes pre-release builds - so pinning keeps the demo on the stable `5.0.6`. Run
+`java build/jenesis/Project.java pin` to record or refresh both pins; re-running
+leaves the module declaration unchanged.

@@ -26,10 +26,15 @@ public class PinModuleInfoTest {
         input = Files.createDirectory(root.resolve("input"));
     }
 
-    private void writeVersions(Map<String, String> entries) throws IOException {
+    private void writeResolved(Map<String, String> entries) throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        entries.forEach(properties::setProperty);
-        properties.store(input.resolve(BuildStep.VERSIONS));
+        entries.forEach((coordinate, value) -> {
+            int space = value.indexOf(' ');
+            String version = space < 0 ? value : value.substring(0, space);
+            String checksum = space < 0 ? "" : value.substring(space + 1).trim();
+            properties.setProperty(coordinate + "/" + version, checksum);
+        });
+        properties.store(input.resolve(BuildStep.REQUIRES));
     }
 
     private void writeRequires(Map<String, String> entries) throws IOException {
@@ -60,7 +65,7 @@ public class PinModuleInfoTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
-                                Map.of(Path.of(BuildStep.VERSIONS), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         return Files.readString(moduleInfo);
@@ -85,7 +90,7 @@ public class PinModuleInfoTest {
                     requires bar;
                 }
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven@kotlin/org.jetbrains/something", "1.2.3",
                 "module@scala/some.module", "3.5.2"));
         String result = run(file);
@@ -101,7 +106,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        writeVersions(Map.of("module/bar", "1.2.3 SHA-256/cafebabe"));
+        writeResolved(Map.of("module/bar", "1.2.3 SHA-256/cafebabe"));
         String result = run(file);
         assertThat(result).contains("/**");
         assertThat(result).contains("@jenesis.pin bar 1.2.3 SHA-256/cafebabe");
@@ -124,7 +129,7 @@ public class PinModuleInfoTest {
                   requires baz;
                 }
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "module/bar", "1.2.3 SHA-256/cafebabe",
                 "module/baz", "2.0 SHA-256/deadbeef",
                 "module/transitive", "3.0 SHA-256/feedface"));
@@ -146,7 +151,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        writeVersions(Map.of("module/bar", "1.2.3"));
+        writeResolved(Map.of("module/bar", "1.2.3"));
         String result = run(file);
         assertThat(result).contains("@jenesis.pin bar 1.2.3\n");
         assertThat(result).doesNotContain("SHA-256");
@@ -166,7 +171,7 @@ public class PinModuleInfoTest {
                   requires foo;
                 }
                 """);
-        writeVersions(Map.of("module/junit", "5.11.3 SHA-256/cafebabe"));
+        writeResolved(Map.of("module/junit", "5.11.3 SHA-256/cafebabe"));
         String result = run(file);
         assertThat(result).contains("@jenesis.test foo");
         assertThat(result).contains("@jenesis.release 25");
@@ -187,7 +192,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        writeVersions(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
         String result = run(file);
         assertInsideJavadoc(result, "@jenesis.pin bar 1.0 SHA-256/cafebabe");
         assertThat(result.indexOf("@jenesis.release 25"))
@@ -208,7 +213,7 @@ public class PinModuleInfoTest {
                   requires foo;
                 }
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "module/a", "1.0",
                 "module/b", "2.0"));
         String result = run(file);
@@ -232,7 +237,7 @@ public class PinModuleInfoTest {
                 module foo {
                 }
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven/org.example/dep", "1.0",
                 "module/picked", "2.0"));
         String result = run(file);
@@ -247,7 +252,7 @@ public class PinModuleInfoTest {
                 module foo {
                 }
                 """);
-        writeVersions(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
         String afterFirst = run(file);
         String afterSecond = run(file);
         assertThat(afterSecond).isEqualTo(afterFirst);
@@ -303,7 +308,7 @@ public class PinModuleInfoTest {
         Path jar = artifacts.resolve("module-bar-1.2.3.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
-        writeVersions(Map.of("module/bar", "1.2.3 SHA-256/stale"));
+        writeResolved(Map.of("module/bar", "1.2.3 SHA-256/stale"));
         String result = run(file);
         MessageDigest digest;
         try {
@@ -324,13 +329,54 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        writeVersions(new LinkedHashMap<>(Map.of(
+        writeResolved(new LinkedHashMap<>(Map.of(
                 "module/internal", "1.0",
                 "module/external", "2.0")));
         writeIdentity(Map.of("module/internal/1.0", ""));
         String result = run(file);
         assertThat(result).doesNotContain("@jenesis.pin internal");
         assertInsideJavadoc(result, "@jenesis.pin external 2.0");
+    }
+
+    @Test
+    public void computes_qualified_checksum_from_jar() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path jar = artifacts.resolve("maven@kotlin-org.jetbrains-something-1.2.3.jar");
+        byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
+        Files.write(jar, payload);
+        writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2.3"));
+        String result = run(file);
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
+        }
+        String expected = HexFormat.of().formatHex(digest.digest(payload));
+        assertThat(result).contains("@jenesis.pin maven@kotlin/org.jetbrains/something 1.2.3 SHA-256/" + expected);
+    }
+
+    @Test
+    public void from_jars_pins_qualified_dependencies_and_skips_them_as_plain() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        writeAutomaticJar(artifacts, "maven@kotlin-org.jetbrains-compiler-1.2.3.jar", "org.jetbrains.compiler");
+        writeRequires(new LinkedHashMap<>(Map.of(
+                "maven@kotlin/org.jetbrains/compiler/1.2.3", "")));
+        String result = runFromJars(file);
+        assertInsideJavadoc(result, "@jenesis.pin maven@kotlin/org.jetbrains/compiler 1.2.3 SHA-256/");
+        assertThat(result).doesNotContain("@jenesis.pin org.jetbrains.compiler");
     }
 
     @Test

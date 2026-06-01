@@ -145,15 +145,15 @@ collides with the project's dependencies.
   classes through `--patch-module`. That ordering lets the module export a
   package that holds *only* Kotlin or *only* Scala - each demo exports such a
   package.
-- `groovy` keeps a `pom.xml` and adds a `module-info.java` (MAVEN with a module).
+- `groovy` is also a MODULAR_TO_MAVEN module (a `module-info.java`, no `pom.xml`).
   `groovyc` resolves Java only from the compiled class path, so it must run
   *after* `javac` and cannot populate a package before the export is validated.
   An exported package therefore needs at least one Java type; the demo's
   `README.md` explains why this is permanent for Groovy but not for Kotlin/Scala.
 
-These three are quick reads; each `README.md` has the detail. (The `kotlin` and
-`scala` demos currently ship unpinned, so their compilers float to the latest
-release; see "Pinning" below.)
+These three are quick reads; each `README.md` has the detail. (Each pins both its
+library dependency and its compiler toolchain on a qualified trail; see "Pinning"
+below.)
 
 5. Customizing the build - `custom-assembler`
 ---------------------------------------------
@@ -270,11 +270,12 @@ unpinned coordinate. A *resolved compiler* pins on an independent qualified trai
 (`@kotlin`, `@scala`, `@groovy`, or an explicit `"tool"` qualifier) so it never
 mixes with the project's own dependencies.
 
-Current pin state of the demos: `java-pom`, `java-pom-multi`, `java-modular`, and
-`java-modular-multi` are committed pinned at stable versions with checksums.
-`groovy` pins its `@groovy` compiler closure in a `pom.xml` comment (its newly
-declared `org.apache.groovy` dependency still needs a checksum). `kotlin` and
-`scala` are MODULAR_TO_MAVEN modules that ship unpinned - their compilers and
-library dependencies float to the latest release - because pinning a
-MODULAR_TO_MAVEN closure with `@jenesis.pin` tags is still pending. Note that for
-`scala` an unpinned compiler may float to a release candidate.
+Current pin state of the demos: every demo is committed pinned with checksums.
+`java-pom`, `java-pom-multi`, `java-modular`, and `java-modular-multi` pin their
+dependency closures (per module, so a dependency of one module never lands in a
+sibling's dependency management). The MODULAR_TO_MAVEN language demos - `kotlin`,
+`scala`, and `groovy` - pin both their library dependency (by module name) and
+their compiler toolchain on its own qualified trail (`@kotlin`, `@scala`,
+`@groovy`), each `@jenesis.pin` tag carrying a version and SHA-256 checksum.
+`groovy` is pinned to the stable `5.0.6`; `kotlin` and `scala` track whatever
+their compilers resolve (for `scala` that is often a release candidate).

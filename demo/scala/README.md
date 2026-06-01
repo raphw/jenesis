@@ -51,23 +51,23 @@ source parser cannot read a module declaration (it fails with "';' expected but
 from `scalac` and lets `javac` own it; `scalac` still receives the other `.java`
 sources for resolution.
 
-On the module path and the old split-package concern
------------------------------------------------------
+The Scala standard library on the module path
+---------------------------------------------
 
-An earlier version of this demo stayed on a `pom.xml` to avoid a split package:
-the Scala standard library used to be spread across `scala-library` and
-`scala3-library_3`, both exporting `package scala`, which the Java module system
-rejects on the module path. As of Scala 3.8.3 that no longer applies -
-`scala3-library_3` is an empty aggregator and the standard library lives entirely
-in `scala-library` - so a single `requires scala.library` pulls in a
-conflict-free module and the project builds as a module with no `pom.xml`.
+A single `requires scala.library` pulls in the whole Scala standard library as one
+module: the library lives entirely in `scala-library`, and `scala3-library_3` is an
+empty aggregator, so nothing splits `package scala` across two modules and the
+Java module system accepts it on the module path. That is why this demo builds as a
+plain module with no `pom.xml`.
 
 Pinning
 -------
 
-This demo is currently unpinned: with no version declared, the Scala compiler and
-`scala-library` float to the latest release. Note that the latest Scala
-`<release>` on Maven Central is often a release candidate, so an unpinned build
-may float the compiler to an `-RC` version; recording the closure with
-`@jenesis.pin` tags on the module declaration is still pending (see the
-repository notes on the pin goal).
+The module's closure is pinned with `@jenesis.pin` tags on the module
+declaration: `scala.library` (the module's own dependency, by module name) and
+the Scala compiler toolchain on its independent `@scala` trail (each
+`maven@scala/...` coordinate with a version and SHA-256 checksum). The latest
+Scala `<release>` on Maven Central is often a release candidate, so pinning is
+what keeps an otherwise floating build from drifting onto a fresh `-RC`. Run
+`java build/jenesis/Project.java pin` to record or refresh the tags; re-running
+leaves the declaration unchanged.

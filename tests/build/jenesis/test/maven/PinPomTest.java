@@ -26,15 +26,14 @@ public class PinPomTest {
         input = Files.createDirectory(root.resolve("input"));
     }
 
-    private void writeVersions(Map<String, String> entries) throws IOException {
+    private void writeResolved(Map<String, String> entries) throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        entries.forEach(properties::setProperty);
-        properties.store(input.resolve(BuildStep.VERSIONS));
-    }
-
-    private void writeRequires(Map<String, String> entries) throws IOException {
-        SequencedProperties properties = new SequencedProperties();
-        entries.forEach(properties::setProperty);
+        entries.forEach((coordinate, value) -> {
+            int space = value.indexOf(' ');
+            String version = space < 0 ? value : value.substring(0, space);
+            String checksum = space < 0 ? "" : value.substring(space + 1).trim();
+            properties.setProperty(coordinate + "/" + version, checksum);
+        });
         properties.store(input.resolve(BuildStep.REQUIRES));
     }
 
@@ -49,7 +48,7 @@ public class PinPomTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
-                                Map.of(Path.of(BuildStep.VERSIONS), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
         return Files.readString(pomFile);
@@ -67,7 +66,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven@kotlin/org.jetbrains/something", "1.2.3",
                 "maven2@kotlin/org.example/other", "4.5.6"));
         String result = run(pom);
@@ -89,7 +88,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of("maven@kotlin/org.jetbrains/something", "1.2--3"));
+        writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2--3"));
         String result = run(pom);
         assertThat(result).contains("@kotlin/org.jetbrains/something 1.2&#45;&#45;3");
         int blockStart = result.indexOf("<!--jenesis.pin");
@@ -116,7 +115,7 @@ public class PinPomTest {
                     </dependencies>
                 </project>
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven/org.example/transitive", "2.0 SHA-256/cafebabe"));
         String result = run(pom);
         assertThat(result).contains("<dependencyManagement>");
@@ -151,7 +150,7 @@ public class PinPomTest {
                     </dependencyManagement>
                 </project>
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven/org.example/fresh", "3.0 SHA-256/deadbeef"));
         String result = run(pom);
         assertThat(result).doesNotContain("stale");
@@ -173,7 +172,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of("maven/org.example/no-hash", "1.5"));
+        writeResolved(Map.of("maven/org.example/no-hash", "1.5"));
         String result = run(pom);
         assertThat(result).contains("<artifactId>no-hash</artifactId>");
         assertThat(result).contains("<version>1.5</version>");
@@ -192,7 +191,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven/org.example/sources/jar/sources", "4.0 SHA-256/cafebabe",
                 "maven/org.example/zipped/zip", "5.0"));
         String result = run(pom);
@@ -213,7 +212,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "module/org.example.module", "1.0",
                 "maven/org.example/picked", "2.0"));
         String result = run(pom);
@@ -246,7 +245,7 @@ public class PinPomTest {
                     </dependencies>
                 </project>
                 """);
-        writeVersions(Map.of("maven/org.example/direct", "1.0 SHA-256/cafebabe"));
+        writeResolved(Map.of("maven/org.example/direct", "1.0 SHA-256/cafebabe"));
         String result = run(pom);
         assertThat(result).contains("<artifactId>direct</artifactId>");
         assertThat(result).doesNotContain("Checksum/SHA-256/stale");
@@ -270,7 +269,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of(
+        writeResolved(Map.of(
                 "maven/org.example/with-hash", "1.0 SHA-256/cafebabe",
                 "maven/org.example/without-hash", "2.0"));
         String result = run(pom);
@@ -289,7 +288,7 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeVersions(Map.of("maven/org.example/dep", "1.0 SHA-256/cafebabe"));
+        writeResolved(Map.of("maven/org.example/dep", "1.0 SHA-256/cafebabe"));
         String afterFirst = run(pom);
         String afterSecond = run(pom);
         assertThat(afterSecond).isEqualTo(afterFirst);
@@ -311,7 +310,7 @@ public class PinPomTest {
         Path jar = artifacts.resolve("maven-org.example-dep-1.0.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
-        writeVersions(Map.of("maven/org.example/dep", "1.0 SHA-256/stale"));
+        writeResolved(Map.of("maven/org.example/dep", "1.0 SHA-256/stale"));
         String result = run(pom);
         MessageDigest digest;
         try {
@@ -322,6 +321,34 @@ public class PinPomTest {
         String expected = HexFormat.of().formatHex(digest.digest(payload));
         assertThat(result).contains("<!--Checksum/SHA-256/" + expected + "-->");
         assertThat(result).doesNotContain("SHA-256/stale");
+    }
+
+    @Test
+    public void computes_qualified_checksum_from_jar() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path jar = artifacts.resolve("maven@kotlin-org.jetbrains-something-1.2.3.jar");
+        byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
+        Files.write(jar, payload);
+        writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2.3"));
+        String result = run(pom);
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
+        }
+        String expected = HexFormat.of().formatHex(digest.digest(payload));
+        assertThat(result).contains("@kotlin/org.jetbrains/something 1.2.3 SHA-256/" + expected);
     }
 
     @Test
@@ -336,11 +363,9 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeRequires(new LinkedHashMap<>(Map.of(
-                "maven/com.example/internal/0-SNAPSHOT", "",
-                "maven/com.example/external/1.2.3", "SHA-256/cafebabe")));
-        writeVersions(new LinkedHashMap<>(Map.of(
+        writeResolved(new LinkedHashMap<>(Map.of(
                 "maven/com.example/internal", "0-SNAPSHOT",
+                "maven/com.example/external", "1.2.3 SHA-256/cafebabe",
                 "maven/com.example/managed", "9.9")));
         writeIdentity(Map.of("maven/com.example/internal/0-SNAPSHOT", ""));
         String result = run(pom);

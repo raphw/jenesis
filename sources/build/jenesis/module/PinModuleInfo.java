@@ -51,9 +51,7 @@ public class PinModuleInfo implements BuildStep {
         SequencedMap<String, String> entries = fromJars
                 ? collectFromJars(arguments, hashFunction)
                 : collectEntries(arguments, prefix, hashFunction);
-        SequencedMap<String, String> qualified = fromJars
-                ? new LinkedHashMap<>()
-                : collectQualified(arguments, hashFunction);
+        SequencedMap<String, String> qualified = collectQualified(arguments, hashFunction);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries, qualified);
         }
@@ -110,6 +108,9 @@ public class PinModuleInfo implements BuildStep {
                     // segment must be a real version, not the module/artifact name.
                     continue;
                 }
+                if (coordinate.substring(0, firstSlash).indexOf('@') > 0) {
+                    continue;
+                }
                 String version = coordinate.substring(lastSlash + 1);
                 String existing = properties.getProperty(coordinate);
                 String computed = computeChecksum(arguments.values(), coordinate, hashFunction);
@@ -137,11 +138,23 @@ public class PinModuleInfo implements BuildStep {
                     if (reference.isEmpty()) {
                         continue;
                     }
-                    entries.putIfAbsent(reference.get().descriptor().name(), value);
+                    ModuleDescriptor descriptor = reference.get().descriptor();
+                    if (descriptor.isAutomatic() && !hasAutomaticModuleName(jar)) {
+                        continue;
+                    }
+                    entries.putIfAbsent(descriptor.name(), value);
                 }
             }
         }
         return entries;
+    }
+
+    private static boolean hasAutomaticModuleName(Path jar) throws IOException {
+        try (JarFile jarFile = new JarFile(jar.toFile())) {
+            Manifest manifest = jarFile.getManifest();
+            return manifest != null
+                    && manifest.getMainAttributes().getValue("Automatic-Module-Name") != null;
+        }
     }
 
     static SequencedMap<String, String> collectEntries(SequencedMap<String, BuildStepArgument> arguments,
@@ -150,26 +163,6 @@ public class PinModuleInfo implements BuildStep {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path versionsFile = argument.folder().resolve(VERSIONS);
-            if (Files.exists(versionsFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
-                        continue;
-                    }
-                    String value = properties.getProperty(key);
-                    int space = value.indexOf(' ');
-                    String version = space < 0 ? value : value.substring(0, space);
-                    String existing = space < 0 ? null : value.substring(space + 1).trim();
-                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
-                    String checksum = computed != null ? computed : existing;
-                    entries.putIfAbsent(key.substring(slash + 1), checksum == null ? version : version + " " + checksum);
-                }
-            }
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
                 SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
@@ -203,33 +196,6 @@ public class PinModuleInfo implements BuildStep {
         Set<String> internal = collectInternal(arguments);
         SequencedMap<String, String> entries = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path versionsFile = argument.folder().resolve(VERSIONS);
-            if (Files.exists(versionsFile)) {
-                SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
-                for (String key : properties.stringPropertyNames()) {
-                    if (internal.contains(key)) {
-                        continue;
-                    }
-                    int slash = key.indexOf('/');
-                    if (slash < 0) {
-                        continue;
-                    }
-                    int at = key.substring(0, slash).indexOf('@');
-                    if (at < 1) {
-                        continue;
-                    }
-                    String prefix = key.substring(0, at);
-                    String token = (prefix.equals("module") ? "@" : prefix + "@")
-                            + key.substring(at + 1, slash) + "/" + key.substring(slash + 1);
-                    String value = properties.getProperty(key);
-                    int space = value.indexOf(' ');
-                    String version = space < 0 ? value : value.substring(0, space);
-                    String existing = space < 0 ? null : value.substring(space + 1).trim();
-                    String computed = computeChecksum(arguments.values(), key + "/" + version, hashFunction);
-                    String checksum = computed != null ? computed : existing;
-                    entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
-                }
-            }
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
                 SequencedProperties properties = SequencedProperties.ofFiles(requiresFile);
