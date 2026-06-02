@@ -128,4 +128,32 @@ public class JenesisModuleRepositoryTest {
 
         assertThat(item).isEmpty();
     }
+
+    @Test
+    public void fetches_jmod_with_explicit_type() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis.jmod"), "jmod-bytes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis:jmod");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("jmod-bytes");
+        }
+    }
+
+    @Test
+    public void jmod_request_falls_back_to_jar_when_no_jmod_is_published() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis.jar"), "classes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis:jmod");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("classes");
+        }
+    }
 }

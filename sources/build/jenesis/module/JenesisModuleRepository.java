@@ -43,6 +43,16 @@ public class JenesisModuleRepository implements Repository {
         int colon = coordinate.lastIndexOf(':');
         String type = colon < 0 ? "jar" : coordinate.substring(colon + 1);
         String identifier = colon < 0 ? coordinate : coordinate.substring(0, colon);
+        Optional<RepositoryItem> item = fetch(identifier, type);
+        if (item.isEmpty() && type.equals("jmod")) {
+            // A `:jmod` coordinate is the module's link-time form; it falls back to the jar
+            // when no `.jmod` was published, so a consumer can request it unconditionally.
+            return fetch(identifier, "jar");
+        }
+        return item;
+    }
+
+    private Optional<RepositoryItem> fetch(String identifier, String type) throws IOException {
         int slash = identifier.indexOf('/');
         String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
         String version = slash < 0 ? null : identifier.substring(slash + 1);
