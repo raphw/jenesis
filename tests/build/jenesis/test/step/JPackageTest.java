@@ -59,7 +59,7 @@ public class JPackageTest {
                                 Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES)).isNotEmptyDirectory();
-        assertThat(next.resolve(JPackage.PACKAGES + "Sample")).isDirectory();
+        assertThat(imageDirectory()).isDirectory();
     }
 
     @ParameterizedTest
@@ -107,7 +107,7 @@ public class JPackageTest {
                         Map.of(Path.of("artifacts/sample.jar"), ChecksumStatus.ADDED,
                                 Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(JPackage.PACKAGES + "Sample")).isDirectory();
+        assertThat(imageDirectory()).isDirectory();
     }
 
     @Test
@@ -143,7 +143,7 @@ public class JPackageTest {
                         bundle,
                         Map.of(Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Path image = next.resolve(JPackage.PACKAGES + "Sample");
+        Path image = imageDirectory();
         assertThat(image).isDirectory();
         Path bundled;
         try (Stream<Path> walk = Files.walk(image)) {
@@ -192,5 +192,10 @@ public class JPackageTest {
                         Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES)).doesNotExist();
+    }
+
+    private Path imageDirectory() {
+        boolean mac = System.getProperty("os.name", "").toLowerCase().contains("mac");
+        return next.resolve(JPackage.PACKAGES + (mac ? "Sample.app" : "Sample"));
     }
 }
