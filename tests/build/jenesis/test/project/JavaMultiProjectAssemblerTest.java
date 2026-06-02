@@ -14,6 +14,7 @@ import build.jenesis.project.DependencyScope;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
+import build.jenesis.step.JPackage;
 import build.jenesis.step.ProcessBuildStep;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +45,41 @@ public class JavaMultiProjectAssemblerTest {
         Fixture fixture = setUp("main=\n", false, false, false);
         Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
         assertThat(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jar.properties")).doesNotExist();
+    }
+
+    @Test
+    public void main_in_module_properties_yields_jpackage_arguments() throws IOException {
+        Fixture fixture = setUp("main=com.example.Entry\n", false, false, false);
+        Files.writeString(fixture.manifests().resolve(BuildStep.METADATA), "artifact=demo\n");
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties jpackageArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jpackage.properties"));
+        assertThat(jpackageArguments.getProperty("--name")).isEqualTo("demo");
+        assertThat(jpackageArguments.getProperty("--main-jar")).isEqualTo("classes.jar");
+        assertThat(jpackageArguments.getProperty("--main-class")).isEqualTo("com.example.Entry");
+    }
+
+    @Test
+    public void absent_main_in_module_properties_yields_no_jpackage_arguments() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false);
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        assertThat(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jpackage.properties")).doesNotExist();
+    }
+
+    @Test
+    public void package_type_enabled_adds_package_step() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false, "app-image");
+        Path packageOutput = fixture.execute("sub/package").get("sub/package");
+        assertThat(packageOutput.resolve(JPackage.PACKAGES))
+                .as("a module without a main class produces no application image")
+                .doesNotExist();
+    }
+
+    @Test
+    public void package_type_disabled_omits_package_step() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false);
+        assertThatThrownBy(() -> fixture.execute("sub/package"))
+                .rootCause()
+                .hasMessage("Unknown selector: package");
     }
 
     @Test
@@ -106,6 +142,14 @@ public class JavaMultiProjectAssemblerTest {
                           boolean tests,
                           boolean source,
                           boolean documentation) throws IOException {
+        return setUp(moduleProperties, tests, source, documentation, null);
+    }
+
+    private Fixture setUp(String moduleProperties,
+                          boolean tests,
+                          boolean source,
+                          boolean documentation,
+                          String packageType) throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
@@ -156,7 +200,7 @@ public class JavaMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new JavaMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),

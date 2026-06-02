@@ -56,7 +56,7 @@ public class SubstitutionModule implements BuildExecutorModule {
                             }
                             Files.writeString(destination, content);
                         } else {
-                            Files.copy(file, destination);
+                            BuildStep.linkOrCopy(destination, file);
                         }
                         return FileVisitResult.CONTINUE;
                     }

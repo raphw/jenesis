@@ -14,6 +14,7 @@ import sample.Sample;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class JPackageTest {
 
@@ -47,9 +48,8 @@ public class JPackageTest {
         configuration.setProperty("--name", "Sample");
         configuration.setProperty("--main-jar", "app.jar");
         configuration.setProperty("--main-class", "sample.Sample");
-        configuration.setProperty("--type", "app-image");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
-        BuildStepResult result = (process ? JPackage.process() : JPackage.tool()).apply(
+        BuildStepResult result = (process ? JPackage.process("app-image") : JPackage.tool("app-image")).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -64,12 +64,55 @@ public class JPackageTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     public void skips_when_no_jars_are_present(boolean process) throws IOException {
-        BuildStepResult result = (process ? JPackage.process() : JPackage.tool()).apply(
+        SequencedProperties configuration = new SequencedProperties();
+        configuration.setProperty("--main-jar", "app.jar");
+        configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
+        BuildStepResult result = (process ? JPackage.process("app-image") : JPackage.tool("app-image")).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("metadata.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(JPackage.PACKAGES)).doesNotExist();
+    }
+
+    @Test
+    public void fails_on_duplicate_jar_file_names() throws IOException {
+        Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"), "one");
+        Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.DEPENDENCIES)).resolve("app.jar"), "two");
+        SequencedProperties configuration = new SequencedProperties();
+        configuration.setProperty("--main-jar", "app.jar");
+        configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
+        assertThatThrownBy(() -> JPackage.tool("app-image").apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
+                        bundle,
+                        Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED,
+                                Path.of("dependencies/app.jar"), ChecksumStatus.ADDED,
+                                Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("same file name 'app.jar'");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void skips_when_no_launcher_is_configured(boolean process) throws IOException {
+        Path artifacts = Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS));
+        try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(artifacts.resolve("app.jar")))) {
+            jar.putNextEntry(new JarEntry("sample/Sample.class"));
+            try (InputStream in = Sample.class.getResourceAsStream("Sample.class")) {
+                requireNonNull(in).transferTo(jar);
+            }
+            jar.closeEntry();
+        }
+        BuildStepResult result = (process ? JPackage.process("app-image") : JPackage.tool("app-image")).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
+                        bundle,
+                        Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES)).doesNotExist();
     }

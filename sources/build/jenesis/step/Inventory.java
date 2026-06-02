@@ -21,7 +21,8 @@ public class Inventory implements BuildStep {
                 Path.of(ARTIFACTS),
                 Path.of(SOURCES),
                 Path.of(DOCUMENTATION),
-                Path.of(DEPENDENCIES)));
+                Path.of(DEPENDENCIES),
+                Path.of(JPackage.PACKAGES)));
     }
 
     @Override
@@ -36,6 +37,7 @@ public class Inventory implements BuildStep {
         String version = null;
         Path pomFile = null;
         boolean modular = false;
+        Path image = null;
         SequencedSet<Path> artifacts = new LinkedHashSet<>();
         SequencedSet<Path> sources = new LinkedHashSet<>();
         SequencedSet<Path> documentation = new LinkedHashSet<>();
@@ -80,6 +82,10 @@ public class Inventory implements BuildStep {
             collect(folder.resolve(ARTIFACTS), artifacts);
             collect(folder.resolve(SOURCES), sources);
             collect(folder.resolve(DOCUMENTATION), documentation);
+            Path packages = folder.resolve(JPackage.PACKAGES);
+            if (image == null && Files.isDirectory(packages)) {
+                image = packages;
+            }
             collectClosure(folder, closureJars, closureScopes, closureChecksums);
         }
         String prefix = ((path == null || path.isEmpty()) ? "module" : "module-" + path) + ".";
@@ -104,6 +110,9 @@ public class Inventory implements BuildStep {
         writePaths(inventory, context, prefix + "artifacts", artifacts);
         writePaths(inventory, context, prefix + "sources", sources);
         writePaths(inventory, context, prefix + "documentation", documentation);
+        if (image != null) {
+            inventory.setProperty(prefix + "package", relativize(context, image));
+        }
         if (pomFile != null) {
             inventory.setProperty(prefix + "pom", relativize(context, pomFile));
         }

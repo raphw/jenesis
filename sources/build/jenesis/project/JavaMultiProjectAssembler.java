@@ -9,16 +9,21 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.JPackage;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
 
 public record JavaMultiProjectAssembler(boolean process,
-                                        String filter) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        String filter,
+                                        String packaging) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
         boolean isNativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-        this(isNativeImage || Boolean.getBoolean("jenesis.java.process"), System.getProperty("jenesis.java.test"));
+        String packaging = System.getProperty("jenesis.java.package");
+        this(isNativeImage || Boolean.getBoolean("jenesis.java.process"),
+                System.getProperty("jenesis.java.test"),
+                packaging != null && packaging.isEmpty() ? "app-image" : packaging);
     }
 
     @Override
@@ -62,10 +67,20 @@ public record JavaMultiProjectAssembler(boolean process,
             }
             if (descriptor.documentation()) {
                 sub.addModule("javadoc", (module, inherited) -> {
-                    module.addStep("classes", process ? Javadoc.process() : Javadoc.tool(), inherited.sequencedKeySet().stream());
-                    module.addStep("artifacts", process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC), "classes");
-                },
-                inputs(descriptor));
+                    module.addStep("classes",
+                            process ? Javadoc.process() : Javadoc.tool(),
+                            inherited.sequencedKeySet().stream());
+                    module.addStep("artifacts",
+                            process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC),
+                            "classes");
+                }, inputs(descriptor));
+            }
+            if (packaging != null) {
+                sub.addStep("package",
+                        process ? JPackage.process(packaging) : JPackage.tool(packaging),
+                        Stream.concat(
+                                Stream.of("prepare", "java"),
+                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
             }
         };
     }
@@ -90,6 +105,7 @@ public record JavaMultiProjectAssembler(boolean process,
                 throws IOException {
             String main = null;
             String version = null;
+            String artifact = null;
             for (BuildStepArgument argument : arguments.values()) {
                 if (main == null) {
                     Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
@@ -101,13 +117,19 @@ public record JavaMultiProjectAssembler(boolean process,
                         }
                     }
                 }
-                if (version == null) {
-                    Path metadataFile = argument.folder().resolve(BuildStep.METADATA);
-                    if (Files.isRegularFile(metadataFile)) {
-                        SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);
+                Path metadataFile = argument.folder().resolve(BuildStep.METADATA);
+                if (Files.isRegularFile(metadataFile)) {
+                    SequencedProperties metadata = SequencedProperties.ofFiles(metadataFile);
+                    if (version == null) {
                         String value = metadata.getProperty("version");
                         if (value != null && !value.isEmpty()) {
                             version = value;
+                        }
+                    }
+                    if (artifact == null) {
+                        String value = metadata.getProperty("artifact");
+                        if (value != null && !value.isEmpty()) {
+                            artifact = value;
                         }
                     }
                 }
@@ -118,6 +140,13 @@ public record JavaMultiProjectAssembler(boolean process,
                 SequencedProperties jar = new SequencedProperties();
                 jar.setProperty("--main-class", main);
                 jar.store(processFolder.resolve("jar.properties"));
+                SequencedProperties jpackage = new SequencedProperties();
+                if (artifact != null) {
+                    jpackage.setProperty("--name", artifact);
+                }
+                jpackage.setProperty("--main-jar", Jar.Sort.CLASSES.getFile());
+                jpackage.setProperty("--main-class", main);
+                jpackage.store(processFolder.resolve("jpackage.properties"));
             }
             if (version != null) {
                 if (processFolder == null) {

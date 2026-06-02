@@ -88,11 +88,7 @@ public class MavenRepositoryExport implements BuildStep {
                     }
                     Path destination = targetVersionDir.resolve(name);
                     Files.deleteIfExists(destination);
-                    try {
-                        Files.createLink(destination, source);
-                    } catch (UnsupportedOperationException | FileSystemException _) {
-                        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-                    }
+                    BuildStep.linkOrCopy(destination, source);
                 }
             }
             if (coordinates.version().endsWith("-SNAPSHOT")) {

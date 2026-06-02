@@ -120,6 +120,23 @@ public class InventoryTest {
     }
 
     @Test
+    public void records_package_image_when_present() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path packages = produce.resolve("packages");
+        Files.createDirectories(packages.resolve("app").resolve("bin"));
+        Files.writeString(packages.resolve("app").resolve("bin").resolve("app"), "launcher");
+
+        run(args("manifests", manifests, "produce", produce));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module.package")).isEqualTo(relativize(packages));
+    }
+
+    @Test
     public void records_tests_marker_for_test_module() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();

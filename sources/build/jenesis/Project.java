@@ -23,6 +23,7 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Inventory;
+import build.jenesis.step.PackageStaging;
 
 public record Project(
         Path root,
@@ -89,8 +90,10 @@ public record Project(
                                         mergedRepos, mergedResolvers)),
                         mavenDeps);
             }, METADATA);
-            executor.addModule(STAGE, (stage, inherited) -> stage.addStep(
-                    "maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet()), BUILD);
+            executor.addModule(STAGE, (stage, inherited) -> {
+                stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("packages", new PackageStaging(), inherited.sequencedKeySet());
+            }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven"), STAGE);
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -141,8 +144,10 @@ public record Project(
                                 mergedResolvers)),
                         modulesDeps);
             }, METADATA);
-            executor.addModule(STAGE, (stage, inherited) -> stage.addStep(
-                    "modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet()), BUILD);
+            executor.addModule(STAGE, (stage, inherited) -> {
+                stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("packages", new PackageStaging(), inherited.sequencedKeySet());
+            }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular"), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
@@ -201,6 +206,7 @@ public record Project(
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("packages", new PackageStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> {
                 export.addStep("maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven");

@@ -9,16 +9,27 @@ public class JPackage extends JdkProcessBuildStep {
 
     public static final String PACKAGES = "packages/";
 
-    protected JPackage(Function<List<String>, ? extends ProcessHandler> factory) {
+    private final String type;
+
+    protected JPackage(Function<List<String>, ? extends ProcessHandler> factory, String type) {
         super("jpackage", factory);
+        this.type = type;
     }
 
     public static JPackage tool() {
-        return new JPackage(ProcessHandler.OfTool.of("jpackage"));
+        return tool(null);
+    }
+
+    public static JPackage tool(String type) {
+        return new JPackage(ProcessHandler.OfTool.of("jpackage"), type);
     }
 
     public static JPackage process() {
-        return new JPackage(ProcessHandler.OfProcess.ofJavaHome("bin/jpackage"));
+        return process(null);
+    }
+
+    public static JPackage process(String type) {
+        return new JPackage(ProcessHandler.OfProcess.ofJavaHome("bin/jpackage"), type);
     }
 
     @Override
@@ -27,18 +38,27 @@ public class JPackage extends JdkProcessBuildStep {
                                                     SequencedMap<String, BuildStepArgument> arguments,
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
+        if (properties.values().stream().noneMatch(
+                folder -> folder.containsKey("--main-jar") || folder.containsKey("--module"))) {
+            return CompletableFuture.completedStage(null);
+        }
         Path input = Files.createDirectory(context.supplement().resolve("input"));
-        List<String> staged = new ArrayList<>();
+        SequencedMap<String, Path> staged = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
-                Path jars = argument.folder().resolve(jarFolder);
-                if (Files.exists(jars)) {
-                    Files.walkFileTree(jars, new SimpleFileVisitor<>() {
+            for (String candidate : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
+                Path folder = argument.folder().resolve(candidate);
+                if (Files.exists(folder)) {
+                    Files.walkFileTree(folder, new SimpleFileVisitor<>() {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                             if (file.toString().endsWith(".jar")) {
-                                BuildStep.linkOrCopy(input.resolve(file.getFileName()), file);
-                                staged.add(file.getFileName().toString());
+                                String name = file.getFileName().toString();
+                                Path previous = staged.putIfAbsent(name, file);
+                                if (previous != null) {
+                                    throw new IllegalStateException("Cannot stage two jars with the same file name '"
+                                            + name + "' into a single jpackage input: " + previous + " and " + file);
+                                }
+                                BuildStep.linkOrCopy(input.resolve(name), file);
                             }
                             return FileVisitResult.CONTINUE;
                         }
@@ -49,9 +69,15 @@ public class JPackage extends JdkProcessBuildStep {
         if (staged.isEmpty()) {
             return CompletableFuture.completedStage(null);
         }
-        List<String> commands = new ArrayList<>(List.of(
-                "--input", input.toString(),
-                "--dest", Files.createDirectory(context.next().resolve(PACKAGES)).toString()));
+        List<String> commands = new ArrayList<>();
+        if (type != null) {
+            commands.add("--type");
+            commands.add(type);
+        }
+        commands.add("--input");
+        commands.add(input.toString());
+        commands.add("--dest");
+        commands.add(Files.createDirectory(context.next().resolve(PACKAGES)).toString());
         return CompletableFuture.completedStage(commands);
     }
 }

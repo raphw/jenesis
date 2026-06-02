@@ -109,5 +109,9 @@ public class Jar extends JdkProcessBuildStep {
             this.folder = folder;
             this.folders = List.of(folders);
         }
+
+        public String getFile() {
+            return file;
+        }
     }
 }

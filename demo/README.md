@@ -4,8 +4,9 @@ Jenesis demos - a guided tour
 These demos are meant to be read in order. Each one is self-contained and adds
 one idea on top of the last, so the sequence doubles as a tutorial through
 Jenesis' features: start with a single Maven project, turn it into a module,
-scale to many modules, bring in other JVM languages, and finally customize or
-replace the build template itself.
+scale to many modules, package a module into a runnable application image, bring
+in other JVM languages, and finally customize or replace the build template
+itself.
 
 Every demo has its own `build/jenesis` symlink into this repository's
 `sources/build/jenesis`, so each runs in isolation from inside its own directory
@@ -29,8 +30,10 @@ That runs the default `build` goal. You pass other goals as arguments:
 The six demos that customize or replace the template (`custom-assembler`,
 `internal-module`, `external-module`, `custom-maven`, `custom-modular`,
 `custom-build`) ship their own launcher and are run with `java build/Demo.java`
-instead. Each demo writes to a local `target/` directory; delete it to rebuild
-from scratch.
+instead. The two executable demos (`java-pom-executable`, `java-modular-executable`)
+likewise ship a launcher, `java build/Run.java`, which stages a `jpackage` image and
+then runs it with the arguments you pass. Each demo writes to a local `target/`
+directory; delete it to rebuild from scratch.
 
 Quick index
 -----------
@@ -41,6 +44,8 @@ Quick index
 | [`java-modular`](java-modular/README.md)             | The same project as a Java module (`module-info.java`, no `pom.xml`)  | `java build/jenesis/Project.java`  |
 | [`java-pom-multi`](java-pom-multi/README.md)         | Many Maven modules: a library + a consumer that depends on it and an external artifact | `java build/jenesis/Project.java`  |
 | [`java-modular-multi`](java-modular-multi/README.md) | The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
+| [`java-pom-executable`](java-pom-executable/README.md)       | A runnable Maven project: a `<mainClass>` entry point + dependency, packaged into a native app image with `jpackage` | `java build/Run.java`              |
+| [`java-modular-executable`](java-modular-executable/README.md) | The same as a Java module: entry point via `@jenesis.main` + dependency, packaged with `jpackage`        | `java build/Run.java`              |
 | [`kotlin`](kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
 | [`scala`](scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
 | [`groovy`](groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
@@ -129,7 +134,40 @@ way Jenesis detects the test engine from the resolved jars (JUnit 5), wires the
 JUnit Platform console runner automatically, and runs the tests as part of the
 build. Each demo's `README.md` covers the test wiring in full.
 
-4. Other JVM languages - `kotlin`, `scala`, `groovy`
+4. Packaging a runnable application - `java-pom-executable`, `java-modular-executable`
+--------------------------------------------------------------------------------------
+
+A module that declares an entry point can be packaged into a **native, self-contained
+application image** by the JDK's `jpackage`. These two demos are the runnable
+counterparts of `java-pom` and `java-modular`: each adds a `main` method and one real
+dependency, and ships a `build/Run.java` launcher that stages the image and runs it.
+
+The entry point is declared the same way the launcher already reads it: an
+`@jenesis.main sample.Sample` Javadoc tag on `module-info.java` (modular), or a
+`<mainClass>` property in the POM (Maven). Both record `main=sample.Sample` in the
+module's `module.properties`, and that single field is what marks the module as
+packageable - modules without it are skipped.
+
+Packaging is opt-in through one property, `-Djenesis.java.package` (its value is the
+`jpackage --type`; a bare flag means `app-image`). When set, the assembler wires a
+per-module `package` step that runs `jpackage` over the produced jar plus its runtime
+dependency jars, so the image bundles the whole closure - `commons-lang3` in the Maven
+demo, `slf4j-api` in the modular one. Each image is then collected by the `STAGE`
+module's `packages` step into `stage/packages/`, the staging analogue of `stage/maven`
+and `stage/modular`.
+
+Rather than set that property on the command line, `build/Run.java` configures it
+**explicitly on the assembler** - `new JavaMultiProjectAssembler(false, null, "app-image")`,
+no `System.setProperty` - then builds the fixed `stage` target and launches the produced
+image, forwarding its own arguments to the packaged app's `main`:
+
+    java build/Run.java ada lovelace
+
+The new idea is that **the build produces a runnable artifact, not just a jar**, and
+that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives both launching
+and packaging through the same `module.properties` field.
+
+5. Other JVM languages - `kotlin`, `scala`, `groovy`
 ----------------------------------------------------
 
 Jenesis drives non-Java compilers through the same inferred compiler chain, with
@@ -155,7 +193,7 @@ These three are quick reads; each `README.md` has the detail. (Each pins both it
 library dependency and its compiler toolchain on a qualified trail; see "Pinning"
 below.)
 
-5. Customizing the build - `custom-assembler`
+6. Customizing the build - `custom-assembler`
 ---------------------------------------------
 
 The remaining demos open up the template. `custom-assembler` keeps the standard
@@ -174,7 +212,7 @@ transformation is simply interposed in front of it. Any step that produces a
 `sources/` tree (template expansion, code generation, license headers) fits the
 same shape. This demo is launched with `java build/Demo.java`.
 
-6. Preprocessing in a reusable build module - `internal-module`, `external-module`
+7. Preprocessing in a reusable build module - `internal-module`, `external-module`
 ----------------------------------------------------------------------------------
 
 `internal-module` does the same preprocessing as `custom-assembler`, but moves it
@@ -199,7 +237,7 @@ authored inline, loaded from source, or consumed as a versioned artifact.
 > against. They will work once a matching `build.jenesis` is released; see their
 > `README.md`s.
 
-7. Driving the build without `Project` - `custom-maven`, `custom-modular`
+8. Driving the build without `Project` - `custom-maven`, `custom-modular`
 -------------------------------------------------------------------------
 
 The previous customizations still went through `Project`. These two go a step
@@ -223,7 +261,7 @@ adapted with a one-line wrapper so each discovered descriptor becomes a
 `Project` itself uses) when you need a custom repository, strict pinning, or a
 specific digest.
 
-8. Dropping the template entirely - `custom-build`
+9. Dropping the template entirely - `custom-build`
 --------------------------------------------------
 
 The last demo removes `Project`, the layout, and the assembler altogether and
@@ -259,7 +297,10 @@ being built as part of it.
 descriptors to record resolved versions and checksums; `stage` lays artifacts out
 as local Maven and module repositories; `export` publishes them. A module that
 declares an entry point (`@jenesis.main` in `module-info.java`, or `<mainClass>`
-in `pom.xml`) can also be launched from its built artifacts.
+in `pom.xml`) can also be launched from its built artifacts, or packaged into a
+native application image with `-Djenesis.java.package` (the value is the `jpackage
+--type`); the image is collected under `stage/packages/` next to `stage/maven` and
+`stage/modular`. See demo 4.
 
 **Pinning, checksums, and qualifiers.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a

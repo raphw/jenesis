@@ -72,10 +72,6 @@ public class JenesisModuleRepositoryExport implements BuildStep {
             }
         }
         Files.deleteIfExists(destination);
-        try {
-            Files.createLink(destination, file);
-        } catch (UnsupportedOperationException | FileSystemException _) {
-            Files.copy(file, destination, StandardCopyOption.REPLACE_EXISTING);
-        }
+        BuildStep.linkOrCopy(destination, file);
     }
 }

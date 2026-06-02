@@ -89,8 +89,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withName(String name) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     @Override
@@ -99,8 +110,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withDependencies(SequencedSet<String> dependencies) {
-        return new ProjectModuleDescriptor(name, immutable(dependencies), sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                immutable(dependencies),
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withDependencies(String... dependencies) {
@@ -113,8 +135,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withSources(SequencedSet<String> sources) {
-        return new ProjectModuleDescriptor(name, dependencies, immutable(sources), resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                immutable(sources),
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withSources(String... sources) {
@@ -127,8 +160,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withResources(SequencedSet<String> resources) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, immutable(resources), manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                immutable(resources),
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withResources(String... resources) {
@@ -141,8 +185,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withManifests(SequencedSet<String> manifests) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, immutable(manifests), coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                immutable(manifests),
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withManifests(String... manifests) {
@@ -155,8 +210,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withCoordinates(SequencedSet<String> coordinates) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, immutable(coordinates),
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                immutable(coordinates),
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withCoordinates(String... coordinates) {
@@ -171,8 +237,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     public ProjectModuleDescriptor withArtifacts(DependencyScope scope, SequencedSet<String> artifacts) {
         Map<DependencyScope, SequencedSet<String>> replaced = new LinkedHashMap<>(this.artifacts);
         replaced.put(scope, immutable(artifacts));
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                Collections.unmodifiableMap(replaced), resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                Collections.unmodifiableMap(replaced),
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withArtifacts(DependencyScope scope, String... artifacts) {
@@ -187,8 +264,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     public ProjectModuleDescriptor withResolved(DependencyScope scope, SequencedSet<String> resolved) {
         Map<DependencyScope, SequencedSet<String>> replaced = new LinkedHashMap<>(this.resolved);
         replaced.put(scope, immutable(resolved));
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, Collections.unmodifiableMap(replaced), test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                Collections.unmodifiableMap(replaced),
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public ProjectModuleDescriptor withResolved(DependencyScope scope, String... resolved) {
@@ -200,8 +288,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withTest(boolean test) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public boolean source() {
@@ -209,8 +308,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withSource(boolean source) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public boolean documentation() {
@@ -218,8 +328,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withDocumentation(boolean documentation) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public boolean strictPinning() {
@@ -227,8 +348,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withStrictPinning(boolean strictPinning) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     public PathPlacement modulePath() {
@@ -236,8 +368,19 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     public ProjectModuleDescriptor withModulePath(PathPlacement modulePath) {
-        return new ProjectModuleDescriptor(name, dependencies, sources, resources, manifests, coordinates,
-                artifacts, resolved, test, source, documentation, strictPinning, modulePath);
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
     }
 
     private static SequencedSet<String> immutable(SequencedSet<String> values) {
