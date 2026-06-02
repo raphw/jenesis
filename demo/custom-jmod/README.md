@@ -23,7 +23,7 @@ path as the `.jmod`, so the produced runtime ends up holding exactly three
 modules - the content-bearing `.jmod`, the dependency jar, and `java.base`:
 
     $ .../demo.config/lib/runtime/bin/java --list-modules
-    demo.config@0-SNAPSHOT
+    demo.config@1-SNAPSHOT
     java.base@25.0.3
     org.slf4j@2.0.16
 

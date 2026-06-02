@@ -16,7 +16,7 @@ Layout
     |-- build/Demo.java    the launcher: wires the wrapping assembler, builds, runs
     `-- sources/
         |-- module-info.java     module demo.custom { exports sample; } (@jenesis.main)
-        `-- sample/Sample.java    prints GREETING = "${greeting}"
+        `-- sample/Sample.java    defines GREETING = "${greeting}", prints its substituted value
 
 With a `module-info.java` and no `pom.xml`, Jenesis auto-detects the
 MODULAR_TO_MAVEN layout and emits a modular jar (plus a generated POM), exactly

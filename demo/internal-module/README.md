@@ -10,7 +10,7 @@ service provider) that `InternalModule` loads straight from local source - and
 that build module uses an **external dependency** (`org.json`) to drive the
 substitution.
 
-> **Status:** this demo currently fails at the `preprocess/delegate` step. The
+> **Status:** this demo currently fails at the `preprocess/substitute` step. The
 > plugin's `build.jenesis` dependency is resolved from the default Jenesis
 > repository, whose published `build.jenesis` lags the local sources the host
 > runs against, so the class-loader bridge rejects the version mismatch. It will
@@ -55,9 +55,9 @@ wrapping the stock `JavaMultiProjectAssembler`. For each module the wrapper:
 1. Adds a `preprocess` node that is an `InternalModule` pointed at `plugin/`.
    `InternalModule` compiles the plugin from source, resolves its declared
    dependencies, loads the `BuildExecutorModule` service provider, and runs it.
-   The three-argument constructor wires the **default Jenesis repository**, so
-   the plugin's `build.jenesis` and `org.json` dependencies resolve from there -
-   nothing is downloaded explicitly.
+   The three-argument constructor wires the **default Jenesis repository** with
+   the local export (`~/.jenesis`) prepended, so the plugin's `build.jenesis` and
+   `org.json` dependencies resolve from there - nothing is downloaded explicitly.
 2. Redirects the descriptor's sources to the module's output with
    `descriptor.withSources("preprocess/substitute")`, so the stock assembler's
    regular flow compiles, jars, and tests the preprocessed sources.

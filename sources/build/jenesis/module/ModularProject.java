@@ -196,7 +196,7 @@ public class ModularProject implements BuildExecutorModule {
             String[] segments = moduleName.split("\\.");
             metadata.setProperty("project", segments.length >= 2 ? segments[0] + "." + segments[1] : moduleName);
             metadata.setProperty("artifact", moduleName);
-            metadata.setProperty("version", "0-SNAPSHOT");
+            metadata.setProperty("version", "1-SNAPSHOT");
             if (info.name() != null) {
                 metadata.setProperty("name", info.name());
             }

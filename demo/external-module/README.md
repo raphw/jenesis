@@ -10,7 +10,7 @@ compiles it from local source with `InternalModule`, while here it is resolved
 as a published artifact from a repository **coordinate** with `ExternalModule`.
 
 > **Status:** like `internal-module`, this demo currently fails at the
-> `preprocess/delegate` step. The build module's `build.jenesis` dependency is
+> `preprocess/substitute` step. The build module's `build.jenesis` dependency is
 > resolved from the default Jenesis repository, whose published `build.jenesis`
 > lags the local sources the host runs against, so the class-loader bridge
 > rejects the version mismatch. It will work once a matching `build.jenesis` is

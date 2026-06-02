@@ -20,9 +20,9 @@ import build.jenesis.project.ProjectModuleDescriptor;
  * ({@code org.json}) to drive the substitution.
  *
  * The three-argument {@code InternalModule} constructor wires the default
- * Jenesis repository, so both the plugin's {@code build.jenesis} and
- * {@code org.json} dependencies resolve from there - the demo downloads nothing
- * explicitly.
+ * Jenesis repository with the local export (~/.jenesis) prepended, so both the
+ * plugin's {@code build.jenesis} and {@code org.json} dependencies resolve from
+ * there - the demo downloads nothing explicitly.
  *
  * Run from this directory with:
  *

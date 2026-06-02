@@ -27,9 +27,9 @@ That runs the default `build` goal. You pass other goals as arguments:
     java build/jenesis/Project.java export   # publish them into the local repositories
     java build/jenesis/Project.java help     # usage; `skill` prints an agent-oriented briefing
 
-The six demos that customize or replace the template (`custom-assembler`,
+The seven demos that customize or replace the template (`custom-assembler`,
 `internal-module`, `external-module`, `custom-maven`, `custom-modular`,
-`custom-build`) ship their own launcher and are run with `java build/Demo.java`
+`custom-build`, `custom-jmod`) ship their own launcher and are run with `java build/Demo.java`
 instead. The two executable demos (`java-pom-executable`, `java-modular-executable`)
 likewise ship a launcher, `java build/Run.java`, which stages a `jpackage` image and
 then runs it with the arguments you pass. Each demo writes to a local `target/`

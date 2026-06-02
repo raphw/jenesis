@@ -411,9 +411,6 @@ consumer opts in, by requesting the `:jmod` qualifier rather than the default ja
 Run `java build/jenesis/Project.java stage` to materialize that tree (it's the canonical entry point for
 release publishing - see [The stage step](#the-stage-step) for the full release pipeline).
 
-The example scripts (`Minimal`, `Manual`, `Maven`, `Modular`, `ModularToMaven`, `Modules`) under `build/`
-illustrate the underlying primitives that `Project` composes; they are not part of the canonical surface.
-
 ### Running inside Docker
 
 Set `-Djenesis.project.docker=true` to run the entire build inside a throwaway container instead of directly on
@@ -669,7 +666,7 @@ others are declared next to the step that emits them.
 | `scopes.properties`        | `BuildStep.SCOPES`               | Sibling of `requires.properties` produced by the `Manifests` steps in `ModularProject` / `MavenProject` (per declared dependency) and by `Download` (for a whole resolved closure, when the step is given a scope). Each key is a `<prefix>/<coordinate>`; the value is a comma-separated list of scope tokens describing in which scopes the dependency is visible. The token set is open-ended (matched as literal strings) so steps can introduce their own scope tokens. The standard tokens are the lower-case `DependencyScope.label()` values `compile` and `runtime`: compile-only entries (Maven `provided`, Java `requires static`) carry just `compile`; runtime-only entries (Maven `runtime`) carry just `runtime`; entries visible in both carry `compile,runtime`. A token may also be a **namespaced custom scope** `<kind>:<qualifier>` (the `:` marks it as non-standard): the compiler modules stamp their tool closure `compiler:<qualifier>` (e.g. `compiler:kotlin`) and `InternalModule` / `ExternalModule` stamp theirs `module:<qualifier>`. `MultiProjectDependencies` filters `requires.properties` against the `DependencyScope` it is bound to; `Pom` emits each dependency as `compile`/`provided`/`runtime` and ignores custom scopes; `Inventory` treats any `:`-namespaced scope as a build tool and excludes it from the produced module's runtime closure. |
 | `exclusions.properties`    | `BuildStep.EXCLUSIONS`           | Sibling of `requires.properties` produced by `MavenProject.Manifests` (only when a dependency declaration in a `pom.xml` carries `<exclusions>`). Each key is a `<prefix>/<coordinate>` from `requires.properties`; the value is a comma-separated list of `<groupId>/<artifactId>` patterns that the resolver must subtract from this dependency's transitive closure (so e.g. `mockito-core <exclusion>net.bytebuddy/byte-buddy</exclusion>` does not silently re-pull `byte-buddy` through the test classpath). `MultiProjectDependencies` carries the entries through to the per-scope prepare step alongside the matching `requires.properties` rows; `Resolve` reads the file from its arguments and threads the exclusion set per coordinate into `Resolver.dependencies`, where `MavenPomResolver` populates `MavenDependencyValue.exclusions` so the transitive walk honours them. `ModularJarResolver` rejects any non-empty exclusion set up front because Java modules have no exclusion concept. `Pom` reads the file to emit each `<dependency>` with its declared `<exclusions>` so consumers of the published POM keep the same closure. The file is omitted entirely when no dependency in the module declares exclusions. |
 | `module.properties`        | `BuildStep.MODULE`               | Per-module **graph-state** descriptor written by every `Manifests` step. Carries only keys the framework manages, never the user. Always present with `path=<directory-relative-to-project-root>` (the source folder housing this module's `pom.xml` / `module-info.java`) and `modular=<true|false>` (set by `ModularProject.Manifests` from whether the descriptor is a real module, `false` for Maven modules; read by `Inventory` to route modular artifacts). `ModularProject.Manifests` also writes `module=<java-module-name>`. Test variants additionally carry `test=<artifactId>` (or the empty string for the deprecated bare `@jenesis.test` form); the key is absent on main modules, and consumers (`Pom`, `JavaMultiProjectAssembler`, `Inventory`) use that absence/presence as the test-variant signal, with `Inventory` mirroring the value into `inventory.properties` as `prefix.test` so `MavenRepositoryStaging` and `ModularStaging` can route test modules at staging time. Modules with an entry point carry `main=<class>` on the **main** variant (omitted on test variants): `ModularProject.Manifests` populates it from an `@jenesis.main <class>` Javadoc tag on `module-info.java`, `MavenProject`'s per-module manifests step populates it from a `<properties><mainClass>...</mainClass></properties>` entry in the module's `pom.xml`. `JavaMultiProjectAssembler` runs a `prepare` step that translates `main` into a `process/jar.properties` file with a `--main-class=<class>` flag; the existing `ProcessBuildStep` plumbing then prepends that flag to the `jar` command line, which makes the produced `classes.jar` carry both a manifest `Main-Class:` entry and a `ModuleMainClass` attribute on the bundled `module-info.class`. `Inventory` mirrors `path` into `inventory.properties` as `prefix.path`, which `Project.PinModule` reads to discover which modules to pin without pattern-matching graph paths. |
-| `metadata.properties`      | `BuildStep.METADATA`             | Per-module **POM coordinates and descriptive metadata** written by every `Manifests` step. Always carries the three coordinate keys `project=<groupId>`, `artifact=<artifactId>`, `version=<version>`: `MavenProject`'s per-module manifests step copies them straight from the `pom.xml`, while `ModularProject.Manifests` derives them from the Java module system module name (first two dot-separated segments for `project`, the full name for `artifact`) and defaults `version` to `0-SNAPSHOT`. On top of the coordinates the step adds whatever descriptive metadata is available: `ModularProject.Manifests` parses `name` and `description` from the module-info Javadoc; `MavenProject`'s manifests step lifts `<name>`, `<description>`, `<url>`, every `<license>` (as `license.<id>.name` / `license.<id>.url`, where `<id>` is the license name lowercased with spaces and dots replaced by `_`), every `<developer>` (as `developer.<id>.name` / `developer.<id>.email`), and the `<scm>` block (`scm.connection`, `scm.developerConnection`, `scm.url`) from the module's `pom.xml`. After the framework's own defaults are written, the step folds any upstream `metadata.properties` from its input folders on top (later puts win), which is how user-supplied overrides take precedence over both the framework defaults and the POM-extracted values. `Pom` consumes the file as the single source of truth for the emitted pom and throws if any of `project` / `artifact` / `version` is missing. The optional project-root override file (conventionally `project.properties`, pointed at via `-Djenesis.project.metadata=<path>`) uses the same key schema and is bound into the executor's `metadata` module so its entries reach every per-module `metadata.properties` as upstream input; `-Djenesis.project.version=<v>` is appended last and overrides any `version` from either layer. |
+| `metadata.properties`      | `BuildStep.METADATA`             | Per-module **POM coordinates and descriptive metadata** written by every `Manifests` step. Always carries the three coordinate keys `project=<groupId>`, `artifact=<artifactId>`, `version=<version>`: `MavenProject`'s per-module manifests step copies them straight from the `pom.xml`, while `ModularProject.Manifests` derives them from the Java module system module name (first two dot-separated segments for `project`, the full name for `artifact`) and defaults `version` to `1-SNAPSHOT`. On top of the coordinates the step adds whatever descriptive metadata is available: `ModularProject.Manifests` parses `name` and `description` from the module-info Javadoc; `MavenProject`'s manifests step lifts `<name>`, `<description>`, `<url>`, every `<license>` (as `license.<id>.name` / `license.<id>.url`, where `<id>` is the license name lowercased with spaces and dots replaced by `_`), every `<developer>` (as `developer.<id>.name` / `developer.<id>.email`), and the `<scm>` block (`scm.connection`, `scm.developerConnection`, `scm.url`) from the module's `pom.xml`. After the framework's own defaults are written, the step folds any upstream `metadata.properties` from its input folders on top (later puts win), which is how user-supplied overrides take precedence over both the framework defaults and the POM-extracted values. `Pom` consumes the file as the single source of truth for the emitted pom and throws if any of `project` / `artifact` / `version` is missing. The optional project-root override file (conventionally `project.properties`, pointed at via `-Djenesis.project.metadata=<path>`) uses the same key schema and is bound into the executor's `metadata` module so its entries reach every per-module `metadata.properties` as upstream input; `-Djenesis.project.version=<v>` is appended last and overrides any `version` from either layer. |
 | `locations.properties`     | `BuildStep.LOCATIONS`            | Written by `Download` next to the `dependencies/` it fills: a map from each resolved `<prefix>/<coordinate>/<version>` to the **self-anchored relative path** of the jar it produced (`dependencies/<prefix>-<coordinate>.jar`). It is the authoritative coordinate-to-artifact index, so consumers never reconstruct a jar filename from a coordinate: `Inventory` joins it with `scopes.properties` (scope) and the resolved `requires.properties` (checksum) to assemble both the runtime closure (`prefix.runtime`) and the per-module dependency closure (`prefix.dependency`) it publishes, and `pin` then hashes the jar each `prefix.dependency` entry references rather than reading this file itself. Consumers read each value with `<file's parent folder>.resolve(value).normalize()`. |
 | `inventory.properties`     | `Inventory.INVENTORY`            | Per-module **launchable and stageable summary** written by `Inventory`. Each module produces one file whose keys carry a single-segment prefix derived from the module's path: `module` for the root module (empty `path`), `module-<path>` otherwise (e.g. `module-core`). Keeping the prefix dot-free lets a consumer recover the prefix from any key by taking the substring up to the first `.`. The three folder-listing keys are indexed: each file found in the matching folder among the inventory's predecessors is written under a zero-based key `prefix.<group>.<n>` (the path is the value, directly after the index), so `prefix.artifacts.0`, `prefix.artifacts.1`, and so on. The groups are `prefix.artifacts` (the contents of every `artifacts/` folder, i.e. the module's produced binary jars; the staging steps require exactly one entry ending in `.jar`), `prefix.sources` (the contents of every `sources/` folder, typically just the produced `sources.jar`; the staging steps require at most one entry ending in `.jar`), `prefix.documentation` (the contents of every `documentation/` folder, typically just the produced `javadoc.jar`; same at-most-one-jar rule). Plus the scalar keys: `prefix.pom` (path to the generated `pom.xml` when the layout emits one), `prefix.version` (mirror of `metadata.properties`' `version`), `prefix.test` (mirror of `module.properties`' `test`, set only on test modules), `prefix.module` (mirror of `module.properties`' `module`, written under `MODULAR` and `MODULAR_TO_MAVEN` since both build genuine modules, and omitted under `MAVEN`), `prefix.mainClass` (mirror of `module.properties`' `main`), and `prefix.path` (mirror of `module.properties`' `path`, the module's source folder relative to the project root; `Project.PinModule` reads it to discover which modules to pin). Two further indexed groups carry the per-module dependency state that `pin` consumes: `prefix.identity.<n>` (the module's own coordinates, mirrored from `identity.properties`, so `pin` can exclude internal sibling coordinates project-wide) and `prefix.dependency.<n>` (the module's full resolved closure, one entry per coordinate written as `<coordinate> <self-anchored jar path>[ <algorithm>/<hex>]`, assembled by joining `locations.properties` for the jar path, `scopes.properties` for the scope, and the resolved `requires.properties` for any already-known checksum; unlike `prefix.runtime` it **includes** the `:`-namespaced tool-scoped (`compiler:` / `module:`) entries, and it is the single source `PinPom` / `PinModuleInfo` read to recompute and write source-level pins). Finally the indexed `prefix.runtime.<n>` (the binary artifact followed by every **non**-tool-scoped jar of the resolved closure - i.e. `prefix.dependency` minus the `:`-namespaced tool scopes: the runtime classpath that `Execute` uses). All path values are **self-anchored**: written relative to the inventory file's own folder, and consumers resolve them with `<inventory's parent>.resolve(value).normalize()`. Any key whose value would be empty is omitted entirely. A consumer that reads several modules' inventories can `putAll` them into one `Properties` map without key collisions, then group by prefix to recover per-module records. Consumers: `Project.PinModule` enumerates the modules to pin from every `prefix.path`, then wires one `PinPom` / `PinModuleInfo` per module that reads that module's own `prefix.dependency` closure (selected by its prefix) and every module's `prefix.identity` for internal-coordinate filtering; `Execute` picks candidates with `prefix.mainClass` set and assembles the classpath/modulepath from `prefix.runtime`; `MavenRepositoryStaging` parses `prefix.pom` for coordinates, routes by `prefix.test`, validates the folder-listing keys, and hardlinks the single jars into the Maven repository layout; `ModularStaging` reads `prefix.module` plus optional `prefix.version`, validates the folder-listing keys, and hardlinks the single jars - and, when present, the `prefix.jmod` `.jmod` (produced by the `jmod` step) - under `<moduleName>/[<version>/]`; `ImageStaging` collects the directory-tree images recorded as the scalars `prefix.package` (the `jpackage` application image) and `prefix.image` (the `jlink` runtime image) into `stage/packages` and `stage/runtime` respectively. |
 | `uris.properties`          | `DownloadModuleUris.URIS`        | `<prefix>/<java-module-name>` keys mapped to an absolute jar URL; populated from line-based `<module>=<url>` registries (default: sormuras/modules) and used during dependency resolution to translate a Java module name into a download URL. When a versioned coordinate is requested (e.g. `org.assertj.core/3.27.0`) and the bare name is mapped to a URL whose final path segments follow the Maven repository layout (`.../<artifactId>/<version>/<artifactId>-<version>[-<classifier>].<ext>`), an opt-in version-resolver function (`MavenDefaultRepository.versionResolver()`) supplied by the caller rewrites the path's version segment and the filename's version segment to the pinned value, so a single-URL registry still satisfies version pins. Without that function, `Repository.ofUris` performs strict literal lookup only; if the version resolver is supplied but returns `Optional.empty()` for a versioned coordinate (e.g. the registered URL is not in Maven layout), the fetch is a clean miss - the bare-name URL is **not** silently substituted, so a build that asked for `foo/1.2.3` will never quietly receive the registry's default version. A launcher that wires `Repository.ofProperties` over such a registry passes this resolver explicitly, since the dominant Java module URL registries (sormuras/modules and most internal mirrors) point at Maven Central -- making the Maven layout assumption visible at the use site rather than baked into the generic `Repository` infrastructure. The shipped `Layout.MODULAR` does not consume `uris.properties` directly anymore; its `module` prefix is served by the `https://repo.jenesis.build/module/` overlay (which performs the same version rewrite internally), with `JenesisModuleRepository.ofLocal()` prepended. The shipped `Layout.MODULAR_TO_MAVEN` also no longer consumes it: a `MavenModuleResolver` fetches each declared module's `:pom` artifact from `https://repo.jenesis.build/artifact/` instead, translates it into a Maven coordinate, and seeds the bytes into `MavenPomResolver` as the pre-fetched first layer of a single synthetic project POM, so those first-layer POMs are never re-downloaded from Maven Central before transitive resolution. |
@@ -712,8 +709,8 @@ The steps listed here are pre-implemented for convenience; the build tool itself
 | `PinModuleInfo`            | Reads the module's resolved closure from `inventory.properties` (the `prefix.dependency.<n>` entries with their self-anchored jar paths), excluding the project's own coordinates from every module's `prefix.identity`, filters the remainder by a configured prefix (typically `module`), and rewrites the configured `module-info.java` source file(s) so that the preceding Javadoc block contains `@jenesis.pin <module> <version>[ <algorithm>/<hex>]` tags for every entry. Qualified (`@<qualifier>`) coordinates are always pinned (compiler / internal / external trails), with checksums recomputed from the jar each `prefix.dependency` entry references. In `MODULAR_TO_MAVEN` (`fromJars` mode) the unqualified entries are pinned by inspecting that same jar for its real module name, but only for jars that are genuine modules (a `module-info` or an `Automatic-Module-Name`); plain, non-modular jars are skipped rather than pinned under a filename-derived synthetic name that would fail to re-resolve. Replaces the existing `@jenesis.pin` lines in place if present (preserving other block tags like `@jenesis.release`, `@jenesis.test`); inserts a fresh Javadoc block above the module declaration if none exists. Qualified coordinates are written as `@jenesis.pin [<prefix>/]<qualifier>@<coordinate> <version>[ <algorithm>/<hex>]` tags, with the default `module` prefix omitted (so `module@kotlin/...` is written `@kotlin/...`). Accepts either a single `Path` or a `List<Path>` of module-info.java files. Always re-runs (`shouldRun = true`) and writes back to the source file outside `context.next()`. | `inventory.properties` (`prefix.dependency` + `prefix.identity` + `prefix.path`) from each predecessor                              | none under `context.next()`; mutates the configured `module-info.java` file(s)   |
 
 `ProcessBuildStep` and `Java` are abstract bases (used by `Javac`, `Jar`, `Javadoc`, and the inner `executed`
-step that `TestModule` registers); `Java.of(...)` gives an ad-hoc command runner. `DependencyTransformingBuildStep`
-is the shared base for `Resolve`, `Download`, and `Translate`; they all parse `requires.properties` into
+step that `TestModule` registers); `Java.of(...)` gives an ad-hoc command runner. `DependencyProcessingBuildStep`
+is the shared interface implemented by `Resolve`, `Download`, and `Translate`; they all parse `requires.properties` into
 `(prefix, coordinate)` groups, transform them, and write `requires.properties` back.
 
 Before launching its tool, every `ProcessBuildStep` walks each input folder for `process/<command>.properties`
@@ -818,8 +815,8 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
   establishes the accepted prefix from the first key whose `<prefix>` is served by one of the configured
   resolvers, then writes *every* coordinate sharing that prefix into `requires.properties` (so an engine may
   contribute more than one runner dependency). `JUnitPlatform` contributes both `module/org.junit.platform.console`
-  and `maven/org.junit.platform/junit-platform-console`, so the same engine works across `Modular`,
-  `ModularToMaven`, and `Manual`-style builds. The default version is derived from the version of the discovered
+  and `maven/org.junit.platform/junit-platform-console`, so the same engine works across the `MODULAR` and
+  `MODULAR_TO_MAVEN` layouts and hand-wired `BuildExecutor` builds. The default version is derived from the version of the discovered
   `org.junit.platform.engine` module (1.x for JUnit 5, 6.x for JUnit 6); the `maven` entry falls back to `RELEASE`
   and the `module` entry to `null` (float to latest) when no version can be read. The non-`null` defaults are
   written into `versions.properties` with `putIfAbsent`, *after* folding in the project's own upstream pins - so a
@@ -888,10 +885,10 @@ flowchart LR
 Used as the generic shape behind multi-project layouts. An *identifier* sub-module discovers the projects in a
 source tree and writes their coordinates and dependencies; a `Group` step partitions the cross-project
 dependency graph; a *factory* then assembles one sub-module per discovered project, wiring cross-project edges
-between them. Each per-project closure receives a `ModuleDescriptor` exposing the module `name()` and its `dependencies()`; the
-concrete subtype (`ModularModuleDescriptor` or `MavenModuleDescriptor`) also exposes the standardised inherited
-keys as helpers (`sources()`, `manifests()`, `coordinates()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`),
-each a `SequencedSet<String>` so a descriptor may contribute several folders per kind, so a closure doesn't need to know how
+between them. Each per-project closure receives a `ProjectModule` exposing the module `name()`, its `dependencies()`, and the standardised inherited
+keys as helpers (`sources()`, `resources()`, `manifests()`, `coordinates()`, `artifacts(DependencyScope)`, `resolved(DependencyScope)`),
+each a `SequencedSet<String>` so a descriptor may contribute several folders per kind (the concrete implementations are
+`ModularModuleDescriptor` and `MavenModuleDescriptor`), so a closure doesn't need to know how
 the identifier laid out its outputs. The example below shows two projects `A` and `B` where `A` requires `B`,
 so `B` is built first and its output flows into `A`.
 
@@ -1096,7 +1093,8 @@ Used for loading a `BuildExecutorModule` from a published modular jar at build t
 plug-in modules from a repository instead of vendoring them as source. The plug-in must ship as a Java
 module that declares `provides build.jenesis.BuildExecutorModule with ...;` in its `module-info.java`.
 
-Given a `<prefix>/<coordinate>` string, a map of `Repository` instances, and a map of `Resolver` instances,
+Given a `<prefix>/<coordinate>` string, a `qualifier` (the pin trail to record the tool's closure under, or
+`null` for the unqualified trail), a map of `Repository` instances, and a map of `Resolver` instances,
 `ExternalModule` registers three internal nodes:
 
 - `coordinate` writes the requested coordinate (plus any added via `withDependencies(...)`) into a fresh
@@ -1114,7 +1112,7 @@ Given a `<prefix>/<coordinate>` string, a map of `Repository` instances, and a m
 their published names disappear.
 
 ```java
-new ExternalModule("module/com.example.plugin", repositories, resolvers)
+new ExternalModule("module/com.example.plugin", "tool", repositories, resolvers)
         .withDependencies("module/com.example.extra");
 ```
 
@@ -1126,8 +1124,10 @@ must contain a `module-info.java` that `provides build.jenesis.BuildExecutorModu
 plug-in still has to ship as a Java module, just one built from source instead of pulled from a
 repository.
 
-`InternalModule` takes a coordinate `prefix`, a `Path` to the source folder, a `Repository` map, and a
-`Resolver` map, and registers:
+`InternalModule` takes a coordinate `prefix`, a `qualifier` (the pin trail, or `null` for the unqualified
+trail), a `Path` to the source folder, a `Repository` map, and a `Resolver` map - with a three-argument
+`(prefix, qualifier, source)` convenience form that defaults the two maps to the Jenesis module repository
+with the local export prepended - and registers:
 
 - `source` binds the source folder as Java sources via `Bind.asSources()`.
 - `compile-requires` and `runtime-requires` each parse the source's `module-info.java` and write a
@@ -1662,7 +1662,8 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   per-step opt-in.
 - **`ProcessHandler`** wraps the actual invocation (forked `Process` or in-process `ToolProvider` call). The
   factory function passed to a step's constructor decides which: `Javac.tool()` runs `javac` in-process via
-  `java.util.spi.ToolProvider`; `Javac.process()` forks. The same split exists for `Jar` and `Javadoc`.
+  `java.util.spi.ToolProvider`; `Javac.process()` forks. The same split exists for `Jar` (as `Jar.tool(Sort)` /
+  `Jar.process(Sort)`) and `Javadoc`.
 - **`Javac`, `Jar`, `Javadoc`, `Java`** are the concrete tool drivers. They consume the conventional folders
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.
@@ -1706,7 +1707,7 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   review that only diffs content will miss it). When a version is chosen *before* the fetch (pin or propagated
   compiledVersion), the resolver asks the `Repository` for `<module>/<version>` so a Maven-conventional URL
   carrying a registry default can be rewritten by `Repository.ofUris` into the requested version; the resolver
-  also falls back to a bare-name fetch when the versioned lookup returns nothing, so repositories that don't
+  fetches the bare name instead when no version is pinned or propagated, so repositories that don't
   understand versioned coordinates continue to work. Java module rules differ from Maven's (no Maven-style nearest-wins;
   transitivity is opt-in per `requires transitive`), so the resolver is small but distinct.
 - **`Versions`** is the `BuildStep` that closes the loop: it reads `requires.properties` after resolution,
@@ -1831,7 +1832,7 @@ the same way a source change would.
 # which appends a `version` entry to this same channel as the last layer).
 project=build.jenesis
 artifact=build.jenesis
-version=0-SNAPSHOT
+version=1-SNAPSHOT
 
 # Descriptive metadata - usually supplied by the layout (see below) and only
 # placed here when overriding. Emitted as <name>, <description>, <url>.
@@ -1872,7 +1873,7 @@ Jenesis writes per-module descriptive metadata to a separate file from per-modul
 - **`metadata.properties`** (constant `BuildStep.METADATA`) carries Maven coordinates and POM-descriptive
   keys - `project`, `artifact`, `version`, `name`, `description`, `url`, `license.<id>.*`, `developer.<id>.*`,
   `scm.*`. Each layout's `Manifests` step writes per-module defaults: coordinates come straight from `pom.xml`
-  for MAVEN and are derived from the Java module system module name for MODULAR (with `0-SNAPSHOT` as the default version);
+  for MAVEN and are derived from the Java module system module name for MODULAR (with `1-SNAPSHOT` as the default version);
   descriptive keys are extracted from the module-info Javadoc or the source `pom.xml`. The project-root
   override file (conventionally `project.properties`, pointed at by `-Djenesis.project.metadata`) overlays
   project-wide values on top in `Manifests` (later puts win), so a user-supplied entry beats both the
@@ -1914,7 +1915,7 @@ the project-root `metadata.properties` so it overrides the literal default.
 ### The Pom step's predecessor order
 
 `Pom` runs once per module and emits exactly one `pom.xml` from the merged metadata. It reads each predecessor
-folder for `identity.properties`, `metadata.properties`, `requires.properties`, and `scopes.properties`, and
+folder for `requires.properties`, `scopes.properties`, `exclusions.properties`, and `metadata.properties`, and
 parses `groupId`/`artifactId`/`version` and the descriptive fields from the merged `metadata.properties`. The
 override chain for the file's values is:
 
@@ -1991,8 +1992,9 @@ unset (default), test modules are simply omitted from the staging tree. When `pr
 on the inventory from `metadata.properties`' `version` key, which both layouts always populate today), it is
 inserted as an additional path segment between the module name and the jar files.
 
-The resulting trees under `target/stage/maven/output/` (with `<module>=build.jenesis`, `<v>=1.0.0`,
-`-Djenesis.project.sources=true`, `-Djenesis.project.documentation=true`):
+The resulting trees (with `<module>=build.jenesis`, `<v>=1.0.0`, `-Djenesis.project.sources=true`,
+`-Djenesis.project.documentation=true`); the Maven layout stages under `target/stage/maven/output/` and the
+module layout under `target/stage/modular/output/`:
 
 `MAVEN` and `MODULAR_TO_MAVEN` (Maven repository layout, identical for the Jenesis project):
 
@@ -2014,7 +2016,7 @@ target/stage/maven/output/
 `MODULAR` with `-Djenesis.project.version=1.0.0`:
 
 ```
-target/stage/maven/output/
+target/stage/modular/output/
 └── build.jenesis/
     └── 1.0.0/
         ├── build.jenesis.jar
@@ -2022,13 +2024,13 @@ target/stage/maven/output/
         └── build.jenesis-javadoc.jar
 ```
 
-`MODULAR` with the project's default `0-SNAPSHOT` version (still produces a version segment, since
+`MODULAR` with the project's default `1-SNAPSHOT` version (still produces a version segment, since
 `metadata.properties` always carries a `version`):
 
 ```
-target/stage/maven/output/
+target/stage/modular/output/
 └── build.jenesis/
-    └── 0-SNAPSHOT/
+    └── 1-SNAPSHOT/
         ├── build.jenesis.jar
         ├── build.jenesis-sources.jar
         └── build.jenesis-javadoc.jar
@@ -2062,7 +2064,7 @@ java -Djenesis.project.version=<version> \
 
 [JReleaser](https://jreleaser.org) consumes the staged directory directly. A `jreleaser.yml` at the project
 root with `deploy.maven.mavenCentral.sonatype.stagingRepositories` pointing at `target/stage/maven/output/`, plus the
-standard `JRELEASER_MAVEN_CENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment variables, lets
+standard `JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME`/`_TOKEN` and `JRELEASER_GPG_*` environment variables, lets
 a single `jreleaser deploy` (or `full-release` from `jreleaser/release-action@v2` in CI) sign and upload the
 staged artifacts to Maven Central. `JRELEASER_PROJECT_VERSION` should be set to the same value passed as
 `jenesis.project.version` so JReleaser and the emitted POM agree on the coordinate.
@@ -2070,12 +2072,12 @@ staged artifacts to Maven Central. `JRELEASER_PROJECT_VERSION` should be set to 
 How Jenesis itself releases
 ---------------------------
 
-The release configuration that this repo actually uses lives in three files: `metadata.properties` at the root,
+The release configuration that this repo actually uses lives in three files: `project.properties` at the root,
 `jreleaser.yml` at the root, and `.github/workflows/release.yml`.
 
-`metadata.properties` carries the SCM, license, developer, url, and the `module=build.jenesis` filter
-that limits the staged tree to the main artifact (excluding `module-tests`). `name` and
-`description` are not in this file because the `MODULAR` layout reads them from the module-info's
+`project.properties` carries the SCM, license, developer, and url metadata, passed via
+`-Djenesis.project.metadata=project.properties` so it is folded into every per-module `metadata.properties`.
+`name` and `description` are not in this file because the `MODULAR` layout reads them from the module-info's
 javadoc, and `module-info.java` has:
 
 ```java
@@ -2100,8 +2102,8 @@ target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<v
 target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<version>.pom
 ```
 
-`.github/workflows/release.yml` triggers on commits whose first line begins with `[release]`. The release
-version is resolved as follows:
+`.github/workflows/release.yml` runs after the "Test Jenesis Tool" workflow completes on `main`, gated on the
+head commit's first line beginning with `[release]`. The release version is resolved as follows:
 
 - `[release] 1.2.3` (explicit version after the marker) - use `1.2.3`.
 - `[release]` (marker alone) - take the highest `v?X.Y.Z` git tag, bump its minor by one, reset patch. So
