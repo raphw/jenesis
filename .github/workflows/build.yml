@@ -22,7 +22,9 @@ jobs:
         # `*-executable` demos run their build/Run.java launcher, which stages a
         # jpackage app-image and runs it. The `-jmod-jlink` entry enables the jmod
         # and jlink steps and stages their results (a .jmod beside the modular jar
-        # and a jlink runtime image under stage/runtime).
+        # and a jlink runtime image under stage/runtime). `custom-jmod` runs its
+        # build/Demo.java, which wraps the assembler to pack extra content into the
+        # .jmod and chains jmod -> jlink -> jpackage, then launches the produced app.
         demo:
           - { name: java-pom, dir: java-pom, entry: build/jenesis/Project.java }
           - { name: java-modular, dir: java-modular, entry: build/jenesis/Project.java }

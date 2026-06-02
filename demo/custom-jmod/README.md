@@ -16,6 +16,23 @@ image, so the content rides all the way into the shipped application. This demo
 uses the `config` section: the bundled `app.properties` ends up in the runtime's
 `conf/`, and the packaged app reads it back from its own `<java.home>/conf/`.
 
+The module also `requires org.slf4j`, to show the other side of the picture. Only
+the module's *own* archive becomes a `.jmod`; its dependencies reach `jlink` as
+their resolved jars. `jlink` happily links jar-form modules onto the same module
+path as the `.jmod`, so the produced runtime ends up holding exactly three
+modules - the content-bearing `.jmod`, the dependency jar, and `java.base`:
+
+    $ .../demo.config/lib/runtime/bin/java --list-modules
+    demo.config@0-SNAPSHOT
+    java.base@25.0.3
+    org.slf4j@2.0.16
+
+A dependency only gains from being a `.jmod` if it carries native content of its
+own; a plain library jar has none, so a jar is the right form for it. (Feeding a
+*sibling* module's content-bearing `.jmod` to a downstream consumer is the
+separate, opt-in `<coordinate>:jmod` resolution, which the stock assembler does
+not request.)
+
 Layout
 ------
 
@@ -23,8 +40,8 @@ Layout
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: wraps the assembler, builds, runs the packaged app
     `-- sources/
-        |-- module-info.java     module demo.config { exports sample; }  (@jenesis.main sample.Sample)
-        `-- sample/Sample.java   reads <java.home>/conf/app.properties and prints it
+        |-- module-info.java     module demo.config { requires org.slf4j; exports sample; }
+        `-- sample/Sample.java   reads <java.home>/conf/app.properties, logs via slf4j, prints it
 
 How the wrapping works
 ----------------------
