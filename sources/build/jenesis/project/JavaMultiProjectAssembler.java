@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -37,7 +38,7 @@ public record JavaMultiProjectAssembler(boolean process,
                                      Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers) {
         return (sub, outerInherited) -> {
-            sub.addStep("prepare", new Prepare(), outerInherited.sequencedKeySet().stream());
+            sub.addStep("prepare", new Prepare(descriptor.modulePath()), outerInherited.sequencedKeySet().stream());
             sub.addModule("java", new JavaToolchainModule(
                     new InferredCompilerChainModule(repositories, resolvers)
                             .process(process)
@@ -112,7 +113,7 @@ public record JavaMultiProjectAssembler(boolean process,
                 .flatMap(SequencedSet::stream);
     }
 
-    private static class Prepare implements BuildStep {
+    private record Prepare(PathPlacement modulePath) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -167,8 +168,12 @@ public record JavaMultiProjectAssembler(boolean process,
                 if (artifact != null) {
                     jpackage.setProperty("--name", artifact);
                 }
-                jpackage.setProperty("--main-jar", Jar.Sort.CLASSES.getFile());
-                jpackage.setProperty("--main-class", main);
+                if (modulePath.modular() && moduleName != null) {
+                    jpackage.setProperty("--module", moduleName + "/" + main);
+                } else {
+                    jpackage.setProperty("--main-jar", Jar.Sort.CLASSES.getFile());
+                    jpackage.setProperty("--main-class", main);
+                }
                 jpackage.store(processFolder.resolve("jpackage.properties"));
             }
             if (moduleName != null) {

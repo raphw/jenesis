@@ -83,6 +83,17 @@ public class JavaMultiProjectAssemblerTest {
     }
 
     @Test
+    public void modular_main_yields_module_jpackage_argument() throws IOException {
+        Fixture fixture = setUp("main=com.example.Entry\nmodule=com.example.foo\n", false, false, false);
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties jpackageArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jpackage.properties"));
+        assertThat(jpackageArguments.getProperty("--module")).isEqualTo("com.example.foo/com.example.Entry");
+        assertThat(jpackageArguments.stringPropertyNames())
+                .as("modular launch uses --module, not the classpath --main-jar/--main-class")
+                .doesNotContain("--main-jar", "--main-class");
+    }
+
+    @Test
     public void module_in_module_properties_yields_add_modules_for_jlink() throws IOException {
         Fixture fixture = setUp("module=foo\n", false, false, false);
         Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");

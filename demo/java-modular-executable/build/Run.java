@@ -26,7 +26,7 @@ public class Run {
         // JavaMultiProjectAssembler whose packaging type is set to a self-contained
         // app-image. The third constructor argument is the jpackage --type.
         Project project = new Project()
-                .assembler(new JavaMultiProjectAssembler(false, null, "app-image"))
+                .assembler(new JavaMultiProjectAssembler(false, null, "app-image", false, false))
                 .resolveProperties();
 
         // `stage/packages` is a fixed build target: building `stage` returns a map keyed

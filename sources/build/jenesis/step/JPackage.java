@@ -38,8 +38,8 @@ public class JPackage extends JdkProcessBuildStep {
                                                     SequencedMap<String, BuildStepArgument> arguments,
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
-        if (properties.values().stream().noneMatch(
-                folder -> folder.containsKey("--main-jar") || folder.containsKey("--module"))) {
+        boolean modular = properties.values().stream().anyMatch(folder -> folder.containsKey("--module"));
+        if (!modular && properties.values().stream().noneMatch(folder -> folder.containsKey("--main-jar"))) {
             return CompletableFuture.completedStage(null);
         }
         Path input = Files.createDirectory(context.supplement().resolve("input"));
@@ -74,7 +74,10 @@ public class JPackage extends JdkProcessBuildStep {
             commands.add("--type");
             commands.add(type);
         }
-        commands.add("--input");
+        // A modular launcher (`--module`) reads its app from a `--module-path`; a classpath
+        // launcher (`--main-jar`) reads it from an `--input` directory. The staged jars serve
+        // as either, so only the flag differs.
+        commands.add(modular ? "--module-path" : "--input");
         commands.add(input.toString());
         commands.add("--dest");
         commands.add(Files.createDirectory(context.next().resolve(PACKAGES)).toString());
