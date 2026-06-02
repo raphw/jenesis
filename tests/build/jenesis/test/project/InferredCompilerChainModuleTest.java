@@ -48,7 +48,7 @@ public class InferredCompilerChainModuleTest {
         Path javaClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve(InferredCompilerChainModule.JAVAC)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/OnlyJava.class")).isNotEmptyFile();
@@ -92,7 +92,7 @@ public class InferredCompilerChainModuleTest {
         Path javaClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve(InferredCompilerChainModule.JAVAC)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/Base.class"))
@@ -101,7 +101,7 @@ public class InferredCompilerChainModuleTest {
         Path kotlinClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve(InferredCompilerChainModule.KOTLINC)
                 .resolve(KotlinCompilerModule.CLASSES)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -111,7 +111,7 @@ public class InferredCompilerChainModuleTest {
         Path scalaClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(InferredCompilerChainModule.SCALAC)
                 .resolve(ScalaCompilerModule.CLASSES)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -122,14 +122,14 @@ public class InferredCompilerChainModuleTest {
         Path kotlinArtifacts = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve(InferredCompilerChainModule.KOTLINC)
                 .resolve(KotlinCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
         Path scalaArtifacts = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(InferredCompilerChainModule.SCALAC)
                 .resolve(ScalaCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
@@ -170,12 +170,12 @@ public class InferredCompilerChainModuleTest {
         Path kotlinClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve(InferredCompilerChainModule.KOTLINC)
                 .resolve(KotlinCompilerModule.CLASSES)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(kotlinClasses.resolve("sample/Sample.class")).isNotEmptyFile();
-        assertThat(root.resolve("chain").resolve(InferredCompilerChainModule.COMPILE).resolve(InferredCompilerChainModule.SCALA))
+        assertThat(root.resolve("chain").resolve(InferredCompilerChainModule.COMPILE).resolve(InferredCompilerChainModule.SCALAC))
                 .as("Scala module was not wired because no .scala sources were detected")
                 .doesNotExist();
     }
@@ -210,7 +210,7 @@ public class InferredCompilerChainModuleTest {
         Path javaClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve(InferredCompilerChainModule.JAVAC)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/app.properties"))
@@ -240,7 +240,7 @@ public class InferredCompilerChainModuleTest {
         Path javaClasses = root
                 .resolve("chain")
                 .resolve(InferredCompilerChainModule.COMPILE)
-                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve(InferredCompilerChainModule.JAVAC)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
@@ -286,7 +286,7 @@ public class InferredCompilerChainModuleTest {
         runChain();
 
         Path scalaClasses = chainCompile()
-                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(InferredCompilerChainModule.SCALAC)
                 .resolve(ScalaCompilerModule.CLASSES)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -297,8 +297,8 @@ public class InferredCompilerChainModuleTest {
         assertThat(chainCompile().resolve(InferredCompilerChainModule.RESOURCE))
                 .as("resource step is not wired when a single compiler is present")
                 .doesNotExist();
-        assertThat(chainCompile().resolve(InferredCompilerChainModule.JAVA)).doesNotExist();
-        assertThat(chainCompile().resolve(InferredCompilerChainModule.KOTLIN)).doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.JAVAC)).doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.KOTLINC)).doesNotExist();
         assertNoSourceFilesInClassOutputs();
     }
 
@@ -323,21 +323,21 @@ public class InferredCompilerChainModuleTest {
                 .resolve(BuildStep.CLASSES);
         assertThat(resourceClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
         Path javaClasses = chainCompile()
-                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve(InferredCompilerChainModule.JAVAC)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/app.properties"))
                 .as("Javac suppressed resources because Scala is also wired")
                 .doesNotExist();
         Path scalaCompileOnly = chainCompile()
-                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(InferredCompilerChainModule.SCALAC)
                 .resolve("compiled")
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(scalaCompileOnly.resolve("sample/app.properties"))
                 .as("Scala compile step suppressed resources because Java is also wired")
                 .doesNotExist();
-        assertThat(chainCompile().resolve(InferredCompilerChainModule.KOTLIN)).doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.KOTLINC)).doesNotExist();
         assertNoSourceFilesInClassOutputs();
     }
 
@@ -363,7 +363,7 @@ public class InferredCompilerChainModuleTest {
                 .resolve(BuildStep.CLASSES);
         assertThat(resourceClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
         Path kotlinCompileOnly = chainCompile()
-                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve(InferredCompilerChainModule.KOTLINC)
                 .resolve("compiled")
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -371,14 +371,14 @@ public class InferredCompilerChainModuleTest {
                 .as("Kotlin compile step suppressed resources because Scala is also wired")
                 .doesNotExist();
         Path scalaCompileOnly = chainCompile()
-                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(InferredCompilerChainModule.SCALAC)
                 .resolve("compiled")
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(scalaCompileOnly.resolve("sample/app.properties"))
                 .as("Scala compile step suppressed resources because Kotlin is also wired")
                 .doesNotExist();
-        assertThat(chainCompile().resolve(InferredCompilerChainModule.JAVA)).doesNotExist();
+        assertThat(chainCompile().resolve(InferredCompilerChainModule.JAVAC)).doesNotExist();
         assertNoSourceFilesInClassOutputs();
     }
 
@@ -402,14 +402,14 @@ public class InferredCompilerChainModuleTest {
                 .resolve(BuildStep.CLASSES);
         assertThat(resourceClasses.resolve("sample/app.properties")).content().isEqualTo("key=value");
         Path javaClasses = chainCompile()
-                .resolve(InferredCompilerChainModule.JAVA)
+                .resolve(InferredCompilerChainModule.JAVAC)
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
         assertThat(javaClasses.resolve("sample/app.properties"))
                 .as("Javac suppressed resources because Kotlin and Scala are also wired")
                 .doesNotExist();
         Path kotlinCompileOnly = chainCompile()
-                .resolve(InferredCompilerChainModule.KOTLIN)
+                .resolve(InferredCompilerChainModule.KOTLINC)
                 .resolve("compiled")
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);
@@ -417,7 +417,7 @@ public class InferredCompilerChainModuleTest {
                 .as("Kotlin compile step suppressed resources because other compilers are wired")
                 .doesNotExist();
         Path scalaCompileOnly = chainCompile()
-                .resolve(InferredCompilerChainModule.SCALA)
+                .resolve(InferredCompilerChainModule.SCALAC)
                 .resolve("compiled")
                 .resolve("output")
                 .resolve(BuildStep.CLASSES);

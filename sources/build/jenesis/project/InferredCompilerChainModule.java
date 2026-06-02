@@ -15,7 +15,7 @@ import build.jenesis.step.Javac;
 
 public class InferredCompilerChainModule implements BuildExecutorModule {
 
-    public static final String JAVA = "java", KOTLIN = "kotlin", SCALA = "scala", GROOVY = "groovy", RESOURCE = "resource";
+    public static final String JAVAC = "javac", KOTLINC = "kotlinc", SCALAC = "scalac", GROOVYC = "groovyc", RESOURCE = "resource";
     public static final String COMPILE = "compile";
     private static final String SCAN = "scan";
     private static final String SCAN_FILE = "scan.properties";
@@ -107,10 +107,10 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                 }
             }
             SequencedProperties properties = new SequencedProperties();
-            properties.setProperty(JAVA, Boolean.toString(flags[0]));
-            properties.setProperty(KOTLIN, Boolean.toString(flags[1]));
-            properties.setProperty(SCALA, Boolean.toString(flags[2]));
-            properties.setProperty(GROOVY, Boolean.toString(flags[3]));
+            properties.setProperty(JAVAC, Boolean.toString(flags[0]));
+            properties.setProperty(KOTLINC, Boolean.toString(flags[1]));
+            properties.setProperty(SCALAC, Boolean.toString(flags[2]));
+            properties.setProperty(GROOVYC, Boolean.toString(flags[3]));
             properties.setProperty(RESOURCE, Boolean.toString(flags[4]));
             properties.store(context.next().resolve(SCAN_FILE));
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -130,10 +130,10 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                 throw new IllegalStateException("Compile sub-module is missing its upstream scan input");
             }
             SequencedProperties scan = SequencedProperties.ofFiles(scanFolder.resolve(SCAN_FILE));
-            boolean hasJava = Boolean.parseBoolean(scan.getProperty(JAVA));
-            boolean hasKotlin = Boolean.parseBoolean(scan.getProperty(KOTLIN));
-            boolean hasScala = Boolean.parseBoolean(scan.getProperty(SCALA));
-            boolean hasGroovy = Boolean.parseBoolean(scan.getProperty(GROOVY));
+            boolean hasJava = Boolean.parseBoolean(scan.getProperty(JAVAC));
+            boolean hasKotlin = Boolean.parseBoolean(scan.getProperty(KOTLINC));
+            boolean hasScala = Boolean.parseBoolean(scan.getProperty(SCALAC));
+            boolean hasGroovy = Boolean.parseBoolean(scan.getProperty(GROOVYC));
             boolean hasResource = Boolean.parseBoolean(scan.getProperty(RESOURCE));
 
             SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
@@ -141,37 +141,37 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
 
             SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
             if (hasKotlin) {
-                buildExecutor.addModule(KOTLIN,
+                buildExecutor.addModule(KOTLINC,
                         new KotlinCompilerModule(repositories, resolvers)
                                 .strictPinning(strictPinning)
                                 .includeResources(!hasJava && !hasScala && !hasGroovy),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
-                updated.add(KOTLIN + "/" + KotlinCompilerModule.CLASSES);
+                updated.add(KOTLINC + "/" + KotlinCompilerModule.CLASSES);
                 dependencies = updated;
             }
             if (hasScala) {
-                buildExecutor.addModule(SCALA,
+                buildExecutor.addModule(SCALAC,
                         new ScalaCompilerModule(repositories, resolvers)
                                 .strictPinning(strictPinning)
                                 .includeResources(!hasJava && !hasKotlin && !hasGroovy),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
-                updated.add(SCALA + "/" + ScalaCompilerModule.CLASSES);
+                updated.add(SCALAC + "/" + ScalaCompilerModule.CLASSES);
                 dependencies = updated;
             }
             if (hasJava) {
-                buildExecutor.addStep(JAVA,
+                buildExecutor.addStep(JAVAC,
                         (process ? Javac.process() : Javac.tool())
                                 .includeResources(!hasKotlin && !hasScala && !hasGroovy)
                                 .modulePath(modulePath),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
-                updated.add(JAVA);
+                updated.add(JAVAC);
                 dependencies = updated;
             }
             if (hasGroovy) {
-                buildExecutor.addModule(GROOVY,
+                buildExecutor.addModule(GROOVYC,
                         new GroovyCompilerModule(repositories, resolvers)
                                 .strictPinning(strictPinning)
                                 .includeResources(!hasJava && !hasKotlin && !hasScala),

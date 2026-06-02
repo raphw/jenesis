@@ -81,19 +81,19 @@ public record JavaMultiProjectAssembler(boolean process,
                             "classes");
                 }, inputs(descriptor));
             }
-            if (packaging != null) {
-                sub.addStep("package",
-                        process ? JPackage.process(packaging) : JPackage.tool(packaging),
-                        Stream.concat(
-                                Stream.of("prepare", "java"),
-                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
-            }
             if (jmod) {
                 sub.addStep("jmod", process ? JMod.process() : JMod.tool(), "java");
             }
             if (jlink) {
                 sub.addStep("jlink",
                         process ? JLink.process() : JLink.tool(),
+                        Stream.concat(
+                                Stream.of("prepare", jmod ? "jmod" : "java"),
+                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
+            }
+            if (packaging != null) {
+                sub.addStep("jpackage",
+                        process ? JPackage.process(packaging) : JPackage.tool(packaging),
                         Stream.concat(
                                 Stream.of("prepare", "java"),
                                 descriptor.artifacts(DependencyScope.RUNTIME).stream()));

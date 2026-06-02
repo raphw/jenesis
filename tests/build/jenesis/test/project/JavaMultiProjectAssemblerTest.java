@@ -66,20 +66,20 @@ public class JavaMultiProjectAssemblerTest {
     }
 
     @Test
-    public void package_type_enabled_adds_package_step() throws IOException {
+    public void package_type_enabled_adds_jpackage_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false, "app-image");
-        Path packageOutput = fixture.execute("sub/package").get("sub/package");
+        Path packageOutput = fixture.execute("sub/jpackage").get("sub/jpackage");
         assertThat(packageOutput.resolve(JPackage.PACKAGES))
                 .as("a module without a main class produces no application image")
                 .doesNotExist();
     }
 
     @Test
-    public void package_type_disabled_omits_package_step() throws IOException {
+    public void package_type_disabled_omits_jpackage_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false);
-        assertThatThrownBy(() -> fixture.execute("sub/package"))
+        assertThatThrownBy(() -> fixture.execute("sub/jpackage"))
                 .rootCause()
-                .hasMessage("Unknown selector: package");
+                .hasMessage("Unknown selector: jpackage");
     }
 
     @Test
