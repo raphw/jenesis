@@ -27,7 +27,7 @@ public class Assign implements BuildStep {
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument ->
-                argument.hasChanged(Path.of(ARTIFACTS), Path.of(IDENTITY)));
+                argument.hasChanged(Path.of(ARTIFACTS), Path.of(IDENTITY), Path.of(JMod.JMODS)));
     }
 
     @Override
@@ -37,12 +37,21 @@ public class Assign implements BuildStep {
             throws IOException {
         SequencedProperties assignments = new SequencedProperties();
         SequencedSet<Path> files = new LinkedHashSet<>();
+        SequencedSet<Path> jmods = new LinkedHashSet<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path artifacts = argument.folder().resolve(ARTIFACTS);
             if (Files.exists(artifacts)) {
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
                     for (Path artifact : stream) {
                         files.add(artifact);
+                    }
+                }
+            }
+            Path archives = argument.folder().resolve(JMod.JMODS);
+            if (Files.exists(archives)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(archives)) {
+                    for (Path archive : stream) {
+                        jmods.add(archive);
                     }
                 }
             }
@@ -63,10 +72,11 @@ public class Assign implements BuildStep {
                 }
             }
         }
-        assigner.apply(assignments.stringPropertyNames().stream()
+        Map<String, Path> assigned = assigner.apply(assignments.stringPropertyNames().stream()
                         .filter(assignment -> assignments.getProperty(assignment).isEmpty())
                         .collect(Collectors.toCollection(LinkedHashSet::new)),
-                files).forEach((coordinate, path) -> {
+                files);
+        assigned.forEach((coordinate, path) -> {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
             }
@@ -75,6 +85,18 @@ public class Assign implements BuildStep {
                     .toString()
                     .replace(File.separatorChar, '/'));
         });
+        if (!jmods.isEmpty()) {
+            // Publish the produced module's link-time form alongside the jar, so a consumer
+            // can resolve <coordinate>:jmod the way it resolves the jar (falling back to the
+            // jar in the repository when no jmod was produced).
+            String archive = context.next()
+                    .relativize(jmods.getFirst())
+                    .toString()
+                    .replace(File.separatorChar, '/');
+            for (String coordinate : assigned.keySet()) {
+                assignments.setProperty(coordinate + ":jmod", archive);
+            }
+        }
         assignments.store(context.next().resolve(IDENTITY));
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

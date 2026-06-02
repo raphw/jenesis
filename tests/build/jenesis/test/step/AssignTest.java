@@ -54,6 +54,33 @@ public class AssignTest {
     }
 
     @Test
+    public void publishes_jmod_alongside_assigned_jar() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("module/foo", "");
+        properties.store(argument.resolve(BuildStep.IDENTITY));
+        Path jar = Files.writeString(
+                Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("classes.jar"), "classes");
+        Path jmod = Files.writeString(
+                Files.createDirectory(argument.resolve("jmods")).resolve("foo.jmod"), "jmod");
+        BuildStepResult result = new Assign().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.ARTIFACTS + "classes.jar"), ChecksumStatus.ADDED,
+                                        Path.of("jmods/foo.jmod"), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties coordinates = SequencedProperties.ofFiles(next.resolve(BuildStep.IDENTITY));
+        assertThat(coordinates.getProperty("module/foo"))
+                .isEqualTo(next.relativize(jar).toString().replace(File.separatorChar, '/'));
+        assertThat(coordinates.getProperty("module/foo:jmod"))
+                .isEqualTo(next.relativize(jmod).toString().replace(File.separatorChar, '/'));
+    }
+
+    @Test
     public void can_assign_dependencies() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo", "");
