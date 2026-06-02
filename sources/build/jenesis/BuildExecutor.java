@@ -7,13 +7,47 @@ public interface BuildExecutor {
     String SKIP_MARKER = ".jenesis.skip";
 
     static BuildExecutor of(Path target) throws IOException {
-        String algorithm = System.getProperty("jenesis.executor.digest", "MD5");
-        return of(target,
-                Duration.parse(System.getProperty("jenesis.executor.timeout", "PT0S")),
-                new HashDigestFunction(algorithm),
-                BuildStepHashFunction.ofSerializationDigest(algorithm),
-                BuildExecutorCallback.printing(System.out, Boolean.getBoolean("jenesis.verbose"), target),
-                Boolean.getBoolean("jenesis.executor.rebuild"));
+        return new Configuration().resolveProperties().of(target);
+    }
+
+    record Configuration(Duration timeout, String digest, boolean verbose, boolean rebuild) {
+
+        public Configuration() {
+            this(Duration.ZERO, "MD5", false, false);
+        }
+
+        public Configuration timeout(Duration timeout) {
+            return new Configuration(timeout, digest, verbose, rebuild);
+        }
+
+        public Configuration digest(String digest) {
+            return new Configuration(timeout, digest, verbose, rebuild);
+        }
+
+        public Configuration verbose(boolean verbose) {
+            return new Configuration(timeout, digest, verbose, rebuild);
+        }
+
+        public Configuration rebuild(boolean rebuild) {
+            return new Configuration(timeout, digest, verbose, rebuild);
+        }
+
+        public Configuration resolveProperties() {
+            return new Configuration(
+                    Duration.parse(System.getProperty("jenesis.executor.timeout", timeout.toString())),
+                    System.getProperty("jenesis.executor.digest", digest),
+                    verbose || Boolean.getBoolean("jenesis.verbose"),
+                    rebuild || Boolean.getBoolean("jenesis.executor.rebuild"));
+        }
+
+        public BuildExecutor of(Path target) throws IOException {
+            return BuildExecutor.of(target,
+                    timeout,
+                    new HashDigestFunction(digest),
+                    BuildStepHashFunction.ofSerializationDigest(digest),
+                    BuildExecutorCallback.printing(System.out, verbose, target),
+                    rebuild);
+        }
     }
 
     static BuildExecutor of(Path target,

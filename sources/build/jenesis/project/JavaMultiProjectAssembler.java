@@ -24,13 +24,40 @@ public record JavaMultiProjectAssembler(boolean process,
                                         boolean jlink) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        boolean isNativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-        String packaging = System.getProperty("jenesis.java.package");
-        this(isNativeImage || Boolean.getBoolean("jenesis.java.process"),
-                System.getProperty("jenesis.java.test"),
-                packaging != null && packaging.isEmpty() ? "app-image" : packaging,
-                Boolean.getBoolean("jenesis.java.jmod"),
-                Boolean.getBoolean("jenesis.java.jlink"));
+        this(false, null, null, false, false);
+    }
+
+    public JavaMultiProjectAssembler process(boolean process) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+    }
+
+    public JavaMultiProjectAssembler filter(String filter) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+    }
+
+    public JavaMultiProjectAssembler packaging(String packaging) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+    }
+
+    public JavaMultiProjectAssembler jmod(boolean jmod) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+    }
+
+    public JavaMultiProjectAssembler jlink(boolean jlink) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+    }
+
+    @Override
+    public JavaMultiProjectAssembler resolveProperties() {
+        boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
+        String filterOverride = System.getProperty("jenesis.java.test");
+        String packagingOverride = System.getProperty("jenesis.java.package");
+        return new JavaMultiProjectAssembler(
+                process || nativeImage || Boolean.getBoolean("jenesis.java.process"),
+                filterOverride != null ? filterOverride : filter,
+                packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
+                jmod || Boolean.getBoolean("jenesis.java.jmod"),
+                jlink || Boolean.getBoolean("jenesis.java.jlink"));
     }
 
     @Override

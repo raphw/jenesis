@@ -23,10 +23,10 @@ public class Run {
     static void main(String[] args) throws Exception {
         // Configure packaging explicitly on the assembler instead of through the
         // -Djenesis.java.package system property: hand the Project a stock
-        // JavaMultiProjectAssembler whose packaging type is set to a self-contained
-        // app-image. The third constructor argument is the jpackage --type.
+        // JavaMultiProjectAssembler with its packaging type set, via the wither, to a
+        // self-contained app-image.
         Project project = new Project()
-                .assembler(new JavaMultiProjectAssembler(false, null, "app-image", false, false))
+                .assembler(new JavaMultiProjectAssembler().packaging("app-image"))
                 .resolveProperties();
 
         // `stage/packages` is a fixed build target: building `stage` returns a map keyed

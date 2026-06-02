@@ -1267,7 +1267,7 @@ public record Project(
                 resolvedMetadata,
                 resolvedVersion,
                 defaultTarget,
-                assembler,
+                assembler.resolveProperties(),
                 repositories,
                 resolvers);
     }
