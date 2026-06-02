@@ -68,8 +68,8 @@ receive on its command line:
 `new JavaMultiProjectAssembler(false, null, "app-image")`, the in-code equivalent of
 `-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
 then reads the image folder from the `stage/packages` entry of the map that
-`build("stage")` returns (a fixed build target) and launches its `bin/<name>` launcher
-with your arguments. The packaged app prints:
+`build("stage")` returns (a fixed build target) and launches the produced platform
+launcher with your arguments. The packaged app prints:
 
     Hello, Ada lovelace, from a packaged Maven project built by Jenesis!
 

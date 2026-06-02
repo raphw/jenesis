@@ -15,15 +15,27 @@ jobs:
         # build.jenesis release: they load a build module through the
         # class-loader bridge, which currently rejects the overlay's older
         # build.jenesis against the local sources.
+        #
+        # The `-as-modular` entries force the pure MODULAR layout
+        # (-Djenesis.project.layout=modular) on the same sources that otherwise
+        # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
+        # `*-executable` demos run their build/Run.java launcher, which stages a
+        # jpackage app-image and runs it.
         demo:
-          - { dir: java-pom, entry: build/jenesis/Project.java }
-          - { dir: java-modular, entry: build/jenesis/Project.java }
-          - { dir: java-pom-multi, entry: build/jenesis/Project.java }
-          - { dir: kotlin, entry: build/jenesis/Project.java }
-          - { dir: scala, entry: build/jenesis/Project.java }
-          - { dir: groovy, entry: build/jenesis/Project.java }
-          - { dir: custom-assembler, entry: build/Demo.java }
-          - { dir: custom-build, entry: build/Demo.java }
+          - { name: java-pom, dir: java-pom, entry: build/jenesis/Project.java }
+          - { name: java-modular, dir: java-modular, entry: build/jenesis/Project.java }
+          - { name: java-modular-as-modular, dir: java-modular, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          - { name: java-pom-multi, dir: java-pom-multi, entry: build/jenesis/Project.java }
+          - { name: java-modular-multi, dir: java-modular-multi, entry: build/jenesis/Project.java }
+          - { name: java-modular-multi-as-modular, dir: java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          - { name: java-pom-executable, dir: java-pom-executable, entry: build/Run.java }
+          - { name: java-modular-executable, dir: java-modular-executable, entry: build/Run.java }
+          - { name: java-modular-executable-as-modular, dir: java-modular-executable, entry: build/Run.java, flags: -Djenesis.project.layout=modular }
+          - { name: kotlin, dir: kotlin, entry: build/jenesis/Project.java }
+          - { name: scala, dir: scala, entry: build/jenesis/Project.java }
+          - { name: groovy, dir: groovy, entry: build/jenesis/Project.java }
+          - { name: custom-assembler, dir: custom-assembler, entry: build/Demo.java }
+          - { name: custom-build, dir: custom-build, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -34,16 +46,16 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Demo ${{ matrix.demo.dir }}
+      - name: Demo ${{ matrix.demo.name }}
         shell: bash
         working-directory: demo/${{ matrix.demo.dir }}
-        run: java ${{ matrix.demo.entry }}
+        run: java ${{ matrix.demo.flags }} ${{ matrix.demo.entry }}
 
       - name: Upload target on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: target-demo-${{ matrix.os }}-${{ matrix.demo.dir }}
+          name: target-demo-${{ matrix.os }}-${{ matrix.demo.name }}
           path: demo/${{ matrix.demo.dir }}/target/
           retention-days: 3
           if-no-files-found: ignore

@@ -78,8 +78,8 @@ receive on its command line:
 `new JavaMultiProjectAssembler(false, null, "app-image")`, the in-code equivalent of
 `-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
 then reads the image folder from the `stage/packages` entry of the map that
-`build("stage")` returns (a fixed build target) and launches its `bin/<name>` launcher
-with your arguments. The packaged app prints:
+`build("stage")` returns (a fixed build target) and launches the produced platform
+launcher with your arguments. The packaged app prints:
 
     Hello, Ada Lovelace, from a packaged Java module built by Jenesis!
 
@@ -88,3 +88,18 @@ and uses a no-op logger - the `slf4j-api` jar is still bundled and on the app's
 classpath.) With no arguments it greets `world`. Building the plain
 `java build/jenesis/Project.java` (no `package` property) compiles and jars the
 module exactly as `../java-modular` does, without producing an image.
+
+Pure modular layout
+-------------------
+
+Like `../java-modular`, this demo auto-detects **MODULAR_TO_MAVEN** (a modular jar
+plus a generated `pom.xml`, dependencies resolved via Maven-coordinate translation).
+To build and package under the pure **MODULAR** layout instead - dependencies resolved
+purely by Java module name, and a modular jar with no `pom.xml` - pass the layout
+override on the same `Run.java` invocation, since `Run.java` calls `resolveProperties()`
+which honors it:
+
+    java -Djenesis.project.layout=modular build/Run.java Ada Lovelace
+
+The packaged application image is identical either way; only the resolve and whether a
+`pom.xml` is emitted differ.

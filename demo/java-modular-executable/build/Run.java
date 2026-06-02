@@ -38,10 +38,20 @@ public class Run {
         // The image folder is fixed too: jpackage names it after --name, which the build
         // derives from this project's coordinate (the module name). So the launcher path
         // is fully determined - no directory scanning needed.
+        // jpackage names the image after --name (here the module name) and lays the
+        // launcher out per platform - Windows <name>/<name>.exe, macOS a <name>.app
+        // bundle, every other OS <name>/bin/<name> - so the path is fixed once the OS
+        // is known; no scanning is needed.
         String name = "demo.modular.executable";
-        Path image = output.resolve(name);
-        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-        Path launcher = windows ? image.resolve(name + ".exe") : image.resolve("bin").resolve(name);
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        Path launcher;
+        if (os.contains("win")) {
+            launcher = output.resolve(name).resolve(name + ".exe");
+        } else if (os.contains("mac")) {
+            launcher = output.resolve(name + ".app").resolve("Contents").resolve("MacOS").resolve(name);
+        } else {
+            launcher = output.resolve(name).resolve("bin").resolve(name);
+        }
 
         List<String> command = new ArrayList<>();
         command.add(launcher.toString());

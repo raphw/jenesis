@@ -36,12 +36,19 @@ public class Run {
         Path output = outputs.get("stage/packages");
 
         // The image folder is fixed too: jpackage names it after --name, which the build
-        // derives from this project's coordinate (the POM artifactId). So the launcher
-        // path is fully determined - no directory scanning needed.
+        // derives from this project's coordinate (the POM artifactId). The launcher path
+        // within it is fixed per platform - Windows ships <name>/<name>.exe, macOS a
+        // <name>.app bundle, every other OS <name>/bin/<name> - so no scanning is needed.
         String name = "java-pom-executable";
-        Path image = output.resolve(name);
-        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-        Path launcher = windows ? image.resolve(name + ".exe") : image.resolve("bin").resolve(name);
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        Path launcher;
+        if (os.contains("win")) {
+            launcher = output.resolve(name).resolve(name + ".exe");
+        } else if (os.contains("mac")) {
+            launcher = output.resolve(name + ".app").resolve("Contents").resolve("MacOS").resolve(name);
+        } else {
+            launcher = output.resolve(name).resolve("bin").resolve(name);
+        }
 
         List<String> command = new ArrayList<>();
         command.add(launcher.toString());

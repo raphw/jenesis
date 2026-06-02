@@ -36,6 +36,27 @@ From this directory:
 
     java build/jenesis/Project.java
 
+Pure modular layout
+-------------------
+
+The layout auto-detected above is **MODULAR_TO_MAVEN**: dependencies resolve by
+translating each Java module name into a Maven coordinate, and the build emits a
+modular jar *plus* a generated `pom.xml` (so `stage` produces both
+`target/stage/modular` and `target/stage/maven`), making the artifact consumable
+from a Maven repository too.
+
+Jenesis also ships a pure **MODULAR** layout that resolves dependencies purely by
+Java module name against the Jenesis module repository and emits a modular jar with
+*no* `pom.xml` at all (`stage` then produces only `target/stage/modular`). Force it
+from the command line with the layout override:
+
+    java -Djenesis.project.layout=modular build/jenesis/Project.java
+
+(`jenesis.project.layout` accepts `auto`, `maven`, `modular`, `modular_to_maven`.)
+Use MODULAR when the artifact is only ever consumed as a Java module and you do not
+want a POM; keep the default MODULAR_TO_MAVEN when you also want a Maven-publishable
+coordinate.
+
 Pinned dependency
 -----------------
 
