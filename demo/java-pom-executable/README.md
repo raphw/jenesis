@@ -28,7 +28,8 @@ Layout
 
     demo/java-pom-executable
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- build/Run.java       stages with jpackage enabled, then runs the image
+    |-- build/Run.java       stages an app-image with jpackage, then runs it
+    |-- build/RunNative.java stages a fully bundled native installer (deb/exe/dmg) and reports it
     |-- pom.xml              Maven coordinates, <sourceDirectory>, <mainClass>, one <dependency> (pinned)
     `-- sources/sample/Sample.java   main(String[] args); uses commons-lang3 StringUtils
 
@@ -65,7 +66,7 @@ receive on its command line:
     java build/Run.java ada lovelace
 
 `Run.java` configures packaging directly on the assembler -
-`new JavaMultiProjectAssembler(false, null, "app-image")`, the in-code equivalent of
+`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
 `-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
 then reads the image folder from the `stage/packages` entry of the map that
 `build("stage")` returns (a fixed build target) and launches the produced platform
@@ -77,3 +78,34 @@ launcher with your arguments. The packaged app prints:
 bundled dependency is on the launched app's classpath.) With no arguments it greets
 `World`. Building the plain `java build/jenesis/Project.java` (no `package` property)
 compiles and jars the project exactly as `../java-pom` does, without producing an image.
+
+Fully bundled native installer
+------------------------------
+
+`Run.java` builds an `app-image` - a directory you launch in place. Its sibling
+`build/RunNative.java` instead builds the platform's **native installer**: the single
+artifact you hand to a user to install. It follows the same shape as `Run.java` - the
+packaging type set explicitly on the assembler, the fixed `stage` target built, the
+result read from the fixed `stage/packages` key - and only the last step differs: a
+native installer is a deliverable to install, not a program to launch in place, so it
+reports the produced package rather than running it.
+
+    java build/RunNative.java
+
+The packaging type is chosen for the host - `deb` on Linux, `exe` on Windows, `dmg` on
+macOS. On Linux it prints:
+
+    Built a fully bundled deb installer under target/stage/packages/output:
+      java-pom-executable_1.0.0_amd64.deb (38 MiB)
+    Unlike the app-image, this is a deliverable to install with the platform's package manager, not a directory to launch in place.
+
+The installer carries the whole bundled runtime, which is why it is tens of megabytes.
+Because this is a classpath (non-modular) application, jpackage bundles a full runtime;
+the modular sibling `../java-modular-executable` produces a much smaller package, since
+there jpackage's internal `jlink` can trim the runtime to the module graph.
+
+Producing a native installer needs the platform's packaging tooling on the PATH (Linux:
+`dpkg-deb`/`fakeroot` for `deb`, `rpmbuild` for `rpm`; Windows: the WiX Toolset; macOS:
+the bundled `productbuild`/`hdiutil`). For that reason it is run locally rather than in
+CI, where `Run.java`'s app-image - which needs no native tooling - covers the packaging
+path.

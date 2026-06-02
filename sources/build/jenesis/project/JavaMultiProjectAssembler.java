@@ -130,12 +130,9 @@ public record JavaMultiProjectAssembler(boolean process,
                 Stream<String> inputs = Stream.concat(
                         Stream.of("prepare", "java"),
                         descriptor.artifacts(DependencyScope.RUNTIME).stream());
-                if (jlink) {
-                    inputs = Stream.concat(Stream.of("jlink"), inputs);
-                }
                 sub.addStep("jpackage",
                         process ? JPackage.process(packaging) : JPackage.tool(packaging),
-                        inputs);
+                        jlink ? Stream.concat(Stream.of("jlink"), inputs) : inputs);
             }
         };
     }
@@ -212,6 +209,12 @@ public record JavaMultiProjectAssembler(boolean process,
                     jpackage.setProperty("--main-jar", Jar.Sort.CLASSES.getFile());
                     jpackage.setProperty("--main-class", main);
                 }
+                if (version != null) {
+                    String appVersion = appVersion(version);
+                    if (appVersion != null) {
+                        jpackage.setProperty("--app-version", appVersion);
+                    }
+                }
                 jpackage.store(processFolder.resolve("jpackage.properties"));
             }
             if (moduleName != null) {
@@ -231,6 +234,22 @@ public record JavaMultiProjectAssembler(boolean process,
                 javac.store(processFolder.resolve("javac.properties"));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+
+        private static String appVersion(String version) {
+            int end = 0;
+            while (end < version.length()
+                    && (Character.isDigit(version.charAt(end)) || version.charAt(end) == '.')) {
+                end++;
+            }
+            String prefix = version.substring(0, end);
+            while (prefix.startsWith(".")) {
+                prefix = prefix.substring(1);
+            }
+            while (prefix.endsWith(".")) {
+                prefix = prefix.substring(0, prefix.length() - 1);
+            }
+            return prefix.isEmpty() ? null : prefix;
         }
     }
 }

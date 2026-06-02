@@ -158,11 +158,18 @@ module's `packages` step into `stage/packages/`, the staging analogue of `stage/
 and `stage/modular`.
 
 Rather than set that property on the command line, `build/Run.java` configures it
-**explicitly on the assembler** - `new JavaMultiProjectAssembler(false, null, "app-image")`,
+**explicitly on the assembler** - `new JavaMultiProjectAssembler().packaging("app-image")`,
 no `System.setProperty` - then builds the fixed `stage` target and launches the produced
 image, forwarding its own arguments to the packaged app's `main`:
 
     java build/Run.java ada lovelace
+
+Each demo also ships `build/RunNative.java`, the same launcher but packaging the
+platform's **fully bundled native installer** (`deb`/`rpm`, `exe`/`msi`, `dmg`/`pkg`)
+instead of an app-image - the single artifact you hand to a user to install rather than
+a directory you launch in place. It reports the produced package instead of running it,
+and needs the platform's packaging tooling on the PATH, so it is a local exercise rather
+than a CI one.
 
 The new idea is that **the build produces a runnable artifact, not just a jar**, and
 that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives both launching

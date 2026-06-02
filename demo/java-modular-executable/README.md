@@ -33,7 +33,8 @@ Layout
 
     demo/java-modular-executable
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- build/Run.java       stages with jpackage enabled, then runs the image
+    |-- build/Run.java       stages an app-image with jpackage, then runs it
+    |-- build/RunNative.java stages a fully bundled native installer (deb/exe/dmg) and reports it
     `-- sources/
         |-- module-info.java     module demo.modular.executable (@jenesis.main, requires org.slf4j, pinned)
         `-- sample/Sample.java   main(String[] args); uses org.slf4j via `import module org.slf4j;`
@@ -75,7 +76,7 @@ receive on its command line:
     java build/Run.java Ada Lovelace
 
 `Run.java` configures packaging directly on the assembler -
-`new JavaMultiProjectAssembler(false, null, "app-image")`, the in-code equivalent of
+`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
 `-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
 then reads the image folder from the `stage/packages` entry of the map that
 `build("stage")` returns (a fixed build target) and launches the produced platform
@@ -89,17 +90,33 @@ classpath.) With no arguments it greets `world`. Building the plain
 `java build/jenesis/Project.java` (no `package` property) compiles and jars the
 module exactly as `../java-modular` does, without producing an image.
 
-Pure modular layout
--------------------
+Fully bundled native installer
+------------------------------
 
-Like `../java-modular`, this demo auto-detects **MODULAR_TO_MAVEN** (a modular jar
-plus a generated `pom.xml`, dependencies resolved via Maven-coordinate translation).
-To build and package under the pure **MODULAR** layout instead - dependencies resolved
-purely by Java module name, and a modular jar with no `pom.xml` - pass the layout
-override on the same `Run.java` invocation, since `Run.java` calls `resolveProperties()`
-which honors it:
+`Run.java` builds an `app-image` - a directory you launch in place. Its sibling
+`build/RunNative.java` instead builds the platform's **native installer**: the single
+artifact you hand to a user to install. It follows the same shape as `Run.java` - the
+packaging type set explicitly on the assembler, the fixed `stage` target built, the
+result read from the fixed `stage/packages` key - and only the last step differs: a
+native installer is a deliverable to install, not a program to launch in place, so it
+reports the produced package rather than running it.
 
-    java -Djenesis.project.layout=modular build/Run.java Ada Lovelace
+    java build/RunNative.java
 
-The packaged application image is identical either way; only the resolve and whether a
-`pom.xml` is emitted differ.
+The packaging type is chosen for the host - `deb` on Linux, `exe` on Windows, `dmg` on
+macOS. On Linux it prints:
+
+    Built a fully bundled deb installer under target/stage/packages/output:
+      demo.modular.executable_0_amd64.deb (13 MiB)
+    Unlike the app-image, this is a deliverable to install with the platform's package manager, not a directory to launch in place.
+
+This package is much smaller than the classpath sibling `../java-pom-executable`
+produces (tens of megabytes): because this is a modular application, jpackage's internal
+`jlink` trims the bundled runtime down to the module graph (`demo.modular.executable`,
+`org.slf4j`, `java.base`), rather than bundling a full runtime.
+
+Producing a native installer needs the platform's packaging tooling on the PATH (Linux:
+`dpkg-deb`/`fakeroot` for `deb`, `rpmbuild` for `rpm`; Windows: the WiX Toolset; macOS:
+the bundled `productbuild`/`hdiutil`). For that reason it is run locally rather than in
+CI, where `Run.java`'s app-image - which needs no native tooling - covers the packaging
+path.

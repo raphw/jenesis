@@ -59,6 +59,28 @@ public class JavaMultiProjectAssemblerTest {
     }
 
     @Test
+    public void snapshot_version_is_sanitized_for_jpackage_app_version() throws IOException {
+        Fixture fixture = setUp("main=com.example.Entry\n", false, false, false);
+        Files.writeString(fixture.manifests().resolve(BuildStep.METADATA), "artifact=demo\nversion=0-SNAPSHOT\n");
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties jpackageArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jpackage.properties"));
+        assertThat(jpackageArguments.getProperty("--app-version"))
+                .as("jpackage rejects qualifiers like -SNAPSHOT on Windows, so only the dotted numeric prefix is passed")
+                .isEqualTo("0");
+    }
+
+    @Test
+    public void non_numeric_version_yields_no_jpackage_app_version() throws IOException {
+        Fixture fixture = setUp("main=com.example.Entry\n", false, false, false);
+        Files.writeString(fixture.manifests().resolve(BuildStep.METADATA), "artifact=demo\nversion=RELEASE\n");
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties jpackageArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jpackage.properties"));
+        assertThat(jpackageArguments.stringPropertyNames())
+                .as("a version with no dotted numeric prefix leaves jpackage to its own default")
+                .doesNotContain("--app-version");
+    }
+
+    @Test
     public void absent_main_in_module_properties_yields_no_jpackage_arguments() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false);
         Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");

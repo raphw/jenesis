@@ -35,7 +35,6 @@ jobs:
           - { name: java-modular-jmod-jlink, dir: java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: java-pom-executable, entry: build/Run.java }
           - { name: java-modular-executable, dir: java-modular-executable, entry: build/Run.java }
-          - { name: java-modular-executable-as-modular, dir: java-modular-executable, entry: build/Run.java, flags: -Djenesis.project.layout=modular }
           - { name: kotlin, dir: kotlin, entry: build/jenesis/Project.java }
           - { name: scala, dir: scala, entry: build/jenesis/Project.java }
           - { name: groovy, dir: groovy, entry: build/jenesis/Project.java }
