@@ -10,11 +10,10 @@ service provider) that `InternalModule` loads straight from local source - and
 that build module uses an **external dependency** (`org.json`) to drive the
 substitution.
 
-> **Status:** this demo currently fails at the `preprocess/substitute` step. The
-> plugin's `build.jenesis` dependency is resolved from the default Jenesis
-> repository, whose published `build.jenesis` lags the local sources the host
-> runs against, so the class-loader bridge rejects the version mismatch. It will
-> work once a matching `build.jenesis` is released.
+The plugin's `build.jenesis` dependency resolves from the default Jenesis
+repository as the published `0.3.0` artifact (pinned via the `@tool/build.jenesis`
+tag in `sources/module-info.java`), whose API matches the local sources the host
+runs against, so the class-loader bridge loads it without complaint.
 
 Layout
 ------

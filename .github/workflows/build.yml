@@ -11,10 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # internal-module and external-module are omitted until the next
-        # build.jenesis release: they load a build module through the
-        # class-loader bridge, which currently rejects the overlay's older
-        # build.jenesis against the local sources.
+        # internal-module and external-module load a build module through the
+        # class-loader bridge. Their plugin pins build.jenesis to a published
+        # release (@tool/build.jenesis in sources/module-info.java) whose API
+        # matches the local sources, so the bridge loads it without complaint.
         #
         # The `-as-modular` entries force the pure MODULAR layout
         # (-Djenesis.project.layout=modular) on the same sources that otherwise
@@ -41,6 +41,8 @@ jobs:
           - { name: custom-assembler, dir: custom-assembler, entry: build/Demo.java }
           - { name: custom-jmod, dir: custom-jmod, entry: build/Demo.java }
           - { name: custom-build, dir: custom-build, entry: build/Demo.java }
+          - { name: internal-module, dir: internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: external-module, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
