@@ -46,7 +46,7 @@ public class JModTest {
                         bundle,
                         Map.of(Path.of("classes/module-info.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "sample.jmod")).isNotEmptyFile();
+        assertThat(next.resolve(JMod.JMODS + "sample.jmod")).isNotEmptyFile();
     }
 
     @ParameterizedTest
@@ -60,6 +60,6 @@ public class JModTest {
                         bundle,
                         Map.of(Path.of("classes/Sample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS)).doesNotExist();
+        assertThat(next.resolve(JMod.JMODS)).doesNotExist();
     }
 }

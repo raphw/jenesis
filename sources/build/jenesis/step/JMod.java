@@ -7,6 +7,8 @@ import build.jenesis.BuildStepContext;
 
 public class JMod extends JdkProcessBuildStep {
 
+    public static final String JMODS = "jmods/";
+
     protected JMod(Function<List<String>, ? extends ProcessHandler> factory) {
         super("jmod", factory);
     }
@@ -48,7 +50,7 @@ public class JMod extends JdkProcessBuildStep {
                         "Path entry contains separator '" + File.pathSeparator + "': " + entry);
             }
         }
-        Path target = Files.createDirectory(context.next().resolve(BuildStep.ARTIFACTS));
+        Path target = Files.createDirectory(context.next().resolve(JMODS));
         return CompletableFuture.completedStage(new ArrayList<>(List.of(
                 "create",
                 "--class-path", String.join(File.pathSeparator, path),
