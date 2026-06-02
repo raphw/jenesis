@@ -400,6 +400,14 @@ tree(s) by walking every per-module `inventory.properties` the assembler produce
   stale one behind; sibling version directories (e.g. `<module>/0.9/` while exporting `<module>/1.0.0/`) are
   untouched.
 
+In either modular layout the staged tree includes a produced `.jmod` (the `jmod` step's output, which
+`ModularStaging` hardlinks beside the jar), so `export` publishes the `.jmod` to `~/.jenesis` alongside the
+jar without any extra step. A downstream Jenesis project then consumes it by resolving the `<module>:jmod`
+coordinate, which `JenesisModuleRepository` serves from the published `.jmod` and otherwise falls back to
+the jar - the cross-project half of the link-time propagation described in the `jmods/` row of the
+conventions table. The producer publishes the jmod automatically (whenever the `jmod` step ran); only the
+consumer opts in, by requesting the `:jmod` qualifier rather than the default jar.
+
 Run `java build/jenesis/Project.java stage` to materialize that tree (it's the canonical entry point for
 release publishing - see [The stage step](#the-stage-step) for the full release pipeline).
 
