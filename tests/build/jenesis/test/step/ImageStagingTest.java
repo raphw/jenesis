@@ -6,12 +6,12 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
-import build.jenesis.step.PackageStaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class PackageStagingTest {
+public class ImageStagingTest {
 
     @TempDir
     private Path root;
@@ -55,6 +55,26 @@ public class PackageStagingTest {
     }
 
     @Test
+    public void stages_under_the_configured_inventory_key() throws IOException {
+        Path folder = Files.createDirectory(source.resolve("module"));
+        Path image = folder.resolve("runtime");
+        Files.createDirectories(image.resolve("bin"));
+        Files.writeString(image.resolve("bin").resolve("java"), "launcher");
+        SequencedProperties inventory = new SequencedProperties();
+        inventory.setProperty("module.image", "runtime");
+        inventory.store(folder.resolve(Inventory.INVENTORY));
+
+        BuildStepResult result = new ImageStaging("image").apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("module", new BuildStepArgument(folder, Map.of()))))
+                .toCompletableFuture()
+                .join();
+
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve("bin/java")).hasContent("launcher");
+    }
+
+    @Test
     public void arguments_without_inventory_are_skipped() throws IOException {
         Path stray = Files.createDirectory(source.resolve("stray"));
         Files.createDirectories(stray.resolve("packages").resolve("app"));
@@ -83,7 +103,7 @@ public class PackageStagingTest {
         for (Path folder : inventoryFolders) {
             arguments.put(folder.getFileName().toString(), new BuildStepArgument(folder, Map.of()));
         }
-        return new PackageStaging().apply(Runnable::run,
+        return new ImageStaging("package").apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         arguments)
                 .toCompletableFuture()

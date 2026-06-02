@@ -40,12 +40,14 @@ public class ModularStaging implements BuildStep {
             if (moduleName == null) {
                 throw new IllegalStateException("Missing 'module' in inventory: " + inventoryFile);
             }
-            Path artifact = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".artifacts"),
-                    prefix, "artifacts", true, inventoryFile);
-            Path sources = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".sources"),
-                    prefix, "sources", false, inventoryFile);
-            Path javadoc = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".documentation"),
-                    prefix, "documentation", false, inventoryFile);
+            Path artifact = single(Inventory.paths(inventory, argument.folder(), prefix + ".artifacts"),
+                    prefix, "artifacts", true, ".jar", inventoryFile);
+            Path sources = single(Inventory.paths(inventory, argument.folder(), prefix + ".sources"),
+                    prefix, "sources", false, ".jar", inventoryFile);
+            Path javadoc = single(Inventory.paths(inventory, argument.folder(), prefix + ".documentation"),
+                    prefix, "documentation", false, ".jar", inventoryFile);
+            Path jmod = single(Inventory.paths(inventory, argument.folder(), prefix + ".jmod"),
+                    prefix, "jmod", false, ".jmod", inventoryFile);
             String version = inventory.getProperty(prefix + ".version");
             Path target = version == null
                     ? context.next().resolve(moduleName)
@@ -54,6 +56,7 @@ public class ModularStaging implements BuildStep {
             link(artifact, target.resolve(moduleName + ".jar"));
             link(sources, target.resolve(moduleName + "-sources.jar"));
             link(javadoc, target.resolve(moduleName + "-javadoc.jar"));
+            link(jmod, target.resolve(moduleName + ".jmod"));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
@@ -68,11 +71,12 @@ public class ModularStaging implements BuildStep {
         throw new IllegalStateException("Inventory contains no prefixed keys: " + file);
     }
 
-    private static Path singleJar(List<Path> entries,
-                                  String prefix,
-                                  String kind,
-                                  boolean required,
-                                  Path inventoryFile) {
+    private static Path single(List<Path> entries,
+                               String prefix,
+                               String kind,
+                               boolean required,
+                               String extension,
+                               Path inventoryFile) {
         if (entries.isEmpty()) {
             if (required) {
                 throw new IllegalStateException("Missing '"
@@ -84,15 +88,15 @@ public class ModularStaging implements BuildStep {
             }
             return null;
         }
-        List<Path> jars = new ArrayList<>();
+        List<Path> matches = new ArrayList<>();
         for (Path candidate : entries) {
-            if (candidate.getFileName().toString().endsWith(".jar") && Files.isRegularFile(candidate)) {
-                jars.add(candidate);
+            if (candidate.getFileName().toString().endsWith(extension) && Files.isRegularFile(candidate)) {
+                matches.add(candidate);
             }
         }
-        if (jars.isEmpty()) {
+        if (matches.isEmpty()) {
             if (required) {
-                throw new IllegalStateException("No '.jar' file listed in '"
+                throw new IllegalStateException("No '" + extension + "' file listed in '"
                         + prefix
                         + "."
                         + kind
@@ -103,19 +107,21 @@ public class ModularStaging implements BuildStep {
             }
             return null;
         }
-        if (jars.size() > 1) {
-            throw new IllegalStateException((required ? "Expected exactly one '.jar' in '" : "Expected at most one '.jar' in '")
+        if (matches.size() > 1) {
+            throw new IllegalStateException((required ? "Expected exactly one '" : "Expected at most one '")
+                    + extension
+                    + "' in '"
                     + prefix
                     + "."
                     + kind
                     + "', got "
-                    + jars.size()
+                    + matches.size()
                     + " ("
-                    + jars
+                    + matches
                     + ") in inventory: "
                     + inventoryFile);
         }
-        return jars.getFirst();
+        return matches.getFirst();
     }
 
     private static void link(Path source, Path target) throws IOException {

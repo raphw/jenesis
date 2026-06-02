@@ -137,6 +137,26 @@ public class InventoryTest {
     }
 
     @Test
+    public void records_jmod_and_runtime_image_when_present() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path jmod = Files.writeString(
+                Files.createDirectory(produce.resolve("jmods")).resolve("demo.foo.jmod"), "jmod");
+        Path runtime = produce.resolve("runtime");
+        Files.createDirectories(runtime.resolve("bin"));
+        Files.writeString(runtime.resolve("release"), "JAVA_VERSION=25");
+
+        run(args("manifests", manifests, "produce", produce));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module.jmod.0")).isEqualTo(relativize(jmod));
+        assertThat(inventory.getProperty("module.image")).isEqualTo(relativize(runtime));
+    }
+
+    @Test
     public void records_tests_marker_for_test_module() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();

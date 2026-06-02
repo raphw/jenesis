@@ -27,6 +27,9 @@ public class JLink extends JdkProcessBuildStep {
                                                     SequencedMap<String, BuildStepArgument> arguments,
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
+        if (properties.values().stream().noneMatch(folder -> folder.containsKey("--add-modules"))) {
+            return CompletableFuture.completedStage(null);
+        }
         List<String> path = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
             for (String moduleFolder : List.of(JMod.JMODS, BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {

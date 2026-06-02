@@ -22,8 +22,8 @@ import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.Bind;
+import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
-import build.jenesis.step.PackageStaging;
 
 public record Project(
         Path root,
@@ -92,7 +92,7 @@ public record Project(
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
-                stage.addStep("packages", new PackageStaging(), inherited.sequencedKeySet());
+                stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven"), STAGE);
@@ -146,7 +146,8 @@ public record Project(
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
-                stage.addStep("packages", new PackageStaging(), inherited.sequencedKeySet());
+                stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
+                stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular"), STAGE);
@@ -206,7 +207,8 @@ public record Project(
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
-                stage.addStep("packages", new PackageStaging(), inherited.sequencedKeySet());
+                stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
+                stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> {
                 export.addStep("maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven");

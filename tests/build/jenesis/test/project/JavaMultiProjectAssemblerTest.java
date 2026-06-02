@@ -83,6 +83,47 @@ public class JavaMultiProjectAssemblerTest {
     }
 
     @Test
+    public void module_in_module_properties_yields_add_modules_for_jlink() throws IOException {
+        Fixture fixture = setUp("module=foo\n", false, false, false);
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties jlinkArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jlink.properties"));
+        assertThat(jlinkArguments.getProperty("--add-modules")).isEqualTo("foo");
+    }
+
+    @Test
+    public void absent_module_in_module_properties_yields_no_jlink_arguments() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false);
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        assertThat(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("jlink.properties")).doesNotExist();
+    }
+
+    @Test
+    public void jmod_flag_enabled_packages_a_module_archive() throws IOException {
+        Fixture fixture = setUp("module=foo\n", false, false, false, null, true, false);
+        Files.writeString(
+                Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES)).resolve("module-info.java"),
+                "module foo { }\n");
+        Path jmodOutput = fixture.execute("sub/jmod").get("sub/jmod");
+        assertThat(jmodOutput.resolve("jmods").resolve("foo.jmod")).isNotEmptyFile();
+    }
+
+    @Test
+    public void jmod_flag_disabled_omits_jmod_step() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false);
+        assertThatThrownBy(() -> fixture.execute("sub/jmod"))
+                .rootCause()
+                .hasMessage("Unknown selector: jmod");
+    }
+
+    @Test
+    public void jlink_flag_disabled_omits_jlink_step() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false);
+        assertThatThrownBy(() -> fixture.execute("sub/jlink"))
+                .rootCause()
+                .hasMessage("Unknown selector: jlink");
+    }
+
+    @Test
     public void source_flag_enabled_adds_sources_jar_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, true, false);
         Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES));
@@ -142,7 +183,7 @@ public class JavaMultiProjectAssemblerTest {
                           boolean tests,
                           boolean source,
                           boolean documentation) throws IOException {
-        return setUp(moduleProperties, tests, source, documentation, null);
+        return setUp(moduleProperties, tests, source, documentation, null, false, false);
     }
 
     private Fixture setUp(String moduleProperties,
@@ -150,6 +191,16 @@ public class JavaMultiProjectAssemblerTest {
                           boolean source,
                           boolean documentation,
                           String packageType) throws IOException {
+        return setUp(moduleProperties, tests, source, documentation, packageType, false, false);
+    }
+
+    private Fixture setUp(String moduleProperties,
+                          boolean tests,
+                          boolean source,
+                          boolean documentation,
+                          String packageType,
+                          boolean jmod,
+                          boolean jlink) throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
@@ -200,7 +251,7 @@ public class JavaMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType).apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType, jmod, jlink).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),

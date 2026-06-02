@@ -61,6 +61,20 @@ public class JLinkTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    public void skips_when_no_add_modules_is_configured(boolean process) throws IOException {
+        Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("sample.jar"), "jar");
+        BuildStepResult result = (process ? JLink.process() : JLink.tool()).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
+                        bundle,
+                        Map.of(Path.of("artifacts/sample.jar"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(JLink.RUNTIME)).doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     public void skips_when_no_modules_are_present(boolean process) throws IOException {
         BuildStepResult result = (process ? JLink.process() : JLink.tool()).apply(
                 Runnable::run,

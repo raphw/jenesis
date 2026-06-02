@@ -44,6 +44,23 @@ public class ModularStagingTest {
     }
 
     @Test
+    public void stages_jmod_alongside_module_jar() throws IOException {
+        Path folder = Files.createDirectory(source.resolve("foo"));
+        SequencedProperties inventory = new SequencedProperties();
+        inventory.setProperty("module-foo.module", "demo.foo");
+        inventory.setProperty("module-foo.artifacts.0", "artifacts/classes.jar");
+        inventory.setProperty("module-foo.jmod.0", "jmods/demo.foo.jmod");
+        inventory.store(folder.resolve(Inventory.INVENTORY));
+        Files.writeString(Files.createDirectory(folder.resolve("artifacts")).resolve("classes.jar"), "jar");
+        Files.writeString(Files.createDirectory(folder.resolve("jmods")).resolve("demo.foo.jmod"), "jmod");
+
+        run(false, folder);
+
+        assertThat(next.resolve("demo.foo/demo.foo.jar")).hasContent("jar");
+        assertThat(next.resolve("demo.foo/demo.foo.jmod")).hasContent("jmod");
+    }
+
+    @Test
     public void inserts_version_segment_when_inventory_version_is_set() throws IOException {
         Path inv = inventory("jenesis", "build.jenesis", null, "1.0.0",
                 "classes.jar", "sources.jar", "javadoc.jar");

@@ -20,7 +20,9 @@ jobs:
         # (-Djenesis.project.layout=modular) on the same sources that otherwise
         # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
         # `*-executable` demos run their build/Run.java launcher, which stages a
-        # jpackage app-image and runs it.
+        # jpackage app-image and runs it. The `-jmod-jlink` entry enables the jmod
+        # and jlink steps and stages their results (a .jmod beside the modular jar
+        # and a jlink runtime image under stage/runtime).
         demo:
           - { name: java-pom, dir: java-pom, entry: build/jenesis/Project.java }
           - { name: java-modular, dir: java-modular, entry: build/jenesis/Project.java }
@@ -28,6 +30,7 @@ jobs:
           - { name: java-pom-multi, dir: java-pom-multi, entry: build/jenesis/Project.java }
           - { name: java-modular-multi, dir: java-modular-multi, entry: build/jenesis/Project.java }
           - { name: java-modular-multi-as-modular, dir: java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          - { name: java-modular-jmod-jlink, dir: java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: java-pom-executable, entry: build/Run.java }
           - { name: java-modular-executable, dir: java-modular-executable, entry: build/Run.java }
           - { name: java-modular-executable-as-modular, dir: java-modular-executable, entry: build/Run.java, flags: -Djenesis.project.layout=modular }

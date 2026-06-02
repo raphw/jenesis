@@ -9,6 +9,8 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.JLink;
+import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
@@ -16,14 +18,18 @@ import build.jenesis.step.ProcessBuildStep;
 
 public record JavaMultiProjectAssembler(boolean process,
                                         String filter,
-                                        String packaging) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        String packaging,
+                                        boolean jmod,
+                                        boolean jlink) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
         boolean isNativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
         String packaging = System.getProperty("jenesis.java.package");
         this(isNativeImage || Boolean.getBoolean("jenesis.java.process"),
                 System.getProperty("jenesis.java.test"),
-                packaging != null && packaging.isEmpty() ? "app-image" : packaging);
+                packaging != null && packaging.isEmpty() ? "app-image" : packaging,
+                Boolean.getBoolean("jenesis.java.jmod"),
+                Boolean.getBoolean("jenesis.java.jlink"));
     }
 
     @Override
@@ -82,6 +88,16 @@ public record JavaMultiProjectAssembler(boolean process,
                                 Stream.of("prepare", "java"),
                                 descriptor.artifacts(DependencyScope.RUNTIME).stream()));
             }
+            if (jmod) {
+                sub.addStep("jmod", process ? JMod.process() : JMod.tool(), "java");
+            }
+            if (jlink) {
+                sub.addStep("jlink",
+                        process ? JLink.process() : JLink.tool(),
+                        Stream.concat(
+                                Stream.of("prepare", "java"),
+                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
+            }
         };
     }
 
@@ -106,14 +122,21 @@ public record JavaMultiProjectAssembler(boolean process,
             String main = null;
             String version = null;
             String artifact = null;
+            String moduleName = null;
             for (BuildStepArgument argument : arguments.values()) {
-                if (main == null) {
-                    Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
-                    if (Files.isRegularFile(moduleFile)) {
-                        SequencedProperties module = SequencedProperties.ofFiles(moduleFile);
+                Path moduleFile = argument.folder().resolve(BuildStep.MODULE);
+                if (Files.isRegularFile(moduleFile)) {
+                    SequencedProperties module = SequencedProperties.ofFiles(moduleFile);
+                    if (main == null) {
                         String value = module.getProperty("main");
                         if (value != null && !value.isEmpty()) {
                             main = value;
+                        }
+                    }
+                    if (moduleName == null) {
+                        String value = module.getProperty("module");
+                        if (value != null && !value.isEmpty()) {
+                            moduleName = value;
                         }
                     }
                 }
@@ -147,6 +170,14 @@ public record JavaMultiProjectAssembler(boolean process,
                 jpackage.setProperty("--main-jar", Jar.Sort.CLASSES.getFile());
                 jpackage.setProperty("--main-class", main);
                 jpackage.store(processFolder.resolve("jpackage.properties"));
+            }
+            if (moduleName != null) {
+                if (processFolder == null) {
+                    processFolder = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+                }
+                SequencedProperties jlink = new SequencedProperties();
+                jlink.setProperty("--add-modules", moduleName);
+                jlink.store(processFolder.resolve("jlink.properties"));
             }
             if (version != null) {
                 if (processFolder == null) {

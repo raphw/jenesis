@@ -7,24 +7,31 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
 
-public class PackageStaging implements BuildStep {
+public class ImageStaging implements BuildStep {
+
+    private final String key;
+
+    public ImageStaging(String key) {
+        this.key = key;
+    }
 
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
+        String suffix = "." + key;
         for (BuildStepArgument argument : arguments.values()) {
             Path inventoryFile = argument.folder().resolve(Inventory.INVENTORY);
             if (!Files.isRegularFile(inventoryFile)) {
                 continue;
             }
             SequencedProperties inventory = SequencedProperties.ofFiles(inventoryFile);
-            for (String key : inventory.stringPropertyNames()) {
-                if (!key.endsWith(".package")) {
+            for (String entry : inventory.stringPropertyNames()) {
+                if (!entry.endsWith(suffix)) {
                     continue;
                 }
-                Path image = argument.folder().resolve(inventory.getProperty(key)).normalize();
+                Path image = argument.folder().resolve(inventory.getProperty(entry)).normalize();
                 if (!Files.isDirectory(image)) {
                     continue;
                 }

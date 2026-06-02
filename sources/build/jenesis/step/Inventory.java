@@ -22,7 +22,9 @@ public class Inventory implements BuildStep {
                 Path.of(SOURCES),
                 Path.of(DOCUMENTATION),
                 Path.of(DEPENDENCIES),
-                Path.of(JPackage.PACKAGES)));
+                Path.of(JPackage.PACKAGES),
+                Path.of(JMod.JMODS),
+                Path.of(JLink.RUNTIME)));
     }
 
     @Override
@@ -38,9 +40,11 @@ public class Inventory implements BuildStep {
         Path pomFile = null;
         boolean modular = false;
         Path image = null;
+        Path runtimeImage = null;
         SequencedSet<Path> artifacts = new LinkedHashSet<>();
         SequencedSet<Path> sources = new LinkedHashSet<>();
         SequencedSet<Path> documentation = new LinkedHashSet<>();
+        SequencedSet<Path> jmods = new LinkedHashSet<>();
         SequencedMap<String, Path> closureJars = new LinkedHashMap<>();
         SequencedMap<String, String> closureScopes = new LinkedHashMap<>();
         SequencedMap<String, String> closureChecksums = new LinkedHashMap<>();
@@ -86,6 +90,11 @@ public class Inventory implements BuildStep {
             if (image == null && Files.isDirectory(packages)) {
                 image = packages;
             }
+            collect(folder.resolve(JMod.JMODS), jmods);
+            Path runtime = folder.resolve(JLink.RUNTIME);
+            if (runtimeImage == null && Files.isDirectory(runtime)) {
+                runtimeImage = runtime;
+            }
             collectClosure(folder, closureJars, closureScopes, closureChecksums);
         }
         String prefix = ((path == null || path.isEmpty()) ? "module" : "module-" + path) + ".";
@@ -110,8 +119,12 @@ public class Inventory implements BuildStep {
         writePaths(inventory, context, prefix + "artifacts", artifacts);
         writePaths(inventory, context, prefix + "sources", sources);
         writePaths(inventory, context, prefix + "documentation", documentation);
+        writePaths(inventory, context, prefix + "jmod", jmods);
         if (image != null) {
             inventory.setProperty(prefix + "package", relativize(context, image));
+        }
+        if (runtimeImage != null) {
+            inventory.setProperty(prefix + "image", relativize(context, runtimeImage));
         }
         if (pomFile != null) {
             inventory.setProperty(prefix + "pom", relativize(context, pomFile));
