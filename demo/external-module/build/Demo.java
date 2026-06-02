@@ -71,7 +71,6 @@ public class Demo {
                         new JavaMultiProjectAssembler(),
                         Map.of("module", repository),
                         Map.of("module", new ModularJarResolver(true))))
-                .resolveProperties()
                 .build(args);
     }
 

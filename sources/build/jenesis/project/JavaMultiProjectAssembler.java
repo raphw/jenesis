@@ -127,11 +127,15 @@ public record JavaMultiProjectAssembler(boolean process,
                                 descriptor.artifacts(DependencyScope.RUNTIME).stream()));
             }
             if (packaging != null) {
+                Stream<String> inputs = Stream.concat(
+                        Stream.of("prepare", "java"),
+                        descriptor.artifacts(DependencyScope.RUNTIME).stream());
+                if (jlink) {
+                    inputs = Stream.concat(Stream.of("jlink"), inputs);
+                }
                 sub.addStep("jpackage",
                         process ? JPackage.process(packaging) : JPackage.tool(packaging),
-                        Stream.concat(
-                                Stream.of("prepare", "java"),
-                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
+                        inputs);
             }
         };
     }

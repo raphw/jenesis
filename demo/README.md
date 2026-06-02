@@ -50,7 +50,7 @@ Quick index
 | [`scala`](scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
 | [`groovy`](groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
 | [`custom-assembler`](custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
-| [`custom-jmod`](custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod` and `jlink` it into a runtime image | `java build/Demo.java`             |
+| [`custom-jmod`](custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod`, `jlink` it into a runtime, and `jpackage` that into a runnable app | `java build/Demo.java`             |
 | [`internal-module`](internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
 | [`external-module`](external-module/README.md)       | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
 | [`custom-maven`](custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
@@ -214,15 +214,18 @@ transformation is simply interposed in front of it. Any step that produces a
 same shape. This demo is launched with `java build/Demo.java`.
 
 [`custom-jmod`](custom-jmod/README.md) is a sibling example of the same wrapping technique, applied to a
-different extension point. It enables the stock `jmod` and `jlink` steps
-(`new JavaMultiProjectAssembler().jmod(true).jlink(true)`) and only *contributes an
-extra input*: a `config` step that emits a `jmodconfig/` directory, declared as the
-module's `content` with `descriptor.withContent("config")`. The stock `jmod` step
-depends on every step named in `content`, routes `jmodconfig/`/`jmodlibs/`/`jmodcmds/`
-to `jmod --config`/`--libs`/`--cmds`, and `jlink` links the resulting `.jmod` into a
-runtime image - no jmod/jlink wiring is duplicated in the wrapper. Because the config
-rides in the jmod's config section, `jlink` lays it into the runtime's `conf/` -
-content a jar cannot carry into a runtime. Also `java build/Demo.java`.
+different extension point. It enables the stock `jmod`, `jlink`, and `jpackage`
+steps (`new JavaMultiProjectAssembler().jmod(true).jlink(true).packaging("app-image")`)
+and only *contributes an extra input*: a `config` step that emits a `jmodconfig/`
+directory, declared as the module's `content` with `descriptor.withContent("config")`.
+The stock `jmod` step depends on every step named in `content`, routes
+`jmodconfig/`/`jmodlibs/`/`jmodcmds/` to `jmod --config`/`--libs`/`--cmds`; `jlink`
+links the resulting `.jmod` into a runtime image; and `jpackage`, seeing that runtime
+among its inputs, wraps it with `--runtime-image` instead of linking its own - no
+jmod/jlink/jpackage wiring is duplicated in the wrapper. Because the config rides in
+the jmod's config section, it travels `jmod -> jlink runtime -> jpackage image`, and
+the launched app reads it back from its own `<java.home>/conf/` - content a jar cannot
+carry into a packaged runtime. Also `java build/Demo.java`.
 
 7. Preprocessing in a reusable build module - [`internal-module`](internal-module/README.md), [`external-module`](external-module/README.md)
 ----------------------------------------------------------------------------------

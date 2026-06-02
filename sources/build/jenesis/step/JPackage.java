@@ -42,6 +42,26 @@ public class JPackage extends JdkProcessBuildStep {
         if (!modular && properties.values().stream().noneMatch(folder -> folder.containsKey("--main-jar"))) {
             return CompletableFuture.completedStage(null);
         }
+        Path runtime = null;
+        for (BuildStepArgument argument : arguments.values()) {
+            Path candidate = argument.folder().resolve(JLink.RUNTIME);
+            if (Files.isDirectory(candidate)) {
+                runtime = candidate;
+                break;
+            }
+        }
+        if (runtime != null) {
+            List<String> commands = new ArrayList<>();
+            if (type != null) {
+                commands.add("--type");
+                commands.add(type);
+            }
+            commands.add("--runtime-image");
+            commands.add(runtime.toString());
+            commands.add("--dest");
+            commands.add(Files.createDirectory(context.next().resolve(PACKAGES)).toString());
+            return CompletableFuture.completedStage(commands);
+        }
         Path input = Files.createDirectory(context.supplement().resolve("input"));
         SequencedMap<String, Path> staged = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {

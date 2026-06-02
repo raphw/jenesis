@@ -4,7 +4,9 @@
  *
  * The module itself is ordinary; everything interesting is in `build/Demo.java`,
  * which wraps the stock assembler to add a config file to the module's `.jmod`.
+ * Its `main` reads that config back from the runtime's `conf/` at run time.
  *
+ * @jenesis.main sample.Sample
  * @jenesis.release 25
  */
 module demo.config {

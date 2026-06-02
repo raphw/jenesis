@@ -16,18 +16,21 @@ import build.jenesis.step.JMod;
 
 /**
  * A custom assembler that packages extra, non-class content into a module's
- * `.jmod` and links it into a runtime image with `jlink` - showing why the jmod
- * form is worth more than a jar for a runtime image.
+ * `.jmod`, links it into a runtime image with `jlink`, and wraps that runtime in
+ * a self-contained application image with `jpackage` - showing the full chain by
+ * which a jmod's content reaches a packaged, runnable app.
  *
- * The stock assembler already produces a `.jmod` and a `jlink` runtime once
- * `jmod`/`jlink` are enabled. This wrapper only adds the additional input: a
- * `config` step that emits a `jmodconfig/` directory, declared as the module's
- * `content` so the stock `jmod` step depends on it and routes it to `jmod
- * --config`. No jmod/jlink wiring is duplicated here.
+ * The stock assembler already produces a `.jmod`, a `jlink` runtime, and a
+ * `jpackage` image once `jmod`/`jlink`/packaging are enabled. This wrapper only
+ * adds the additional input: a `config` step that emits a `jmodconfig/` directory,
+ * declared as the module's `content` so the stock `jmod` step depends on it and
+ * routes it to `jmod --config`. No jmod/jlink/jpackage wiring is duplicated here.
  *
  * Because the config rides in the `.jmod`'s config section, `jlink` places it into
- * the produced runtime's `conf/` directory - something a jar cannot do (a jar's
- * embedded resources stay inside the jar). Run it from this directory:
+ * the runtime's `conf/`, and `jpackage` - wired to bundle that very runtime via
+ * `--runtime-image` - carries it into the application image. The packaged app then
+ * reads it back from its own `<java.home>/conf/`, something a jar cannot do (a
+ * jar's embedded resources stay inside the jar). Run it from this directory:
  *
  *     java build/Demo.java
  */
@@ -35,18 +38,29 @@ public class Demo {
 
     static void main(String[] args) throws Exception {
         Project project = new Project()
-                .assembler(new ConfigJmodAssembler(new JavaMultiProjectAssembler().jmod(true).jlink(true)))
-                .resolveProperties();
-        project.build(args);
+                .assembler(new ConfigJmodAssembler(new JavaMultiProjectAssembler()
+                        .jmod(true)
+                        .jlink(true)
+                        .packaging("app-image")));
 
-        Path conf;
-        try (Stream<Path> walk = Files.walk(project.target())) {
-            conf = walk.filter(path -> path.endsWith(Path.of("runtime", "conf", "app.properties")))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("No jlink runtime with bundled config was produced"));
+        SequencedMap<String, Path> outputs = project.build("stage");
+        Path output = outputs.get("stage/packages");
+
+        String name = "demo.config";
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        Path launcher;
+        if (os.contains("win")) {
+            launcher = output.resolve(name).resolve(name + ".exe");
+        } else if (os.contains("mac")) {
+            launcher = output.resolve(name + ".app").resolve("Contents").resolve("MacOS").resolve(name);
+        } else {
+            launcher = output.resolve(name).resolve("bin").resolve(name);
         }
-        System.out.println("jlink placed the jmod's config into the runtime at " + conf + ":");
-        System.out.println(Files.readString(conf).strip());
+
+        List<String> command = new ArrayList<>();
+        command.add(launcher.toString());
+        command.addAll(List.of(args));
+        System.exit(new ProcessBuilder(command).inheritIO().start().waitFor());
     }
 
     private record ConfigJmodAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> delegate)

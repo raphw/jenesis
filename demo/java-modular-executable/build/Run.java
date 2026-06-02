@@ -26,8 +26,7 @@ public class Run {
         // JavaMultiProjectAssembler with its packaging type set, via the wither, to a
         // self-contained app-image.
         Project project = new Project()
-                .assembler(new JavaMultiProjectAssembler().packaging("app-image"))
-                .resolveProperties();
+                .assembler(new JavaMultiProjectAssembler().packaging("app-image"));
 
         // `stage/packages` is a fixed build target: building `stage` returns a map keyed
         // by the steps that ran, so the image folder is read straight from that map under

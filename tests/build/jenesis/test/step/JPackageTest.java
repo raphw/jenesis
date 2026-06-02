@@ -9,6 +9,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.JLink;
 import build.jenesis.step.JPackage;
 import sample.Sample;
 
@@ -107,6 +108,50 @@ public class JPackageTest {
                                 Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES + "Sample")).isDirectory();
+    }
+
+    @Test
+    public void wraps_jlink_runtime_via_runtime_image() throws IOException {
+        Path sources = Files.createDirectory(root.resolve("sources"));
+        Files.writeString(sources.resolve("module-info.java"), "module sample { }\n");
+        Files.writeString(Files.createDirectory(sources.resolve("sample")).resolve("Sample.java"),
+                "package sample; public class Sample { public static void main(String[] args) { } }\n");
+        Path classes = Files.createDirectory(root.resolve("classes"));
+        assertThat(ToolProvider.findFirst("javac").orElseThrow().run(System.out, System.err,
+                "-d", classes.toString(),
+                sources.resolve("module-info.java").toString(),
+                sources.resolve("sample/Sample.java").toString())).isZero();
+        Path modules = Files.createDirectory(root.resolve("modules"));
+        assertThat(ToolProvider.findFirst("jar").orElseThrow().run(System.out, System.err,
+                "--create", "--file", modules.resolve("sample.jar").toString(),
+                "-C", classes.toString(), ".")).isZero();
+        Path runtime = bundle.resolve(JLink.RUNTIME);
+        assertThat(ToolProvider.findFirst("jlink").orElseThrow().run(System.out, System.err,
+                "--module-path", modules.toString(),
+                "--add-modules", "sample",
+                "--output", runtime.toString())).isZero();
+        Files.writeString(Files.createDirectories(runtime.resolve("conf")).resolve("app.properties"),
+                "greeting=bundled\n");
+        SequencedProperties configuration = new SequencedProperties();
+        configuration.setProperty("--name", "Sample");
+        configuration.setProperty("--module", "sample/sample.Sample");
+        configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
+        BuildStepResult result = JPackage.tool("app-image").apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("runtime", new BuildStepArgument(
+                        bundle,
+                        Map.of(Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        Path image = next.resolve(JPackage.PACKAGES + "Sample");
+        assertThat(image).isDirectory();
+        Path bundled;
+        try (Stream<Path> walk = Files.walk(image)) {
+            bundled = walk.filter(path -> path.endsWith(Path.of("conf", "app.properties")))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("Bundled runtime config not found in " + image));
+        }
+        assertThat(bundled).content().contains("greeting=bundled");
     }
 
     @Test

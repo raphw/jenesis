@@ -33,7 +33,6 @@ public class Demo {
     static void main(String[] args) throws Exception {
         new Project()
                 .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler(), Path.of("plugin")))
-                .resolveProperties()
                 .build(args);
     }
 

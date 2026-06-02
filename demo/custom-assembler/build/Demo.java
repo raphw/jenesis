@@ -21,7 +21,6 @@ public class Demo {
         // jar, and test flow runs unchanged.
         new Project()
                 .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler()))
-                .resolveProperties()
                 .build(args);
     }
 
