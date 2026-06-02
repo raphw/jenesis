@@ -25,21 +25,28 @@ Layout
 How the wrapping works
 ----------------------
 
-`Demo.java` hands `Project` a `ConfigJmodAssembler` that wraps the stock
-`JavaMultiProjectAssembler`. The stock assembler compiles and jars the module
-unchanged; the wrapper then adds three steps as siblings:
+`Demo.java` hands `Project` a `ConfigJmodAssembler` that wraps a stock
+`JavaMultiProjectAssembler` with `jmod` and `jlink` enabled:
 
-    sub.addStep("config", new GenerateConfig());          // produces config/app.properties
-    sub.addStep("jmod", JMod.tool(), "java", "config");    // classes/ + config/  -> <module>.jmod
-    sub.addStep("jlink", JLink.tool(), "prepare", "jmod"); // <module>.jmod       -> runtime/
+    new ConfigJmodAssembler(new JavaMultiProjectAssembler().jmod(true).jlink(true))
 
-The only framework knowledge the wrapper relies on is a folder convention: the
-`JMod` step routes a predecessor's `config/` directory to `jmod --config` (and
-likewise `libs/` to `--libs`, `cmds/` to `--cmds`), exactly as it routes
-`classes/` to `--class-path`. So the custom `config` step just has to *produce* a
-`config/` directory and depend the `jmod` step on it; everything else is the stock
-`JMod` and `JLink` steps. `jlink` reads the module from the `.jmod` (not the jar)
-and gets its `--add-modules` root from the `prepare` step's `jlink.properties`.
+With those flags the stock assembler already adds the `jmod` and `jlink` steps and
+wires `jlink` to read the `.jmod`. The wrapper does not duplicate any of that. It
+adds exactly one thing, the extra input, and lets the stock pipeline consume it:
+
+    sub.addStep("config", new GenerateConfig());   // produces jmodconfig/app.properties
+    inner.accept(sub, inherited);                   // the stock java -> jmod -> jlink pipeline
+
+The link between the two is the module descriptor's `content` set. The wrapper
+calls `descriptor.withContent("config")` before delegating, and the stock `jmod`
+step depends on every step named in `content` in addition to `java`. The only
+other framework knowledge involved is a folder convention: the `JMod` step routes
+a predecessor's `jmodconfig/` directory to `jmod --config` (and likewise
+`jmodlibs/` to `--libs`, `jmodcmds/` to `--cmds`), exactly as it routes `classes/`
+to `--class-path`. So the custom `config` step just has to *produce* a
+`jmodconfig/` directory; the stock `jmod` and `jlink` steps do the rest. `jlink`
+reads the module from the `.jmod` (not the jar) and gets its `--add-modules` root
+from the `prepare` step's `jlink.properties`.
 
 Run it
 ------
@@ -48,7 +55,7 @@ From this directory:
 
     java build/Demo.java
 
-It builds the module, packs `classes/` plus `config/` into `demo.config.jmod`,
+It builds the module, packs `classes/` plus `jmodconfig/` into `demo.config.jmod`,
 links that jmod into a runtime image, and prints the config as `jlink` placed it
 into the runtime:
 

@@ -65,7 +65,9 @@ public record JavaMultiProjectAssembler(boolean process,
                                      Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers) {
         return (sub, outerInherited) -> {
-            sub.addStep("prepare", new Prepare(descriptor.modulePath()), outerInherited.sequencedKeySet().stream());
+            sub.addStep("prepare",
+                    new Prepare(descriptor.modulePath()),
+                    outerInherited.sequencedKeySet().stream());
             sub.addModule("java", new JavaToolchainModule(
                     new InferredCompilerChainModule(repositories, resolvers)
                             .process(process)
@@ -87,7 +89,8 @@ public record JavaMultiProjectAssembler(boolean process,
                 if (module != null) {
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
-                        sub.addModule("test", new TestModule(repositories, resolvers)
+                        sub.addModule("test",
+                                new TestModule(repositories, resolvers)
                                         .filter(filter)
                                         .strictPinning(descriptor.strictPinning())
                                         .modulePath(descriptor.modulePath())
@@ -97,7 +100,9 @@ public record JavaMultiProjectAssembler(boolean process,
                 }
             }
             if (descriptor.source()) {
-                sub.addStep("sources", process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES), descriptor.sources());
+                sub.addStep("sources",
+                        process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES),
+                        descriptor.sources());
             }
             if (descriptor.documentation()) {
                 sub.addModule("javadoc", (module, inherited) -> {
@@ -110,7 +115,9 @@ public record JavaMultiProjectAssembler(boolean process,
                 }, inputs(descriptor));
             }
             if (jmod) {
-                sub.addStep("jmod", process ? JMod.process() : JMod.tool(), "java");
+                sub.addStep("jmod",
+                        process ? JMod.process() : JMod.tool(),
+                        Stream.concat(Stream.of("java"), descriptor.content().stream()));
             }
             if (jlink) {
                 sub.addStep("jlink",

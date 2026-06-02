@@ -14,6 +14,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final SequencedSet<String> coordinates;
     private final Map<DependencyScope, SequencedSet<String>> artifacts;
     private final Map<DependencyScope, SequencedSet<String>> resolved;
+    private final SequencedSet<String> content;
     private final boolean test;
     private final boolean source;
     private final boolean documentation;
@@ -34,6 +35,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(base.coordinates()),
                 scopes(base::artifacts),
                 scopes(base::resolved),
+                Collections.emptyNavigableSet(),
                 test,
                 source,
                 documentation,
@@ -48,6 +50,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                                     SequencedSet<String> coordinates,
                                     Map<DependencyScope, SequencedSet<String>> artifacts,
                                     Map<DependencyScope, SequencedSet<String>> resolved,
+                                    SequencedSet<String> content,
                                     boolean test,
                                     boolean source,
                                     boolean documentation,
@@ -61,6 +64,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         this.coordinates = coordinates;
         this.artifacts = artifacts;
         this.resolved = resolved;
+        this.content = content;
         this.test = test;
         this.source = source;
         this.documentation = documentation;
@@ -77,6 +81,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 prefix(coordinates),
                 prefix(artifacts),
                 prefix(resolved),
+                prefix(content),
                 test,
                 source,
                 documentation,
@@ -97,6 +102,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -118,6 +124,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -143,6 +150,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -168,6 +176,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -193,6 +202,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -218,6 +228,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(coordinates),
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -245,6 +256,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 Collections.unmodifiableMap(replaced),
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -272,6 +284,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 Collections.unmodifiableMap(replaced),
+                content,
                 test,
                 source,
                 documentation,
@@ -281,6 +294,31 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor withResolved(DependencyScope scope, String... resolved) {
         return withResolved(scope, new LinkedHashSet<>(List.of(resolved)));
+    }
+
+    public SequencedSet<String> content() {
+        return content;
+    }
+
+    public ProjectModuleDescriptor withContent(SequencedSet<String> content) {
+        return new ProjectModuleDescriptor(name,
+                dependencies,
+                sources,
+                resources,
+                manifests,
+                coordinates,
+                artifacts,
+                resolved,
+                immutable(content),
+                test,
+                source,
+                documentation,
+                strictPinning,
+                modulePath);
+    }
+
+    public ProjectModuleDescriptor withContent(String... content) {
+        return withContent(new LinkedHashSet<>(List.of(content)));
     }
 
     public boolean test() {
@@ -296,6 +334,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -316,6 +355,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -336,6 +376,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -356,6 +397,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,
@@ -376,6 +418,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 coordinates,
                 artifacts,
                 resolved,
+                content,
                 test,
                 source,
                 documentation,

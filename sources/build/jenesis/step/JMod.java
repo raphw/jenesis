@@ -8,7 +8,7 @@ import build.jenesis.BuildStepContext;
 public class JMod extends JdkProcessBuildStep {
 
     public static final String JMODS = "jmods/";
-    public static final String CONFIG = "config/", LIBRARIES = "libs/", COMMANDS = "cmds/";
+    public static final String CONFIG = "jmodconfig/", LIBRARIES = "jmodlibs/", COMMANDS = "jmodcmds/";
 
     protected JMod(Function<List<String>, ? extends ProcessHandler> factory) {
         super("jmod", factory);

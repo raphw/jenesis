@@ -12,7 +12,6 @@ import build.jenesis.Resolver;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
-import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 
 /**
@@ -20,12 +19,11 @@ import build.jenesis.step.JMod;
  * `.jmod` and links it into a runtime image with `jlink` - showing why the jmod
  * form is worth more than a jar for a runtime image.
  *
- * The stock assembler compiles and jars the module as usual. This wrapper adds:
- *
- *   - a `config` step that produces a `config/` directory (the additional input),
- *   - a `jmod` step that packs the module's classes *and* that `config/` into a
- *     `.jmod` (the `JMod` step routes `config/` to `jmod --config`),
- *   - a `jlink` step that links the `.jmod` into a runtime image.
+ * The stock assembler already produces a `.jmod` and a `jlink` runtime once
+ * `jmod`/`jlink` are enabled. This wrapper only adds the additional input: a
+ * `config` step that emits a `jmodconfig/` directory, declared as the module's
+ * `content` so the stock `jmod` step depends on it and routes it to `jmod
+ * --config`. No jmod/jlink wiring is duplicated here.
  *
  * Because the config rides in the `.jmod`'s config section, `jlink` places it into
  * the produced runtime's `conf/` directory - something a jar cannot do (a jar's
@@ -37,7 +35,7 @@ public class Demo {
 
     static void main(String[] args) throws Exception {
         Project project = new Project()
-                .assembler(new ConfigJmodAssembler(new JavaMultiProjectAssembler()))
+                .assembler(new ConfigJmodAssembler(new JavaMultiProjectAssembler().jmod(true).jlink(true)))
                 .resolveProperties();
         project.build(args);
 
@@ -58,12 +56,10 @@ public class Demo {
         public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers) {
-            BuildExecutorModule inner = delegate.apply(descriptor, repositories, resolvers);
+            BuildExecutorModule inner = delegate.apply(descriptor.withContent("config"), repositories, resolvers);
             return (sub, inherited) -> {
-                inner.accept(sub, inherited);
                 sub.addStep("config", new GenerateConfig());
-                sub.addStep("jmod", JMod.tool(), "java", "config");
-                sub.addStep("jlink", JLink.tool(), "prepare", "jmod");
+                inner.accept(sub, inherited);
             };
         }
     }

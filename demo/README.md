@@ -57,7 +57,7 @@ Quick index
 | [`custom-modular`](custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
 | [`custom-build`](custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
 
-1. A single Maven project - `java-pom`
+1. A single Maven project - [`java-pom`](java-pom/README.md)
 ---------------------------------------
 
 Start here. `java-pom` is the smallest real build: a `pom.xml` and one Java
@@ -79,7 +79,7 @@ This demo introduces the two ideas every later one builds on:
 
 See [`java-pom/README.md`](java-pom/README.md) for the pinned POM in full.
 
-2. The same project as a module - `java-modular`
+2. The same project as a module - [`java-modular`](java-modular/README.md)
 ------------------------------------------------
 
 `java-modular` is the modular counterpart of `java-pom`: the only descriptor is
@@ -105,7 +105,7 @@ Compare `java-pom` and `java-modular` side by side: the same one-class project,
 expressed two ways, and Jenesis adapts the whole pipeline to the descriptor it
 finds.
 
-3. Many modules at once - `java-pom-multi` and `java-modular-multi`
+3. Many modules at once - [`java-pom-multi`](java-pom-multi/README.md) and [`java-modular-multi`](java-modular-multi/README.md)
 -------------------------------------------------------------------
 
 Real projects have more than one module. `java-pom-multi` is a Maven aggregator
@@ -135,7 +135,7 @@ way Jenesis detects the test engine from the resolved jars (JUnit 5), wires the
 JUnit Platform console runner automatically, and runs the tests as part of the
 build. Each demo's `README.md` covers the test wiring in full.
 
-4. Packaging a runnable application - `java-pom-executable`, `java-modular-executable`
+4. Packaging a runnable application - [`java-pom-executable`](java-pom-executable/README.md), [`java-modular-executable`](java-modular-executable/README.md)
 --------------------------------------------------------------------------------------
 
 A module that declares an entry point can be packaged into a **native, self-contained
@@ -168,7 +168,7 @@ The new idea is that **the build produces a runnable artifact, not just a jar**,
 that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives both launching
 and packaging through the same `module.properties` field.
 
-5. Other JVM languages - `kotlin`, `scala`, `groovy`
+5. Other JVM languages - [`kotlin`](kotlin/README.md), [`scala`](scala/README.md), [`groovy`](groovy/README.md)
 ----------------------------------------------------
 
 Jenesis drives non-Java compilers through the same inferred compiler chain, with
@@ -194,7 +194,7 @@ These three are quick reads; each `README.md` has the detail. (Each pins both it
 library dependency and its compiler toolchain on a qualified trail; see "Pinning"
 below.)
 
-6. Customizing the build - `custom-assembler`
+6. Customizing the build - [`custom-assembler`](custom-assembler/README.md)
 ---------------------------------------------
 
 The remaining demos open up the template. `custom-assembler` keeps the standard
@@ -213,15 +213,18 @@ transformation is simply interposed in front of it. Any step that produces a
 `sources/` tree (template expansion, code generation, license headers) fits the
 same shape. This demo is launched with `java build/Demo.java`.
 
-`custom-jmod` is a sibling example of the same wrapping technique, but instead of
-transforming sources it *appends* steps: a `config` step that produces extra
-content, a `jmod` step that packs the module's classes plus that `config/` into a
-`.jmod` (the `JMod` step routes `config/`/`libs/`/`cmds/` to `jmod --config`/`--libs`/`--cmds`),
-and a `jlink` step that links the `.jmod` into a runtime image. Because the config
+[`custom-jmod`](custom-jmod/README.md) is a sibling example of the same wrapping technique, applied to a
+different extension point. It enables the stock `jmod` and `jlink` steps
+(`new JavaMultiProjectAssembler().jmod(true).jlink(true)`) and only *contributes an
+extra input*: a `config` step that emits a `jmodconfig/` directory, declared as the
+module's `content` with `descriptor.withContent("config")`. The stock `jmod` step
+depends on every step named in `content`, routes `jmodconfig/`/`jmodlibs/`/`jmodcmds/`
+to `jmod --config`/`--libs`/`--cmds`, and `jlink` links the resulting `.jmod` into a
+runtime image - no jmod/jlink wiring is duplicated in the wrapper. Because the config
 rides in the jmod's config section, `jlink` lays it into the runtime's `conf/` -
 content a jar cannot carry into a runtime. Also `java build/Demo.java`.
 
-7. Preprocessing in a reusable build module - `internal-module`, `external-module`
+7. Preprocessing in a reusable build module - [`internal-module`](internal-module/README.md), [`external-module`](external-module/README.md)
 ----------------------------------------------------------------------------------
 
 `internal-module` does the same preprocessing as `custom-assembler`, but moves it
@@ -246,7 +249,7 @@ authored inline, loaded from source, or consumed as a versioned artifact.
 > against. They will work once a matching `build.jenesis` is released; see their
 > `README.md`s.
 
-8. Driving the build without `Project` - `custom-maven`, `custom-modular`
+8. Driving the build without `Project` - [`custom-maven`](custom-maven/README.md), [`custom-modular`](custom-modular/README.md)
 -------------------------------------------------------------------------
 
 The previous customizations still went through `Project`. These two go a step
@@ -270,7 +273,7 @@ adapted with a one-line wrapper so each discovered descriptor becomes a
 `Project` itself uses) when you need a custom repository, strict pinning, or a
 specific digest.
 
-9. Dropping the template entirely - `custom-build`
+9. Dropping the template entirely - [`custom-build`](custom-build/README.md)
 --------------------------------------------------
 
 The last demo removes `Project`, the layout, and the assembler altogether and

@@ -69,7 +69,7 @@ public class JModTest {
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
                         bundle,
                         Map.of(Path.of("classes/module-info.class"), ChecksumStatus.ADDED,
-                                Path.of("config/app.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Path.of("jmodconfig/app.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path jmod = next.resolve(JMod.JMODS + "sample.jmod");
         assertThat(jmod).isNotEmptyFile();
