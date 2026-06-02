@@ -7,6 +7,7 @@ import javax.tools.ToolProvider;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStepHashFunction;
+import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
@@ -318,6 +319,98 @@ public class ExternalModuleTest {
                 .rootCause()
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Multiple");
+    }
+
+    @Test
+    public void honors_pinned_version_and_checksum() throws IOException {
+        Path pluginJar = compileModule(work.resolve("plugin"),
+                work.resolve("plugin.jar"),
+                "module test.plugin { requires build.jenesis; provides build.jenesis.BuildExecutorModule with test.plugin.Plugin; }",
+                Map.of("test/plugin/Plugin.java", """
+                        package test.plugin;
+                        import build.jenesis.BuildExecutor;
+                        import build.jenesis.BuildExecutorModule;
+                        import build.jenesis.BuildStepResult;
+                        import java.nio.file.Files;
+                        import java.nio.file.Path;
+                        import java.util.SequencedMap;
+                        import java.util.concurrent.CompletableFuture;
+                        public class Plugin implements BuildExecutorModule {
+                            public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
+                                executor.addStep("marker", (e, context, args) -> {
+                                    Files.writeString(context.next().resolve("out.txt"), "hello");
+                                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                                });
+                            }
+                        }
+                        """));
+
+        buildExecutor.addStep("manifests", (e, context, args) -> {
+            Files.writeString(context.next().resolve("versions.properties"),
+                    "module@tool/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        });
+        buildExecutor.addModule("external", new ExternalModule(
+                "module/test.plugin",
+                "tool",
+                Map.of("module", versionInsensitive(Map.of(
+                        "test.plugin", pluginJar,
+                        "build.jenesis", jenesisJar))),
+                Map.of("module", new ModularJarResolver(true))), "manifests");
+
+        SequencedMap<String, Path> steps = buildExecutor.execute();
+        assertThat(steps.get("external/marker").resolve("out.txt")).content().isEqualTo("hello");
+    }
+
+    @Test
+    public void fails_when_pinned_checksum_mismatches() throws IOException {
+        Path pluginJar = compileModule(work.resolve("plugin"),
+                work.resolve("plugin.jar"),
+                "module test.plugin { requires build.jenesis; provides build.jenesis.BuildExecutorModule with test.plugin.Plugin; }",
+                Map.of("test/plugin/Plugin.java", """
+                        package test.plugin;
+                        import build.jenesis.BuildExecutor;
+                        import build.jenesis.BuildExecutorModule;
+                        import build.jenesis.BuildStepResult;
+                        import java.nio.file.Files;
+                        import java.nio.file.Path;
+                        import java.util.SequencedMap;
+                        import java.util.concurrent.CompletableFuture;
+                        public class Plugin implements BuildExecutorModule {
+                            public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
+                                executor.addStep("marker", (e, context, args) -> {
+                                    Files.writeString(context.next().resolve("out.txt"), "hello");
+                                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                                });
+                            }
+                        }
+                        """));
+
+        buildExecutor.addStep("manifests", (e, context, args) -> {
+            Files.writeString(context.next().resolve("versions.properties"),
+                    "module@tool/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        });
+        buildExecutor.addModule("external", new ExternalModule(
+                "module/test.plugin",
+                "tool",
+                Map.of("module", versionInsensitive(Map.of(
+                        "test.plugin", pluginJar,
+                        "build.jenesis", jenesisJar))),
+                Map.of("module", new ModularJarResolver(true))), "manifests");
+
+        assertThatThrownBy(() -> buildExecutor.execute())
+                .rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Mismatched digest");
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static Path compileModule(Path sourceDir,

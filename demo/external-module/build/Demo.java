@@ -90,6 +90,7 @@ public class Demo {
             // the project sources are simply forwarded to the plugin's runtime;
             // the substituted copy it emits stands in for them downstream.
             SequencedSet<String> original = descriptor.sources();
+            SequencedSet<String> manifests = descriptor.manifests();
             ProjectModuleDescriptor redirected = descriptor.withSources("preprocess/substitute");
             BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
             return (sub, inherited) -> {
@@ -98,7 +99,10 @@ public class Demo {
                         "tool",                             // qualifier: an independent trail
                         pluginRepositories,
                         pluginResolvers);
-                sub.addModule("preprocess", preprocess, original.stream());
+                // Forward the project's sources (to preprocess) and its manifests (the
+                // @tool/ pin map): ExternalModule reads the pins from the manifests and
+                // resolves the plugin's build.jenesis/org.json closure against them.
+                sub.addModule("preprocess", preprocess, Stream.concat(original.stream(), manifests.stream()));
                 inner.accept(sub, inherited);
             };
         }

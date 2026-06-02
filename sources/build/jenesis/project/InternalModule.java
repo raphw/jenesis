@@ -69,18 +69,33 @@ public class InternalModule implements BuildExecutorModule {
     }
 
     public InternalModule withDependencies(String... dependencies) {
-        return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                new LinkedHashSet<>(List.of(dependencies)),
+                buildModuleName,
+                qualifier);
     }
 
     public InternalModule withDependencies(SequencedSet<String> dependencies) {
-        return new InternalModule(prefix, source, repositories, resolvers,
-                new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                new LinkedHashSet<>(dependencies),
+                buildModuleName,
+                qualifier);
     }
 
     public InternalModule withBuildModuleName(String name) {
-        return new InternalModule(prefix, source, repositories, resolvers,
-                additionalDependencies, name, qualifier);
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                name,
+                qualifier);
     }
 
     @Override
@@ -106,7 +121,9 @@ public class InternalModule implements BuildExecutorModule {
         for (DependencyScope scope : DependencyScope.values()) {
             String requiresId = scope.label() + "-requires";
             boolean compile = scope == DependencyScope.COMPILE;
-            buildExecutor.addStep(requiresId, new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier), SOURCE);
+            buildExecutor.addStep(requiresId,
+                    new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier),
+                    Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
             buildExecutor.addModule(scope.label(),
                     new DependenciesModule(repositories, resolvers, compile, false,
                             qualifier == null ? null : "module:" + qualifier),
@@ -146,7 +163,15 @@ public class InternalModule implements BuildExecutorModule {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-            return arguments.get(SOURCE).hasChanged(Path.of(BuildStep.SOURCES + "module-info.java"));
+            if (arguments.get(SOURCE).hasChanged(Path.of(BuildStep.SOURCES + "module-info.java"))) {
+                return true;
+            }
+            for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
+                if (!argument.getKey().equals(SOURCE) && argument.getValue().hasChanged(Path.of(BuildStep.VERSIONS))) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override
@@ -170,7 +195,32 @@ public class InternalModule implements BuildExecutorModule {
                 properties.setProperty(Resolver.qualify(dependency, qualifier), "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
+            SequencedProperties versions = pinnedVersions(arguments, qualifier == null ? prefix : prefix + "@" + qualifier);
+            if (!versions.isEmpty()) {
+                versions.store(context.next().resolve(BuildStep.VERSIONS));
+            }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
+    }
+
+    private static SequencedProperties pinnedVersions(SequencedMap<String, BuildStepArgument> arguments, String pinned) throws IOException {
+        SequencedProperties versions = new SequencedProperties();
+        for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
+            if (argument.getKey().equals(SOURCE)) {
+                continue;
+            }
+            Path file = argument.getValue().folder().resolve(BuildStep.VERSIONS);
+            if (!Files.isRegularFile(file)) {
+                continue;
+            }
+            SequencedProperties present = SequencedProperties.ofFiles(file);
+            for (String coordinate : present.stringPropertyNames()) {
+                int slash = coordinate.indexOf('/');
+                if (slash > 0 && coordinate.substring(0, slash).equals(pinned)) {
+                    versions.setProperty(coordinate, present.getProperty(coordinate));
+                }
+            }
+        }
+        return versions;
     }
 }

@@ -1098,10 +1098,16 @@ Given a `<prefix>/<coordinate>` string, a `qualifier` (the pin trail to record t
 `ExternalModule` registers three internal nodes:
 
 - `coordinate` writes the requested coordinate (plus any added via `withDependencies(...)`) into a fresh
-  `requires.properties`.
+  `requires.properties`. It also scans its inherited inputs for a `versions.properties` and copies through
+  every entry on this module's own pin trail (`<prefix>` when the qualifier is `null`, `<prefix>@<qualifier>`
+  otherwise) as the plug-in's `versions.properties`, so the project's `@<qualifier>/<module> <version>
+  <checksum>` pins govern the version and integrity of the plug-in's resolved closure (including transitive
+  modules such as `build.jenesis` itself). To activate this, the host forwards its `manifests` step when
+  registering the module.
 - `dependencies` is an embedded `DependenciesModule` that resolves + downloads the coordinate's transitive
-  closure using the supplied repositories and resolvers. The plug-in's own `requires build.jenesis;` is
-  followed by the resolver, so its copy of Jenesis is fetched alongside its other dependencies.
+  closure using the supplied repositories and resolvers, pinning each coordinate to the forwarded versions
+  and validating its checksum on download. The plug-in's own `requires build.jenesis;` is followed by the
+  resolver, so its copy of Jenesis is fetched alongside its other dependencies.
 - `delegate` builds a fresh `ModuleLayer` over the downloaded jars and runs the plug-in's
   `BuildExecutorModule.accept(...)` against the same inherited folders `ExternalModule` itself received
   (see *Plug-in isolation* below).
@@ -1133,7 +1139,13 @@ with the local export prepended - and registers:
 - `compile-requires` and `runtime-requires` each parse the source's `module-info.java` and write a
   `requires.properties` for the corresponding scope (`requires` for compile, `requires` minus `static` for
   runtime). Each entry is keyed `<prefix>/<module-name>`, so the resolver under `prefix` can look it up.
-  Both steps re-run only when `sources/module-info.java` actually changes.
+  Both steps also scan their inherited inputs for a `versions.properties` and copy through every entry on
+  this module's own pin trail (`<prefix>` when the qualifier is `null`, `<prefix>@<qualifier>` otherwise)
+  as the plug-in's `versions.properties`, so the project's `@<qualifier>/<module> <version> <checksum>` pins
+  govern the version and integrity of the plug-in's resolved closure (the embedded `Resolve` pins the
+  version and `Download` validates the checksum). To activate this, the host forwards its `manifests` step
+  alongside the project sources when registering the module. Both steps re-run when `sources/module-info.java`
+  or a forwarded `versions.properties` changes.
 - `compile` and `runtime` are scope-specific `DependenciesModule` instances that download the two
   classpaths separately.
 - `java` is a `JavaToolchainModule` that compiles the source against the compile classpath.

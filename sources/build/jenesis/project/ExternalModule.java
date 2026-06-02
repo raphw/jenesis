@@ -78,7 +78,11 @@ public class ExternalModule implements BuildExecutorModule {
         for (String dependency : additionalDependencies) {
             coordinates.add(Resolver.qualify(dependency, qualifier));
         }
-        buildExecutor.addStep(COORDINATE, new WriteCoordinates(coordinates));
+        int slash = coordinate.indexOf('/');
+        String base = slash < 0 ? coordinate : coordinate.substring(0, slash);
+        buildExecutor.addStep(COORDINATE,
+                new WriteCoordinates(coordinates, qualifier == null ? base : base + "@" + qualifier),
+                inherited.sequencedKeySet().stream());
         buildExecutor.addModule(DEPENDENCIES,
                 new DependenciesModule(repositories, resolvers, false, false,
                         qualifier == null ? null : "module:" + qualifier),
@@ -105,7 +109,7 @@ public class ExternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record WriteCoordinates(List<String> coordinates) implements BuildStep {
+    private record WriteCoordinates(List<String> coordinates, String pinned) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -117,6 +121,23 @@ public class ExternalModule implements BuildExecutorModule {
                 properties.setProperty(coordinate, "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
+            SequencedProperties versions = new SequencedProperties();
+            for (BuildStepArgument argument : arguments.values()) {
+                Path file = argument.folder().resolve(BuildStep.VERSIONS);
+                if (!Files.isRegularFile(file)) {
+                    continue;
+                }
+                SequencedProperties present = SequencedProperties.ofFiles(file);
+                for (String coordinate : present.stringPropertyNames()) {
+                    int slash = coordinate.indexOf('/');
+                    if (slash > 0 && coordinate.substring(0, slash).equals(pinned)) {
+                        versions.setProperty(coordinate, present.getProperty(coordinate));
+                    }
+                }
+            }
+            if (!versions.isEmpty()) {
+                versions.store(context.next().resolve(BuildStep.VERSIONS));
+            }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
