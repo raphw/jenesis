@@ -78,6 +78,24 @@ public class ModularProjectTest {
     }
 
     @Test
+    public void resolves_root_module_despite_skip_marker() throws IOException {
+        Files.createFile(project.resolve(BuildExecutor.SKIP_MARKER));
+        Files.writeString(project.resolve("module-info.java"), """
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(results).containsKey("module/module-/sources");
+    }
+
+    @Test
     public void emits_versions_properties_from_javadoc_pins() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**

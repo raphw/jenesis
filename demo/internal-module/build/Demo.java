@@ -2,6 +2,7 @@ package build;
 
 import module java.base;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.Execute;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
@@ -27,13 +28,20 @@ import build.jenesis.project.ProjectModuleDescriptor;
  * Run from this directory with:
  *
  *     java build/Demo.java
+ *
+ * which builds the project (the plugin rewrites {@code ${greeting}} first) and
+ * then launches the built module, printing the substituted greeting.
  */
 public class Demo {
 
     static void main(String[] args) throws Exception {
-        new Project()
-                .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler(), Path.of("plugin")))
-                .build(args);
+        Project project = new Project()
+                .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler(), Path.of("plugin")));
+        // Build the project (running the substitution plugin) and launch the
+        // produced module so its main prints the rewritten greeting - the result
+        // the plugin set out to produce. Execute reads the build's inventory to
+        // find the module and its runtime, so nothing is located by hand.
+        System.exit(new Execute(project).execute(args));
     }
 
     private record PreprocessingAssembler(

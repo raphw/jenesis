@@ -41,16 +41,25 @@ From this directory:
 
     java build/Demo.java
 
+which builds the project and then launches the built module, printing the
+greeting the plugin substituted in:
+
+    Hello from a source preprocessed by an internal build module, using the org.json dependency!
+
+Built without the plugin the literal `${greeting}` would print instead.
+
 How it works
 ------------
 
 Because `ExternalModule` consumes a *published* artifact rather than local
 source, `main` first stages the build module to stand in for that artifact:
 
-1. **Stage.** A nested `BuildExecutor` runs an `InternalModule` over `plugin/`,
-   targeting `target/internal` - a target folder separate from this build's own
-   `target/`. Selecting only the `plugin/java/artifacts` step compiles and jars
-   the module *without running it*, leaving a modular jar in that folder.
+1. **Stage.** A `Project` rooted at `plugin/` builds the module at a fixed
+   version into `target/plugin` - a target folder separate from this build's own
+   `target/`. The jar is read straight from the build's structured result:
+   `stage/modular` lays it out in the Jenesis module repository's
+   `<module>/<version>/<module>.jar` shape, so the path is fully determined and
+   nothing is located by scanning the filesystem.
 2. **Wire a coordinate.** The staged jar is served under the custom coordinate
    `module/demo.plugin` by a small `Repository`, placed ahead of the default
    Jenesis repository (which resolves the module's `build.jenesis` and `org.json`

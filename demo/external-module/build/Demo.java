@@ -1,8 +1,8 @@
 package build;
 
 import module java.base;
-import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.Execute;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
@@ -10,7 +10,6 @@ import build.jenesis.Resolver;
 import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.project.ExternalModule;
-import build.jenesis.project.InternalModule;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -24,33 +23,35 @@ import build.jenesis.project.ProjectModuleDescriptor;
  * compiled from local source.
  *
  * To stand in for that published artifact, {@code main} first stages the build
- * module: it compiles and jars {@code plugin/} into a nested {@code target/}
- * folder (separate from this build's own {@code target/}) without running it,
- * then serves the resulting jar under a custom coordinate. The custom
- * {@code Project} wires that coordinate as an {@code ExternalModule}.
+ * module: it builds {@code plugin/} as its own modular project into a nested
+ * {@code target/} folder and reads the produced jar straight from the build's
+ * structured result (a fixed coordinate path under {@code stage/modular}), then
+ * serves it under a custom coordinate. The custom {@code Project} wires that
+ * coordinate as an {@code ExternalModule}.
  *
  * Run from this directory with:
  *
  *     java build/Demo.java
+ *
+ * which builds the project (the resolved plugin rewrites {@code ${greeting}}
+ * first) and then launches the built module, printing the substituted greeting.
  */
 public class Demo {
 
     static void main(String[] args) throws Exception {
-        // Stage the build module: compile and jar plugin/ with InternalModule
-        // into a nested target folder. Selecting the jar step stops before the
-        // module would run, so staging only produces its artifact.
-        Path stagingTarget = Path.of("target", "internal");
-        Files.createDirectories(stagingTarget.getParent());
-        BuildExecutor staging = BuildExecutor.of(stagingTarget);
-        staging.addModule("plugin", new InternalModule("module", "tool", Path.of("plugin")));
-        staging.execute("plugin/java/artifacts");
-        Path pluginJar;
-        try (Stream<Path> walk = Files.walk(stagingTarget)) {
-            pluginJar = walk
-                    .filter(path -> path.toString().contains("java/artifacts") && path.toString().endsWith(".jar"))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("Staging did not produce a plugin jar"));
-        }
+        // Stage the build module as a published artifact: build plugin/ as its own
+        // modular project at a fixed version and read the produced jar from the
+        // build's structured result - stage/modular lays it out in the Jenesis
+        // module repository's <module>/<version>/<module>.jar shape, so the path
+        // is fully determined; nothing is located by scanning the filesystem.
+        Files.createDirectories(Path.of("target"));
+        Path modular = new Project()
+                .root(Path.of("plugin"))
+                .target(Path.of("target", "plugin"))
+                .version("1")
+                .build("stage")
+                .get("stage/modular");
+        Path pluginJar = modular.resolve("demo.plugin").resolve("1").resolve("demo.plugin.jar");
 
         // Serve the staged jar under the custom coordinate demo.plugin, ahead of
         // the local export (~/.jenesis) and the default Jenesis repository that
@@ -66,12 +67,14 @@ public class Demo {
                 .prepend(JenesisModuleRepository.ofLocal())
                 .prepend(local);
 
-        new Project()
+        // Build the project (the resolved plugin rewrites ${greeting} first) and
+        // launch the produced module so its main prints the substituted greeting.
+        Project project = new Project()
                 .assembler(new PreprocessingAssembler(
                         new JavaMultiProjectAssembler(),
                         Map.of("module", repository),
-                        Map.of("module", new ModularJarResolver(true))))
-                .build(args);
+                        Map.of("module", new ModularJarResolver(true))));
+        System.exit(new Execute(project).execute(args));
     }
 
     private record PreprocessingAssembler(

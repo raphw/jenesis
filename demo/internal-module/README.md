@@ -45,11 +45,22 @@ From this directory:
 
     java build/Demo.java
 
+which builds the project and then launches the built module, printing the
+greeting the plugin substituted in:
+
+    Hello from a source preprocessed by an internal build module, using the org.json dependency!
+
+Built without the plugin the literal `${greeting}` would print instead.
+
 How it works
 ------------
 
 `Demo.java` builds a `Project` whose assembler is a `PreprocessingAssembler`
-wrapping the stock `JavaMultiProjectAssembler`. For each module the wrapper:
+wrapping the stock `JavaMultiProjectAssembler`, then hands that project to
+`Execute`, which builds it and launches the produced module's `main` so the
+substituted greeting is shown. `Execute` reads the build's inventory to find the
+module and its runtime classpath, so nothing is located by hand. For each module
+the wrapper:
 
 1. Adds a `preprocess` node that is an `InternalModule` pointed at `plugin/`.
    `InternalModule` compiles the plugin from source, resolves its declared
