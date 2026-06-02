@@ -50,6 +50,7 @@ Quick index
 | [`scala`](scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
 | [`groovy`](groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
 | [`custom-assembler`](custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
+| [`custom-jmod`](custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod` and `jlink` it into a runtime image | `java build/Demo.java`             |
 | [`internal-module`](internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
 | [`external-module`](external-module/README.md)       | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
 | [`custom-maven`](custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
@@ -211,6 +212,14 @@ the redirected descriptor. The Java toolchain is never reimplemented - a source
 transformation is simply interposed in front of it. Any step that produces a
 `sources/` tree (template expansion, code generation, license headers) fits the
 same shape. This demo is launched with `java build/Demo.java`.
+
+`custom-jmod` is a sibling example of the same wrapping technique, but instead of
+transforming sources it *appends* steps: a `config` step that produces extra
+content, a `jmod` step that packs the module's classes plus that `config/` into a
+`.jmod` (the `JMod` step routes `config/`/`libs/`/`cmds/` to `jmod --config`/`--libs`/`--cmds`),
+and a `jlink` step that links the `.jmod` into a runtime image. Because the config
+rides in the jmod's config section, `jlink` lays it into the runtime's `conf/` -
+content a jar cannot carry into a runtime. Also `java build/Demo.java`.
 
 7. Preprocessing in a reusable build module - `internal-module`, `external-module`
 ----------------------------------------------------------------------------------

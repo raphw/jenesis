@@ -38,6 +38,7 @@ jobs:
           - { name: scala, dir: scala, entry: build/jenesis/Project.java }
           - { name: groovy, dir: groovy, entry: build/jenesis/Project.java }
           - { name: custom-assembler, dir: custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: custom-jmod, entry: build/Demo.java }
           - { name: custom-build, dir: custom-build, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
