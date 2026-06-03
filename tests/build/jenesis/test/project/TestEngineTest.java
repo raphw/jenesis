@@ -169,24 +169,22 @@ public class TestEngineTest {
     }
 
     @Test
-    public void junit4_rejects_groups_and_parallel() {
+    public void junit4_rejects_groups() {
         assertThatThrownBy(() -> new JUnit4().commands(root,
                 Collections.emptyNavigableSet(),
                 Collections.emptyNavigableMap(),
                 new LinkedHashSet<>(List.of("slow")),
                 false))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new JUnit4().commands(root,
-                Collections.emptyNavigableSet(),
-                Collections.emptyNavigableMap(),
-                Collections.emptyNavigableSet(),
-                true))
-                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void junit4_ignores_parallel() {
         assertThat(new JUnit4().commands(root,
                 new LinkedHashSet<>(List.of("sample.AlphaTest")),
                 Collections.emptyNavigableMap(),
                 Collections.emptyNavigableSet(),
-                false))
+                true))
                 .containsExactly("sample.AlphaTest");
     }
 

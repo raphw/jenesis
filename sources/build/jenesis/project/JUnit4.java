@@ -35,11 +35,11 @@ public record JUnit4() implements TestEngine {
                                  SequencedMap<String, SequencedSet<String>> methods,
                                  SequencedSet<String> groups,
                                  boolean parallel) {
-        if (!groups.isEmpty() || parallel) {
-            throw new IllegalArgumentException("JUnit 4 cannot select @Category groups or run in parallel through its console runner");
-        }
         if (!methods.isEmpty()) {
             throw new IllegalArgumentException("JUnit4 does not support running individual methods");
+        }
+        if (!groups.isEmpty()) {
+            throw new IllegalArgumentException("JUnit 4 cannot select @Category groups through its console runner");
         }
         return List.copyOf(classes);
     }
