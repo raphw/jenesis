@@ -4,9 +4,9 @@ Jenesis demos - a guided tour
 These demos are meant to be read in order. Each one is self-contained and adds
 one idea on top of the last, so the sequence doubles as a tutorial through
 Jenesis' features: start with a single Maven project, turn it into a module,
-scale to many modules, package a module into a runnable application image, bring
-in other JVM languages, and finally customize or replace the build template
-itself.
+scale to many modules, package a module into a runnable application image, build
+a multi-release JAR, bring in other JVM languages, and finally customize or
+replace the build template itself.
 
 Every demo has its own `build/jenesis` symlink into this repository's
 `sources/build/jenesis`, so each runs in isolation from inside its own directory
@@ -46,6 +46,7 @@ Quick index
 | [`java-modular-multi`](java-modular-multi/README.md) | The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
 | [`java-pom-executable`](java-pom-executable/README.md)       | A runnable Maven project: a `<mainClass>` entry point + dependency, packaged into a native app image with `jpackage` | `java build/Run.java`              |
 | [`java-modular-executable`](java-modular-executable/README.md) | The same as a Java module: entry point via `@jenesis.main` + dependency, packaged with `jpackage`        | `java build/Run.java`              |
+| [`java-multi-release`](java-multi-release/README.md) | A modular multi-release JAR: Java 21 baseline plus a Java 25 override of one utility, selected by the runtime | `java build/jenesis/Execute.java`  |
 | [`kotlin`](kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
 | [`scala`](scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
 | [`groovy`](groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
@@ -175,7 +176,29 @@ The new idea is that **the build produces a runnable artifact, not just a jar**,
 that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives both launching
 and packaging through the same `module.properties` field.
 
-5. Other JVM languages - [`kotlin`](kotlin/README.md), [`scala`](scala/README.md), [`groovy`](groovy/README.md)
+5. A multi-release JAR - [`java-multi-release`](java-multi-release/README.md)
+---------------------------------------------------
+
+`java-multi-release` is a modular project (a `module-info.java`, no `pom.xml`, so
+the MODULAR_TO_MAVEN layout) that produces a single JAR carrying two
+implementations of one class and lets the runtime pick between them. The module
+compiles at Java 21 (`@jenesis.release 21`), and one utility, `sample.Platform`,
+has a Java 25 override placed under `sources/META-INF/versions/25/`. Jenesis
+compiles the overlay in a second `javac` pass with `--release 25`, writes it to
+`META-INF/versions/25/` in the JAR, and marks the manifest `Multi-Release: true`.
+
+The new idea is that **one artifact can hold version-specific code**: the JVM
+loads the highest versioned class that does not exceed its own feature version, so
+the same JAR run on Java 21 prints the baseline line and on Java 25 prints the
+override. Run it with the shipped launcher, which builds then executes the
+module's `@jenesis.main`:
+
+    java build/jenesis/Execute.java
+
+There are no module dependencies here - the demo is only about the multi-release
+packaging - so unlike `java-modular` it has nothing to pin.
+
+6. Other JVM languages - [`kotlin`](kotlin/README.md), [`scala`](scala/README.md), [`groovy`](groovy/README.md)
 ----------------------------------------------------
 
 Jenesis drives non-Java compilers through the same inferred compiler chain, with
@@ -201,7 +224,7 @@ These three are quick reads; each `README.md` has the detail. (Each pins both it
 library dependency and its compiler toolchain on a qualified trail; see "Pinning"
 below.)
 
-6. Customizing the build - [`custom-assembler`](custom-assembler/README.md)
+7. Customizing the build - [`custom-assembler`](custom-assembler/README.md)
 ---------------------------------------------
 
 The remaining demos open up the template. `custom-assembler` keeps the standard
@@ -234,7 +257,7 @@ the jmod's config section, it travels `jmod -> jlink runtime -> jpackage image`,
 the launched app reads it back from its own `<java.home>/conf/` - content a jar cannot
 carry into a packaged runtime. Also `java build/Demo.java`.
 
-7. Preprocessing in a reusable build module - [`internal-module`](internal-module/README.md), [`external-module`](external-module/README.md)
+8. Preprocessing in a reusable build module - [`internal-module`](internal-module/README.md), [`external-module`](external-module/README.md)
 ----------------------------------------------------------------------------------
 
 `internal-module` does the same preprocessing as `custom-assembler`, but moves it
@@ -259,7 +282,7 @@ authored inline, loaded from source, or consumed as a versioned artifact.
 > against. They will work once a matching `build.jenesis` is released; see their
 > `README.md`s.
 
-8. Driving the build without `Project` - [`custom-maven`](custom-maven/README.md), [`custom-modular`](custom-modular/README.md)
+9. Driving the build without `Project` - [`custom-maven`](custom-maven/README.md), [`custom-modular`](custom-modular/README.md)
 -------------------------------------------------------------------------
 
 The previous customizations still went through `Project`. These two go a step
@@ -283,7 +306,7 @@ adapted with a one-line wrapper so each discovered descriptor becomes a
 `Project` itself uses) when you need a custom repository, strict pinning, or a
 specific digest.
 
-9. Dropping the template entirely - [`custom-build`](custom-build/README.md)
+10. Dropping the template entirely - [`custom-build`](custom-build/README.md)
 --------------------------------------------------
 
 The last demo removes `Project`, the layout, and the assembler altogether and

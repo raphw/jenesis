@@ -287,6 +287,18 @@ public class VersionsTest {
         assertThat(output.resolve("module-info.class")).exists();
     }
 
+    @Test
+    public void forwards_top_level_manifest() throws IOException {
+        Path classesDir = Files.createDirectory(classesInput.resolve(BuildStep.CLASSES));
+        Files.write(classesDir.resolve("Sample.class"), new byte[] { 0x01 });
+        Files.writeString(classesInput.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
+        writeRequires(Map.of());
+        runStep();
+        assertThat(next.resolve("manifest.mf"))
+                .exists()
+                .content().contains("Multi-Release: true");
+    }
+
     private static ModuleRequireInfo require(String name) {
         return ModuleRequireInfo.of(ModuleDesc.of(name), 0, null);
     }

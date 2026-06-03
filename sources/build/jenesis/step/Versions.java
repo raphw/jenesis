@@ -43,6 +43,12 @@ public class Versions implements BuildStep {
             }
         }
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
+        for (BuildStepArgument argument : arguments.values()) {
+            Path manifest = argument.folder().resolve("manifest.mf");
+            if (Files.exists(manifest)) {
+                BuildStep.linkOrCopy(context.next().resolve("manifest.mf"), manifest);
+            }
+        }
         boolean requiresChanged = arguments.values().stream().anyMatch(arg -> {
             ChecksumStatus status = arg.files().get(Path.of(REQUIRES));
             return status != null && status != ChecksumStatus.RETAINED;
