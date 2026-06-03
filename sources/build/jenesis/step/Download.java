@@ -46,7 +46,8 @@ public class Download implements DependencyProcessingBuildStep {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
                 locations.setProperty(dependency, DEPENDENCIES + name);
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
-                if (entry.getValue().isEmpty()) {
+                String value = pinning == Pinning.IGNORE ? "" : entry.getValue();
+                if (value.isEmpty()) {
                     if (previous != null && Files.exists(previous) && pinning != Pinning.STRICT) {
                         BuildStep.linkOrCopy(libs.resolve(name), previous);
                         continue;
@@ -82,14 +83,14 @@ public class Download implements DependencyProcessingBuildStep {
                     });
                     futures.add(future);
                 } else {
-                    int algorithm = entry.getValue().indexOf('/');
+                    int algorithm = value.indexOf('/');
                     MessageDigest digest;
                     try {
-                        digest = MessageDigest.getInstance(entry.getValue().substring(0, algorithm));
+                        digest = MessageDigest.getInstance(value.substring(0, algorithm));
                     } catch (NoSuchAlgorithmException e) {
                         throw new IllegalStateException(e);
                     }
-                    String checksum = entry.getValue().substring(algorithm + 1);
+                    String checksum = value.substring(algorithm + 1);
                     if (previous != null && Files.exists(previous)) {
                         if (validateFile(digest, previous, checksum)) {
                             BuildStep.linkOrCopy(libs.resolve(name), previous);

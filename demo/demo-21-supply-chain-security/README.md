@@ -69,11 +69,20 @@ re-resolves that fresh closure and rewrites each `pom.xml` (or `module-info.java
 with the new versions and freshly computed `SHA-256` checksums - leaving a normal
 pinned project again, now tracking the latest reviewed versions.
 
-Because `ignore` bypasses checksum verification while it resolves - it is the step
-that *establishes* trust rather than enforcing it - run it only on a **trusted
-machine** against a **trusted repository**. Review the resulting diff, commit it,
-and every subsequent build (the default, or `-Dbuild.jenesis.pinning=strict`)
-enforces the new pins against the artifacts you just vetted.
+Run against this demo, that same step would **heal** the `tampered` module:
+`ignore` skips its deliberately-wrong all-zeros `SHA-256`, `pin` rehashes the real
+artifact, and the wrong pin is replaced with the correct one - so the module that
+fails today would build. (The demo ships it un-run, so the supply-chain check above
+still has something to catch.)
+
+That healing power is exactly why the operation is dangerous in the wrong hands: it
+re-blesses whatever the repository currently serves, so a *swapped* artifact would
+be written in as an accepted pin just the same. So because `ignore` bypasses
+checksum verification while it resolves - it is the step that *establishes* trust
+rather than enforcing it - run it only on a **trusted machine** against a **trusted
+repository**. Review the resulting diff, commit it, and every subsequent build (the
+default, or `-Dbuild.jenesis.pinning=strict`) enforces the new pins against the
+artifacts you just vetted.
 
 POMs are not pinned, and why strict pinning matters
 ---------------------------------------------------

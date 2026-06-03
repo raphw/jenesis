@@ -99,6 +99,25 @@ public class DownloadTest {
     }
 
     @Test
+    public void ignore_pinning_skips_a_mismatched_digest() throws IOException, NoSuchAlgorithmException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Download(Map.of(
+                "foo",
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        ), Pinning.IGNORE).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
+    }
+
+    @Test
     public void can_retain_dependency_from_previous_run() throws IOException, NoSuchAlgorithmException {
         Files.writeString(Files
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
