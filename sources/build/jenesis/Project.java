@@ -352,9 +352,9 @@ public record Project(
                       values, or sets fields after resolveProperties(), may ignore them.
                       %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
-                      %{name}skipTests%{reset}                        Skip executing tests
+                      %{name}tests.skip%{reset}                       Skip executing tests
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
-                      %{name}stageTests%{reset}                       Stage test artifacts alongside main artifacts
+                      %{name}tests.stage%{reset}                      Stage test artifacts alongside main artifacts
                       %{name}strictPinning%{reset}                    Fail the build for any unpinned artifact
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}version%{reset}                          Project version
@@ -629,9 +629,9 @@ public record Project(
                       root, target, cache         Override input/output locations.
                       layout                      auto, maven, modular,
                                                   modular_to_maven.
-                      skipTests                   Skip wiring test execution.
+                      tests.skip                  Skip wiring test execution.
                       sources, documentation      Assemble sources / javadoc jars.
-                      stageTests                  Stage test artifacts.
+                      tests.stage                 Stage test artifacts.
                       strictPinning               Fail the build for any unpinned
                                                   artifact.
                       metadata                    Path-separated list of extra
@@ -1225,7 +1225,7 @@ public record Project(
                         "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
             };
         }
-        if (System.getProperty("jenesis.project.skipTests") != null) {
+        if (System.getProperty("jenesis.project.tests.skip") != null) {
             resolvedTests = false;
         }
         if (Boolean.getBoolean("jenesis.project.sources")) {
@@ -1234,7 +1234,7 @@ public record Project(
         if (Boolean.getBoolean("jenesis.project.documentation")) {
             resolvedDocumentation = true;
         }
-        if (Boolean.getBoolean("jenesis.project.stageTests")) {
+        if (Boolean.getBoolean("jenesis.project.tests.stage")) {
             resolvedStageTests = true;
         }
         String strictPinningOverride = System.getProperty("jenesis.project.strictPinning");

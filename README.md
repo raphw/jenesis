@@ -97,7 +97,7 @@ Customisation comes in three stages, picked by how far from the auto-wired pipel
 skip tests, force a layout, route `target/` elsewhere - pass `-Djenesis.project.*` flags. No Java code, no
 separate entry point:
 
-    java -Djenesis.project.skipTests=true \
+    java -Djenesis.project.tests.skip=true \
          -Djenesis.project.layout=MODULAR_TO_MAVEN \
          build/jenesis/Project.java
 
@@ -1327,8 +1327,8 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.digest` | system property | Content digest algorithm threaded through the build as the project's `HashDigestFunction` (default `SHA-256`). Used by `PinPom` / `PinModuleInfo` to recompute checksums over the resolved jar artifacts during the `pin` step - pin always rehashes whatever is sitting in the upstream `artifacts/` folders, so the pinned `<!--Checksum/...-->` / `@jenesis.pin` lines always reflect the bytes the build actually used - and by `MultiProjectDependencies` to fingerprint each intra-project dependency jar into `requires.properties`, so a consumer re-resolves and recompiles when a sibling artifact changes. Any `MessageDigest` algorithm name is accepted (`SHA-512`, `SHA-1`, etc.). |
 | `jenesis.project.version` | system property   | When set, stamps the version onto every artifact this build produces. It is appended last into every per-module `metadata.properties` (after the framework defaults and the project-root override file), so it overrides the `version` from either layer. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` writes it into `<version>`; dependency versions are unaffected. `MavenRepositoryStaging` reads coordinates from the produced `pom.xml`, so the staged folder path, artifact filenames and `MavenRepositoryExport`'s `maven-metadata-local.xml` follow along. |
 | `jenesis.project.layout`        | system property | Read by `Project` (the canonical entry point) to force a `Layout` regardless of auto-detection or any in-code `.layout(...)`. Accepts `auto`, `maven`, `modular`, `modular_to_maven` (case-insensitive). Unknown values throw on `resolveProperties()`. |
-| `jenesis.project.skipTests`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.skipTests`), `Project` resolves the project-level `test` flag to `false`. The flag is carried on `ProjectModuleDescriptor.test()`, and `JavaMultiProjectAssembler` skips wiring the sibling `TestModule` sub-module when it is `false`, so test sources and test dependencies are not wired into the graph. |
-| `jenesis.project.stageTests`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
+| `jenesis.project.tests.skip`     | system property | When set (any value, including the empty string from a bare `-Djenesis.project.tests.skip`), `Project` resolves the project-level `test` flag to `false`. The flag is carried on `ProjectModuleDescriptor.test()`, and `JavaMultiProjectAssembler` skips wiring the sibling `TestModule` sub-module when it is `false`, so test sources and test dependencies are not wired into the graph. |
+| `jenesis.project.tests.stage`    | system property | When set to `true`, the `STAGE` step includes test-variant artifacts. For `MAVEN` and `MODULAR_TO_MAVEN` that means the `-tests.jar` (plus `-tests-sources.jar` / `-tests-javadoc.jar` when those flags are on) and the test module's dependencies merged into the main `pom.xml` with `<scope>test</scope>`. For `MODULAR` it means the test module is staged as its own `<module>/<module>.jar` directory. Default `false`: tests still run during the build but their artifacts are not placed into the staging tree. |
 | `jenesis.project.root`          | system property | Overrides the project root that `Project` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
@@ -2040,7 +2040,7 @@ is present). It does not refer to a Maven `<parent>` POM relationship.
 
 Under `ModularStaging` (used by `MODULAR`), each inventory's `prefix.module` (the Java module system module
 name) becomes the staging directory and jar prefix; no POM is required or written. The `test` marker on the
-inventory is **ignored** by `ModularStaging` when `-Djenesis.project.stageTests=true`; test modules are then
+inventory is **ignored** by `ModularStaging` when `-Djenesis.project.tests.stage=true`; test modules are then
 staged under their own Java-module-named directory with no `-tests` suffix and no merging. When the flag is
 unset (default), test modules are simply omitted from the staging tree. When `prefix.version` is present (set
 on the inventory from `metadata.properties`' `version` key, which both layouts always populate today), it is
@@ -2094,7 +2094,7 @@ target/stage/modular/output/
 `-tests` classifier suffix and merge the test-variant dependencies into the main POM with
 `<scope>test</scope>`; the per-module `prefix.test=<main-artifactId>` marker on the inventory triggers this
 in `MavenRepositoryStaging`. `MODULAR` ignores that marker and stages every discovered Java module under its
-own Java-module-named directory at the same level when `-Djenesis.project.stageTests=true`.)
+own Java-module-named directory at the same level when `-Djenesis.project.tests.stage=true`.)
 
 The `MAVEN` and `MODULAR_TO_MAVEN` layouts additionally wire a `MavenRepositoryExport` step after `stage`,
 which copies the staged tree into the user's local Maven repository (default `~/.m2/repository`) and writes the
@@ -2217,7 +2217,7 @@ from its own location, so the unpacked tree is fully relocatable.
   the `jenesis.project.*` and `jenesis.execute.*` system properties via `JAVA_OPTS`, which the
   scripts splice in before `-m`:
 
-      JAVA_OPTS="-Djenesis.project.layout=maven -Djenesis.project.skipTests=" jenesis
+      JAVA_OPTS="-Djenesis.project.layout=maven -Djenesis.project.tests.skip=" jenesis
       JAVA_OPTS="-Djenesis.execute.module=tools -Djenesis.execute.docker=true" jenesis-exec arg1 arg2
 
   Multiple `-D…` (or `-X…`) flags can be chained inside the single `JAVA_OPTS` string.
