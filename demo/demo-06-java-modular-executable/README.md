@@ -120,3 +120,30 @@ Producing a native installer needs the platform's packaging tooling on the PATH 
 the bundled `productbuild`/`hdiutil`). For that reason it is run locally rather than in
 CI, where `Demo.java`'s app-image - which needs no native tooling - covers the packaging
 path.
+
+Where to go from here?
+----------------------
+
+The `app-image` is self-contained - it bundles its own (`jlink`-trimmed) Java
+runtime - so a deployable container needs no JDK, only a minimal base with a C
+library. Stage a **Linux** app-image (run `java build/Demo.java` on Linux or in
+CI), then copy it into an image with a small `Dockerfile` (Podman reads the same
+file):
+
+    FROM debian:stable-slim
+    COPY target/stage/packages/output/demo.modular.executable /opt/app
+    ENTRYPOINT ["/opt/app/bin/demo.modular.executable"]
+
+From this directory, build and run it with Docker:
+
+    docker build -t demo-modular-executable .
+    docker run --rm demo-modular-executable Ada Lovelace
+
+or, identically, with Podman:
+
+    podman build -t demo-modular-executable .
+    podman run --rm demo-modular-executable Ada Lovelace
+
+Either prints the same greeting the local launcher does, and because the bundled
+runtime is trimmed to the module graph (`demo.modular.executable`, `org.slf4j`,
+`java.base`) the resulting image stays small.
