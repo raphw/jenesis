@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -14,12 +15,11 @@ import build.jenesis.step.Download;
 import build.jenesis.step.Java;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Resolve;
-import build.jenesis.step.TestEngine;
 
 public class TestModule implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", REQUIRED = "required",
-            ARTIFACTS = "artifacts", EXECUTED = "executed";
+    public static final String REQUIRED = "required", ARTIFACTS = "artifacts", EXECUTED = "executed";
+    private static final String RESOLVED = "resolved";
 
     private final TestEngine engine;
     private final Predicate<String> isTest;
@@ -27,30 +27,14 @@ public class TestModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final boolean jarsOnly;
-    private final boolean modular;
+    private final boolean requireEngine;
+    private final boolean strictPinning;
+    private final String filter;
+    private final PathPlacement modulePath;
+    private final String moduleName;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true);
-    }
-
-    public TestModule(TestEngine engine, Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(engine, defaultIsTest(), null, repositories, resolvers, true, true);
-    }
-
-    public <P extends Predicate<String> & Serializable> TestModule(TestEngine engine,
-                                                                   P isTest,
-                                                                   Map<String, Repository> repositories,
-                                                                   Map<String, Resolver> resolvers) {
-        this(engine, isTest, null, repositories, resolvers, true, true);
-    }
-
-    public <P extends Predicate<String> & Serializable> TestModule(
-            Function<List<String>, ProcessHandler.OfProcess> factory,
-            TestEngine engine,
-            P isTest,
-            Map<String, Repository> repositories,
-            Map<String, Resolver> resolvers) {
-        this(engine, isTest, factory, repositories, resolvers, true, true);
+        this(null, defaultIsTest(), null, repositories, resolvers, true, true, false, null, PathPlacement.CLASS_PATH, null);
     }
 
     private TestModule(TestEngine engine,
@@ -59,14 +43,22 @@ public class TestModule implements BuildExecutorModule {
                        Map<String, Repository> repositories,
                        Map<String, Resolver> resolvers,
                        boolean jarsOnly,
-                       boolean modular) {
+                       boolean requireEngine,
+                       boolean strictPinning,
+                       String filter,
+                       PathPlacement modulePath,
+                       String moduleName) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.jarsOnly = jarsOnly;
-        this.modular = modular;
+        this.requireEngine = requireEngine;
+        this.strictPinning = strictPinning;
+        this.filter = filter;
+        this.modulePath = modulePath;
+        this.moduleName = moduleName;
     }
 
     private static Predicate<String> defaultIsTest() {
@@ -77,28 +69,73 @@ public class TestModule implements BuildExecutorModule {
                 pattern.matcher(name).matches()));
     }
 
-    public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
+    public TestModule engine(TestEngine engine) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
     }
 
-    public TestModule modular(boolean modular) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, modular);
+    public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule filter(String filter) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule jarsOnly(boolean jarsOnly) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule requireEngine(boolean requireEngine) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule strictPinning(boolean strictPinning) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule modulePath(PathPlacement modulePath) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+    }
+
+    public TestModule moduleName(String moduleName) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
     }
 
     @Override
-    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        TestEngine resolved = engine;
+        if (resolved == null) {
+            resolved = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
+            if (resolved == null) {
+                if (requireEngine) {
+                    throw new IllegalStateException(
+                            "No test engine could be resolved from inherited dependencies: "
+                                    + inherited.sequencedKeySet());
+                }
+                return;
+            }
+        }
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(RESOLVED, new Requires(engine, Set.copyOf(resolvers.keySet())), upstream);
+        buildExecutor.addStep(RESOLVED, new Requires(resolved, Set.copyOf(resolvers.keySet())), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories), REQUIRED);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning), REQUIRED);
         Run run = factory == null
-                ? new Run(engine, isTest, jarsOnly, modular)
-                : new Run(factory, engine, isTest, jarsOnly, modular);
+                ? new Run(resolved, isTest, jarsOnly, modulePath, moduleName, filter)
+                : new Run(factory, resolved, isTest, jarsOnly, modulePath, moduleName, filter);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
+    }
+
+    @Override
+    public Optional<String> resolve(String path) {
+        return path.equals(RESOLVED) ? Optional.empty() : Optional.of(path);
     }
 
     private record Requires(TestEngine engine, Set<String> prefixes) implements BuildStep {
@@ -109,56 +146,50 @@ public class TestModule implements BuildExecutorModule {
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
             List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
-            TestEngine resolved = engine != null ? engine : TestEngine.of(folders).orElse(null);
-            Properties properties = new SequencedProperties();
-            String selectedPrefix = null;
-            if (resolved != null
-                    && !resolved.coordinates().isEmpty()
-                    && !TestEngine.hasRunner(resolved, folders)) {
-                for (String coordinate : resolved.coordinates()) {
+            List<ModuleDescriptor> artifacts = TestEngine.scan(folders);
+            TestEngine resolved = engine != null ? engine : TestEngine.of(artifacts).orElse(null);
+            ModuleDescriptor engineModule = resolved == null ? null : resolved.match(artifacts).orElse(null);
+            SequencedProperties properties = new SequencedProperties();
+            SequencedProperties versions = new SequencedProperties();
+            if (resolved != null && !resolved.hasRunner(artifacts)) {
+                SequencedMap<String, String> runners = resolved.coordinates(engineModule);
+                String selectedPrefix = null;
+                for (String coordinate : runners.sequencedKeySet()) {
                     int index = coordinate.indexOf('/');
                     String prefix = index > 0 ? coordinate.substring(0, index) : "";
-                    if (prefixes.contains(prefix)) {
-                        properties.setProperty(coordinate, "");
+                    if (selectedPrefix == null && prefixes.contains(prefix)) {
                         selectedPrefix = prefix;
-                        break;
+                    }
+                    if (prefix.equals(selectedPrefix)) {
+                        properties.setProperty(coordinate, "");
                     }
                 }
-            }
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                properties.store(writer, null);
-            }
-            if (resolved != null && selectedPrefix != null) {
-                Properties versions = new SequencedProperties();
-                for (BuildStepArgument argument : arguments.values()) {
-                    Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
-                    if (!Files.exists(versionsFile)) {
-                        continue;
+                if (selectedPrefix != null) {
+                    for (BuildStepArgument argument : arguments.values()) {
+                        Path versionsFile = argument.folder().resolve(BuildStep.VERSIONS);
+                        if (!Files.exists(versionsFile)) {
+                            continue;
+                        }
+                        SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
+                        for (String key : upstream.stringPropertyNames()) {
+                            int index = key.indexOf('/');
+                            if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
+                                versions.putIfAbsent(key, upstream.getProperty(key));
+                            }
+                        }
                     }
-                    Properties upstream = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(versionsFile)) {
-                        upstream.load(reader);
-                    }
-                    for (String key : upstream.stringPropertyNames()) {
-                        int index = key.indexOf('/');
-                        if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
-                            versions.putIfAbsent(key, upstream.getProperty(key));
+                    for (Map.Entry<String, String> entry : runners.entrySet()) {
+                        String coordinate = entry.getKey(), version = entry.getValue();
+                        int index = coordinate.indexOf('/');
+                        if (version != null && index > 0 && selectedPrefix.equals(coordinate.substring(0, index))) {
+                            versions.putIfAbsent(coordinate, version);
                         }
                     }
                 }
-                for (Map.Entry<String, String> entry : resolved.versions().entrySet()) {
-                    String coordinate = entry.getKey();
-                    int index = coordinate.indexOf('/');
-                    String prefix = index > 0 ? coordinate.substring(0, index) : "";
-                    if (selectedPrefix.equals(prefix)) {
-                        versions.putIfAbsent(coordinate, entry.getValue());
-                    }
-                }
-                if (!versions.isEmpty()) {
-                    try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.VERSIONS))) {
-                        versions.store(writer, null);
-                    }
-                }
+            }
+            properties.store(context.next().resolve(BuildStep.REQUIRES));
+            if (!versions.isEmpty()) {
+                versions.store(context.next().resolve(BuildStep.VERSIONS));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -168,25 +199,34 @@ public class TestModule implements BuildExecutorModule {
 
         private final TestEngine engine;
         private final Predicate<String> isTest;
-        private final String filter = System.getProperty("jenesis.test");
+        private final String moduleName;
+        private final String filter;
 
-        private Run(TestEngine engine, Predicate<String> isTest, boolean jarsOnly, boolean modular) {
+        private Run(TestEngine engine,
+                    Predicate<String> isTest,
+                    boolean jarsOnly,
+                    PathPlacement modulePath,
+                    String moduleName,
+                    String filter) {
+            super(modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
-            this.jarsOnly = jarsOnly;
-            this.modular = modular;
+            this.moduleName = moduleName;
+            this.filter = filter;
         }
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
                     TestEngine engine,
                     Predicate<String> isTest,
                     boolean jarsOnly,
-                    boolean modular) {
-            super(factory);
+                    PathPlacement modulePath,
+                    String moduleName,
+                    String filter) {
+            super(factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
-            this.jarsOnly = jarsOnly;
-            this.modular = modular;
+            this.moduleName = moduleName;
+            this.filter = filter;
         }
 
         @Override
@@ -199,45 +239,56 @@ public class TestModule implements BuildExecutorModule {
                                                          BuildStepContext context,
                                                          SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            TestEngine resolved = engine == null ? TestEngine
-                                                   .of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
-                                                   .orElseThrow(() -> new IllegalArgumentException("No test engine found")) : engine;
-            List<TestSelector> selectors = TestSelector.parse(filter);
+            TestEngine resolved = engine != null
+                    ? engine
+                    : TestEngine.of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
+                            .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
+            List<TestSpec> specs = TestSpec.parse(filter);
             List<String> commands = new ArrayList<>();
-            if (modular && resolved.module() != null) {
-                commands.add("--add-modules");
-                commands.add("ALL-MODULE-PATH");
+            for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
+                commands.add("-D" + entry.getKey() + "=" + entry.getValue());
+            }
+            if (modulePath.modular() && resolved.runnerModule() != null) {
+                if (modulePath == PathPlacement.MODULE_PATH && moduleName != null) {
+                    commands.add("--add-modules");
+                    commands.add(moduleName);
+                }
                 commands.add("-m");
-                commands.add(resolved.module() + "/" + resolved.mainClass());
+                commands.add(resolved.runnerModule() + "/" + resolved.mainClass());
             } else {
                 commands.add(resolved.mainClass());
             }
-            commands.addAll(resolved.arguments());
+            commands.addAll(resolved.arguments(context.supplement()));
+            List<String> matchedClasses = new ArrayList<>();
+            SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
+            ClassFile classFile = ClassFile.of();
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(CLASSES);
                 if (Files.exists(classes)) {
                     Files.walkFileTree(classes, new SimpleFileVisitor<>() {
                         @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                             if (file.toString().endsWith(".class")) {
                                 String raw = classes.relativize(file).toString();
-                                String className = raw.substring(0, raw.length() - 6).replace('/', '.');
-                                if (selectors.isEmpty()) {
-                                    if (isTest.test(className)) {
-                                        commands.add(resolved.classPrefix() + className);
+                                String className = raw.substring(0, raw.length() - 6).replace(File.separatorChar, '.');
+                                if ((classFile.parse(file).flags().flagsMask() & ClassFile.ACC_ABSTRACT) != 0) {
+                                    return FileVisitResult.CONTINUE;
+                                }
+                                if (specs.isEmpty()) {
+                                    if (isTest.test(className) && !matchedClasses.contains(className)) {
+                                        matchedClasses.add(className);
                                     }
                                 } else {
-                                    for (TestSelector selector : selectors) {
-                                        if (selector.classPattern.matcher(className).matches()) {
-                                            if (selector.method == null) {
-                                                commands.add(resolved.classPrefix() + className);
-                                            } else {
-                                                String methodPrefix = resolved.methodPrefix();
-                                                if (methodPrefix == null) {
-                                                    throw new IllegalStateException(
-                                                            "Engine does not support method selection: " + resolved);
+                                    for (TestSpec spec : specs) {
+                                        if (spec.classPattern.matcher(className).matches()) {
+                                            if (spec.method == null) {
+                                                if (!matchedClasses.contains(className)) {
+                                                    matchedClasses.add(className);
                                                 }
-                                                commands.add(methodPrefix + className + "#" + selector.method);
+                                            } else {
+                                                matchedMethods
+                                                        .computeIfAbsent(className, _ -> new ArrayList<>())
+                                                        .add(spec.method);
                                             }
                                             break;
                                         }
@@ -249,17 +300,18 @@ public class TestModule implements BuildExecutorModule {
                     });
                 }
             }
+            commands.addAll(resolved.commands(matchedClasses, matchedMethods));
             return CompletableFuture.completedFuture(commands);
         }
     }
 
-    private record TestSelector(Pattern classPattern, String method) {
+    private record TestSpec(Pattern classPattern, String method) {
 
-        static List<TestSelector> parse(String spec) {
+        static List<TestSpec> parse(String spec) {
             if (spec == null || spec.isBlank()) {
                 return List.of();
             }
-            List<TestSelector> result = new ArrayList<>();
+            List<TestSpec> result = new ArrayList<>();
             for (String entry : spec.split(",")) {
                 String trimmed = entry.trim();
                 if (trimmed.isEmpty()) {
@@ -267,9 +319,9 @@ public class TestModule implements BuildExecutorModule {
                 }
                 int separator = trimmed.indexOf('#');
                 if (separator < 0) {
-                    result.add(new TestSelector(Pattern.compile(trimmed), null));
+                    result.add(new TestSpec(Pattern.compile(trimmed), null));
                 } else {
-                    result.add(new TestSelector(
+                    result.add(new TestSpec(
                             Pattern.compile(trimmed.substring(0, separator)),
                             trimmed.substring(separator + 1)));
                 }

@@ -1,8 +1,9 @@
 target/
+.jenesis/
 cache/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+*.class
+/sdk/*
+!/sdk/bin/
 
 ### IntelliJ IDEA ###
 .idea/*

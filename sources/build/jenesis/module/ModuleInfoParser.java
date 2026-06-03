@@ -1,14 +1,14 @@
 package build.jenesis.module;
 
 import module java.base;
-import module java.compiler;
 import module jdk.compiler;
+import javax.tools.ToolProvider;
 
 import static java.util.Objects.requireNonNull;
 
 public class ModuleInfoParser {
 
-    private final JavaCompiler compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
+    private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
     public ModuleInfo identify(Path moduleInfo) throws IOException {
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
@@ -43,6 +43,7 @@ public class ModuleInfoParser {
             String name = null;
             String description = null;
             String testOf = null;
+            String main = null;
             DocCommentTree docComment = docTrees.getDocCommentTree(TreePath.getPath(unit, module));
             if (docComment != null) {
                 String summary = docComment.getFirstSentence().stream()
@@ -68,24 +69,57 @@ public class ModuleInfoParser {
                                 .collect(Collectors.joining())
                                 .trim();
                         switch (unknown.getTagName()) {
-                            case "requires" -> {
+                            case "jenesis.pin" -> {
                                 int split = content.indexOf(' ');
                                 if (split < 1 || split == content.length() - 1) {
                                     continue;
                                 }
-                                String dependency = content.substring(0, split).trim();
-                                String version = content.substring(split + 1).trim();
-                                if (dependency.startsWith("java.") || dependency.startsWith("jdk.") || dependency.isEmpty() || version.isEmpty()) {
+                                String token = content.substring(0, split).trim();
+                                String version = content.substring(split + 1).trim().replaceAll("\\s+", " ");
+                                if (token.isEmpty() || version.isEmpty()) {
                                     continue;
                                 }
-                                versions.put(dependency, version);
+                                int at = token.indexOf('@');
+                                String key;
+                                if (at < 0) {
+                                    int slash = token.indexOf('/');
+                                    if (slash < 0) {
+                                        if (token.startsWith("java.") || token.startsWith("jdk.")) {
+                                            continue;
+                                        }
+                                        key = "module/" + token;
+                                    } else {
+                                        if (slash == 0 || slash == token.length() - 1) {
+                                            continue;
+                                        }
+                                        key = token;
+                                    }
+                                } else if (at == 0) {
+                                    int slash = token.indexOf('/');
+                                    if (slash < 2 || slash == token.length() - 1) {
+                                        continue;
+                                    }
+                                    key = "module" + token;
+                                } else {
+                                    int slash = token.indexOf('/', at);
+                                    if (slash <= at + 1 || slash == token.length() - 1) {
+                                        continue;
+                                    }
+                                    key = token;
+                                }
+                                versions.put(key, version);
                             }
-                            case "release" -> {
+                            case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
                                     release = content;
                                 }
                             }
-                            case "tests" -> testOf = content;
+                            case "jenesis.test" -> testOf = content;
+                            case "jenesis.main" -> {
+                                if (!content.isEmpty()) {
+                                    main = content;
+                                }
+                            }
                         }
                     }
                 }
@@ -95,6 +129,7 @@ public class ModuleInfoParser {
                     name,
                     description,
                     testOf,
+                    main,
                     dependencies,
                     runtimeDependencies,
                     versions);

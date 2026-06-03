@@ -18,7 +18,6 @@ public class MavenPomEmitterTest {
         new MavenPomEmitter().emit("group",
                 "artifact",
                 "version",
-                null,
                 new LinkedHashMap<>(Map.of(
                         new MavenDependencyKey("other", "artifact", "jar", null),
                         new MavenDependencyValue("version",
@@ -50,7 +49,6 @@ public class MavenPomEmitterTest {
         new MavenPomEmitter().emit("group",
                 "artifact",
                 "version",
-                null,
                 new LinkedHashMap<>(),
                 new MavenPomEmitter.Metadata(
                         "Project Name",
@@ -105,7 +103,6 @@ public class MavenPomEmitterTest {
         new MavenPomEmitter().emit("group",
                 "artifact",
                 "version",
-                null,
                 new LinkedHashMap<>(Map.of(
                         new MavenDependencyKey("other", "artifact", "test-jar", "classifier"),
                         new MavenDependencyValue("version",
@@ -148,7 +145,6 @@ public class MavenPomEmitterTest {
         new MavenPomEmitter().emit("group",
                 "artifact",
                 "version",
-                null,
                 new LinkedHashMap<>(),
                 new MavenPomEmitter.Metadata(
                         null,

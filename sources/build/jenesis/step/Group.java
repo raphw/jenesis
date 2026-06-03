@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -24,11 +25,16 @@ public class Group implements BuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument ->
+                argument.hasChanged(Path.of(IDENTITY), Path.of(requiresPath)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        // TODO: improve incremental resolve
         Map<String, Set<String>> from = new HashMap<>(), to = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             String name = identification.apply(entry.getKey()).orElse(null);
@@ -44,27 +50,19 @@ public class Group implements BuildStep {
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));
         for (Map.Entry<String, Set<String>> entry : to.entrySet()) {
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             entry.getValue().stream()
                     .flatMap(dependency -> from.getOrDefault(dependency, Set.of()).stream())
                     .distinct()
                     .forEach(name -> properties.setProperty(name, ""));
-            try (Writer writer = Files.newBufferedWriter(folder.resolve(URLEncoder.encode(
-                    entry.getKey(),
-                    StandardCharsets.UTF_8) + ".properties"))) {
-                properties.store(writer, null);
-            }
+            properties.store(folder.resolve(BuildExecutorModule.encode(entry.getKey()) + ".properties"));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
     private static Set<String> toProperties(Path file) throws IOException {
         if (Files.exists(file)) {
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(file)) {
-                properties.load(reader);
-            }
-            return properties.stringPropertyNames();
+            return SequencedProperties.ofFiles(file).stringPropertyNames();
         } else {
             return Set.of();
         }

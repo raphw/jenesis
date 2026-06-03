@@ -25,15 +25,21 @@ public class ModularJarResolver implements Resolver {
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
-                                                     SequencedSet<String> coordinates,
+                                                     SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
+        coordinates.forEach((coordinate, exclusions) -> {
+            if (!exclusions.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
+            }
+        });
         SequencedMap<String, String> dependencies = new LinkedHashMap<>();
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
         SequencedMap<String, String> hints = new LinkedHashMap<>(versions);
-        Queue<String> queue = new ArrayDeque<>(coordinates);
+        Queue<String> queue = new ArrayDeque<>(coordinates.sequencedKeySet());
         int runtime = Runtime.version().feature();
         while (!queue.isEmpty()) {
             String raw = queue.remove();
@@ -55,17 +61,10 @@ public class ModularJarResolver implements Resolver {
             }
             String hint = propagated.get(current);
             String requested = pin != null ? pin : (hint != null ? hint : inlineVersion);
-            Repository repository = repositories.getOrDefault(prefix, Repository.empty());
+            Repository repository = repositories.getOrDefault(Resolver.base(prefix), Repository.empty());
             RepositoryItem item = requested == null
                     ? repository.fetch(executor, current).orElse(null)
-                    : repository.fetch(executor, current + "/" + requested)
-                            .or(() -> {
-                                try {
-                                    return repository.fetch(executor, current);
-                                } catch (IOException e) {
-                                    throw new UncheckedIOException(e);
-                                }
-                            }).orElse(null);
+                    : repository.fetch(executor, current + "/" + requested).orElse(null);
             if (item == null) {
                 if (fallback == null) {
                     throw new IllegalArgumentException("No module found for " + current);
@@ -116,12 +115,29 @@ public class ModularJarResolver implements Resolver {
                             .orElseGet(() -> ModuleDescriptor.newAutomaticModule(current).build());
                 }
                 if (descriptor.isAutomatic()) {
+                    if (fallback != null) {
+                        unresolved.add(current);
+                        if (requested != null) {
+                            hints.putIfAbsent(current, checksum == null ? requested : requested + " " + checksum);
+                        }
+                        continue;
+                    }
                     if (resolveAutomaticModules) {
                         continue;
                     }
-                    throw new IllegalArgumentException("No module-info.class found for " + current);
+                    throw new IllegalArgumentException("Cannot resolve automatic module " + current
+                            + " without a fallback resolver: its dependencies are not declared as modules");
                 }
-                String version = requested != null ? requested : descriptor.rawVersion().orElse(null);
+                if (!descriptor.name().equals(current)) {
+                    throw new IllegalArgumentException(
+                            "Expected module " + current + " but jar declares " + descriptor.name());
+                }
+                String declared = descriptor.rawVersion().orElse(null);
+                if (!resolveAutomaticModules && declared != null && requested != null && !declared.equals(requested)) {
+                    throw new IllegalArgumentException(
+                            "Expected version " + requested + " for " + current + " but jar declares " + declared);
+                }
+                String version = requested != null ? requested : declared;
                 dependencies.put(prefix + "/" + current + (version == null ? "" : "/" + version),
                         checksum == null ? "" : checksum);
                 resolved.add(current);
@@ -140,7 +156,12 @@ public class ModularJarResolver implements Resolver {
             }
         }
         if (!unresolved.isEmpty()) {
-            fallback.dependencies(executor, prefix, repositories, unresolved, hints, compile).forEach(dependencies::putIfAbsent);
+            SequencedMap<String, SequencedSet<String>> unresolvedCoordinates = new LinkedHashMap<>();
+            for (String coordinate : unresolved) {
+                unresolvedCoordinates.put(coordinate, Collections.emptyNavigableSet());
+            }
+            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, compile)
+                    .forEach(dependencies::putIfAbsent);
         }
         return dependencies;
     }

@@ -2,7 +2,7 @@ package build.jenesis;
 
 import module java.base;
 
-public record HashDigestFunction(String algorithm) implements HashFunction {
+public record HashDigestFunction(String algorithm) implements HashFunction, Serializable {
 
     @Override
     public byte[] hash(Path file) throws IOException {
@@ -16,5 +16,9 @@ public record HashDigestFunction(String algorithm) implements HashFunction {
             digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
         }
         return digest.digest();
+    }
+
+    public String encodedHash(Path file) throws IOException {
+        return algorithm + "/" + HexFormat.of().formatHex(hash(file));
     }
 }

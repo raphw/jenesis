@@ -30,24 +30,27 @@ public class Javadoc extends JdkProcessBuildStep {
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
                 "-d", Files.createDirectory(context.next().resolve(JAVADOC)).toString(),
                 "-notimestamp",
-                "-tag", "release:a:Release:",
-                "-tag", "requires:a:Requires:",
-                "-tag", "tests:X"));
+                "-tag", "jenesis.release:a:Release:",
+                "-tag", "jenesis.main:a:Main class:",
+                "-tag", "jenesis.test:a:Tests the module:",
+                "-tag", "jenesis.pin:a:Pinned dependencies:"));
         for (BuildStepArgument argument : arguments.values()) {
             Path sources = argument.folder().resolve(BuildStep.SOURCES),
-                    classes = argument.folder().resolve(BuildStep.CLASSES),
-                    artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+                    classes = argument.folder().resolve(BuildStep.CLASSES);
             if (Files.exists(classes)) {
                 path.add(classes.toString());
             }
-            if (Files.exists(artifacts)) {
-                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        path.add(file.toString());
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
+            for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
+                Path jars = argument.folder().resolve(jarFolder);
+                if (Files.exists(jars)) {
+                    Files.walkFileTree(jars, new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            path.add(file.toString());
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+                }
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new SimpleFileVisitor<>() {
@@ -61,7 +64,7 @@ public class Javadoc extends JdkProcessBuildStep {
                 });
             }
         }
-        boolean module = files.stream().anyMatch(file -> file.endsWith("/module-info.java"));
+        boolean module = files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
         if (!path.isEmpty()) {
             for (String entry : path) {
                 if (entry.indexOf(File.pathSeparatorChar) != -1) {

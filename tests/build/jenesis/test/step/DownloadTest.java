@@ -8,6 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.RepositoryItem;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Download;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,12 +30,10 @@ public class DownloadTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException, NoSuchAlgorithmException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8))))).apply(
@@ -44,17 +43,15 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, NoSuchAlgorithmException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
@@ -75,17 +72,15 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -99,23 +94,23 @@ public class DownloadTest {
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .hasMessageContaining("Mismatched digest for foo/bar");
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run() throws IOException, NoSuchAlgorithmException {
         Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
+                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
-                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, _) -> {
+                    throw new AssertionError("repository must not be fetched");
+                }
         )).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -123,17 +118,15 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(previous.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
     }
 
     @Test
     public void can_resolve_dependencies_without_hash() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -144,16 +137,14 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_resolve_dependencies_from_file_without_hash() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
@@ -174,22 +165,22 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 
     @Test
     public void can_retain_dependency_from_previous_run_no_hash() throws IOException {
         Files.writeString(Files
-                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.ARTIFACTS))
+                .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
-                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+                (_, _) -> {
+                    throw new AssertionError("repository must not be fetched");
+                }
         )).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -197,54 +188,45 @@ public class DownloadTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(previous.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(previous.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
     }
 
     @Test
-    public void fails_when_require_checksums_property_is_set_and_hash_is_missing() throws IOException {
-        Properties properties = new Properties();
+    public void fails_when_requireChecksums_is_true_and_hash_is_missing() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
-        System.setProperty(Download.REQUIRE_CHECKSUMS_PROPERTY, "true");
-        try {
-            assertThatThrownBy(() -> new Download(Map.of(
-                    "foo",
-                    (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-            )).apply(
-                    Runnable::run,
-                    new BuildStepContext(previous, next, supplement),
-                    new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
-                            dependencies,
-                            Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No checksum pinned for foo/bar")
-                    .hasMessageContaining(Download.REQUIRE_CHECKSUMS_PROPERTY);
-        } finally {
-            System.clearProperty(Download.REQUIRE_CHECKSUMS_PROPERTY);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        assertThatThrownBy(() -> new Download(Map.of(
+                "foo",
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        ), true).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
+                .hasMessageContaining("No checksum pinned for foo/bar")
+                .hasMessageContaining("strict pinning");
     }
 
     @Test
-    public void permits_missing_hash_when_require_checksums_property_is_unset() throws IOException {
-        Properties properties = new Properties();
+    public void permits_missing_hash_when_requireChecksums_is_false() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/bar", "");
-        try (BufferedWriter writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
-        System.clearProperty(Download.REQUIRE_CHECKSUMS_PROPERTY);
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-        )).apply(
+        ), false).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(next.resolve(BuildStep.ARTIFACTS + "foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
 }

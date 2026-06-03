@@ -6,6 +6,35 @@ public class SequencedProperties extends Properties {
 
     private final SequencedMap<Object, Object> delegate = new LinkedHashMap<>();
 
+    public static SequencedProperties ofFolders(Iterable<Path> folders, String file) throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        for (Path folder : folders) {
+            Path candidate = folder.resolve(file);
+            if (Files.exists(candidate)) {
+                try (Reader reader = Files.newBufferedReader(candidate)) {
+                    properties.load(reader);
+                }
+            }
+        }
+        return properties;
+    }
+
+    public static SequencedProperties ofFiles(Path... files) throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        for (Path file : files) {
+            try (Reader reader = Files.newBufferedReader(file)) {
+                properties.load(reader);
+            }
+        }
+        return properties;
+    }
+
+    public void store(Path file) throws IOException {
+        try (Writer writer = Files.newBufferedWriter(file)) {
+            store(writer, null);
+        }
+    }
+
     @Override
     public void store(Writer writer, String comments) throws IOException {
         super.store(new CommentSuppressingWriter(writer), comments);
@@ -205,7 +234,7 @@ public class SequencedProperties extends Properties {
             if (skipNextNewLine) {
                 skipNextNewLine = false;
             } else {
-                super.newLine();
+                super.write('\n');
             }
         }
     }

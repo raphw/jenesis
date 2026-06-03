@@ -13,6 +13,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.HashFunction;
+import build.jenesis.SequencedProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,7 +28,11 @@ public class BuildExecutorTest implements Serializable {
     @BeforeEach
     public void setUp() throws Exception {
         hash = new HashDigestFunction("MD5");
-        buildExecutor = BuildExecutor.of(root, hash, BuildExecutorCallback.nop());
+        buildExecutor = BuildExecutor.of(root,
+                Duration.ZERO,
+                hash,
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
     }
 
     @Test
@@ -55,7 +60,7 @@ public class BuildExecutorTest implements Serializable {
         assertThatThrownBy(() -> buildExecutor.addStep("foo/bar", (_, _, _) -> {
             throw new AssertionError();
         })).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(
-                "foo/bar does not match pattern: [a-zA-Z0-9-]+");
+                "foo/bar does not match pattern: [a-zA-Z0-9._%-]+");
     }
 
     @Test
@@ -130,14 +135,16 @@ public class BuildExecutorTest implements Serializable {
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
+        HashFunction.write(checksum.resolve("argument.source.properties"), HashFunction.read(source, hash));
         Files.writeString(output.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
+        HashFunction.write(checksum.resolve("output.properties"), HashFunction.read(output, hash));
         BuildStep buildStep = (_, _, _) -> {
             throw new AssertionError("Did not expect that step is executed");
         };
-        Files.writeString(checksum.resolve("step"),
+        SequencedProperties stepProperties = new SequencedProperties();
+        stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -151,9 +158,9 @@ public class BuildExecutorTest implements Serializable {
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, _ -> new byte[0]));
+        HashFunction.write(checksum.resolve("argument.source.properties"), HashFunction.read(source, _ -> new byte[0]));
         Files.writeString(output.resolve("file"), "bar");
-        HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
+        HashFunction.write(checksum.resolve("output.properties"), HashFunction.read(output, hash));
         BuildStep buildStep = (_, context, arguments) -> {
             assertThat(context.previous()).exists().isEqualTo(output);
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
@@ -165,8 +172,10 @@ public class BuildExecutorTest implements Serializable {
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         };
-        Files.writeString(checksum.resolve("step"),
+        SequencedProperties stepProperties = new SequencedProperties();
+        stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -180,9 +189,9 @@ public class BuildExecutorTest implements Serializable {
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
+        HashFunction.write(checksum.resolve("argument.source.properties"), HashFunction.read(source, hash));
         Files.writeString(output.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
+        HashFunction.write(checksum.resolve("output.properties"), HashFunction.read(output, hash));
         BuildStep buildStep = new BuildStep() {
             @Override
             public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -205,8 +214,10 @@ public class BuildExecutorTest implements Serializable {
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }
         };
-        Files.writeString(checksum.resolve("step"),
+        SequencedProperties stepProperties = new SequencedProperties();
+        stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -220,9 +231,9 @@ public class BuildExecutorTest implements Serializable {
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, _ -> new byte[0]));
+        HashFunction.write(checksum.resolve("argument.source.properties"), HashFunction.read(source, _ -> new byte[0]));
         Files.writeString(output.resolve("file"), "qux");
-        HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, hash));
+        HashFunction.write(checksum.resolve("output.properties"), HashFunction.read(output, hash));
         BuildStep buildStep = (_, context, arguments) -> {
             assertThat(context.previous()).exists().isEqualTo(output);
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
@@ -234,8 +245,10 @@ public class BuildExecutorTest implements Serializable {
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
             return CompletableFuture.completedStage(new BuildStepResult(false));
         };
-        Files.writeString(checksum.resolve("step"),
+        SequencedProperties stepProperties = new SequencedProperties();
+        stepProperties.setProperty("serialization",
                 HexFormat.of().formatHex(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep)));
+        stepProperties.store(checksum.resolve("step.properties"));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", buildStep, "source");
         Map<String, ?> build = buildExecutor.execute(Runnable::run).toCompletableFuture().join();
@@ -249,9 +262,9 @@ public class BuildExecutorTest implements Serializable {
                 checksum = Files.createDirectory(step.resolve("checksum")),
                 output = Files.createDirectory(step.resolve("output"));
         Files.writeString(source.resolve("file"), "foo");
-        HashFunction.write(checksum.resolve("checksums.source"), HashFunction.read(source, hash));
+        HashFunction.write(checksum.resolve("argument.source.properties"), HashFunction.read(source, hash));
         Files.writeString(output.resolve("file"), "qux");
-        HashFunction.write(checksum.resolve("checksums"), HashFunction.read(output, _ -> new byte[0]));
+        HashFunction.write(checksum.resolve("output.properties"), HashFunction.read(output, _ -> new byte[0]));
         buildExecutor.addSource("source", source);
         buildExecutor.addStep("step", (_, context, arguments) -> {
             assertThat(context.previous()).isNull();

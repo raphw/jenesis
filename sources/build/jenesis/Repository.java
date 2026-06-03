@@ -19,10 +19,23 @@ public interface Repository {
             return this;
         }
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        return cached(folder, verbose ? target -> System.out.printf("%s%-11s%s %s%n",
+                BuildExecutorCallback.YELLOW,
+                "[FETCHED]",
+                BuildExecutorCallback.RESET,
+                target.toAbsolutePath().toUri()) : _ -> {
+        });
+    }
+
+    default Repository cached(Path folder, Consumer<Path> callback) {
+        if (folder == null) {
+            return this;
+        }
         ConcurrentMap<String, Path> cache = new ConcurrentHashMap<>();
+        Set<String> internal = ConcurrentHashMap.newKeySet();
         return (executor, coordinate) -> {
             try {
-                Path candidate = folder.resolve(URLEncoder.encode(coordinate, StandardCharsets.UTF_8) + ".jar");
+                Path candidate = folder.resolve(BuildExecutorModule.encode(coordinate) + ".jar");
                 boolean preexisting = Files.exists(candidate);
                 Path target = cache.computeIfAbsent(coordinate, key -> {
                     if (Files.exists(candidate)) {
@@ -34,8 +47,12 @@ public interface Repository {
                             return null;
                         }
                         Path file = item.file().orElse(null);
+                        if (item.internal() && file != null) {
+                            internal.add(key);
+                            return file;
+                        }
                         if (file != null) {
-                            Files.createLink(candidate, file);
+                            BuildStep.linkOrCopy(candidate, file);
                         } else {
                             try (InputStream inputStream = item.toInputStream()) {
                                 Files.copy(inputStream, candidate);
@@ -46,12 +63,12 @@ public interface Repository {
                         throw new UncheckedIOException(e);
                     }
                 });
-                if (verbose && preexisting && target != null) {
-                    System.out.printf("%s%-11s%s %s%n",
-                            BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET,
-                            target.toAbsolutePath().toUri());
+                if (preexisting && target != null) {
+                    callback.accept(target);
                 }
-                return target == null ? Optional.empty() : Optional.of(RepositoryItem.ofFile(target));
+                return target == null
+                        ? Optional.empty()
+                        : Optional.of(RepositoryItem.ofFile(target, internal.contains(coordinate)));
             } catch (UncheckedIOException e) {
                 throw e.getCause();
             }
@@ -70,6 +87,18 @@ public interface Repository {
             Map<String, URI> uris,
             F versionResolver) {
         boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        return ofUris(uris, versionResolver, verbose ? uri -> System.out.printf("%s%-11s%s %s%n",
+                BuildExecutorCallback.YELLOW,
+                "[FETCHED]",
+                BuildExecutorCallback.RESET,
+                uri) : _ -> {
+        });
+    }
+
+    static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> Repository ofUris(
+            Map<String, URI> uris,
+            F versionResolver,
+            Consumer<URI> callback) {
         return (_, coordinate) -> {
             URI candidate = uris.get(coordinate);
             if (candidate == null && versionResolver != null) {
@@ -77,7 +106,10 @@ public interface Repository {
                 if (slash > 0) {
                     URI base = uris.get(coordinate.substring(0, slash));
                     if (base != null) {
-                        candidate = versionResolver.apply(base, coordinate.substring(slash + 1)).orElse(base);
+                        // For a versioned request, the rewriter must produce a version-specific URL.
+                        // If it can't (e.g. the registered URL isn't in Maven layout), treat it as a
+                        // miss rather than silently serving whichever version the bare-name URL points at.
+                        candidate = versionResolver.apply(base, coordinate.substring(slash + 1)).orElse(null);
                     }
                 }
             }
@@ -85,12 +117,9 @@ public interface Repository {
                 return Optional.empty();
             }
             URI uri = candidate;
-            if (verbose) {
-                System.out.printf("%s%-11s%s %s%n",
-                        BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, uri);
-            }
+            callback.accept(uri);
             if (Objects.equals("file", uri.getScheme())) {
-                return Optional.of(RepositoryItem.ofFile(Path.of(uri)));
+                return Optional.of(RepositoryItem.ofFile(Path.of(uri), true));
             } else {
                 return Optional.of(() -> uri.toURL().openStream());
             }
@@ -128,10 +157,7 @@ public interface Repository {
         for (Path folder : folders) {
             Path file = folder.resolve(suffix);
             if (Files.exists(file)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(file)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String coordinate : properties.stringPropertyNames()) {
                     String location = properties.getProperty(coordinate);
                     if (!location.isEmpty()) {

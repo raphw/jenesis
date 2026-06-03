@@ -8,9 +8,13 @@ public interface Resolver extends Serializable {
     SequencedMap<String, String> dependencies(Executor executor,
                                               String prefix,
                                               Map<String, Repository> repositories,
-                                              SequencedSet<String> coordinates,
+                                              SequencedMap<String, SequencedSet<String>> coordinates,
                                               SequencedMap<String, String> versions,
                                               boolean compile) throws IOException;
+
+    default SequencedSet<String> managedPrefixes() {
+        return Collections.emptyNavigableSet();
+    }
 
     default <F extends BiFunction<String, String, String> & Serializable> Resolver translated(String translated, F translator) {
         return (executor, prefix, repositories, coordinates, versions, compile) -> {
@@ -18,17 +22,30 @@ public interface Resolver extends Serializable {
             versions.forEach((coordinate, version) -> translatedVersions.put(
                     pinVersion(translator.apply(prefix, coordinate), version),
                     version));
+            SequencedMap<String, SequencedSet<String>> translatedCoordinates = new LinkedHashMap<>();
+            coordinates.forEach((coordinate, exclusions) -> translatedCoordinates.put(
+                    pinVersion(translator.apply(prefix, coordinate), versions.get(coordinate)),
+                    exclusions));
             return dependencies(executor,
                     translated,
                     repositories,
-                    coordinates.stream()
-                            .map(coordinate -> pinVersion(
-                                    translator.apply(prefix, coordinate),
-                                    versions.get(coordinate)))
-                            .collect(Collectors.toCollection(LinkedHashSet::new)),
+                    translatedCoordinates,
                     translatedVersions,
                     compile);
         };
+    }
+
+    static String base(String prefix) {
+        int at = prefix.indexOf('@');
+        return at < 0 ? prefix : prefix.substring(0, at);
+    }
+
+    static String qualify(String coordinate, String qualifier) {
+        if (qualifier == null) {
+            return coordinate;
+        }
+        int slash = coordinate.indexOf('/');
+        return slash < 0 ? coordinate : coordinate.substring(0, slash) + "@" + qualifier + coordinate.substring(slash);
     }
 
     private static String pinVersion(String coordinate, String version) {
@@ -44,7 +61,7 @@ public interface Resolver extends Serializable {
     static Resolver identity() {
         return (_, prefix, _, coordinates, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
-            coordinates.forEach(coordinate -> resolved.put(prefix + "/" + coordinate, ""));
+            coordinates.sequencedKeySet().forEach(coordinate -> resolved.put(prefix + "/" + coordinate, ""));
             return resolved;
         };
     }
@@ -52,7 +69,7 @@ public interface Resolver extends Serializable {
     static <F extends Function<String, SequencedCollection<String>> & Serializable> Resolver of(F translator) {
         return (_, prefix, _, coordinates, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
-            coordinates.stream()
+            coordinates.sequencedKeySet().stream()
                     .flatMap(coordinate -> translator.apply(coordinate).stream())
                     .forEach(coordinate -> resolved.put(prefix + "/" + coordinate, ""));
             return resolved;

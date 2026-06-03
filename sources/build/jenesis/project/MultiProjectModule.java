@@ -7,62 +7,53 @@ import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
 
-public class MultiProjectModule implements BuildExecutorModule {
+public record MultiProjectModule(BuildExecutorModule identifier,
+                                 Function<String, Optional<String>> resolver,
+                                 Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory)
+        implements BuildExecutorModule {
 
     public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
             MODULE = "module";
 
+    public static final String SOURCES = "sources",
+            MANIFESTS = "manifests",
+            COORDINATES = "coordinates",
+            PREPARE = "prepare",
+            PRODUCE = "produce",
+            ASSIGN = "assign",
+            INVENTORY = "inventory",
+            DEPENDENCIES = "dependencies";
+
     private static final String GROUP = "group";
 
     public static final String IDENTIFIER_PATH = PREVIOUS.repeat(3) + IDENTIFIER + "/";
 
-    private final BuildExecutorModule identifier;
-    private final Function<String, Optional<String>> resolver;
-    private final Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory;
-
-    public MultiProjectModule(BuildExecutorModule identifier,
-                              Function<String, Optional<String>> resolver,
-                              Function<SequencedMap<String, SequencedSet<String>>, MultiProject> factory) {
-        this.identifier = identifier;
-        this.resolver = resolver;
-        this.factory = factory;
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <F extends Function<Path, Optional<Path>> & Serializable> F linkBySubModule(String... names) {
-        Set<String> allowed = Set.of(names);
-        return (F) (Function<Path, Optional<Path>> & Serializable) (file -> {
-            Path filename = file.getFileName();
-            if (filename == null || !allowed.contains(filename.toString())) {
+    @Override
+    public Optional<String> resolve(String path) {
+        if (path.startsWith(IDENTIFIER + "/")) {
+            if (path.endsWith("/" + COORDINATES)) {
                 return Optional.empty();
             }
-            for (Path probe = file.getParent(); probe != null; probe = probe.getParent()) {
-                Path parent = probe.getParent();
-                if (parent == null || parent.getFileName() == null || probe.getFileName() == null) {
-                    continue;
-                }
-                String parentName = parent.getFileName().toString();
-                String probeName = probe.getFileName().toString();
-                if (MODULE.equals(parentName)
-                        || (IDENTIFIER.equals(parentName) && probeName.startsWith(MODULE + "-"))) {
-                    return Optional.of(Path.of(probeName, filename.toString()));
-                }
-            }
-            return Optional.empty();
-        });
+            return Optional.of(path.substring(IDENTIFIER.length() + 1));
+        }
+        String composeModulePrefix = COMPOSE + "/" + MODULE + "/";
+        if (path.startsWith(composeModulePrefix)) {
+            return Optional.of(path.substring(composeModulePrefix.length()));
+        }
+        return Optional.empty();
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addModule(IDENTIFIER, identifier);
+        buildExecutor.addModule(IDENTIFIER, identifier, inherited.sequencedKeySet().stream());
         buildExecutor.addModule(COMPOSE, (process, identified) -> {
             SequencedMap<String, String> modules = new LinkedHashMap<>();
             SequencedMap<String, SequencedSet<String>> identifiers = new LinkedHashMap<>();
             for (String identifier : identified.sequencedKeySet()) {
                 if (identifier.startsWith(PREVIOUS + IDENTIFIER + "/")) {
                     resolver.apply(identifier.substring(PREVIOUS.length() + IDENTIFIER.length() + 1)).ifPresent(module -> {
-                        String name = URLEncoder.encode(module, StandardCharsets.UTF_8);
+                        String name = BuildExecutorModule.encode(module);
                         if (name.isEmpty()) {
                             throw new IllegalArgumentException("Module name must not be empty");
                         }
@@ -79,10 +70,7 @@ public class MultiProjectModule implements BuildExecutorModule {
                 SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();
                 Path groups = paths.get(PREVIOUS + GROUP).resolve(Group.GROUPS);
                 for (Map.Entry<String, SequencedSet<String>> entry : identifiers.entrySet()) {
-                    Properties properties = new SequencedProperties();
-                    try (Reader reader = Files.newBufferedReader(groups.resolve(entry.getKey() + ".properties"))) {
-                        properties.load(reader);
-                    }
+                    SequencedProperties properties = SequencedProperties.ofFiles(groups.resolve(entry.getKey() + ".properties"));
                     projects.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
                 MultiProject project = factory.apply(projects);

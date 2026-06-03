@@ -33,17 +33,18 @@ public interface HashFunction {
 
     static Map<Path, byte[]> read(Path file) throws IOException {
         Map<Path, byte[]> checksums = new LinkedHashMap<>();
-        try (BufferedReader reader = Files.newBufferedReader(file)) {
-            Iterator<String> it = reader.lines().iterator();
-            while (it.hasNext()) {
-                checksums.put(Paths.get(it.next()), HexFormat.of().parseHex(it.next()));
-            }
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
+        for (String name : properties.stringPropertyNames()) {
+            checksums.put(Path.of(name), HexFormat.of().parseHex(properties.getProperty(name)));
         }
         return checksums;
     }
 
     static Map<Path, byte[]> read(Path folder, HashFunction hash) throws IOException {
         Map<Path, byte[]> checksums = new LinkedHashMap<>();
+        if (!Files.exists(folder)) {
+            return checksums;
+        }
         Queue<Path> queue = new ArrayDeque<>(List.of(folder));
         do {
             Path current = queue.remove();
@@ -59,14 +60,13 @@ public interface HashFunction {
     }
 
     static void write(Path file, Map<Path, byte[]> checksums) throws IOException {
-        try (BufferedWriter writer = Files.newBufferedWriter(file)) {
-            for (Map.Entry<Path, byte[]> entry : checksums.entrySet()) {
-                writer.append(entry.getKey().toString());
-                writer.newLine();
-                writer.append(HexFormat.of().formatHex(entry.getValue()));
-                writer.newLine();
-            }
+        SequencedProperties properties = new SequencedProperties();
+        for (Map.Entry<Path, byte[]> entry : checksums.entrySet()) {
+            properties.setProperty(
+                    entry.getKey().toString().replace(File.separatorChar, '/'),
+                    HexFormat.of().formatHex(entry.getValue()));
         }
+        properties.store(file);
     }
 
     static boolean areConsistent(Path folder, Map<Path, byte[]> checksums, HashFunction hash) throws IOException {

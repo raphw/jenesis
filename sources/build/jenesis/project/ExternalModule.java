@@ -13,49 +13,47 @@ import build.jenesis.SequencedProperties;
 
 public class ExternalModule implements BuildExecutorModule {
 
-    public static final String COORDINATE = "coordinate", DEPENDENCIES = "dependencies", EXTERNAL = "external", DELEGATE = "delegate";
-    public static final String JENESIS_MODULE = "Jenesis-Module";
+    public static final String COORDINATE = "coordinate", DEPENDENCIES = "dependencies", DELEGATE = "delegate";
     private static final String EXTERNAL_ARTIFACTS = DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-    private static final String EXTERNAL_PROPERTIES = "external.properties";
 
     private final String coordinate;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final List<?> arguments;
-    private final List<String> additionalDependencies;
+    private final SequencedSet<String> additionalDependencies;
+    private final String buildModuleName;
+    private final String qualifier;
 
     public ExternalModule(String coordinate,
+                          String qualifier,
                           Map<String, Repository> repositories,
-                          Map<String, Resolver> resolvers,
-                          Object... arguments) {
-        this(coordinate, repositories, resolvers, List.of(arguments));
-    }
-
-    public ExternalModule(String coordinate,
-                          Map<String, Repository> repositories,
-                          Map<String, Resolver> resolvers,
-                          List<?> arguments) {
-        this(coordinate, repositories, resolvers, arguments, List.of());
+                          Map<String, Resolver> resolvers) {
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
     }
 
     private ExternalModule(String coordinate,
                            Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
-                           List<?> arguments,
-                           List<String> additionalDependencies) {
+                           SequencedSet<String> additionalDependencies,
+                           String buildModuleName,
+                           String qualifier) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.arguments = arguments;
         this.additionalDependencies = additionalDependencies;
+        this.buildModuleName = buildModuleName;
+        this.qualifier = qualifier;
     }
 
     public ExternalModule withDependencies(String... dependencies) {
-        return withDependencies(List.of(dependencies));
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
     }
 
-    public ExternalModule withDependencies(List<String> dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, arguments, List.copyOf(dependencies));
+    public ExternalModule withDependencies(SequencedSet<String> dependencies) {
+        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
+    }
+
+    public ExternalModule withBuildModuleName(String name) {
+        return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name, qualifier);
     }
 
     @Override
@@ -66,108 +64,79 @@ public class ExternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
+        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)
+                || path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+            return Optional.of(path);
+        }
         return Optional.empty();
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         List<String> coordinates = new ArrayList<>(additionalDependencies.size() + 1);
-        coordinates.add(coordinate);
-        coordinates.addAll(additionalDependencies);
-        buildExecutor.addStep(COORDINATE, new WriteCoordinates(coordinates));
+        coordinates.add(Resolver.qualify(coordinate, qualifier));
+        for (String dependency : additionalDependencies) {
+            coordinates.add(Resolver.qualify(dependency, qualifier));
+        }
+        int slash = coordinate.indexOf('/');
+        String base = slash < 0 ? coordinate : coordinate.substring(0, slash);
+        buildExecutor.addStep(COORDINATE,
+                new WriteCoordinates(coordinates, qualifier == null ? base : base + "@" + qualifier),
+                inherited.sequencedKeySet().stream());
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, false),
+                new DependenciesModule(repositories, resolvers, false, false,
+                        qualifier == null ? null : "module:" + qualifier),
                 COORDINATE);
-        buildExecutor.addStep(EXTERNAL, new ExtractExternal(coordinate), EXTERNAL_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
-            Path artifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
-            Properties properties = new SequencedProperties();
-            try (Reader reader = Files.newBufferedReader(delegated.get(PREVIOUS + EXTERNAL)
-                    .resolve(EXTERNAL_PROPERTIES))) {
-                properties.load(reader);
-            }
-            String name = properties.getProperty(JENESIS_MODULE);
-            List<URL> urls = new ArrayList<>();
-            try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
+            Path depArtifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
+            List<Path> artifacts = new ArrayList<>();
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(depArtifacts)) {
                 for (Path file : files) {
-                    urls.add(file.toUri().toURL());
+                    artifacts.add(file);
                 }
             }
-            URLClassLoader classLoader = new URLClassLoader(
-                    urls.toArray(URL[]::new),
-                    BuildExecutorModule.class.getClassLoader());
-            BuildExecutorModule delegate;
+            JenesisClassLoaderBridge bridge;
+            Object foreignModule;
             try {
-                Class<? extends BuildExecutorModule> loaded = Class.forName(name,
-                                true,
-                                classLoader).asSubclass(BuildExecutorModule.class);
-                Constructor<?> constructor = null;
-                for (Constructor<?> candidate : loaded.getConstructors()) {
-                    if (candidate.getParameterCount() == arguments.size()) {
-                        if (constructor != null) {
-                            throw new IllegalStateException("Ambiguous constructor in " 
-                                    + loaded + " for " 
-                                    + List.of(arguments));
-                        }
-                        constructor = candidate;
-                    }
-                }
-                if (constructor == null) {
-                    throw new IllegalStateException("No suitable constructor in "
-                            + loaded + " for "
-                            + List.of(arguments));
-                }
-                delegate = (BuildExecutorModule) constructor.newInstance(arguments.toArray());
+                bridge = new JenesisClassLoaderBridge(artifacts);
+                foreignModule = bridge.findProvider(buildModuleName);
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
             forwarded.remove(PREVIOUS + EXTERNAL_ARTIFACTS);
-            delegate.accept(delegateExecutor, forwarded);
-        }, Stream.concat(Stream.of(EXTERNAL, EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
+            bridge.accept(foreignModule, delegateExecutor, forwarded);
+        }, Stream.concat(Stream.of(EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record WriteCoordinates(List<String> coordinates) implements BuildStep {
+    private record WriteCoordinates(List<String> coordinates, String pinned) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            Properties properties = new SequencedProperties();
+            SequencedProperties properties = new SequencedProperties();
             for (String coordinate : coordinates) {
                 properties.setProperty(coordinate, "");
             }
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(BuildStep.REQUIRES))) {
-                properties.store(writer, null);
-            }
-            return CompletableFuture.completedStage(new BuildStepResult(true));
-        }
-    }
-
-    private record ExtractExternal(String coordinate) implements BuildStep {
-
-        @Override
-        public CompletionStage<BuildStepResult> apply(Executor executor,
-                                                      BuildStepContext context,
-                                                      SequencedMap<String, BuildStepArgument> arguments)
-                throws IOException {
-            Path artifacts = arguments.get(EXTERNAL_ARTIFACTS).folder().resolve(BuildStep.ARTIFACTS);
-            String name;
-            try (JarFile jarFile = new JarFile(artifacts.resolve(coordinate.replace('/', '-') + ".jar").toFile())) {
-                Manifest manifest = jarFile.getManifest();
-                if (manifest == null) {
-                    throw new IllegalStateException("Missing manifest in main artifact: " + coordinate);
+            properties.store(context.next().resolve(BuildStep.REQUIRES));
+            SequencedProperties versions = new SequencedProperties();
+            for (BuildStepArgument argument : arguments.values()) {
+                Path file = argument.folder().resolve(BuildStep.VERSIONS);
+                if (!Files.isRegularFile(file)) {
+                    continue;
                 }
-                name = manifest.getMainAttributes().getValue(JENESIS_MODULE);
-                if (name == null) {
-                    throw new IllegalStateException("Missing Jenesis module manifest entry in artifact: " + coordinate);
+                SequencedProperties present = SequencedProperties.ofFiles(file);
+                for (String coordinate : present.stringPropertyNames()) {
+                    int slash = coordinate.indexOf('/');
+                    if (slash > 0 && coordinate.substring(0, slash).equals(pinned)) {
+                        versions.setProperty(coordinate, present.getProperty(coordinate));
+                    }
                 }
             }
-            Properties properties = new SequencedProperties();
-            properties.setProperty(JENESIS_MODULE, name);
-            try (Writer writer = Files.newBufferedWriter(context.next().resolve(EXTERNAL_PROPERTIES))) {
-                properties.store(writer, null);
+            if (!versions.isEmpty()) {
+                versions.store(context.next().resolve(BuildStep.VERSIONS));
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

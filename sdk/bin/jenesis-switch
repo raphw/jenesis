@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+#
+# jenesis-switch: discover the Jenesis version recorded in
+# build/jenesis/jenesis.version of each target, install it via SDKMAN if
+# needed, and switch the current shell to it. Must be sourced so that
+# 'sdk use' affects the calling shell:
+#
+#     . jenesis-switch [targets...]
+#     source jenesis-switch [targets...]
+#
+# With no arguments, the current directory is the target. With one or more
+# arguments, every target must agree on the recorded version, otherwise
+# the switch is aborted.
+
+if (return 0 2>/dev/null); then
+    _JS_SOURCED=1
+else
+    _JS_SOURCED=0
+fi
+
+_jenesis_switch_main() {
+    local labeled=0
+    if [ "$#" -gt 0 ]; then
+        labeled=1
+    else
+        set -- "."
+    fi
+
+    local discovered_version=""
+    local discovered_from=""
+    local target abs_target version_file cur_version prefix target_clean
+
+    for target in "$@"; do
+        target_clean="${target%/}"
+        if [ "$labeled" = "1" ]; then
+            prefix="${target_clean} - "
+        else
+            prefix=""
+        fi
+        if [ ! -d "$target" ]; then
+            echo "jenesis-switch: target '$target' is not a directory" >&2
+            return 1
+        fi
+        abs_target="$(cd "$target" && pwd -P)"
+        version_file="$abs_target/build/jenesis/jenesis.version"
+        if [ ! -d "$abs_target/build/jenesis" ]; then
+            echo "jenesis-switch: ${prefix}no build/jenesis found" >&2
+            return 1
+        fi
+        if [ ! -f "$version_file" ]; then
+            echo "jenesis-switch: ${prefix}no version found" >&2
+            return 1
+        fi
+        cur_version="$(cat "$version_file")"
+        if [ -z "$cur_version" ]; then
+            echo "jenesis-switch: ${prefix}jenesis.version is empty" >&2
+            return 1
+        fi
+        if [ -z "$discovered_version" ]; then
+            discovered_version="$cur_version"
+            discovered_from="$target_clean"
+        elif [ "$discovered_version" != "$cur_version" ]; then
+            echo "jenesis-switch: version conflict - ${discovered_from} is at ${discovered_version}, ${target_clean} is at ${cur_version}" >&2
+            return 1
+        fi
+    done
+
+    echo "jenesis-switch: discovered version ${discovered_version}"
+
+    if ! command -v sdk >/dev/null 2>&1; then
+        local sdkman_init="${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh"
+        if [ -s "$sdkman_init" ]; then
+            # shellcheck disable=SC1090
+            . "$sdkman_init"
+        fi
+    fi
+    if ! command -v sdk >/dev/null 2>&1; then
+        echo "jenesis-switch: 'sdk' command not found - install SDKMAN from https://sdkman.io" >&2
+        return 1
+    fi
+
+    local sdkman_dir="${SDKMAN_DIR:-$HOME/.sdkman}"
+    if [ ! -d "${sdkman_dir}/candidates/jenesis/${discovered_version}" ]; then
+        echo "jenesis-switch: installing Jenesis ${discovered_version} via SDKMAN"
+        # Answer "n" to SDKMAN's "set as default? (Y/n)" prompt: switching is a
+        # shell-local action, the user can run 'sdk default jenesis X' separately.
+        if ! printf 'n\n' | sdk install jenesis "${discovered_version}"; then
+            echo "jenesis-switch: 'sdk install jenesis ${discovered_version}' failed - version is not known to SDKMAN" >&2
+            return 1
+        fi
+        if [ ! -d "${sdkman_dir}/candidates/jenesis/${discovered_version}" ]; then
+            echo "jenesis-switch: jenesis ${discovered_version} not present after install - version is not known to SDKMAN" >&2
+            return 1
+        fi
+    fi
+
+    if ! sdk use jenesis "${discovered_version}"; then
+        echo "jenesis-switch: 'sdk use jenesis ${discovered_version}' failed" >&2
+        return 1
+    fi
+    echo "jenesis-switch: switched to Jenesis ${discovered_version}"
+    return 0
+}
+
+if [ "$_JS_SOURCED" = "0" ]; then
+    cat >&2 <<'EOM'
+jenesis-switch: this script must be sourced so that 'sdk use' takes effect
+in the current shell. Run it as:
+
+    . jenesis-switch [targets...]
+    source jenesis-switch [targets...]
+EOM
+    exit 1
+fi
+
+_jenesis_switch_main "$@"
+_jenesis_switch_rc=$?
+unset -f _jenesis_switch_main
+unset _JS_SOURCED
+return $_jenesis_switch_rc

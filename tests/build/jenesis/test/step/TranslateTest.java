@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Translate;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,12 +28,10 @@ public class TranslateTest {
 
     @Test
     public void can_transform_dependencies() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/qux", "foobar");
         properties.setProperty("bar/baz", "quxbaz");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Translate(Map.of(
                 "foo",
                 coordinate -> "translated/" + coordinate)).apply(
@@ -44,10 +43,7 @@ public class TranslateTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            dependencies.load(reader);
-        }
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("translated/qux", "bar/baz");
         assertThat(dependencies.getProperty("translated/qux")).isEqualTo("foobar");
         assertThat(dependencies.getProperty("bar/baz")).isEqualTo("quxbaz");

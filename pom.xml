@@ -10,28 +10,6 @@
 
     <name>Jenesis</name>
     <description>A build tool for Java projects, written and configured in Java itself.</description>
-    <url>https://github.com/raphw/jenesis</url>
-
-    <licenses>
-        <license>
-            <name>Apache-2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        </license>
-    </licenses>
-
-    <developers>
-        <developer>
-            <id>raphw</id>
-            <name>Rafael Winterhalter</name>
-            <email>rafael.wth@gmail.com</email>
-        </developer>
-    </developers>
-
-    <scm>
-        <connection>scm:git:https://github.com/raphw/jenesis.git</connection>
-        <developerConnection>scm:git:git@github.com:raphw/jenesis.git</developerConnection>
-        <url>https://github.com/raphw/jenesis</url>
-    </scm>
 
     <build>
         <sourceDirectory>sources</sourceDirectory>
@@ -63,6 +41,7 @@
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <mainClass>build.jenesis.Project</mainClass>
     </properties>
 
     <dependencyManagement>
@@ -118,8 +97,8 @@
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-console</artifactId>
-                <version>1.11.4</version>
-                <!--Checksum/SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7-->
+                <version>1.11.3</version>
+                <!--Checksum/SHA-256/a21b34807eb7d8aa56295d152ff7e0988bd22bbd5f17086c10f42b5c5ac46033-->
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
@@ -130,14 +109,14 @@
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-launcher</artifactId>
-                <version>1.11.4</version>
-                <!--Checksum/SHA-256/d7430bd029e7fcced53ee445e4d2d1a8a1e043ea4c4df43b6335a857f79761ae-->
+                <version>1.11.3</version>
+                <!--Checksum/SHA-256/b4727459201b0011beb0742bd807421a1fc8426b116193031ed87825bc2d4f04-->
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-reporting</artifactId>
-                <version>1.11.4</version>
-                <!--Checksum/SHA-256/df6896109bfaef4de8d2fa9e3371a6176936d1a45a6c0e7fd8f7e6dd6f4c5597-->
+                <version>1.11.3</version>
+                <!--Checksum/SHA-256/b8e19dbebcae7d1ff30b9d767047fbf3694027c33dfa423b371693b7f6679ed1-->
             </dependency>
             <dependency>
                 <groupId>org.opentest4j</groupId>
@@ -147,6 +126,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

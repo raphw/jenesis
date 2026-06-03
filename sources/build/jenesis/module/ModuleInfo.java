@@ -7,11 +7,12 @@ public record ModuleInfo(String coordinate,
                          String name,
                          String description,
                          String testOf,
+                         String main,
                          SequencedSet<String> requires,
                          SequencedSet<String> runtimeRequires,
                          SequencedMap<String, String> versions) {
 
     public ModuleInfo(String coordinate, SequencedSet<String> requires, SequencedSet<String> runtimeRequires) {
-        this(coordinate, null, null, null, null, requires, runtimeRequires, new LinkedHashMap<>());
+        this(coordinate, null, null, null, null, null, requires, runtimeRequires, new LinkedHashMap<>());
     }
 }

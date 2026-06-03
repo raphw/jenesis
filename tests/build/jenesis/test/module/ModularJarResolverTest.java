@@ -6,6 +6,7 @@ import build.jenesis.RepositoryItem;
 import build.jenesis.module.ModularJarResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ModularJarResolverTest {
 
@@ -16,14 +17,14 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("sample", require("transitive", 0));
+                        case "root" -> () -> toJar("root", require("transitive", 0));
                         case "transitive" -> () -> toJar("transitive", require("last", 0));
                         case "last" -> () -> toJar("last");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -39,13 +40,13 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("sample", require("optional", ClassFile.ACC_STATIC_PHASE));
+                        case "root" -> () -> toJar("root", require("optional", ClassFile.ACC_STATIC_PHASE));
                         case "optional" -> () -> toJar("optional");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
@@ -58,14 +59,14 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("sample", require("propagated",
+                        case "root" -> () -> toJar("root", require("propagated",
                                 ClassFile.ACC_STATIC_PHASE | ClassFile.ACC_TRANSITIVE));
                         case "propagated" -> () -> toJar("propagated");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -89,7 +90,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -106,14 +107,14 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("sample", require("propagated",
+                        case "root" -> () -> toJar("root", require("propagated",
                                 ClassFile.ACC_STATIC_PHASE | ClassFile.ACC_TRANSITIVE));
                         case "propagated" -> () -> toJar("propagated");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 false);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
@@ -163,7 +164,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/1.2.3", ""));
@@ -181,25 +182,105 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root", ""));
     }
 
     @Test
-    public void input_pin_overrides_module_info_version() throws IOException {
+    public void rejects_module_with_unexpected_name() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("imposter");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("root")
+                .hasMessageContaining("imposter");
+    }
+
+    @Test
+    public void input_pin_drives_versioned_fetch() throws IOException {
         SequencedMap<String, String> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root/9.9" -> () -> toJar("root", "9.9");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", "9.9")),
+                true);
+        assertThat(dependencies).containsExactly(Map.entry("foo/root/9.9", ""));
+    }
+
+    @Test
+    public void input_pin_rejects_mismatched_module_info_version() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root/9.9" -> () -> toJar("root", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", "9.9")),
+                true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("9.9")
+                .hasMessageContaining("1.0");
+    }
+
+    @Test
+    public void input_pin_does_not_fall_back_to_unversioned_coordinate() {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
                     RepositoryItem item = switch (coordinate) {
                         case "root" -> () -> toJar("root", "1.0");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", "9.9")),
+                true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No module found for root");
+        assertThat(fetched).containsOnlyKeys("root/9.9");
+    }
+
+    @Test
+    public void tolerates_version_mismatch_when_automatic_modules_are_allowed() throws IOException {
+        SequencedMap<String, String> dependencies = new ModularJarResolver(true).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root/9.9" -> () -> toJar("root", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "9.9")),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/9.9", ""));
@@ -212,12 +293,12 @@ public class ModularJarResolverTest {
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
-                        case "root" -> () -> toJar("root", (String) null);
+                        case "root/7.0" -> () -> toJar("root", (String) null);
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "7.0")),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/7.0", ""));
@@ -236,7 +317,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -260,7 +341,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(
@@ -284,7 +365,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "pinned/1.0");
@@ -308,7 +389,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "plain");
@@ -332,7 +413,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("dep", "9.9")),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "dep/9.9");
@@ -357,7 +438,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).containsOnlyKeys("root", "middle/1.0", "deep/1.0");
@@ -385,7 +466,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(fetched).contains(Map.entry("shared/1.0", ""));
@@ -400,12 +481,12 @@ public class ModularJarResolverTest {
                 Map.of("foo", (_, coordinate) -> {
                     RepositoryItem item = switch (coordinate) {
                         case "root" -> () -> toJar("root", "1.0", require("transitive", 0));
-                        case "transitive" -> () -> toJar("transitive", "2.0");
+                        case "transitive/9.9" -> () -> toJar("transitive", "9.9");
                         default -> null;
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("transitive", "9.9")),
                 true);
         assertThat(dependencies).containsExactly(
@@ -429,7 +510,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/2.0", ""));
@@ -450,7 +531,7 @@ public class ModularJarResolverTest {
                     };
                     return Optional.ofNullable(item);
                 }),
-                new LinkedHashSet<>(Set.of("root")),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 true);
         assertThat(dependencies).containsExactly(Map.entry("foo/root/1.0", ""));

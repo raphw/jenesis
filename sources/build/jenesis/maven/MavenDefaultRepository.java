@@ -8,8 +8,10 @@ public class MavenDefaultRepository implements MavenRepository {
 
     private final URI repository;
     private final Path local;
+    private final boolean writable;
     private final Map<String, URI> validations;
-    private final boolean verbose = Boolean.getBoolean("jenesis.verbose");
+    private final Consumer<String> callback;
+    private final String token;
 
     public MavenDefaultRepository() {
         String environment = System.getenv("MAVEN_REPOSITORY_URI");
@@ -17,15 +19,44 @@ public class MavenDefaultRepository implements MavenRepository {
             environment += "/";
         }
         repository = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        this.local = Files.isDirectory(local) ? local : null;
+        String localOverride = System.getenv("MAVEN_REPOSITORY_LOCAL");
+        if (localOverride == null) {
+            Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
+            this.local = Files.isDirectory(local) ? local : null;
+        } else {
+            Path local = Path.of(localOverride);
+            if (!Files.isDirectory(local)) {
+                throw new IllegalStateException("MAVEN_REPOSITORY_LOCAL does not point at a directory: " + local);
+            }
+            this.local = local;
+        }
+        this.writable = this.local != null && Files.isWritable(this.local);
+        token = System.getenv("MAVEN_REPOSITORY_TOKEN");
         validations = Map.of("SHA1", repository);
+        boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        callback = verbose ? path -> System.out.printf("%s%-11s%s %s%n",
+                BuildExecutorCallback.YELLOW,
+                "[FETCHED]",
+                BuildExecutorCallback.RESET,
+                repository.resolve(path)) : _ -> {
+        };
     }
 
-    public MavenDefaultRepository(URI repository, Path local, Map<String, URI> validations) {
+    public MavenDefaultRepository(URI repository, Path local, Map<String, URI> validations, Consumer<String> callback) {
+        this(repository, local, validations, callback, null);
+    }
+
+    public MavenDefaultRepository(URI repository,
+                                  Path local,
+                                  Map<String, URI> validations,
+                                  Consumer<String> callback,
+                                  String token) {
         this.repository = repository;
         this.local = local;
+        this.writable = local != null && Files.isWritable(local);
         this.validations = validations;
+        this.callback = callback;
+        this.token = token;
     }
 
     @SuppressWarnings("unchecked")
@@ -76,7 +107,7 @@ public class MavenDefaultRepository implements MavenRepository {
                         newPath,
                         uri.getQuery(),
                         uri.getFragment()));
-            } catch (URISyntaxException e) {
+            } catch (URISyntaxException _) {
                 return Optional.empty();
             }
         };
@@ -95,10 +126,7 @@ public class MavenDefaultRepository implements MavenRepository {
                 + "/" + version
                 + "/" + artifactId + "-" + version + (classifier == null ? "" : "-" + classifier)
                 + "." + type + (checksum == null ? "" : ("." + checksum));
-        if (verbose) {
-            System.out.printf("%s%-11s%s %s%n",
-                    BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, repository.resolve(path));
-        }
+        callback.accept(path);
         return fetch(repository, path, checksum == null).materialize();
     }
 
@@ -110,10 +138,7 @@ public class MavenDefaultRepository implements MavenRepository {
         String path = groupId.replace('.', '/')
                 + "/" + artifactId
                 + "/maven-metadata.xml" + (checksum == null ? "" : "." + checksum);
-        if (verbose) {
-            System.out.printf("%s%-11s%s %s%n",
-                    BuildExecutorCallback.YELLOW, "[FETCHED]", BuildExecutorCallback.RESET, repository.resolve(path));
-        }
+        callback.accept(path);
         return fetch(repository, path, checksum == null).materialize();
     }
 
@@ -158,18 +183,25 @@ public class MavenDefaultRepository implements MavenRepository {
                         for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                             entry.getKey().storeIfNotPresent(entry.getValue());
                         }
-                    } else {
-                        Files.delete(cached);
-                        for (LazyRepositoryItem item : results.keySet()) {
-                            item.deleteIfPresent();
+                    } else if (writable) {
+                        try {
+                            Files.delete(cached);
+                            for (LazyRepositoryItem item : results.keySet()) {
+                                item.deleteIfPresent();
+                            }
+                        } catch (IOException _) {
                         }
                     }
                 }
                 if (valid) {
                     return new StoredRepositoryItem(cached);
                 }
-            } else {
-                Files.createDirectories(cached.getParent());
+            } else if (writable) {
+                try {
+                    Files.createDirectories(cached.getParent());
+                } catch (IOException _) {
+                    cached = null;
+                }
             }
         }
         Map<LazyRepositoryItem, MessageDigest> digests = new HashMap<>();
@@ -189,20 +221,30 @@ public class MavenDefaultRepository implements MavenRepository {
         }
         URI uri = repository.resolve(path);
         int dash = path.lastIndexOf('/'), dot = path.indexOf('.', dash);
-        return new LatentRepositoryItem(cached,
+        return new LatentRepositoryItem(writable ? cached : null,
                 uri,
                 digests,
                 path.substring(dash + 1, dot),
-                path.substring(dot));
+                path.substring(dot),
+                token);
+    }
+
+    private static InputStream openStream(URI uri, String token) throws IOException {
+        URLConnection connection = uri.toURL().openConnection();
+        if (token != null && connection instanceof HttpURLConnection http) {
+            http.setRequestProperty("Authorization", token);
+        }
+        return connection.getInputStream();
     }
 
     private static Optional<Path> download(URI uri,
                                            Map<LazyRepositoryItem, MessageDigest> digests,
                                            String prefix,
-                                           String suffix) throws IOException {
+                                           String suffix,
+                                           String token) throws IOException {
         InputStream stream;
         try {
-            stream = uri.toURL().openStream();
+            stream = openStream(uri, token);
         } catch (FileNotFoundException _) {
             return Optional.empty();
         }
@@ -303,7 +345,8 @@ public class MavenDefaultRepository implements MavenRepository {
                                 URI uri,
                                 Map<LazyRepositoryItem, MessageDigest> digests,
                                 String prefix,
-                                String suffix) implements LazyRepositoryItem {
+                                String suffix,
+                                String token) implements LazyRepositoryItem {
 
         @Override
         public void storeIfNotPresent(byte[] bytes) throws IOException {
@@ -317,12 +360,16 @@ public class MavenDefaultRepository implements MavenRepository {
                 Files.delete(temporary);
                 throw t;
             }
-            Files.move(temporary, path);
+            try {
+                Files.move(temporary, path);
+            } catch (IOException _) {
+                Files.deleteIfExists(temporary);
+            }
         }
 
         @Override
         public Optional<InputStream> toLazyInputStream() throws IOException {
-            Optional<Path> temporary = download(uri, digests, prefix, suffix);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix, token);
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }
@@ -351,11 +398,15 @@ public class MavenDefaultRepository implements MavenRepository {
             if (path == null) {
                 return LazyRepositoryItem.super.materialize();
             }
-            Optional<Path> temporary = download(uri, digests, prefix, suffix);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix, token);
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.of(new StoredRepositoryItem(Files.move(temporary.get(), path)));
+            try {
+                return Optional.of(new StoredRepositoryItem(Files.move(temporary.get(), path)));
+            } catch (IOException _) {
+                return Optional.of(new StoredRepositoryItem(temporary.get()));
+            }
         }
     }
 }

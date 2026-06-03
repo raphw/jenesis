@@ -10,15 +10,7 @@ public class MavenUriParser implements Function<String, String>, Serializable {
                                                                                String location,
                                                                                Iterable<Path> folders)
             throws IOException {
-        Properties properties = new SequencedProperties();
-        for (Path folder : folders) {
-            Path file = folder.resolve(location);
-            if (Files.exists(file)) {
-                try (Reader reader = Files.newBufferedReader(file)) {
-                    properties.load(reader);
-                }
-            }
-        }
+        SequencedProperties properties = SequencedProperties.ofFolders(folders, location);
         return (F) (Function<String, String> & Serializable) property -> {
             String value = properties.getProperty(property);
             if (value == null) {

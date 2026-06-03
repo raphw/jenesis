@@ -13,6 +13,55 @@ public class ModuleInfoParserTest {
     private Path folder;
 
     @Test
+    public void jenesis_pin_normalizes_all_three_forms() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin org.junit.jupiter 5.11.3
+                 * @jenesis.pin @kotlin/some.module 1.2.3 SHA256/ABCD
+                 * @jenesis.pin maven@scala/org.scala-lang/scala3-library_3 3.5.2
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions())
+                .containsEntry("module/org.junit.jupiter", "5.11.3")
+                .containsEntry("module@kotlin/some.module", "1.2.3 SHA256/ABCD")
+                .containsEntry("maven@scala/org.scala-lang/scala3-library_3", "3.5.2");
+    }
+
+    @Test
+    public void jenesis_pin_explicit_prefix_for_token_with_slash() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin maven/org.jetbrains/annotations 13.0 SHA256/cafebabe
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions())
+                .containsEntry("maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
+    }
+
+    @Test
+    public void jenesis_pin_tolerates_surrounding_whitespace() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 *   @jenesis.pin   maven/org.jetbrains/annotations   13.0   SHA256/cafebabe  \s
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions())
+                .containsEntry("maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
+    }
+
+    @Test
     public void can_identify_module_info() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 module foo {
@@ -56,37 +105,37 @@ public class ModuleInfoParserTest {
     public void single_requires_tag_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.2.3
+                 * @jenesis.pin bar 1.2.3
                  */
                 module foo {
                   requires bar;
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.2.3"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.2.3"));
     }
 
     @Test
     public void requires_tag_carries_optional_checksum_after_version() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.2.3 SHA256/cafebabe
+                 * @jenesis.pin bar 1.2.3 SHA256/cafebabe
                  */
                 module foo {
                   requires bar;
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.2.3 SHA256/cafebabe"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.2.3 SHA256/cafebabe"));
     }
 
     @Test
     public void multiple_requires_tags_preserve_order() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.0
-                 * @requires qux 2.0
-                 * @requires baz 3.0
+                 * @jenesis.pin bar 1.0
+                 * @jenesis.pin qux 2.0
+                 * @jenesis.pin baz 3.0
                  */
                 module foo {
                   requires bar;
@@ -94,16 +143,16 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.versions()).containsExactly(
-                Map.entry("bar", "1.0"),
-                Map.entry("qux", "2.0"),
-                Map.entry("baz", "3.0"));
+                Map.entry("module/bar", "1.0"),
+                Map.entry("module/qux", "2.0"),
+                Map.entry("module/baz", "3.0"));
     }
 
     @Test
     public void pin_for_non_declared_module_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires transitive.pin 9.9.9
+                 * @jenesis.pin transitive.pin 9.9.9
                  */
                 module foo {
                   requires bar;
@@ -111,39 +160,39 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.requires()).containsExactly("bar");
-        assertThat(info.versions()).containsExactly(Map.entry("transitive.pin", "9.9.9"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/transitive.pin", "9.9.9"));
     }
 
     @Test
     public void malformed_requires_tag_is_skipped() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar
-                 * @requires
-                 * @requires qux 1.0
+                 * @jenesis.pin bar
+                 * @jenesis.pin
+                 * @jenesis.pin qux 1.0
                  */
                 module foo {
                   requires bar;
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("qux", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/qux", "1.0"));
     }
 
     @Test
     public void java_and_jdk_pins_are_ignored() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires java.base 21
-                 * @requires jdk.compiler 21
-                 * @requires bar 1.0
+                 * @jenesis.pin java.base 21
+                 * @jenesis.pin jdk.compiler 21
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
     }
 
     @Test
@@ -154,22 +203,22 @@ public class ModuleInfoParserTest {
                  *
                  * @author someone
                  * @since 1.0
-                 * @requires bar 1.0
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
     }
 
     @Test
     public void release_tag_is_extracted() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
-                 * @requires bar 1.0
+                 * @jenesis.release 25
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -177,14 +226,14 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.release()).isEqualTo("25");
-        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
     }
 
     @Test
     public void empty_release_tag_is_ignored() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release
+                 * @jenesis.release
                  */
                 module foo {
                   requires bar;
@@ -198,7 +247,7 @@ public class ModuleInfoParserTest {
     public void no_release_tag_yields_null_release() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.0
+                 * @jenesis.pin bar 1.0
                  */
                 module foo {
                   requires bar;
@@ -212,7 +261,7 @@ public class ModuleInfoParserTest {
     public void open_module_with_javadoc_pins() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @requires bar 1.0
+                 * @jenesis.pin bar 1.0
                  */
                 open module foo {
                   requires bar;
@@ -220,7 +269,7 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.coordinate()).isEqualTo("foo");
-        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
     }
 
     @Test
@@ -231,7 +280,7 @@ public class ModuleInfoParserTest {
                  *
                  * A small library that does foo things.
                  *
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
@@ -262,7 +311,7 @@ public class ModuleInfoParserTest {
     public void block_tag_only_javadoc_yields_null_name_and_description() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
@@ -277,7 +326,7 @@ public class ModuleInfoParserTest {
     public void bare_tests_tag_marks_module_with_empty_main_name() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @tests
+                 * @jenesis.test
                  */
                 module foo {
                   requires bar;
@@ -291,7 +340,7 @@ public class ModuleInfoParserTest {
     public void tests_tag_with_argument_marks_main_module() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @tests build.jenesis
+                 * @jenesis.test build.jenesis
                  */
                 module foo {
                   requires bar;
@@ -305,7 +354,7 @@ public class ModuleInfoParserTest {
     public void absent_tests_tag_leaves_module_as_non_test() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @release 25
+                 * @jenesis.release 25
                  */
                 module foo {
                   requires bar;
@@ -313,5 +362,33 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.testOf()).isNull();
+    }
+
+    @Test
+    public void main_tag_captures_main_class() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.main build.jenesis.Project
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.main()).isEqualTo("build.jenesis.Project");
+    }
+
+    @Test
+    public void absent_main_tag_leaves_main_class_unset() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.release 25
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.main()).isNull();
     }
 }

@@ -1,0 +1,226 @@
+package build.jenesis.project;
+
+import module java.base;
+import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
+import build.jenesis.BuildStepContext;
+import build.jenesis.BuildStepResult;
+import build.jenesis.Repository;
+import build.jenesis.Resolver;
+import build.jenesis.SequencedProperties;
+import build.jenesis.module.JenesisModuleRepository;
+import build.jenesis.module.ModularJarResolver;
+import build.jenesis.module.ModuleInfo;
+import build.jenesis.module.ModuleInfoParser;
+import build.jenesis.step.Bind;
+
+public class InternalModule implements BuildExecutorModule {
+
+    public static final String SOURCE = "source",
+            JAVA = "java",
+            DELEGATE = "delegate";
+
+    private static final String MAIN_ARTIFACTS = JAVA + "/" + JavaToolchainModule.ARTIFACTS;
+    private static final String COMPILE_ARTIFACTS = DependencyScope.COMPILE.label() + "/" + DependenciesModule.ARTIFACTS;
+    private static final String RUNTIME_ARTIFACTS = DependencyScope.RUNTIME.label() + "/" + DependenciesModule.ARTIFACTS;
+
+    private final String prefix;
+    private final Path source;
+    private final Map<String, Repository> repositories;
+    private final Map<String, Resolver> resolvers;
+    private final SequencedSet<String> additionalDependencies;
+    private final String buildModuleName;
+    private final String qualifier;
+
+    public InternalModule(String prefix,
+                          String qualifier,
+                          Path source) {
+        this(prefix,
+                qualifier,
+                source,
+                Map.of(prefix, new JenesisModuleRepository(true).prepend(JenesisModuleRepository.ofLocal())),
+                Map.of(prefix, new ModularJarResolver(true)));
+    }
+
+    public InternalModule(String prefix,
+                          String qualifier,
+                          Path source,
+                          Map<String, Repository> repositories,
+                          Map<String, Resolver> resolvers) {
+        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
+    }
+
+    private InternalModule(String prefix,
+                           Path source,
+                           Map<String, Repository> repositories,
+                           Map<String, Resolver> resolvers,
+                           SequencedSet<String> additionalDependencies,
+                           String buildModuleName,
+                           String qualifier) {
+        this.prefix = prefix;
+        this.source = source;
+        this.repositories = repositories;
+        this.resolvers = resolvers;
+        this.additionalDependencies = additionalDependencies;
+        this.buildModuleName = buildModuleName;
+        this.qualifier = qualifier;
+    }
+
+    public InternalModule withDependencies(String... dependencies) {
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                new LinkedHashSet<>(List.of(dependencies)),
+                buildModuleName,
+                qualifier);
+    }
+
+    public InternalModule withDependencies(SequencedSet<String> dependencies) {
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                new LinkedHashSet<>(dependencies),
+                buildModuleName,
+                qualifier);
+    }
+
+    public InternalModule withBuildModuleName(String name) {
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                name,
+                qualifier);
+    }
+
+    @Override
+    public Optional<String> resolve(String path) {
+        if (path.equals(DELEGATE)) {
+            return Optional.of("");
+        }
+        if (path.startsWith(DELEGATE + "/")) {
+            return Optional.of(path.substring(DELEGATE.length() + 1));
+        }
+        for (DependencyScope scope : DependencyScope.values()) {
+            if (path.equals(scope.label() + "/" + DependenciesModule.RESOLVED)
+                    || path.equals(scope.label() + "/" + DependenciesModule.ARTIFACTS)) {
+                return Optional.of(path);
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
+        buildExecutor.addSource(SOURCE, Bind.asSources(), source);
+        for (DependencyScope scope : DependencyScope.values()) {
+            String requiresId = scope.label() + "-requires";
+            boolean compile = scope == DependencyScope.COMPILE;
+            buildExecutor.addStep(requiresId,
+                    new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier),
+                    Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
+            buildExecutor.addModule(scope.label(),
+                    new DependenciesModule(repositories, resolvers, compile, false,
+                            qualifier == null ? null : "module:" + qualifier),
+                    requiresId);
+        }
+        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, COMPILE_ARTIFACTS);
+        buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
+            Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
+            Path depArtifacts = delegated.get(PREVIOUS + RUNTIME_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
+            List<Path> artifacts = new ArrayList<>();
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(mainArtifacts)) {
+                for (Path file : files) {
+                    artifacts.add(file);
+                }
+            }
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(depArtifacts)) {
+                for (Path file : files) {
+                    artifacts.add(file);
+                }
+            }
+            JenesisClassLoaderBridge bridge;
+            Object foreignModule;
+            try {
+                bridge = new JenesisClassLoaderBridge(artifacts);
+                foreignModule = bridge.findProvider(buildModuleName);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to resolve internal build execution module " + source, e);
+            }
+            SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
+            forwarded.remove(PREVIOUS + MAIN_ARTIFACTS);
+            forwarded.remove(PREVIOUS + RUNTIME_ARTIFACTS);
+            bridge.accept(foreignModule, delegateExecutor, forwarded);
+        }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
+    }
+
+    private record ParseModuleInfo(String prefix, boolean compile, SequencedSet<String> additionalDependencies, String qualifier) implements BuildStep {
+
+        @Override
+        public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+            if (arguments.get(SOURCE).hasChanged(Path.of(BuildStep.SOURCES + "module-info.java"))) {
+                return true;
+            }
+            for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
+                if (!argument.getKey().equals(SOURCE) && argument.getValue().hasChanged(Path.of(BuildStep.VERSIONS))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Path moduleInfo = arguments.get(SOURCE).folder()
+                    .resolve(BuildStep.SOURCES)
+                    .resolve("module-info.java");
+            if (!Files.isRegularFile(moduleInfo)) {
+                throw new IllegalStateException(
+                        "Internal module source is not modular (missing module-info.java)");
+            }
+            ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
+            SequencedProperties properties = new SequencedProperties();
+            for (String dependency : compile ? info.requires() : info.runtimeRequires()) {
+                properties.setProperty(Resolver.qualify(prefix + "/" + dependency, qualifier), "");
+            }
+            for (String dependency : additionalDependencies) {
+                properties.setProperty(Resolver.qualify(dependency, qualifier), "");
+            }
+            properties.store(context.next().resolve(BuildStep.REQUIRES));
+            SequencedProperties versions = pinnedVersions(arguments, qualifier == null ? prefix : prefix + "@" + qualifier);
+            if (!versions.isEmpty()) {
+                versions.store(context.next().resolve(BuildStep.VERSIONS));
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private static SequencedProperties pinnedVersions(SequencedMap<String, BuildStepArgument> arguments, String pinned) throws IOException {
+        SequencedProperties versions = new SequencedProperties();
+        for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
+            if (argument.getKey().equals(SOURCE)) {
+                continue;
+            }
+            Path file = argument.getValue().folder().resolve(BuildStep.VERSIONS);
+            if (!Files.isRegularFile(file)) {
+                continue;
+            }
+            SequencedProperties present = SequencedProperties.ofFiles(file);
+            for (String coordinate : present.stringPropertyNames()) {
+                int slash = coordinate.indexOf('/');
+                if (slash > 0 && coordinate.substring(0, slash).equals(pinned)) {
+                    versions.setProperty(coordinate, present.getProperty(coordinate));
+                }
+            }
+        }
+        return versions;
+    }
+}

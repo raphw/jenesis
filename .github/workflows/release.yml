@@ -1,16 +1,17 @@
-name: Release
+name: Release Jenesis
 
 on:
   workflow_run:
-    workflows: [Build]
+    workflows: [Test Jenesis Tool]
     types: [completed]
-    branches: [master]
+    branches: [main]
 
 jobs:
   release:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_commit.message, '[release]')
+      (startsWith(github.event.workflow_run.head_commit.message, '[release]') ||
+       startsWith(github.event.workflow_run.head_commit.message, '[release '))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -27,7 +28,7 @@ jobs:
           MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
         run: |
           HEADER="$(printf '%s\n' "$MESSAGE" | head -n1)"
-          VERSION="$(echo "$HEADER" | sed -nE 's/^\[release\][[:space:]]+(.+)$/\1/p' | awk '{print $1}')"
+          VERSION="$(echo "$HEADER" | sed -nE 's/^\[release[[:space:]]+v?([0-9]+\.[0-9]+\.[0-9]+)\].*$/\1/p')"
           if [ -z "$VERSION" ]; then
             LATEST="$(git tag --list --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 | sed 's/^v//')"
             if [ -z "$LATEST" ]; then
@@ -51,11 +52,26 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          java -Djenesis.buildVersion=${VERSION} \
+          java -Djenesis.project.version=${VERSION} \
                -Djenesis.project.sources=true \
-               -Djenesis.project.docs=true \
-               -Djenesis.project.metadata=metadata.properties \
+               -Djenesis.project.documentation=true \
+               -Djenesis.project.strictPinning=true \
+               -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
+
+      - name: Package SDKMAN archive
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git clean -fdX sdk/
+          mkdir -p sdk/lib sdk/sources
+          cp "target/stage/maven/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}.jar" sdk/lib/
+          cp "target/stage/maven/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}-sources.jar" sdk/sources/
+          cp LICENSE sdk/LICENSE
+          BASE="jenesis-${VERSION}"
+          ln -sfn sdk "${BASE}"
+          zip -r "sdk/${BASE}.zip" "${BASE}"
+          rm "${BASE}"
 
       - name: JReleaser deploy
         uses: jreleaser/release-action@90ac653bb9c79d11179e65d81499f3f34527dcd5 # 2.5.0
@@ -70,6 +86,23 @@ jobs:
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
+
+      - name: Publish to SDKMAN
+        uses: sdkman/sdkman-release-action@3eb9347b254fc89b9af3a1ed08b874228f3dcd1f # v0.2.0
+        with:
+          consumer-key: ${{ secrets.SDKMAN_CONSUMER_KEY }}
+          consumer-token: ${{ secrets.SDKMAN_CONSUMER_TOKEN }}
+          candidate: jenesis
+          version: ${{ steps.version.outputs.version }}
+          url: https://github.com/raphw/jenesis/releases/download/v${{ steps.version.outputs.version }}/jenesis-${{ steps.version.outputs.version }}.zip
+
+      - name: Set SDKMAN default
+        uses: sdkman/sdkman-default-action@38ca710dbacfada85ccfb609953e4c92a717e557 # main
+        with:
+          consumer-key: ${{ secrets.SDKMAN_CONSUMER_KEY }}
+          consumer-token: ${{ secrets.SDKMAN_CONSUMER_TOKEN }}
+          candidate: jenesis
+          version: ${{ steps.version.outputs.version }}
 
       - name: Upload JReleaser logs
         if: always()

@@ -10,7 +10,7 @@ public class SequencedPropertiesTest {
 
     @Test
     public void can_suppress_comments_and_subsequent_newline() throws IOException {
-        Properties original = new SequencedProperties();
+        SequencedProperties original = new SequencedProperties();
         for (char character = 'z'; character >= 'a'; character--) {
             original.setProperty("key-" + character, "value-" + character);
         }
@@ -21,7 +21,7 @@ public class SequencedPropertiesTest {
                         character -> character - 1)
                 .mapToObj(character -> "key-" + (char) character + "=value-" + (char) character)
                 .collect(Collectors.joining("\n", "", "\n")));
-        Properties copy = new SequencedProperties();
+        SequencedProperties copy = new SequencedProperties();
         copy.load(new StringReader(writer.toString()));
         assertThat(copy.stringPropertyNames()).containsExactlyElementsOf(original.stringPropertyNames());
     }

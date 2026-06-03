@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -21,7 +22,7 @@ public abstract class ProcessBuildStep implements BuildStep {
         }
     }
 
-    private final transient Function<List<String>, ? extends ProcessHandler> factory;
+    protected final transient Function<List<String>, ? extends ProcessHandler> factory;
     private final String command;
 
     protected ProcessBuildStep(String command, Function<List<String>, ? extends ProcessHandler> factory) {
@@ -52,10 +53,7 @@ public abstract class ProcessBuildStep implements BuildStep {
             SequencedMap<String, String> folderMap = new LinkedHashMap<>();
             Path file = entry.getValue().folder().resolve(PROCESS + command + ".properties");
             if (Files.exists(file)) {
-                Properties loaded = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(file)) {
-                    loaded.load(reader);
-                }
+                SequencedProperties loaded = SequencedProperties.ofFiles(file);
                 for (String key : loaded.stringPropertyNames()) {
                     folderMap.put(key, loaded.getProperty(key));
                 }
@@ -63,6 +61,9 @@ public abstract class ProcessBuildStep implements BuildStep {
             properties.put(entry.getKey(), folderMap);
         }
         return process(executor, context, arguments, properties).thenComposeAsync(processed -> {
+            if (processed == null) {
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }
             CompletableFuture<BuildStepResult> future = new CompletableFuture<>();
             try {
                 List<String> prepended = new ArrayList<>();
@@ -78,6 +79,14 @@ public abstract class ProcessBuildStep implements BuildStep {
                 }
                 Path output = context.supplement().resolve("output"), error = context.supplement().resolve("error");
                 ProcessHandler handler = factory.apply(Stream.concat(prepended.stream(), processed.stream()).toList());
+                Files.writeString(context.supplement().resolve("command"), String.join(" ", handler.commands()));
+                if (Boolean.getBoolean("jenesis.verbose")) {
+                    System.out.printf("%s%-11s%s %s%n",
+                        BuildExecutorCallback.YELLOW,
+                        "[EXECUTED]",
+                        BuildExecutorCallback.RESET,
+                        String.join(" ", handler.commands()));
+                }
                 executor.execute(() -> {
                     try {
                         int exitCode = handler.execute(output, error);

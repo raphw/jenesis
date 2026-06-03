@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+JENESIS_HOME="$(dirname "$SCRIPT_DIR")"
+
+if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/jar" ]; then
+    JAR="${JAVA_HOME}/bin/jar"
+elif command -v jar >/dev/null 2>&1; then
+    JAR="jar"
+else
+    echo "jenesis-validate: no 'jar' tool found - install a JDK or set JAVA_HOME (Java 25 or newer required)" >&2
+    exit 1
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+    sha256_of() { sha256sum "$1" | awk '{print $1}'; }
+elif command -v shasum >/dev/null 2>&1; then
+    sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }
+else
+    echo "jenesis-validate: no SHA-256 tool found (need 'sha256sum' or 'shasum')" >&2
+    exit 1
+fi
+
+SOURCES_JAR=""
+for candidate in "$JENESIS_HOME"/sources/*-sources.jar; do
+    if [ -f "$candidate" ]; then
+        SOURCES_JAR="$candidate"
+        break
+    fi
+done
+if [ -z "$SOURCES_JAR" ]; then
+    echo "jenesis-validate: no sources jar found in $JENESIS_HOME/sources" >&2
+    exit 1
+fi
+
+JAR_NAME="$(basename "$SOURCES_JAR" .jar)"
+VERSION="${JAR_NAME#build.jenesis-}"
+VERSION="${VERSION%-sources}"
+
+echo "jenesis-validate: Jenesis ${VERSION} - comparing build/jenesis against bundled sources (SHA-256)"
+
+if [ "$#" -eq 0 ]; then
+    TARGETS=(".")
+    LABELED=0
+else
+    TARGETS=("$@")
+    LABELED=1
+fi
+
+TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR"' EXIT
+(cd "$TMPDIR" && "$JAR" xf "$SOURCES_JAR")
+JAR_ROOT="$TMPDIR/build/jenesis"
+if [ -d "$JAR_ROOT" ]; then
+    printf '%s' "$VERSION" > "$JAR_ROOT/jenesis.version"
+fi
+
+for target in "${TARGETS[@]}"; do
+    if [ ! -d "$target" ]; then
+        echo "jenesis-validate: target '$target' is not a directory" >&2
+        exit 1
+    fi
+    abs_target="$(cd "$target" && pwd -P)"
+    CUR_ROOT="$abs_target/build/jenesis"
+
+    if [ "$LABELED" = "1" ]; then
+        target_clean="${target%/}"
+        path_prefix="$target_clean/"
+        summary_prefix="$target_clean - "
+    else
+        path_prefix=""
+        summary_prefix=""
+    fi
+
+    if [ -f "$CUR_ROOT/jenesis.version" ]; then
+        CUR_VERSION="$(cat "$CUR_ROOT/jenesis.version")"
+        if [ "$CUR_VERSION" != "$VERSION" ]; then
+            echo "jenesis-validate: ${summary_prefix}version differs - build/jenesis is at ${CUR_VERSION}, bundled is ${VERSION}"
+        fi
+    fi
+
+    MATCHED=0
+    DIFFERS=0
+    MISSING=0
+    ADDITIONAL=0
+
+    if [ -d "$JAR_ROOT" ]; then
+        while IFS= read -r path; do
+            rel="${path#"$JAR_ROOT"/}"
+            cur="$CUR_ROOT/$rel"
+            if [ -f "$cur" ]; then
+                h_jar="$(sha256_of "$path")"
+                h_cur="$(sha256_of "$cur")"
+                if [ "$h_jar" != "$h_cur" ]; then
+                    echo "${path_prefix}build/jenesis/$rel differs (bundled $h_jar, target $h_cur)"
+                    DIFFERS=$((DIFFERS + 1))
+                else
+                    MATCHED=$((MATCHED + 1))
+                fi
+            else
+                echo "${path_prefix}build/jenesis/$rel missing"
+                MISSING=$((MISSING + 1))
+            fi
+        done < <(find "$JAR_ROOT" -type f)
+    fi
+
+    if [ -d "$CUR_ROOT" ]; then
+        while IFS= read -r path; do
+            rel="${path#"$CUR_ROOT"/}"
+            if [ ! -f "$JAR_ROOT/$rel" ]; then
+                echo "${path_prefix}build/jenesis/$rel additional"
+                ADDITIONAL=$((ADDITIONAL + 1))
+            fi
+        done < <(find "$CUR_ROOT" -type f)
+    fi
+
+    echo "jenesis-validate: ${summary_prefix}${MATCHED} matched, ${DIFFERS} differs, ${MISSING} missing, ${ADDITIONAL} additional"
+done

@@ -17,15 +17,13 @@ public class MavenPomEmitter {
     public IOConsumer emit(String groupId,
                            String artifactId,
                            String version,
-                           String packaging,
                            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) {
-        return emit(groupId, artifactId, version, packaging, dependencies, null);
+        return emit(groupId, artifactId, version, dependencies, null);
     }
 
     public IOConsumer emit(String groupId,
                            String artifactId,
                            String version,
-                           String packaging,
                            SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
                            Metadata metadata) {
         Document document;
@@ -34,86 +32,83 @@ public class MavenPomEmitter {
         } catch (ParserConfigurationException e) {
             throw new IllegalStateException(e);
         }
-        Element project = (Element) document.appendChild(document.createElementNS(NAMESPACE_4_0_0, "project"));
+        Element project = (Element) appendChild(document, document, "project");
         project.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance",
                 "xsi:schemaLocation",
                 "http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd");
-        project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "modelVersion")).setTextContent("4.0.0");
-        project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(groupId);
-        project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(artifactId);
-        project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "version")).setTextContent(version);
-        if (packaging != null) {
-            project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "packaging")).setTextContent(packaging);
-        }
+        appendText(document, project, "modelVersion", "4.0.0");
+        appendText(document, project, "groupId", groupId);
+        appendText(document, project, "artifactId", artifactId);
+        appendText(document, project, "version", version);
         if (metadata != null) {
             if (metadata.name() != null) {
-                project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(metadata.name());
+                appendText(document, project, "name", metadata.name());
             }
             if (metadata.description() != null) {
-                project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "description")).setTextContent(metadata.description());
+                appendText(document, project, "description", metadata.description());
             }
             if (metadata.url() != null) {
-                project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(metadata.url());
+                appendText(document, project, "url", metadata.url());
             }
             if (!metadata.licenses().isEmpty()) {
-                Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "licenses"));
+                Node wrapper = appendChild(document, project, "licenses");
                 for (Metadata.License license : metadata.licenses()) {
-                    Node node = wrapper.appendChild(document.createElementNS(NAMESPACE_4_0_0, "license"));
+                    Node node = appendChild(document, wrapper, "license");
                     if (license.name() != null) {
-                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(license.name());
+                        appendText(document, node, "name", license.name());
                     }
                     if (license.url() != null) {
-                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(license.url());
+                        appendText(document, node, "url", license.url());
                     }
                 }
             }
             if (!metadata.developers().isEmpty()) {
-                Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developers"));
+                Node wrapper = appendChild(document, project, "developers");
                 for (Metadata.Developer developer : metadata.developers()) {
-                    Node node = wrapper.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developer"));
+                    Node node = appendChild(document, wrapper, "developer");
                     if (developer.id() != null) {
-                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "id")).setTextContent(developer.id());
+                        appendText(document, node, "id", developer.id());
                     }
                     if (developer.name() != null) {
-                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "name")).setTextContent(developer.name());
+                        appendText(document, node, "name", developer.name());
                     }
                     if (developer.email() != null) {
-                        node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "email")).setTextContent(developer.email());
+                        appendText(document, node, "email", developer.email());
                     }
                 }
             }
             if (metadata.scm() != null) {
-                Node node = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "scm"));
+                Node node = appendChild(document, project, "scm");
                 Metadata.Scm scm = metadata.scm();
                 if (scm.connection() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "connection")).setTextContent(scm.connection());
+                    appendText(document, node, "connection", scm.connection());
                 }
                 String developerConnection = scm.developerConnection() != null
                         ? scm.developerConnection()
                         : scm.connection();
                 if (developerConnection != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "developerConnection")).setTextContent(developerConnection);
+                    appendText(document, node, "developerConnection", developerConnection);
                 }
                 if (scm.url() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "url")).setTextContent(scm.url());
+                    appendText(document, node, "url", scm.url());
                 }
             }
         }
         if (!dependencies.isEmpty()) {
-            Node wrapper = project.appendChild(document.createElementNS(NAMESPACE_4_0_0, "dependencies"));
+            Node wrapper = appendChild(document, project, "dependencies");
             for (Map.Entry<MavenDependencyKey, MavenDependencyValue> dependency : dependencies.entrySet()) {
-                Node node = wrapper.appendChild(document.createElementNS(NAMESPACE_4_0_0, "dependency"));
-                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(dependency.getKey().groupId());
-                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(dependency.getKey().artifactId());
-                node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "version")).setTextContent(dependency.getValue().version());
+                Node node = appendChild(document, wrapper, "dependency");
+                appendText(document, node, "groupId", dependency.getKey().groupId());
+                appendText(document, node, "artifactId", dependency.getKey().artifactId());
+                appendText(document, node, "version", dependency.getValue().version());
                 if (!Objects.equals(dependency.getKey().type(), "jar")) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "type")).setTextContent(dependency.getKey().type());
+                    appendText(document, node, "type", dependency.getKey().type());
                 }
                 if (dependency.getKey().classifier() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "classifier")).setTextContent(dependency.getKey().classifier());
+                    appendText(document, node, "classifier", dependency.getKey().classifier());
                 }
                 if (dependency.getValue().scope() != MavenDependencyScope.COMPILE) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "scope")).setTextContent(switch (dependency.getValue().scope()) {
+                    appendText(document, node, "scope", switch (dependency.getValue().scope()) {
                         case PROVIDED -> "provided";
                         case RUNTIME -> "runtime";
                         case TEST -> "test";
@@ -123,17 +118,17 @@ public class MavenPomEmitter {
                     });
                 }
                 if (dependency.getValue().systemPath() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "systemPath")).setTextContent(dependency.getValue().systemPath().toString());
+                    appendText(document, node, "systemPath", dependency.getValue().systemPath().toString());
                 }
                 if (dependency.getValue().optional() != null) {
-                    node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "optional")).setTextContent(dependency.getValue().optional().toString());
+                    appendText(document, node, "optional", dependency.getValue().optional().toString());
                 }
                 if (dependency.getValue().exclusions() != null) {
-                    Node exclusions = node.appendChild(document.createElementNS(NAMESPACE_4_0_0, "exclusions"));
+                    Node exclusions = appendChild(document, node, "exclusions");
                     dependency.getValue().exclusions().forEach(name -> {
-                        Node exclusion = exclusions.appendChild(document.createElementNS(NAMESPACE_4_0_0, "exclusion"));
-                        exclusion.appendChild(document.createElementNS(NAMESPACE_4_0_0, "groupId")).setTextContent(name.groupId());
-                        exclusion.appendChild(document.createElementNS(NAMESPACE_4_0_0, "artifactId")).setTextContent(name.artifactId());
+                        Node exclusion = appendChild(document, exclusions, "exclusion");
+                        appendText(document, exclusion, "groupId", name.groupId());
+                        appendText(document, exclusion, "artifactId", name.artifactId());
                     });
                 }
             }
@@ -148,12 +143,22 @@ public class MavenPomEmitter {
         transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         return writer -> {
+            StringWriter buffer = new StringWriter();
             try {
-                transformer.transform(new DOMSource(document), new StreamResult(writer));
+                transformer.transform(new DOMSource(document), new StreamResult(buffer));
             } catch (TransformerException e) {
                 throw new IOException(e);
             }
+            writer.write(buffer.toString().replace("\r\n", "\n"));
         };
+    }
+
+    private static Node appendChild(Document document, Node parent, String name) {
+        return parent.appendChild(document.createElementNS(NAMESPACE_4_0_0, name));
+    }
+
+    private static void appendText(Document document, Node parent, String name, String text) {
+        appendChild(document, parent, name).setTextContent(text);
     }
 
     @FunctionalInterface

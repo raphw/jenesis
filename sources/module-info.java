@@ -3,7 +3,8 @@
  *
  * A build tool for Java projects, written and configured in Java itself.
  *
- * @release 25
+ * @jenesis.release 25
+ * @jenesis.main build.jenesis.Project
  */
 module build.jenesis {
 
@@ -16,4 +17,6 @@ module build.jenesis {
     exports build.jenesis.module;
     exports build.jenesis.project;
     exports build.jenesis.step;
+
+    uses build.jenesis.BuildExecutorModule;
 }

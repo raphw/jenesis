@@ -5,8 +5,10 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.SequencedProperties;
 import build.jenesis.project.MultiProjectModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,43 +16,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MultiProjectModuleTest {
 
     @TempDir
-    private Path root, module1, module2, module3, source1, source2, source3;
+    private Path root,
+            module1, module2, module3, module4, module5,
+            source1, source2, source3, source4, source5;
     private BuildExecutor buildExecutor;
 
     @BeforeEach
     public void setUp() throws Exception {
         buildExecutor = BuildExecutor.of(root,
+                Duration.ZERO,
                 new HashDigestFunction("MD5"),
-                BuildExecutorCallback.nop());
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
     }
 
     @Test
     public void can_resolve_project() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
-            Properties coordinates1 = new Properties();
+            SequencedProperties coordinates1 = new SequencedProperties();
             coordinates1.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.IDENTITY))) {
-                coordinates1.store(writer, null);
-            }
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
             buildExecutor.addSource("1-module", module1);
             buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
-            Properties coordinates2 = new Properties();
+            SequencedProperties coordinates2 = new SequencedProperties();
             coordinates2.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.IDENTITY))) {
-                coordinates2.store(writer, null);
-            }
-            Properties dependencies2 = new Properties();
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
             dependencies2.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.REQUIRES))) {
-                dependencies2.store(writer, null);
-            }
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
-                    Map.entry("1", new LinkedHashSet<>()),
+                    Map.entry("1", Collections.emptyNavigableSet()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))));
             return (name, dependencies, identifiers) -> switch (name) {
                 case "1" -> {
@@ -72,7 +72,7 @@ public class MultiProjectModuleTest {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identifier/2-module",
                             "../../identifier/2-source");
-                    assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
+                    assertThat(dependencies).containsExactly(Map.entry("1", Collections.emptyNavigableSet()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/2-module",
@@ -90,50 +90,40 @@ public class MultiProjectModuleTest {
             };
         }));
         SequencedMap<String, Path> paths = buildExecutor.execute();
-        assertThat(paths).containsKeys("project/compose/module/2/step");
-        assertThat(paths.get("project/compose/module/2/step").resolve("file")).content().contains("foobar");
+        assertThat(paths).containsKeys("project/2/step");
+        assertThat(paths.get("project/2/step").resolve("file")).content().contains("foobar");
     }
 
     @Test
     public void can_resolve_project_transitives() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
-            Properties coordinates1 = new Properties();
+            SequencedProperties coordinates1 = new SequencedProperties();
             coordinates1.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module1.resolve(BuildStep.IDENTITY))) {
-                coordinates1.store(writer, null);
-            }
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
             buildExecutor.addSource("1-module", module1);
             buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
                     .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
-            Properties coordinates2 = new Properties();
+            SequencedProperties coordinates2 = new SequencedProperties();
             coordinates2.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.IDENTITY))) {
-                coordinates2.store(writer, null);
-            }
-            Properties dependencies2 = new Properties();
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
             dependencies2.put("foo/bar", "");
-            try (Writer writer = Files.newBufferedWriter(module2.resolve(BuildStep.REQUIRES))) {
-                dependencies2.store(writer, null);
-            }
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
-            Properties coordinates3 = new Properties();
+            SequencedProperties coordinates3 = new SequencedProperties();
             coordinates3.put("foo/baz", "");
-            try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.IDENTITY))) {
-                coordinates3.store(writer, null);
-            }
-            Properties dependencies3 = new Properties();
+            coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies3 = new SequencedProperties();
             dependencies3.put("foo/qux", "");
-            try (Writer writer = Files.newBufferedWriter(module3.resolve(BuildStep.REQUIRES))) {
-                dependencies3.store(writer, null);
-            }
+            dependencies3.store(module3.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> {
             assertThat(modules).containsExactly(
-                    Map.entry("1", new LinkedHashSet<>()),
+                    Map.entry("1", Collections.emptyNavigableSet()),
                     Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
                     Map.entry("3", new LinkedHashSet<>(Set.of("2"))));
             return (name, dependencies, identifiers) -> switch (name) {
@@ -156,7 +146,7 @@ public class MultiProjectModuleTest {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identifier/2-module",
                             "../../identifier/2-source");
-                    assertThat(dependencies).containsExactly(Map.entry("1", new LinkedHashSet<>()));
+                    assertThat(dependencies).containsExactly(Map.entry("1", Collections.emptyNavigableSet()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/2-module",
@@ -176,7 +166,7 @@ public class MultiProjectModuleTest {
                             "../../identifier/3-source");
                     assertThat(dependencies).containsExactly(
                             Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
-                            Map.entry("1", new LinkedHashSet<>()));
+                            Map.entry("1", Collections.emptyNavigableSet()));
                     yield (module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/3-module",
@@ -195,53 +185,165 @@ public class MultiProjectModuleTest {
             };
         }));
         SequencedMap<String, Path> paths = buildExecutor.execute();
-        assertThat(paths).containsKeys("project/compose/module/3/step");
-        assertThat(paths.get("project/compose/module/3/step").resolve("file")).content().contains("foobarqux");
+        assertThat(paths).containsKeys("project/3/step");
+        assertThat(paths.get("project/3/step").resolve("file")).content().contains("foobarqux");
     }
 
     @Test
-    public void linkBySubModule_returns_target_for_matching_filename() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
-        Path file = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
-        assertThat(placement.apply(file)).contains(Path.of("module-foo", "classes.jar"));
+    public void direct_transitive_sibling_is_visible_in_inherited() {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/bar", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/qux", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("foo/bar", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
+            SequencedProperties coordinates3 = new SequencedProperties();
+            coordinates3.put("foo/baz", "");
+            coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies3 = new SequencedProperties();
+            dependencies3.put("foo/qux", "");
+            dependencies3.store(module3.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("3-module", module3);
+            buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> (name, dependencies, identifiers) -> switch (name) {
+            case "1" -> (module, inherited) -> module.addStep("step", (_, context, _) -> {
+                Files.writeString(context.next().resolve("file"), "1");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            });
+            case "2" -> (module, inherited) -> module.addStep("step", (_, context, _) -> {
+                Files.writeString(context.next().resolve("file"), "2");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            });
+            case "3" -> (module, inherited) -> {
+                assertThat(inherited).containsKeys("../1/step", "../2/step");
+                module.addStep("step", (_, context, _) -> {
+                    Files.writeString(context.next().resolve("file"), "3");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                });
+            };
+            default -> throw new AssertionError("Unexpected module: " + name);
+        }));
+        buildExecutor.execute();
     }
 
     @Test
-    public void linkBySubModule_returns_empty_for_unmatched_filename() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
-        Path file = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/readme.txt");
-        assertThat(placement.apply(file)).isEmpty();
+    public void indirect_transitive_sibling_is_visible_in_inherited() {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/bar", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/qux", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("foo/bar", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
+            SequencedProperties coordinates3 = new SequencedProperties();
+            coordinates3.put("foo/baz", "");
+            coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies3 = new SequencedProperties();
+            dependencies3.put("foo/qux", "");
+            dependencies3.store(module3.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("3-module", module3);
+            buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> (name, dependencies, identifiers) -> switch (name) {
+            case "1" -> (module, inherited) -> module.addStep("step", (_, context, _) -> {
+                Files.writeString(context.next().resolve("file"), "1");
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            });
+            case "2" -> (module, inherited) -> {
+                assertThat(inherited).containsKey("../1/step");
+                module.addStep("step", (_, context, _) -> {
+                    Files.writeString(context.next().resolve("file"), "2");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                });
+            };
+            case "3" -> (module, inherited) -> {
+                assertThat(inherited).containsKeys("../1/step", "../2/step");
+                module.addStep("step", (_, context, _) -> {
+                    Files.writeString(context.next().resolve("file"), "3");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                });
+            };
+            default -> throw new AssertionError("Unexpected module: " + name);
+        }));
+        buildExecutor.execute();
     }
 
     @Test
-    public void linkBySubModule_returns_empty_when_no_module_segment() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
-        assertThat(placement.apply(Path.of("/wrap/some/other/place/classes.jar"))).isEmpty();
-    }
-
-    @Test
-    public void linkBySubModule_uses_segment_directly_under_module() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar");
-        Path nested = Path.of("/a/build/module/outer/build/module/inner/classes.jar");
-        assertThat(placement.apply(nested)).contains(Path.of("inner", "classes.jar"));
-    }
-
-    @Test
-    public void linkBySubModule_accepts_multiple_filenames() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule("classes.jar", "pom.xml");
-        Path jar = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
-        Path pom = Path.of("/wrap/build/module/module-foo/build/pom/output/pom.xml");
-        Path other = Path.of("/wrap/build/module/module-foo/build/java/classes/output/A.class");
-        assertThat(placement.apply(jar)).contains(Path.of("module-foo", "classes.jar"));
-        assertThat(placement.apply(pom)).contains(Path.of("module-foo", "pom.xml"));
-        assertThat(placement.apply(other)).isEmpty();
-    }
-
-    @Test
-    public void linkBySubModule_returns_empty_when_no_filenames_configured() {
-        Function<Path, Optional<Path>> placement = MultiProjectModule.linkBySubModule();
-        Path file = Path.of("/wrap/build/module/module-foo/build/java/artifacts/output/artifacts/classes.jar");
-        assertThat(placement.apply(file)).isEmpty();
+    public void selector_builds_transitive_dependencies_but_not_dependents() {
+        Set<String> built = ConcurrentHashMap.newKeySet();
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/a", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies1 = new SequencedProperties();
+            dependencies1.put("foo/b", "");
+            dependencies1.store(module1.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "a"));
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/b", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("foo/c", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "b"));
+            SequencedProperties coordinates3 = new SequencedProperties();
+            coordinates3.put("foo/c", "");
+            coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            buildExecutor.addSource("3-module", module3);
+            buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "c"));
+            SequencedProperties coordinates4 = new SequencedProperties();
+            coordinates4.put("foo/d", "");
+            coordinates4.store(module4.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies4 = new SequencedProperties();
+            dependencies4.put("foo/e", "");
+            dependencies4.store(module4.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("4-module", module4);
+            buildExecutor.addSource("4-source", Files.writeString(Files.createDirectory(source4
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "d"));
+            SequencedProperties coordinates5 = new SequencedProperties();
+            coordinates5.put("foo/e", "");
+            coordinates5.store(module5.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies5 = new SequencedProperties();
+            dependencies5.put("foo/c", "");
+            dependencies5.store(module5.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("5-module", module5);
+            buildExecutor.addSource("5-source", Files.writeString(Files.createDirectory(source5
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "e"));
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
+                modules -> (name, dependencies, identifiers) -> (module, inherited) -> {
+            built.add(name);
+            module.addStep("step", (_, context, _) -> {
+                Files.writeString(context.next().resolve("file"), name);
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            });
+        }));
+        buildExecutor.execute("project/compose/module/1", "project/compose/module/5");
+        assertThat(built).contains("1", "2", "3", "5").doesNotContain("4");
     }
 
 }

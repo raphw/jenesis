@@ -1,0 +1,80 @@
+package build.jenesis.step;
+
+import module java.base;
+import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
+import build.jenesis.BuildStepContext;
+import build.jenesis.BuildStepResult;
+import build.jenesis.SequencedProperties;
+
+@FunctionalInterface
+public interface DependencyProcessingBuildStep extends BuildStep {
+
+    @Override
+    default boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(REQUIRES),
+                Path.of(VERSIONS)));
+    }
+
+    @Override
+    default CompletionStage<BuildStepResult> apply(Executor executor,
+                                                   BuildStepContext context,
+                                                   SequencedMap<String, BuildStepArgument> arguments)
+            throws IOException {
+        SequencedMap<String, SequencedMap<String, String>> groups = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, String>> versions = new LinkedHashMap<>();
+        Map<String, SequencedMap<String, SequencedMap<String, String>>> sources = new LinkedHashMap<>();
+        sources.put(REQUIRES, groups);
+        sources.put(VERSIONS, versions);
+        for (BuildStepArgument argument : arguments.values()) {
+            for (Map.Entry<String, SequencedMap<String, SequencedMap<String, String>>> source : sources.entrySet()) {
+                Path file = argument.folder().resolve(source.getKey());
+                if (!Files.exists(file)) {
+                    continue;
+                }
+                SequencedProperties properties = SequencedProperties.ofFiles(file);
+                for (String property : properties.stringPropertyNames()) {
+                    int index = property.indexOf('/');
+                    source.getValue().computeIfAbsent(property.substring(0, index), _ -> new LinkedHashMap<>()).merge(
+                            property.substring(index + 1),
+                            properties.getProperty(property),
+                            (left, right) -> left.isEmpty() ? right : left);
+                }
+            }
+        }
+        CompletionStage<SequencedProperties> requiresStage = transform(executor, context, arguments, groups, versions);
+        CompletionStage<SequencedProperties> versionsStage = transformVersions(executor, context, arguments, versions);
+        return requiresStage.thenCombineAsync(versionsStage, (requiresProperties, versionsProperties) -> {
+            if (requiresProperties != null) {
+                try {
+                    requiresProperties.store(context.next().resolve(REQUIRES));
+                } catch (IOException e) {
+                    throw new CompletionException(e);
+                }
+            }
+            if (versionsProperties != null) {
+                try {
+                    versionsProperties.store(context.next().resolve(VERSIONS));
+                } catch (IOException e) {
+                    throw new CompletionException(e);
+                }
+            }
+            return new BuildStepResult(true);
+        }, executor);
+    }
+
+    CompletionStage<SequencedProperties> transform(Executor executor,
+                                                   BuildStepContext context,
+                                                   SequencedMap<String, BuildStepArgument> arguments,
+                                                   SequencedMap<String, SequencedMap<String, String>> groups,
+                                                   SequencedMap<String, SequencedMap<String, String>> versions) throws IOException;
+
+    default CompletionStage<SequencedProperties> transformVersions(Executor executor,
+                                                                   BuildStepContext context,
+                                                                   SequencedMap<String, BuildStepArgument> arguments,
+                                                                   SequencedMap<String, SequencedMap<String, String>> versions)
+            throws IOException {
+        return CompletableFuture.completedStage(null);
+    }
+}

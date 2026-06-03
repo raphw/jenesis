@@ -21,9 +21,17 @@ release:
   github:
     owner: raphw
     name: jenesis
+    branch: main
+    branchPush: main
     skipRelease: false
     skipTag: false
     tagName: 'v{{projectVersion}}'
+
+files:
+  artifacts:
+    - path: 'sdk/jenesis-{{projectVersion}}.zip'
+    - path: 'target/stage/maven/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}.jar'
+    - path: 'target/stage/maven/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}-sources.jar'
 
 deploy:
   maven:
@@ -33,4 +41,4 @@ deploy:
         url: https://central.sonatype.com/api/v1/publisher
         applyMavenCentralRules: true
         stagingRepositories:
-          - target/stage/output
+          - target/stage/maven/output

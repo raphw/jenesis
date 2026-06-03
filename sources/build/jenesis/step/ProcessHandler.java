@@ -51,7 +51,7 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             this.commands = commands;
         }
 
-        static Function<List<String>, OfProcess> ofJavaHome(String command) {
+        public static Function<List<String>, OfProcess> ofJavaHome(String command) {
             String home = System.getProperty("java.home");
             if (home == null) {
                 home = System.getenv("JAVA_HOME");
@@ -59,11 +59,11 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             if (home == null) {
                 throw new IllegalStateException("Neither JAVA_HOME environment or java.home property set");
             } else {
-                File program = new File(home, command);
+                File program = new File(home, command + (WINDOWS ? ".exe" : ""));
                 if (program.isFile()) {
-                    return of(List.of(program.getPath() + (WINDOWS ? ".exe" : "")));
+                    return of(List.of(program.getPath()));
                 } else {
-                    throw new IllegalStateException("Could not find command " + command + " in " + home);
+                    throw new IllegalStateException("Could not find command " + program.getPath() + " in " + home);
                 }
             }
         }
@@ -79,11 +79,14 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
 
         @Override
         public int execute(Path output, Path error) throws IOException {
-            Process process = new ProcessBuilder(commands)
+            ProcessBuilder builder = new ProcessBuilder(commands)
                     .redirectOutput(output.toFile())
-                    .redirectError(error.toFile())
-                    .redirectInput(ProcessBuilder.Redirect.INHERIT)
-                    .start();
+                    .redirectError(error.toFile());
+            builder.environment().putIfAbsent("COLUMNS", "80");
+            builder.environment().putIfAbsent("LINES", "24");
+            builder.environment().putIfAbsent("TERM", "dumb");
+            Process process = builder.start();
+            process.getOutputStream().close();
             try {
                 return process.waitFor();
             } catch (InterruptedException e) {

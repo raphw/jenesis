@@ -25,13 +25,19 @@ public class Assign implements BuildStep {
     }
 
     @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument ->
+                argument.hasChanged(Path.of(ARTIFACTS), Path.of(IDENTITY), Path.of(JMod.JMODS)));
+    }
+
+    @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        // TODO: improve incremental resolve
-        Properties assignments = new SequencedProperties();
+        SequencedProperties assignments = new SequencedProperties();
         SequencedSet<Path> files = new LinkedHashSet<>();
+        SequencedSet<Path> jmods = new LinkedHashSet<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path artifacts = argument.folder().resolve(ARTIFACTS);
             if (Files.exists(artifacts)) {
@@ -41,35 +47,57 @@ public class Assign implements BuildStep {
                     }
                 }
             }
+            Path archives = argument.folder().resolve(JMod.JMODS);
+            if (Files.exists(archives)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(archives)) {
+                    for (Path archive : stream) {
+                        jmods.add(archive);
+                    }
+                }
+            }
             Path coordinates = argument.folder().resolve(IDENTITY);
             if (Files.exists(coordinates)) {
-                Properties properties = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(coordinates)) {
-                    properties.load(reader);
-                }
+                SequencedProperties properties = SequencedProperties.ofFiles(coordinates);
                 for (String name : properties.stringPropertyNames()) {
                     String value = properties.getProperty(name);
                     if (value.isEmpty()) {
                         assignments.put(name, "");
                     } else {
                         Path resolved = argument.folder().resolve(value);
-                        assignments.put(name, context.next().relativize(resolved).toString());
+                        assignments.put(name, context.next()
+                                .relativize(resolved)
+                                .toString()
+                                .replace(File.separatorChar, '/'));
                     }
                 }
             }
         }
-        assigner.apply(assignments.stringPropertyNames().stream()
+        Map<String, Path> assigned = assigner.apply(assignments.stringPropertyNames().stream()
                         .filter(assignment -> assignments.getProperty(assignment).isEmpty())
                         .collect(Collectors.toCollection(LinkedHashSet::new)),
-                files).forEach((coordinate, path) -> {
+                files);
+        assigned.forEach((coordinate, path) -> {
             if (!files.contains(path)) {
                 throw new IllegalArgumentException("Unknown path " + path);
             }
-            assignments.setProperty(coordinate, context.next().relativize(path).toString());
+            assignments.setProperty(coordinate, context.next()
+                    .relativize(path)
+                    .toString()
+                    .replace(File.separatorChar, '/'));
         });
-        try (Writer writer = Files.newBufferedWriter(context.next().resolve(IDENTITY))) {
-            assignments.store(writer, null);
+        if (!jmods.isEmpty()) {
+            // Publish the produced module's link-time form alongside the jar, so a consumer
+            // can resolve <coordinate>:jmod the way it resolves the jar (falling back to the
+            // jar in the repository when no jmod was produced).
+            String archive = context.next()
+                    .relativize(jmods.getFirst())
+                    .toString()
+                    .replace(File.separatorChar, '/');
+            for (String coordinate : assigned.keySet()) {
+                assignments.setProperty(coordinate + ":jmod", archive);
+            }
         }
+        assignments.store(context.next().resolve(IDENTITY));
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 }

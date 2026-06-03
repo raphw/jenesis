@@ -7,6 +7,8 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.HashDigestFunction;
+import build.jenesis.SequencedProperties;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.DependencyScope;
 
@@ -28,20 +30,16 @@ public class MultiProjectDependenciesTest {
     }
 
     @Test
-    public void sibling_artifact_dependency_writes_empty_value() throws IOException {
-        Properties dependencies = new Properties();
+    public void sibling_artifact_dependency_writes_artifact_checksum() throws IOException {
+        SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
+        dependencies.store(module.resolve(BuildStep.REQUIRES));
         Path file = target.resolve("file");
         Files.writeString(file, "qux");
-        Properties coordinates = new Properties();
+        SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("baz", file.toString());
-        try (Writer writer = Files.newBufferedWriter(dependency.resolve(BuildStep.IDENTITY))) {
-            coordinates.store(writer, null);
-        }
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE).apply(
+        coordinates.store(dependency.resolve(BuildStep.IDENTITY));
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE, new HashDigestFunction("MD5")).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -53,22 +51,17 @@ public class MultiProjectDependenciesTest {
                                         Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            properties.load(reader);
-        }
+        SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(properties.stringPropertyNames()).containsExactly("baz");
-        assertThat(properties.getProperty("baz")).isEmpty();
+        assertThat(properties.getProperty("baz")).isEqualTo(new HashDigestFunction("MD5").encodedHash(file));
     }
 
     @Test
     public void preserves_pinned_checksum_for_external_dep() throws IOException {
-        Properties dependencies = new Properties();
+        SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "SHA256/cafebabe");
-        try (Writer writer = Files.newBufferedWriter(module.resolve(BuildStep.REQUIRES))) {
-            dependencies.store(writer, null);
-        }
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE).apply(
+        dependencies.store(module.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE, new HashDigestFunction("MD5")).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -77,10 +70,7 @@ public class MultiProjectDependenciesTest {
                                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties properties = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            properties.load(reader);
-        }
+        SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(properties.getProperty("baz")).isEqualTo("SHA256/cafebabe");
     }
 }

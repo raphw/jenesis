@@ -8,6 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.Repository;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Resolve;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,15 +29,13 @@ public class ResolveTest {
 
     @Test
     public void can_resolve_dependencies() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/qux", "");
         properties.setProperty("foo/baz", "");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
-                    descriptors.forEach(descriptor -> {
+                    descriptors.sequencedKeySet().forEach(descriptor -> {
                         resolved.put(prefix + "/" +descriptor, "");
                         resolved.put(prefix + "/transitive/" + descriptor, "");
                     });
@@ -50,10 +49,7 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            dependencies.load(reader);
-        }
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
                 "foo/transitive/qux",
                 "foo/baz",
@@ -64,16 +60,36 @@ public class ResolveTest {
     }
 
     @Test
+    public void resolves_a_qualified_trail_through_the_base_resolver() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("maven@kotlin/org.jetbrains/something", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Resolve(Map.of("maven", Repository.empty()), Map.of("maven", (_, prefix, _, descriptors, _, _) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    return resolved;
+                }), true).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        assertThat(resolved.stringPropertyNames()).containsExactly("maven@kotlin/org.jetbrains/something");
+    }
+
+    @Test
     public void can_resolve_dependencies_with_predefined_checksum() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
-            descriptors.forEach(descriptor -> {
+            descriptors.sequencedKeySet().forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "");
                 resolved.put(prefix + "/transitive/" + descriptor, "");
             });
@@ -87,10 +103,7 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            dependencies.load(reader);
-        }
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
                 "foo/transitive/qux",
                 "foo/baz",
@@ -103,15 +116,13 @@ public class ResolveTest {
 
     @Test
     public void can_resolve_dependencies_with_resolved_checksum() throws IOException {
-        Properties properties = new Properties();
+        SequencedProperties properties = new SequencedProperties();
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");
-        try (Writer writer = Files.newBufferedWriter(dependencies.resolve(BuildStep.REQUIRES))) {
-            properties.store(writer, null);
-        }
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
-            descriptors.forEach(descriptor -> {
+            descriptors.sequencedKeySet().forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "qux/" + descriptor);
                 resolved.put(prefix + "/" + "transitive/" + descriptor, "baz/" + descriptor);
             });
@@ -125,10 +136,7 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        Properties dependencies = new Properties();
-        try (Reader reader = Files.newBufferedReader(next.resolve(BuildStep.REQUIRES))) {
-            dependencies.load(reader);
-        }
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
                 "foo/transitive/qux",
                 "foo/baz",

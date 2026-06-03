@@ -12,39 +12,34 @@ public class Pom implements BuildStep {
 
     public static final String POM = "pom.xml";
 
-    private final Function<String, String> resolver;
+    private final Set<String> prefixes;
     private final Map<String, String> shared;
-    private final String buildVersion = System.getProperty("jenesis.buildVersion");
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(Map.of());
+        this(Set.of("maven"), Map.of());
+    }
+
+    public Pom(Set<String> prefixes) {
+        this(prefixes, Map.of());
     }
 
     public Pom(Map<String, String> shared) {
-        this.resolver = (Function<String, String> & Serializable) (coordinate -> {
-            int separator = coordinate.indexOf('/');
-            if (separator == -1 || !"module".equals(coordinate.substring(0, separator))) {
-                return coordinate;
-            }
-            String name = coordinate.substring(separator + 1);
-            String[] elements = name.split("\\.");
-            if (elements.length < 2) {
-                return coordinate;
-            }
-            String groupId = elements[0] + "." + elements[1];
-            return "maven/" + groupId + "/" + name + "/0-SNAPSHOT";
-        });
+        this(Set.of("maven"), shared);
+    }
+
+    public Pom(Set<String> prefixes, Map<String, String> shared) {
+        this.prefixes = Set.copyOf(prefixes);
         this.shared = Map.copyOf(shared);
     }
 
-    public <F extends Function<String, String> & Serializable> Pom(F resolver) {
-        this(resolver, Map.of());
-    }
-
-    public <F extends Function<String, String> & Serializable> Pom(F resolver, Map<String, String> shared) {
-        this.resolver = resolver;
-        this.shared = Map.copyOf(shared);
+    @Override
+    public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
+                Path.of(REQUIRES),
+                Path.of(SCOPES),
+                Path.of(EXCLUSIONS),
+                Path.of(METADATA)));
     }
 
     @Override
@@ -52,94 +47,42 @@ public class Pom implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        Properties coordinates = new SequencedProperties();
-        Properties compileRequires = new SequencedProperties();
+        List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
+        SequencedProperties requires = SequencedProperties.ofFolders(folders, REQUIRES);
+        SequencedProperties scopes = SequencedProperties.ofFolders(folders, SCOPES);
+        SequencedProperties exclusions = SequencedProperties.ofFolders(folders, EXCLUSIONS);
+        SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
+        boolean scoped = !scopes.isEmpty();
+        SequencedProperties compileRequires = new SequencedProperties();
         SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
-        boolean scoped = false;
-        Properties module = new SequencedProperties();
-        Properties metadata = new SequencedProperties();
-        for (BuildStepArgument argument : arguments.values()) {
-            Path coordinatesFile = argument.folder().resolve(IDENTITY);
-            if (Files.exists(coordinatesFile)) {
-                try (Reader reader = Files.newBufferedReader(coordinatesFile)) {
-                    coordinates.load(reader);
+        for (String name : requires.stringPropertyNames()) {
+            String scope = scopes.getProperty(name);
+            if (scope == null) {
+                compileRequires.setProperty(name, requires.getProperty(name));
+            } else {
+                List<String> parts = List.of(scope.split(","));
+                if (parts.contains(DependencyScope.COMPILE.label())) {
+                    compileRequires.setProperty(name, requires.getProperty(name));
                 }
-            }
-            Path requiresFile = argument.folder().resolve(REQUIRES);
-            Path scopesFile = argument.folder().resolve(SCOPES);
-            if (Files.exists(requiresFile)) {
-                Properties requiresLoaded = new SequencedProperties();
-                try (Reader reader = Files.newBufferedReader(requiresFile)) {
-                    requiresLoaded.load(reader);
-                }
-                Properties scopesLoaded = new SequencedProperties();
-                if (Files.exists(scopesFile)) {
-                    scoped = true;
-                    try (Reader reader = Files.newBufferedReader(scopesFile)) {
-                        scopesLoaded.load(reader);
-                    }
-                }
-                for (String name : requiresLoaded.stringPropertyNames()) {
-                    String scope = scopesLoaded.getProperty(name);
-                    if (scope == null) {
-                        compileRequires.setProperty(name, requiresLoaded.getProperty(name));
-                    } else {
-                        List<String> parts = List.of(scope.split(","));
-                        if (parts.contains(DependencyScope.COMPILE.name())) {
-                            compileRequires.setProperty(name, requiresLoaded.getProperty(name));
-                        }
-                        if (parts.contains(DependencyScope.RUNTIME.name())) {
-                            runtimeRequires.add(name);
-                        }
-                    }
-                }
-            }
-            Path moduleFile = argument.folder().resolve(MODULE);
-            if (Files.exists(moduleFile)) {
-                try (Reader reader = Files.newBufferedReader(moduleFile)) {
-                    module.load(reader);
-                }
-            }
-            Path metadataFile = argument.folder().resolve(METADATA);
-            if (Files.exists(metadataFile)) {
-                try (Reader reader = Files.newBufferedReader(metadataFile)) {
-                    metadata.load(reader);
+                if (parts.contains(DependencyScope.RUNTIME.label())) {
+                    runtimeRequires.add(name);
                 }
             }
         }
         shared.forEach(metadata::setProperty);
-        String prefix = null;
-        MavenDependencyKey.Versioned self = null;
-        for (String coordinate : coordinates.stringPropertyNames()) {
-            if (!coordinates.getProperty(coordinate).isEmpty()) {
-                continue;
-            }
-            String resolved = resolver.apply(coordinate);
-            int separator = resolved.indexOf('/');
-            if (separator == -1) {
-                continue;
-            }
-            MavenDependencyKey.Versioned parsed;
-            try {
-                parsed = MavenDependencyKey.parse(resolved.substring(separator + 1));
-            } catch (IllegalArgumentException _) {
-                continue;
-            }
-            if ("pom".equals(parsed.key().type())) {
-                continue;
-            }
-            prefix = resolved.substring(0, separator);
-            self = parsed;
-            break;
+        String groupId = metadata.getProperty("project");
+        if (groupId == null) {
+            throw new IllegalStateException("Missing 'project' (groupId) in metadata.properties");
         }
-        if (self == null) {
+        String artifactId = metadata.getProperty("artifact");
+        if (artifactId == null) {
             throw new IllegalStateException(
-                    "No own Maven coordinate (with empty value) found in coordinates.properties");
+                    "Missing 'artifact' (artifactId) in metadata.properties for " + groupId);
         }
-        String targetModule = metadata.getProperty("module");
-        boolean test = module.getProperty("tests") != null;
-        if (targetModule != null && !targetModule.equals(self.key().artifactId()) && !test) {
-            return CompletableFuture.completedStage(new BuildStepResult(true));
+        String version = metadata.getProperty("version");
+        if (version == null) {
+            throw new IllegalStateException(
+                    "Missing 'version' in metadata.properties for " + groupId + ":" + artifactId);
         }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
         SequencedSet<String> allRequires = new LinkedHashSet<>(compileRequires.stringPropertyNames());
@@ -148,7 +91,7 @@ public class Pom implements BuildStep {
         }
         for (String name : allRequires) {
             int separator = name.indexOf('/');
-            if (separator == -1 || !prefix.equals(name.substring(0, separator))) {
+            if (separator == -1 || !prefixes.contains(name.substring(0, separator))) {
                 continue;
             }
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(name.substring(separator + 1));
@@ -166,76 +109,107 @@ public class Pom implements BuildStep {
                     scope = MavenDependencyScope.RUNTIME;
                 }
             }
+            List<MavenDependencyName> excludes = null;
+            String exclusionList = exclusions.getProperty(name);
+            if (exclusionList != null && !exclusionList.isEmpty()) {
+                excludes = new ArrayList<>();
+                for (String entry : exclusionList.split(",")) {
+                    int slash = entry.indexOf('/');
+                    if (slash > 0) {
+                        excludes.add(new MavenDependencyName(
+                                entry.substring(0, slash),
+                                entry.substring(slash + 1)));
+                    }
+                }
+            }
             deps.putIfAbsent(parsed.key(), new MavenDependencyValue(
                     parsed.version(),
                     scope,
                     null,
-                    null,
+                    excludes,
                     null));
-        }
-        String version = buildVersion != null && !buildVersion.isEmpty() ? buildVersion : self.version();
-        MavenPomEmitter.Metadata parsed = null;
-        if (!metadata.isEmpty()) {
-            List<MavenPomEmitter.Metadata.License> licenses = List.of();
-            String licenseName = metadata.getProperty("license.name");
-            String licenseUrl = metadata.getProperty("license.url");
-            if (licenseName != null || licenseUrl != null) {
-                licenses = List.of(new MavenPomEmitter.Metadata.License(licenseName, licenseUrl));
-            }
-            SequencedMap<String, String[]> developersById = new LinkedHashMap<>();
-            for (String key : metadata.stringPropertyNames()) {
-                if (!key.startsWith("developer.")) {
-                    continue;
-                }
-                String suffix = key.substring("developer.".length());
-                int dot = suffix.lastIndexOf('.');
-                if (dot <= 0) {
-                    continue;
-                }
-                String id = suffix.substring(0, dot);
-                String attribute = suffix.substring(dot + 1);
-                String[] entry = developersById.computeIfAbsent(id, _ -> new String[2]);
-                if ("name".equals(attribute)) {
-                    entry[0] = metadata.getProperty(key);
-                } else if ("email".equals(attribute)) {
-                    entry[1] = metadata.getProperty(key);
-                }
-            }
-            List<MavenPomEmitter.Metadata.Developer> developers = new ArrayList<>();
-            for (Map.Entry<String, String[]> entry : developersById.entrySet()) {
-                developers.add(new MavenPomEmitter.Metadata.Developer(
-                        entry.getKey(),
-                        entry.getValue()[0],
-                        entry.getValue()[1]));
-            }
-            MavenPomEmitter.Metadata.Scm scm = null;
-            String scmConnection = metadata.getProperty("scm.connection");
-            String scmDeveloperConnection = metadata.getProperty("scm.developerConnection");
-            String scmUrl = metadata.getProperty("scm.url");
-            if (scmConnection != null || scmDeveloperConnection != null || scmUrl != null) {
-                scm = new MavenPomEmitter.Metadata.Scm(
-                        scmConnection,
-                        scmDeveloperConnection,
-                        scmUrl);
-            }
-            parsed = new MavenPomEmitter.Metadata(
-                    metadata.getProperty("name"),
-                    metadata.getProperty("description"),
-                    metadata.getProperty("url"),
-                    licenses,
-                    developers,
-                    scm);
         }
         try (Writer writer = Files.newBufferedWriter(context.next().resolve(POM))) {
             emitter.emit(
-                    self.key().groupId(),
-                    self.key().artifactId(),
+                    groupId,
+                    artifactId,
                     version,
-                    "jar".equals(self.key().type()) ? null : self.key().type(),
                     deps,
-                    parsed).accept(writer);
+                    parseMetadata(metadata)).accept(writer);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static MavenPomEmitter.Metadata parseMetadata(SequencedProperties metadata) {
+        if (metadata.isEmpty()) {
+            return null;
+        }
+        SequencedMap<String, String[]> licensesById = new LinkedHashMap<>();
+        for (String key : metadata.stringPropertyNames()) {
+            if (!key.startsWith("license.")) {
+                continue;
+            }
+            String suffix = key.substring("license.".length());
+            int dot = suffix.lastIndexOf('.');
+            if (dot <= 0) {
+                continue;
+            }
+            String id = suffix.substring(0, dot);
+            String attribute = suffix.substring(dot + 1);
+            String[] entry = licensesById.computeIfAbsent(id, _ -> new String[2]);
+            if ("name".equals(attribute)) {
+                entry[0] = metadata.getProperty(key);
+            } else if ("url".equals(attribute)) {
+                entry[1] = metadata.getProperty(key);
+            }
+        }
+        List<MavenPomEmitter.Metadata.License> licenses = new ArrayList<>();
+        for (String[] entry : licensesById.values()) {
+            licenses.add(new MavenPomEmitter.Metadata.License(entry[0], entry[1]));
+        }
+        SequencedMap<String, String[]> developersById = new LinkedHashMap<>();
+        for (String key : metadata.stringPropertyNames()) {
+            if (!key.startsWith("developer.")) {
+                continue;
+            }
+            String suffix = key.substring("developer.".length());
+            int dot = suffix.lastIndexOf('.');
+            if (dot <= 0) {
+                continue;
+            }
+            String id = suffix.substring(0, dot);
+            String attribute = suffix.substring(dot + 1);
+            String[] entry = developersById.computeIfAbsent(id, _ -> new String[2]);
+            if ("name".equals(attribute)) {
+                entry[0] = metadata.getProperty(key);
+            } else if ("email".equals(attribute)) {
+                entry[1] = metadata.getProperty(key);
+            }
+        }
+        List<MavenPomEmitter.Metadata.Developer> developers = new ArrayList<>();
+        for (Map.Entry<String, String[]> entry : developersById.entrySet()) {
+            developers.add(new MavenPomEmitter.Metadata.Developer(
+                    entry.getKey(),
+                    entry.getValue()[0],
+                    entry.getValue()[1]));
+        }
+        MavenPomEmitter.Metadata.Scm scm = null;
+        String scmConnection = metadata.getProperty("scm.connection");
+        String scmDeveloperConnection = metadata.getProperty("scm.developerConnection");
+        String scmUrl = metadata.getProperty("scm.url");
+        if (scmConnection != null || scmDeveloperConnection != null || scmUrl != null) {
+            scm = new MavenPomEmitter.Metadata.Scm(
+                    scmConnection,
+                    scmDeveloperConnection,
+                    scmUrl);
+        }
+        return new MavenPomEmitter.Metadata(
+                metadata.getProperty("name"),
+                metadata.getProperty("description"),
+                metadata.getProperty("url"),
+                licenses,
+                developers,
+                scm);
     }
 
 }

@@ -1,67 +1,85 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 
-public class Download implements DependencyTransformingBuildStep {
-
-    public static final String REQUIRE_CHECKSUMS_PROPERTY = "jenesis.requireChecksums";
+public class Download implements DependencyProcessingBuildStep {
 
     private final transient Map<String, Repository> repositories;
+    private final boolean strictPinning;
+    private final String scope;
 
     public Download(Map<String, Repository> repositories) {
+        this(repositories, false, null);
+    }
+
+    public Download(Map<String, Repository> repositories, boolean strictPinning) {
+        this(repositories, strictPinning, null);
+    }
+
+    public Download(Map<String, Repository> repositories, boolean strictPinning, String scope) {
         this.repositories = repositories;
+        this.strictPinning = strictPinning;
+        this.scope = scope;
     }
 
     @Override
-    public CompletionStage<Properties> transform(Executor executor,
-                                                 BuildStepContext context,
-                                                 SequencedMap<String, BuildStepArgument> arguments,
-                                                 SequencedMap<String, SequencedMap<String, String>> groups,
-                                                 SequencedMap<String, SequencedMap<String, String>> versions)
+    public CompletionStage<SequencedProperties> transform(Executor executor,
+                                                          BuildStepContext context,
+                                                          SequencedMap<String, BuildStepArgument> arguments,
+                                                          SequencedMap<String, SequencedMap<String, String>> groups,
+                                                          SequencedMap<String, SequencedMap<String, String>> versions)
             throws IOException {
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        Properties properties = new SequencedProperties();
-        Path libs = Files.createDirectory(context.next().resolve(ARTIFACTS));
+        Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
+        SequencedProperties locations = new SequencedProperties();
         for (Map.Entry<String, SequencedMap<String, String>> group : groups.entrySet()) {
-            Repository repository = repositories.getOrDefault(group.getKey(), Repository.empty());
+            Repository repository = repositories.getOrDefault(Resolver.base(group.getKey()), Repository.empty());
             for (Map.Entry<String, String> entry : group.getValue().entrySet()) {
                 String dependency = group.getKey() + "/" + entry.getKey(), name = dependency.replace('/', '-') + ".jar";
-                Path previous = context.previous() == null ? null : context.previous().resolve(ARTIFACTS + name);
+                locations.setProperty(dependency, DEPENDENCIES + name);
+                Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
-                    if (Boolean.getBoolean(REQUIRE_CHECKSUMS_PROPERTY)) {
-                        throw new IllegalStateException(
-                                "No checksum pinned for " + dependency + " (-D" + REQUIRE_CHECKSUMS_PROPERTY + " is set)");
+                    if (previous != null && Files.exists(previous) && !strictPinning) {
+                        BuildStep.linkOrCopy(libs.resolve(name), previous);
+                        continue;
                     }
-                    if (previous != null && Files.exists(previous)) {
-                        Files.createLink(libs.resolve(name), previous);
-                    } else {
-                        CompletableFuture<?> future = new CompletableFuture<>();
-                        executor.execute(() -> {
-                            try {
-                                RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
-                                        () -> new IllegalStateException("Unresolved: " + dependency));
-                                Path file = source.file().orElse(null);
-                                if (file == null) {
-                                    try (InputStream inputStream = source.toInputStream()) {
-                                        Files.copy(inputStream, libs.resolve(name));
-                                    }
-                                } else {
-                                    Files.createLink(context.next().resolve(ARTIFACTS + name), file);
-                                }
-                                future.complete(null);
-                            } catch (Throwable t) {
-                                future.completeExceptionally(new RuntimeException(
-                                        "Failed to fetch " + dependency,
-                                        t));
+                    CompletableFuture<?> future = new CompletableFuture<>();
+                    executor.execute(() -> {
+                        try {
+                            RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
+                                    () -> new IllegalStateException("Unresolved: " + dependency));
+                            if (strictPinning && !source.internal()) {
+                                throw new IllegalStateException(
+                                        "No checksum pinned for " + dependency + " (strict pinning is enabled)");
                             }
-                        });
-                        futures.add(future);
-                    }
+                            if (previous != null && Files.exists(previous)) {
+                                BuildStep.linkOrCopy(libs.resolve(name), previous);
+                                future.complete(null);
+                                return;
+                            }
+                            Path file = source.file().orElse(null);
+                            if (file == null) {
+                                try (InputStream inputStream = source.toInputStream()) {
+                                    Files.copy(inputStream, libs.resolve(name));
+                                }
+                            } else {
+                                BuildStep.linkOrCopy(context.next().resolve(DEPENDENCIES + name), file);
+                            }
+                            future.complete(null);
+                        } catch (Throwable t) {
+                            future.completeExceptionally(new RuntimeException(
+                                    "Failed to fetch " + dependency,
+                                    t));
+                        }
+                    });
+                    futures.add(future);
                 } else {
                     int algorithm = entry.getValue().indexOf('/');
                     MessageDigest digest;
@@ -73,7 +91,7 @@ public class Download implements DependencyTransformingBuildStep {
                     String checksum = entry.getValue().substring(algorithm + 1);
                     if (previous != null && Files.exists(previous)) {
                         if (validateFile(digest, previous, checksum)) {
-                            Files.createLink(libs.resolve(name), previous);
+                            BuildStep.linkOrCopy(libs.resolve(name), previous);
                             continue;
                         } else {
                             digest.reset();
@@ -98,7 +116,7 @@ public class Download implements DependencyTransformingBuildStep {
                                 }
                             } else {
                                 if (validateFile(digest, file, checksum)) {
-                                    Files.createLink(context.next().resolve(ARTIFACTS + name), file);
+                                    BuildStep.linkOrCopy(context.next().resolve(DEPENDENCIES + name), file);
                                 } else {
                                     throw new IllegalStateException("Mismatched digest for " + dependency);
                                 }
@@ -114,9 +132,17 @@ public class Download implements DependencyTransformingBuildStep {
                 }
             }
         }
+        locations.store(context.next().resolve(LOCATIONS));
+        if (scope != null) {
+            SequencedProperties scopes = new SequencedProperties();
+            for (String coordinate : locations.stringPropertyNames()) {
+                scopes.setProperty(coordinate, scope);
+            }
+            scopes.store(context.next().resolve(SCOPES));
+        }
         return CompletableFuture
                 .allOf(futures.toArray(CompletableFuture[]::new))
-                .thenApply(_ -> properties);
+                .thenApply(_ -> null);
     }
 
     private static boolean validateFile(MessageDigest digest, Path file, String expected) throws IOException {

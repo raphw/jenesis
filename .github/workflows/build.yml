@@ -1,16 +1,67 @@
-name: Build
+name: Test Jenesis Tool
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 jobs:
-  manual:
-    runs-on: ubuntu-latest
+  demos:
     strategy:
+      fail-fast: false
       matrix:
-        build: [Manual, Maven, Minimal, Modular, ModularToMaven, Modules]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # internal-module and external-module load a build module through the
+        # class-loader bridge. Their plugin pins build.jenesis to a published
+        # release (@tool/build.jenesis in sources/module-info.java) whose API
+        # matches the local sources, so the bridge loads it without complaint.
+        #
+        # The `-as-modular` entries force the pure MODULAR layout
+        # (-Djenesis.project.layout=modular) on the same sources that otherwise
+        # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
+        # `*-executable` demos run their build/Demo.java launcher, which stages a
+        # jpackage app-image and runs it. `java-multi-release` runs the shipped
+        # build/jenesis/Execute.java, which builds the multi-release jar and then
+        # launches it, so CI (on JDK 25) verifies that the Java 25 overlay is
+        # selected at runtime rather than only that it compiles. The `-jmod-jlink` entry enables the jmod
+        # and jlink steps and stages their results (a .jmod beside the modular jar
+        # and a jlink runtime image under stage/runtime). `custom-jmod` runs its
+        # build/Demo.java, which wraps the assembler to pack extra content into the
+        # .jmod and chains jmod -> jlink -> jpackage, then launches the produced app.
+        demo:
+          - { name: java-pom, dir: demo-01-java-pom, entry: build/jenesis/Project.java }
+          - { name: java-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java }
+          - { name: java-modular-as-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          - { name: java-pom-multi, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java }
+          - { name: java-modular-multi, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java }
+          - { name: java-modular-multi-as-modular, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          # The `*-module` and `*-test-filter` entries exercise selectors and test
+          # filtering: a `+<module>` selector scopes the build to one module's
+          # subtree (appended to entry), and `-Djenesis.java.test` narrows which
+          # tests run (a -D flag, so it precedes the source file in flags).
+          - { name: java-pom-multi-module, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java +greeter }
+          - { name: java-pom-multi-test-filter, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-modular-multi-module, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java +greeter-test }
+          - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-modular-jmod-jlink, dir: demo-02-java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
+          - { name: java-pom-executable, dir: demo-05-java-pom-executable, entry: build/Demo.java }
+          - { name: java-modular-executable, dir: demo-06-java-modular-executable, entry: build/Demo.java }
+          - { name: java-multi-release, dir: demo-07-java-multi-release, entry: build/jenesis/Execute.java }
+          - { name: kotlin, dir: demo-08-kotlin, entry: build/jenesis/Project.java }
+          - { name: scala, dir: demo-09-scala, entry: build/jenesis/Project.java }
+          - { name: groovy, dir: demo-10-groovy, entry: build/jenesis/Project.java }
+          - { name: maven-exclusions, dir: demo-11-maven-exclusions, entry: build/jenesis/Project.java }
+          - { name: module-layout, dir: demo-12-module-layout, entry: build/Demo.java }
+          - { name: custom-assembler, dir: demo-13-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-14-custom-jmod, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-19-custom-build, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-17-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-18-custom-modular, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-15-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-16-external-module, entry: build/Demo.java }
+          - { name: supply-chain-security, dir: demo-21-supply-chain-security, entry: build/Demo.java }
+          - { name: publishing, dir: demo-22-publishing, entry: build/Demo.java }
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -20,14 +71,27 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: ${{ matrix.build }}.java
-        run: java build/${{ matrix.build }}.java
+      - name: Demo ${{ matrix.demo.name }}
+        shell: bash
+        working-directory: demo/${{ matrix.demo.dir }}
+        run: java ${{ matrix.demo.flags }} ${{ matrix.demo.entry }}
+
+      - name: Upload target on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-demo-${{ matrix.os }}-${{ matrix.demo.name }}
+          path: demo/${{ matrix.demo.dir }}/target/
+          retention-days: 3
+          if-no-files-found: ignore
 
   project:
-    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         layout: [auto, maven, modular, modular_to_maven]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -38,4 +102,63 @@ jobs:
           java-version: '25'
 
       - name: Project layout ${{ matrix.layout }}
+        shell: bash
         run: java -Djenesis.project.layout=${{ matrix.layout }} build/jenesis/Project.java stage
+
+      - name: Upload target on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-project-${{ matrix.os }}-${{ matrix.layout }}
+          path: target/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  sdk:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Stage Jenesis
+        shell: bash
+        run: |
+          java -Djenesis.project.version=0.0.0-TEST \
+               -Djenesis.project.sources=true \
+               -Djenesis.project.skipTests=true \
+               -Djenesis.project.metadata=project.properties \
+               build/jenesis/Project.java stage
+
+      - name: Populate SDK layout
+        shell: bash
+        run: |
+          mkdir -p sdk/lib sdk/sources
+          cp target/stage/maven/output/build/jenesis/build.jenesis/0.0.0-TEST/build.jenesis-0.0.0-TEST.jar sdk/lib/
+          cp target/stage/maven/output/build/jenesis/build.jenesis/0.0.0-TEST/build.jenesis-0.0.0-TEST-sources.jar sdk/sources/
+
+      - name: Run SDK tests (POSIX)
+        if: runner.os != 'Windows'
+        run: bash sdk-tests/test.sh
+
+      - name: Run SDK tests (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: sdk-tests\test.bat
+
+      - name: Upload target on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-sdk-${{ matrix.os }}
+          path: target/
+          retention-days: 3
+          if-no-files-found: ignore

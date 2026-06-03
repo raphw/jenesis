@@ -6,11 +6,11 @@ import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 
-public class MavenPomResolver implements Resolver {
+public class MavenPomResolver implements MavenResolver {
 
     private static final String NAMESPACE_4_0_0 = "http://maven.apache.org/POM/4.0.0";
     private static final Set<String> IMPLICITS = Set.of("groupId", "artifactId", "version", "packaging");
-    private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([\\w.]+)})");
+    private static final Pattern PROPERTY = Pattern.compile("(\\$\\{([^}]+)})");
     public static final String CHECKSUM_PREFIX = "Checksum/";
 
     private final Supplier<MavenVersionNegotiator> negotiatorSupplier;
@@ -28,7 +28,7 @@ public class MavenPomResolver implements Resolver {
     public SequencedMap<String, String> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
-                                                     SequencedSet<String> coordinates,
+                                                     SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
                                                      boolean compile) throws IOException {
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
@@ -38,27 +38,39 @@ public class MavenPomResolver implements Resolver {
             String version = split < 0 ? value : value.substring(0, split);
             String checksum = split < 0 ? null : value.substring(split + 1).trim();
             managedDependencies.put(key, new MavenDependencyValue(
-                    version, MavenDependencyScope.COMPILE, null, null, null, checksum));
+                    version, null, null, null, null, checksum));
         });
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
-        coordinates.forEach(coordinate -> {
+        coordinates.forEach((coordinate, excludes) -> {
+            List<MavenDependencyName> exclusions = excludes.isEmpty()
+                    ? null
+                    : excludes.stream()
+                            .map(entry -> {
+                                int separator = entry.indexOf('/');
+                                return new MavenDependencyName(
+                                        entry.substring(0, separator), entry.substring(separator + 1));
+                            })
+                            .collect(Collectors.toList());
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.tryParse(coordinate);
-            if (parsed.version() != null) {
-                dependencies.put(parsed.key(),
-                        new MavenDependencyValue(parsed.version(), MavenDependencyScope.COMPILE, null, null, null));
-                return;
-            }
             MavenDependencyValue managed = managedDependencies.get(parsed.key());
-            if (managed == null) {
+            String declared = parsed.version();
+            if (declared != null && !isFloating(declared)) {
+                dependencies.put(parsed.key(),
+                        new MavenDependencyValue(declared, MavenDependencyScope.COMPILE, null, exclusions, null));
+            } else if (managed != null) {
+                dependencies.put(parsed.key(), new MavenDependencyValue(
+                        managed.version(), MavenDependencyScope.COMPILE, null, exclusions, null, managed.checksum()));
+            } else if (declared != null) {
+                dependencies.put(parsed.key(),
+                        new MavenDependencyValue(declared, MavenDependencyScope.COMPILE, null, exclusions, null));
+            } else {
                 throw new IllegalStateException(
                         "No version pinned for " + coordinate + " (add to dependencyManagement)");
             }
-            dependencies.put(parsed.key(), new MavenDependencyValue(
-                    managed.version(), MavenDependencyScope.COMPILE, null, null, null, managed.checksum()));
         });
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
-                MavenRepository.of(repositories.getOrDefault(prefix, Repository.empty())),
+                MavenRepository.of(repositories.getOrDefault(Resolver.base(prefix), Repository.empty())),
                 managedDependencies,
                 dependencies).forEach((key, value) -> resolved.put(
                         key.coordinate(prefix, value.version()),
@@ -79,6 +91,58 @@ public class MavenPomResolver implements Resolver {
                         Set.of()), new HashMap<>(), new HashMap<>());
     }
 
+    @Override
+    public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
+            Executor executor,
+            MavenRepository repository,
+            List<RootPom> rootPoms,
+            List<RootPom> managedPoms,
+            MavenDependencyScope scope) throws IOException {
+        Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
+        Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
+        Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        for (RootPom managedPom : managedPoms) {
+            UnresolvedPom assembled;
+            try (InputStream stream = managedPom.pom()) {
+                assembled = assemble(executor, repository, stream, false, null, null, new HashSet<>(), unresolved);
+            } catch (SAXException | ParserConfigurationException e) {
+                throw new IllegalStateException("Failed to parse provided managed POM", e);
+            }
+            ResolvedPom resolvedManaged = resolve(executor, repository, assembled, unresolved);
+            String groupId = property(assembled.groupId(), assembled.properties());
+            String artifactId = property(assembled.artifactId(), assembled.properties());
+            String version = property(assembled.version(), assembled.properties());
+            DependencyCoordinate coordinate = new DependencyCoordinate(groupId, artifactId, version);
+            unresolved.putIfAbsent(coordinate, assembled);
+            resolved.putIfAbsent(coordinate, resolvedManaged);
+            managedDependencies.putIfAbsent(
+                    new MavenDependencyKey(groupId, artifactId, "jar", null),
+                    new MavenDependencyValue(version, null, null, null, null, managedPom.checksum()));
+        }
+        for (RootPom rootPom : rootPoms) {
+            UnresolvedPom assembled;
+            try (InputStream stream = rootPom.pom()) {
+                assembled = assemble(executor, repository, stream, false, null, null, new HashSet<>(), unresolved);
+            } catch (SAXException | ParserConfigurationException e) {
+                throw new IllegalStateException("Failed to parse provided root POM", e);
+            }
+            ResolvedPom resolvedRoot = resolve(executor, repository, assembled, unresolved);
+            String groupId = property(assembled.groupId(), assembled.properties());
+            String artifactId = property(assembled.artifactId(), assembled.properties());
+            String version = property(assembled.version(), assembled.properties());
+            DependencyCoordinate coordinate = new DependencyCoordinate(groupId, artifactId, version);
+            unresolved.putIfAbsent(coordinate, assembled);
+            resolved.putIfAbsent(coordinate, resolvedRoot);
+            dependencies.put(
+                    new MavenDependencyKey(groupId, artifactId, "jar", null),
+                    new MavenDependencyValue(version, scope, null, null, null, rootPom.checksum()));
+        }
+        return dependencies(executor, repository,
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of()),
+                unresolved, resolved);
+    }
+
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
                                                                                MavenRepository repository,
                                                                                String groupId,
@@ -95,7 +159,6 @@ public class MavenPomResolver implements Resolver {
                 version,
                 resolved,
                 unresolved), true, scope, Set.of()), unresolved, resolved);
-
     }
 
     private SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
@@ -289,12 +352,14 @@ public class MavenPomResolver implements Resolver {
             UnresolvedPom pom = paths.get(module);
             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
             SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
-            pom.dependencies().forEach((key, value) -> dependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
             pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
                     key.resolve(pom.properties()),
-                    value.resolve(pom.properties())));
+                    value.resolveManaged(pom.properties())));
+            pom.dependencies().forEach((key, value) -> {
+                MavenDependencyKey resolvedKey = key.resolve(pom.properties());
+                dependencies.put(resolvedKey, merge(value.resolve(pom.properties()),
+                        managedDependencies.get(resolvedKey)));
+            });
             results.put(root.relativize(module), new MavenLocalPom(property(pom.groupId(), pom.properties()),
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
@@ -309,7 +374,9 @@ public class MavenPomResolver implements Resolver {
                             .map(resource -> property(resource, pom.properties()))
                             .toList(),
                     dependencies,
-                    managedDependencies));
+                    managedDependencies,
+                    pom.qualifiedDependencies(),
+                    pom.properties().get("mainClass")));
         });
         return results;
     }
@@ -327,7 +394,8 @@ public class MavenPomResolver implements Resolver {
         try (inputStream) {
             document = factory.newDocumentBuilder().parse(inputStream);
         }
-        return switch (document.getDocumentElement().getNamespaceURI()) {
+        String namespace = document.getDocumentElement().getNamespaceURI();
+        return switch (namespace == null ? NAMESPACE_4_0_0 : namespace) {
             case NAMESPACE_4_0_0 -> {
                 ParentCoordinate parent = toChildren400(document.getDocumentElement(), "parent")
                         .findFirst()
@@ -440,13 +508,15 @@ public class MavenPomResolver implements Resolver {
                         build == null ? null : toTextChild400(build, "sourceDirectory").orElse(null),
                         build == null ? null : toChildren400(build, "resources").findFirst()
                                 .map(node -> toChildren400(node, "resource")
-                                        .map(Node::getTextContent)
+                                        .map(child -> toTextChild400(child, "directory").orElse(null))
+                                        .filter(Objects::nonNull)
                                         .toList())
                                 .orElse(null),
                         build == null ? null : toTextChild400(build, "testSourceDirectory").orElse(null),
                         build == null ? null : toChildren400(build, "testResources").findFirst()
                                 .map(node -> toChildren400(node, "testResource")
-                                        .map(Node::getTextContent)
+                                        .map(child -> toTextChild400(child, "directory").orElse(null))
+                                        .filter(Objects::nonNull)
                                         .toList())
                                 .orElse(null),
                         modules == null ? null : toChildren400(modules, "module")
@@ -454,10 +524,12 @@ public class MavenPomResolver implements Resolver {
                                 .toList(),
                         properties,
                         managedDependencies,
-                        dependencies);
+                        dependencies,
+                        extended
+                                ? toQualifiedDependencies(document.getDocumentElement())
+                                : new LinkedHashMap<>());
             }
-            case null, default -> throw new IllegalArgumentException(
-                    "Unknown namespace: " + document.getDocumentElement().getNamespaceURI());
+            default -> throw new IllegalArgumentException("Unknown namespace: " + namespace);
         };
     }
 
@@ -492,9 +564,12 @@ public class MavenPomResolver implements Resolver {
                             null,
                             Map.of(),
                             Map.of(),
-                            Collections.emptyNavigableMap());
+                            Collections.emptyNavigableMap(),
+                            new LinkedHashMap<>());
                 } else {
                     InputStream stream = candidate.toInputStream();
+                    Path localPath = candidate.file().map(Path::getParent).orElse(null);
+                    Map<Path, UnresolvedPom> localPaths = localPath == null ? null : new HashMap<>();
                     if (checksum != null) {
                         int separator = checksum.indexOf('/');
                         if (separator < 0) {
@@ -512,9 +587,9 @@ public class MavenPomResolver implements Resolver {
                         }
                         DigestInputStream digestStream = new DigestInputStream(stream, digest);
                         pom = assemble(executor, repository, drainAndValidate(digestStream, digest, expected,
-                                groupId, artifactId, version), false, null, null, children, poms);
+                                groupId, artifactId, version), false, localPath, localPaths, children, poms);
                     } else {
-                        pom = assemble(executor, repository, stream, false, null, null, children, poms);
+                        pom = assemble(executor, repository, stream, false, localPath, localPaths, children, poms);
                     }
                 }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
@@ -552,7 +627,7 @@ public class MavenPomResolver implements Resolver {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
             MavenDependencyKey key = entry.getKey().resolve(pom.properties());
-            MavenDependencyValue value = entry.getValue().resolve(pom.properties());
+            MavenDependencyValue value = entry.getValue().resolveManaged(pom.properties());
             if (value.scope() == MavenDependencyScope.IMPORT) {
                 UnresolvedPom imported = assembleOrCached(executor,
                         repository,
@@ -563,7 +638,7 @@ public class MavenPomResolver implements Resolver {
                         new HashSet<>(),
                         unresolved);
                 imported.managedDependencies().forEach((importKey, importValue) -> {
-                    MavenDependencyValue resolved = importValue.resolve(imported.properties());
+                    MavenDependencyValue resolved = importValue.resolveManaged(imported.properties());
                     if (resolved.scope() != MavenDependencyScope.IMPORT) {
                         managedDependencies.putIfAbsent(importKey.resolve(imported.properties()), resolved);
                     }
@@ -614,7 +689,8 @@ public class MavenPomResolver implements Resolver {
 
     private static Stream<Node> toChildren400(Node node, String localName) {
         return toChildren(node).filter(child -> Objects.equals(child.getLocalName(), localName)
-                && Objects.equals(child.getNamespaceURI(), NAMESPACE_4_0_0));
+                && (child.getNamespaceURI() == null
+                        || NAMESPACE_4_0_0.equals(child.getNamespaceURI())));
     }
 
     private static Optional<String> toTextChild400(Node node, String localName) {
@@ -651,7 +727,7 @@ public class MavenPomResolver implements Resolver {
                 .filter(Objects::nonNull)
                 .map(String::trim)
                 .filter(text -> text.startsWith(CHECKSUM_PREFIX))
-                .map(text -> text.substring(CHECKSUM_PREFIX.length()))
+                .map(text -> text.substring(CHECKSUM_PREFIX.length()).trim())
                 .toList();
         if (matches.size() > 1) {
             throw new IllegalStateException("Multiple " + CHECKSUM_PREFIX + "* comments on dependency "
@@ -661,6 +737,52 @@ public class MavenPomResolver implements Resolver {
                     + ": " + matches);
         }
         return matches.stream().findFirst();
+    }
+
+    private static SequencedMap<String, String> toQualifiedDependencies(Node node) {
+        SequencedMap<String, String> entries = new LinkedHashMap<>();
+        toChildren(node)
+                .filter(child -> child.getNodeType() == Node.COMMENT_NODE)
+                .map(Node::getNodeValue)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(text -> text.startsWith("jenesis.pin"))
+                .forEach(text -> {
+                    for (String line : text.substring("jenesis.pin".length()).replace("&#45;", "-").split("\n")) {
+                        String trimmed = line.trim();
+                        if (trimmed.isEmpty()) {
+                            continue;
+                        }
+                        int space = trimmed.indexOf(' ');
+                        if (space < 1) {
+                            continue;
+                        }
+                        String token = trimmed.substring(0, space).trim();
+                        String value = trimmed.substring(space + 1).trim().replaceAll("\\s+", " ");
+                        if (value.isEmpty()) {
+                            continue;
+                        }
+                        int at = token.indexOf('@');
+                        String key;
+                        if (at < 0) {
+                            key = "maven/" + token;
+                        } else if (at == 0) {
+                            int slash = token.indexOf('/');
+                            if (slash < 2 || slash == token.length() - 1) {
+                                continue;
+                            }
+                            key = "maven" + token;
+                        } else {
+                            int slash = token.indexOf('/', at);
+                            if (slash <= at + 1 || slash == token.length() - 1) {
+                                continue;
+                            }
+                            key = token;
+                        }
+                        entries.put(key, value);
+                    }
+                });
+        return entries;
     }
 
     private static String property(String text, Map<String, String> properties) {
@@ -691,6 +813,12 @@ public class MavenPomResolver implements Resolver {
         } else {
             return text;
         }
+    }
+
+    private static boolean isFloating(String version) {
+        return version.equals("RELEASE")
+                || version.equals("LATEST")
+                || MavenDefaultVersionNegotiator.isRange(version);
     }
 
     private static MavenDependencyValue merge(MavenDependencyValue left, MavenDependencyValue right) {
@@ -726,8 +854,17 @@ public class MavenPomResolver implements Resolver {
                                    String optional,
                                    String checksum) {
         private MavenDependencyValue resolve(Map<String, String> properties) {
+            return resolve(properties, true);
+        }
+
+        private MavenDependencyValue resolveManaged(Map<String, String> properties) {
+            return resolve(properties, false);
+        }
+
+        private MavenDependencyValue resolve(Map<String, String> properties, boolean defaultScope) {
+            String resolvedScope = property(scope, properties);
             return new MavenDependencyValue(property(version, properties),
-                    MavenDependencyScope.of(property(scope, properties)),
+                    resolvedScope == null && !defaultScope ? null : MavenDependencyScope.of(resolvedScope),
                     systemPath == null ? null : Path.of(property(systemPath, properties)),
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new MavenDependencyName(
                             property(exclusion.groupId(), properties),
@@ -755,7 +892,8 @@ public class MavenPomResolver implements Resolver {
                                  List<String> modules,
                                  Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
-                                 SequencedMap<DependencyKey, DependencyValue> dependencies) {
+                                 SequencedMap<DependencyKey, DependencyValue> dependencies,
+                                 SequencedMap<String, String> qualifiedDependencies) {
     }
 
     private record ResolvedPom(Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
