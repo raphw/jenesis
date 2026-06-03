@@ -58,7 +58,8 @@ jobs:
           - { name: custom-modular, dir: demo-17-custom-modular, entry: build/Demo.java }
           - { name: internal-module, dir: demo-14-internal-module, entry: build/Demo.java }
           - { name: external-module, dir: demo-15-external-module, entry: build/Demo.java }
-          - { name: publishing, dir: demo-20-publishing, entry: build/Demo.java }
+          - { name: supply-chain-security, dir: demo-20-supply-chain-security, entry: build/Demo.java }
+          - { name: publishing, dir: demo-21-publishing, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

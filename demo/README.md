@@ -6,7 +6,8 @@ one idea on top of the last, so the sequence doubles as a tutorial through
 Jenesis' features: start with a single Maven project, turn it into a module,
 scale to many modules, package a module into a runnable application image, build
 a multi-release JAR, bring in other JVM languages, customize or replace the build
-template itself, and finally assemble a release for Maven Central.
+template itself, lock down the supply chain, and finally assemble a release for
+Maven Central.
 
 Every demo has its own `build/jenesis` symlink into this repository's
 `sources/build/jenesis`, so each runs in isolation from inside its own directory
@@ -30,8 +31,9 @@ That runs the default `build` goal. You pass other goals as arguments:
 Some demos ship their own launcher and are run with `java build/Demo.java`
 instead: the ones that customize, replace, or drive the template directly
 (`custom-assembler`, `internal-module`, `external-module`, `custom-maven`,
-`custom-modular`, `custom-build`, `custom-jmod`, `publishing`) and the two
-executable demos (`java-pom-executable`, `java-modular-executable`), which stage a
+`custom-modular`, `custom-build`, `custom-jmod`, `supply-chain-security`,
+`publishing`) and the two executable demos (`java-pom-executable`,
+`java-modular-executable`), which stage a
 `jpackage` image and run it with the arguments you pass, and additionally ship a
 `build/DemoNative.java` sibling that builds a native installer. Each demo writes
 to a local `target/` directory; delete it to rebuild from scratch.
@@ -60,7 +62,8 @@ Quick index
 | 17 | [`custom-modular`](demo-17-custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
 | 18 | [`custom-build`](demo-18-custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
 | 19 | [`docker-isolation`](demo-19-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
-| 20 | [`publishing`](demo-20-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
+| 20 | [`supply-chain-security`](demo-20-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
+| 21 | [`publishing`](demo-21-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -359,7 +362,25 @@ mounted **read-only**: dependencies must be pre-cached, and `export` fails insid
 the container. It needs a Docker daemon, so it is a local exercise rather than a
 CI one. There are no assertions; each actor just reports what it managed to do.
 
-## 13. Publishing to Maven Central - [`publishing`](demo-20-publishing/README.md)
+## 13. Supply-chain security - [`supply-chain-security`](demo-20-supply-chain-security/README.md)
+----------------------------------------------------
+
+Pinning has two halves, and this demo shows both by getting them wrong on purpose.
+`supply-chain-security` has two modules and a `build/Demo.java` that asserts each
+fails to build: an **`unpinned`** module whose dependency carries a version but no
+checksum, and a **`tampered`** module whose dependency is pinned to a wrong
+`SHA-256`. The unpinned one builds by default but is rejected under
+`strictPinning(true)` (a hardened environment can refuse any unverified
+dependency); the tampered one fails **regardless** of strict pinning, because
+`Download` checks every fetched artifact against its pin and rejects a mismatch -
+exactly what would catch a swapped or compromised artifact.
+
+The new idea is **strict pinning vs. checksum verification**: the former decides
+*whether* an unverified dependency may be used at all, the latter proves a pinned
+dependency is the exact artifact you vetted. Unlike every other demo, this one is
+a project that must *not* build.
+
+## 14. Publishing to Maven Central - [`publishing`](demo-21-publishing/README.md)
 
 The final demo closes the loop from sources to a release. Publishing to Central is
 two jobs - **produce a correct bundle** and **upload it** - and Jenesis owns the

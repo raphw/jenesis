@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>build.jenesis.demo</groupId>
+        <artifactId>supply-chain-security</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>tampered</artifactId>
+
+    <build>
+        <sourceDirectory>sources</sourceDirectory>
+    </build>
+
+    <!-- A dependency pinned to a deliberately wrong SHA-256: the download must
+         not match the pin, so the build fails the checksum check. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.14.0</version>
+                <!--Checksum/SHA-256/0000000000000000000000000000000000000000000000000000000000000000-->
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+    </dependencies>
+</project>
