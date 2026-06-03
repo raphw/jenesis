@@ -61,6 +61,6 @@ on, no sources or javadoc jar, lenient pinning, class-path compilation) so the
 standard compile/jar/test flow runs unchanged.
 
 To take full control - a custom repository, strict pinning, a different digest -
-switch to the full `make(root, prefix, repositories, resolvers, strictPinning,
+switch to the full `make(root, prefix, repositories, resolvers, pinning,
 digest, assembler)` overload that `Project` itself uses. To drop the templates
 entirely and wire the build graph by hand, see `../demo-19-custom-build`.

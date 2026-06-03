@@ -62,6 +62,6 @@ standard compile/jar/test flow runs unchanged.
 The convenience form builds pure modules (a modular jar, no generated POM). To
 also emit a generated POM and stage to a Maven repository (the MODULAR_TO_MAVEN
 behavior), or to use a custom repository or strict pinning, switch to the full
-`make(root, prefix, filter, repositories, resolvers, strictPinning, modular,
+`make(root, prefix, filter, repositories, resolvers, pinning, modular,
 digest, assembler)` overload that `Project` uses. To drop the templates
 entirely and wire the build graph by hand, see `../demo-19-custom-build`.

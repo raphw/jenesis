@@ -391,7 +391,7 @@ Pinning has two halves, and this demo shows both by getting them wrong on purpos
 fails to build: an **`unpinned`** module whose dependency carries a version but no
 checksum, and a **`tampered`** module whose dependency is pinned to a wrong
 `SHA-256`. The unpinned one builds by default but is rejected under
-`strictPinning(true)` (a hardened environment can refuse any unverified
+`pinning(Pinning.STRICT)` (a hardened environment can refuse any unverified
 dependency); the tampered one fails **regardless** of strict pinning, because
 `Download` checks every fetched artifact against its pin and rejects a mismatch -
 exactly what would catch a swapped or compromised artifact.
@@ -450,7 +450,7 @@ native application image with `-Djenesis.java.package` (the value is the `jpacka
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
 `module-info.java`'s `@jenesis.pin <module> <version> [<algorithm>/<hex>]`
 Javadoc tags. `Download` verifies every fetch against a pinned checksum, and
-strict pinning (`-Djenesis.project.strictPinning=true`) fails the build on any
+strict pinning (`-Dbuild.jenesis.pinning=strict`) fails the build on any
 unpinned coordinate. A *resolved compiler* pins on an independent qualified trail
 (`@kotlin`, `@scala`, `@groovy`, or an explicit `"tool"` qualifier) so it never
 mixes with the project's own dependencies.

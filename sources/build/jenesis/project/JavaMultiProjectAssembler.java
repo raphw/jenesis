@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
@@ -90,7 +91,7 @@ public record JavaMultiProjectAssembler(boolean process,
             sub.addModule("binary", new JavaToolchainModule(
                     new InferredCompilerChainModule(repositories, resolvers)
                             .process(process)
-                            .strictPinning(descriptor.strictPinning())
+                            .pinning(descriptor.pinning())
                             .modulePath(descriptor.modulePath()),
                     (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
                     Stream.concat(
@@ -114,7 +115,7 @@ public record JavaMultiProjectAssembler(boolean process,
                                         .filter(filter)
                                         .group(group)
                                         .parallel(parallel)
-                                        .strictPinning(descriptor.strictPinning())
+                                        .pinning(descriptor.pinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),
                                 Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));

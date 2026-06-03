@@ -283,7 +283,7 @@ public class JavaMultiProjectAssemblerTest {
                 return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts"));
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false, PathPlacement.INFERRED);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, null, PathPlacement.INFERRED);
         BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType, jmod, jlink, null, null, false).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,

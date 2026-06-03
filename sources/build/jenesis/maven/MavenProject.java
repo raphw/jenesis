@@ -1,6 +1,7 @@
 package build.jenesis.maven;
 
 import module java.base;
+import build.jenesis.Pinning;
 import module java.xml;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -59,7 +60,7 @@ public class MavenProject implements BuildExecutorModule {
                 "maven",
                 Map.of("maven", new MavenDefaultRepository()),
                 Map.of("maven", new MavenPomResolver()),
-                false,
+                null,
                 new HashDigestFunction("MD5"),
                 assembler);
     }
@@ -68,7 +69,7 @@ public class MavenProject implements BuildExecutorModule {
                                            String prefix,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
+                                           Pinning pinning,
                                            HashDigestFunction digest,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         MavenRepository repository = MavenRepository.of(requireNonNull(repositories.get(prefix)));
@@ -95,7 +96,7 @@ public class MavenProject implements BuildExecutorModule {
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, strictPinning),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, pinning),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

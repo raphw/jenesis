@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Pinning;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -22,12 +23,13 @@ public class ExternalModule implements BuildExecutorModule {
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
     private final String qualifier;
+    private final Pinning pinning;
 
     public ExternalModule(String coordinate,
                           String qualifier,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier, null);
     }
 
     private ExternalModule(String coordinate,
@@ -35,25 +37,49 @@ public class ExternalModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
-                           String qualifier) {
+                           String qualifier,
+                           Pinning pinning) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
+        this.pinning = pinning;
     }
 
     public ExternalModule dependencies(String... dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
+        return dependencies(new LinkedHashSet<>(List.of(dependencies)));
     }
 
     public ExternalModule dependencies(SequencedSet<String> dependencies) {
-        return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
+        return new ExternalModule(coordinate,
+                repositories,
+                resolvers,
+                dependencies,
+                buildModuleName,
+                qualifier,
+                pinning);
     }
 
     public ExternalModule buildModuleName(String name) {
-        return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name, qualifier);
+        return new ExternalModule(coordinate,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                name,
+                qualifier,
+                pinning);
+    }
+
+    public ExternalModule pinning(Pinning pinning) {
+        return new ExternalModule(coordinate,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                buildModuleName,
+                qualifier,
+                pinning);
     }
 
     @Override
@@ -84,7 +110,7 @@ public class ExternalModule implements BuildExecutorModule {
                 new WriteCoordinates(coordinates, qualifier == null ? base : base + "@" + qualifier),
                 inherited.sequencedKeySet().stream());
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, false, false,
+                new DependenciesModule(repositories, resolvers, false, pinning,
                         qualifier == null ? null : "module:" + qualifier),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {

@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -28,7 +29,7 @@ public class TestModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final boolean jarsOnly;
     private final boolean requireEngine;
-    private final boolean strictPinning;
+    private final Pinning pinning;
     private final String filter;
     private final PathPlacement modulePath;
     private final String moduleName;
@@ -47,7 +48,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 true,
                 true,
-                false,
+                null,
                 null,
                 PathPlacement.CLASS_PATH,
                 null,
@@ -62,7 +63,7 @@ public class TestModule implements BuildExecutorModule {
                        Map<String, Resolver> resolvers,
                        boolean jarsOnly,
                        boolean requireEngine,
-                       boolean strictPinning,
+                       Pinning pinning,
                        String filter,
                        PathPlacement modulePath,
                        String moduleName,
@@ -75,7 +76,7 @@ public class TestModule implements BuildExecutorModule {
         this.resolvers = resolvers;
         this.jarsOnly = jarsOnly;
         this.requireEngine = requireEngine;
-        this.strictPinning = strictPinning;
+        this.pinning = pinning;
         this.filter = filter;
         this.modulePath = modulePath;
         this.moduleName = moduleName;
@@ -91,7 +92,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -107,7 +108,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -123,7 +124,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -139,7 +140,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -155,7 +156,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -171,7 +172,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -179,7 +180,7 @@ public class TestModule implements BuildExecutorModule {
                 parallel);
     }
 
-    public TestModule strictPinning(boolean strictPinning) {
+    public TestModule pinning(Pinning pinning) {
         return new TestModule(engine,
                 isTest,
                 factory,
@@ -187,7 +188,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -203,7 +204,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -219,7 +220,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -235,7 +236,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -251,7 +252,7 @@ public class TestModule implements BuildExecutorModule {
                 resolvers,
                 jarsOnly,
                 requireEngine,
-                strictPinning,
+                pinning,
                 filter,
                 modulePath,
                 moduleName,
@@ -278,8 +279,8 @@ public class TestModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning), REQUIRED);
+        buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning), REQUIRED);
         Run run = factory == null
                 ? new Run(resolved, isTest, jarsOnly, modulePath, moduleName, filter, group, parallel)
                 : new Run(factory, resolved, isTest, jarsOnly, modulePath, moduleName, filter, group, parallel);

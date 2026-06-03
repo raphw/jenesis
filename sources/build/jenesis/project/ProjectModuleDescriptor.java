@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.PathPlacement;
 
@@ -18,14 +19,14 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final boolean test;
     private final boolean source;
     private final boolean documentation;
-    private final boolean strictPinning;
+    private final Pinning pinning;
     private final PathPlacement modulePath;
 
     public ProjectModuleDescriptor(ProjectModule base,
                                    boolean test,
                                    boolean source,
                                    boolean documentation,
-                                   boolean strictPinning,
+                                   Pinning pinning,
                                    PathPlacement modulePath) {
         this(base.name(),
                 immutable(base.dependencies()),
@@ -39,7 +40,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning, modulePath);
+                pinning, modulePath);
     }
 
     private ProjectModuleDescriptor(String name,
@@ -54,7 +55,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                                     boolean test,
                                     boolean source,
                                     boolean documentation,
-                                    boolean strictPinning,
+                                    Pinning pinning,
                                     PathPlacement modulePath) {
         this.name = name;
         this.dependencies = dependencies;
@@ -68,7 +69,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         this.test = test;
         this.source = source;
         this.documentation = documentation;
-        this.strictPinning = strictPinning;
+        this.pinning = pinning;
         this.modulePath = modulePath;
     }
 
@@ -85,7 +86,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning, modulePath);
+                pinning, modulePath);
     }
 
     @Override
@@ -106,7 +107,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -128,7 +129,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -154,7 +155,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -180,7 +181,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -206,7 +207,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -232,7 +233,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -260,7 +261,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -288,7 +289,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -313,7 +314,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -338,7 +339,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -359,7 +360,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -380,15 +381,15 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
-    public boolean strictPinning() {
-        return strictPinning;
+    public Pinning pinning() {
+        return pinning;
     }
 
-    public ProjectModuleDescriptor strictPinning(boolean strictPinning) {
+    public ProjectModuleDescriptor pinning(Pinning pinning) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -401,7 +402,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 
@@ -422,7 +423,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 test,
                 source,
                 documentation,
-                strictPinning,
+                pinning,
                 modulePath);
     }
 

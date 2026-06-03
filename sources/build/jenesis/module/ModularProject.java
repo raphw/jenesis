@@ -1,6 +1,7 @@
 package build.jenesis.module;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -52,7 +53,7 @@ public class ModularProject implements BuildExecutorModule {
                 _ -> true,
                 Map.of("module", new JenesisModuleRepository(true)),
                 Map.of("module", new ModularJarResolver(false)),
-                false,
+                null,
                 true,
                 new HashDigestFunction("MD5"),
                 assembler);
@@ -63,7 +64,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Predicate<Path> filter,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
-                                           boolean strictPinning,
+                                           Pinning pinning,
                                            boolean modular,
                                            HashDigestFunction digest,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
@@ -90,7 +91,7 @@ public class ModularProject implements BuildExecutorModule {
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, strictPinning),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, pinning),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

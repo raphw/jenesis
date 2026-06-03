@@ -35,7 +35,7 @@ public record Project(
         boolean sources,
         boolean documentation,
         boolean stageTests,
-        boolean strictPinning,
+        Pinning pinning,
         List<Path> metadata,
         String version,
         SequencedSet<String> defaultTarget,
@@ -78,14 +78,14 @@ public record Project(
                                 "maven",
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
-                                project.strictPinning(),
+                                project.pinning(),
                                 project.hashFunction(),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
-                                                project.strictPinning(),
+                                                project.pinning(),
                                                 PathPlacement.CLASS_PATH),
                                         mergedRepos, mergedResolvers)),
                         mavenDeps);
@@ -130,7 +130,7 @@ public record Project(
                         _ -> true,
                         Collections.unmodifiableMap(repositories),
                         Collections.unmodifiableMap(resolvers),
-                        project.strictPinning(),
+                        project.pinning(),
                         true,
                         project.hashFunction(),
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
@@ -138,7 +138,7 @@ public record Project(
                                         project.tests(),
                                         project.sources(),
                                         project.documentation(),
-                                        project.strictPinning(),
+                                        project.pinning(),
                                         PathPlacement.MODULE_PATH),
                                 mergedRepos,
                                 mergedResolvers)),
@@ -191,7 +191,7 @@ public record Project(
                                 _ -> true,
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
-                                project.strictPinning(),
+                                project.pinning(),
                                 true,
                                 project.hashFunction(),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
@@ -199,7 +199,7 @@ public record Project(
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
-                                                project.strictPinning(),
+                                                project.pinning(),
                                                 PathPlacement.INFERRED),
                                         mergedRepos, mergedResolvers)),
                         modulesDeps);
@@ -355,7 +355,6 @@ public record Project(
                       %{name}tests.skip%{reset}                       Skip executing tests
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
                       %{name}tests.stage%{reset}                      Stage test artifacts alongside main artifacts
-                      %{name}strictPinning%{reset}                    Fail the build for any unpinned artifact
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
@@ -363,6 +362,12 @@ public record Project(
                       %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
                       %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
+
+                    %{header}Pinning (-Dbuild.jenesis.pinning=<mode>):%{reset}
+                      %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
+                      versions to the latest and skips checksum verification (refresh the
+                      pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
+                      but tolerates missing ones.
 
                     %{header}Test filter (-Djenesis.java.test.filter=<patterns>):%{reset}
                       Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
@@ -632,8 +637,6 @@ public record Project(
                       tests.skip                  Skip wiring test execution.
                       sources, documentation      Assemble sources / javadoc jars.
                       tests.stage                 Stage test artifacts.
-                      strictPinning               Fail the build for any unpinned
-                                                  artifact.
                       metadata                    Path-separated list of extra
                                                   metadata files.
                       version                     Stamp version onto every
@@ -641,6 +644,13 @@ public record Project(
                       digest                      Algorithm for pin and
                                                   dependency checksums
                                                   (default SHA-256).
+
+                    Pinning:
+                      -Dbuild.jenesis.pinning=strict|ignore  strict fails on
+                                                  any unpinned artifact; ignore
+                                                  floats to the latest and skips
+                                                  checksums (refresh pins via
+                                                  the pin step).
 
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
@@ -713,8 +723,9 @@ public record Project(
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
                     (`@jenesis.pin <mod> <ver> [<algo>/<hex>]` tags), per layout.
                     The same pins can be written by hand. Enforce coverage with
-                    `-Djenesis.project.strictPinning=true`, which fails the build on
-                    any unpinned artifact.
+                    `-Dbuild.jenesis.pinning=strict`, which fails the build on
+                    any unpinned artifact, or refresh them with
+                    `-Dbuild.jenesis.pinning=ignore` and the `pin` step.
 
                     12. Study a demo for a worked example
                     -------------------------------------
@@ -872,7 +883,7 @@ public record Project(
                 false,
                 false,
                 false,
-                false,
+                null,
                 List.of(),
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
@@ -891,7 +902,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -910,7 +921,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -929,7 +940,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -948,7 +959,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -967,7 +978,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -986,7 +997,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1005,7 +1016,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1024,7 +1035,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1043,7 +1054,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1052,7 +1063,7 @@ public record Project(
                 resolvers);
     }
 
-    public Project strictPinning(boolean strictPinning) {
+    public Project pinning(Pinning pinning) {
         return new Project(root,
                 target,
                 cache,
@@ -1062,7 +1073,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1081,7 +1092,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 List.of(metadata),
                 version,
                 defaultTarget,
@@ -1100,7 +1111,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1119,7 +1130,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
@@ -1138,7 +1149,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1157,7 +1168,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1176,7 +1187,7 @@ public record Project(
                 sources,
                 documentation,
                 stageTests,
-                strictPinning,
+                pinning,
                 metadata,
                 version,
                 defaultTarget,
@@ -1195,7 +1206,7 @@ public record Project(
         boolean resolvedSources = sources;
         boolean resolvedDocumentation = documentation;
         boolean resolvedStageTests = stageTests;
-        boolean resolvedStrictPinning = strictPinning;
+        Pinning resolvedPinning = pinning;
         List<Path> resolvedMetadata = metadata;
         String resolvedVersion = version;
         String rootOverride = System.getProperty("jenesis.project.root");
@@ -1237,9 +1248,9 @@ public record Project(
         if (Boolean.getBoolean("jenesis.project.tests.stage")) {
             resolvedStageTests = true;
         }
-        String strictPinningOverride = System.getProperty("jenesis.project.strictPinning");
-        if (strictPinningOverride != null) {
-            resolvedStrictPinning = Boolean.parseBoolean(strictPinningOverride);
+        String pinningOverride = System.getProperty("build.jenesis.pinning");
+        if (pinningOverride != null) {
+            resolvedPinning = Pinning.valueOf(pinningOverride.toUpperCase(Locale.ROOT));
         }
         String metadataOverride = System.getProperty("jenesis.project.metadata");
         if (metadataOverride != null) {
@@ -1270,7 +1281,7 @@ public record Project(
                 resolvedSources,
                 resolvedDocumentation,
                 resolvedStageTests,
-                resolvedStrictPinning,
+                resolvedPinning,
                 resolvedMetadata,
                 resolvedVersion,
                 defaultTarget,

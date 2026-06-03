@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -30,45 +31,45 @@ public class GroovyCompilerModule implements BuildExecutorModule {
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final boolean strictPinning;
+    private final Pinning pinning;
     private final boolean includeResources;
     private final String qualifier;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public GroovyCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, true, "groovy", null);
+        this(repositories, resolvers, null, true, "groovy", null);
     }
 
     public GroovyCompilerModule(Map<String, Repository> repositories,
                                 Map<String, Resolver> resolvers,
                                 Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, false, true, "groovy", factory);
+        this(repositories, resolvers, null, true, "groovy", factory);
     }
 
     private GroovyCompilerModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
-                                 boolean strictPinning,
+                                 Pinning pinning,
                                  boolean includeResources,
                                  String qualifier,
                                  Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.strictPinning = strictPinning;
+        this.pinning = pinning;
         this.includeResources = includeResources;
         this.qualifier = qualifier;
         this.factory = factory;
     }
 
-    public GroovyCompilerModule strictPinning(boolean strictPinning) {
-        return new GroovyCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+    public GroovyCompilerModule pinning(Pinning pinning) {
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     public GroovyCompilerModule includeResources(boolean includeResources) {
-        return new GroovyCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     public GroovyCompilerModule qualifier(String qualifier) {
-        return new GroovyCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     @Override
@@ -78,8 +79,8 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, false), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning, "compiler:" + qualifier), RESOLVED);
+        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning, "compiler:" + qualifier), RESOLVED);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(ARTIFACTS);
         compileInputs.addAll(upstream);

@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -31,45 +32,45 @@ public class KotlinCompilerModule implements BuildExecutorModule {
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final boolean strictPinning;
+    private final Pinning pinning;
     private final boolean includeResources;
     private final String qualifier;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public KotlinCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, true, "kotlin", null);
+        this(repositories, resolvers, null, true, "kotlin", null);
     }
 
     public KotlinCompilerModule(Map<String, Repository> repositories,
                                 Map<String, Resolver> resolvers,
                                 Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, false, true, "kotlin", factory);
+        this(repositories, resolvers, null, true, "kotlin", factory);
     }
 
     private KotlinCompilerModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
-                                 boolean strictPinning,
+                                 Pinning pinning,
                                  boolean includeResources,
                                  String qualifier,
                                  Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.strictPinning = strictPinning;
+        this.pinning = pinning;
         this.includeResources = includeResources;
         this.qualifier = qualifier;
         this.factory = factory;
     }
 
-    public KotlinCompilerModule strictPinning(boolean strictPinning) {
-        return new KotlinCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+    public KotlinCompilerModule pinning(Pinning pinning) {
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     public KotlinCompilerModule includeResources(boolean includeResources) {
-        return new KotlinCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     public KotlinCompilerModule qualifier(String qualifier) {
-        return new KotlinCompilerModule(repositories, resolvers, strictPinning, includeResources, qualifier, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     @Override
@@ -79,8 +80,8 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, false), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning, "compiler:" + qualifier), RESOLVED);
+        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning, "compiler:" + qualifier), RESOLVED);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(ARTIFACTS);
         compileInputs.addAll(upstream);

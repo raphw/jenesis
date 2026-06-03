@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -23,35 +24,35 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final boolean process;
-    private final boolean strictPinning;
+    private final Pinning pinning;
     private final PathPlacement modulePath;
 
     public InferredCompilerChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, false, PathPlacement.INFERRED);
+        this(repositories, resolvers, false, null, PathPlacement.INFERRED);
     }
 
     private InferredCompilerChainModule(Map<String, Repository> repositories,
                                         Map<String, Resolver> resolvers,
                                         boolean process,
-                                        boolean strictPinning,
+                                        Pinning pinning,
                                         PathPlacement modulePath) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.process = process;
-        this.strictPinning = strictPinning;
+        this.pinning = pinning;
         this.modulePath = modulePath;
     }
 
     public InferredCompilerChainModule process(boolean process) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
+        return new InferredCompilerChainModule(repositories, resolvers, process, pinning, modulePath);
     }
 
-    public InferredCompilerChainModule strictPinning(boolean strictPinning) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
+    public InferredCompilerChainModule pinning(Pinning pinning) {
+        return new InferredCompilerChainModule(repositories, resolvers, process, pinning, modulePath);
     }
 
     public InferredCompilerChainModule modulePath(PathPlacement modulePath) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, strictPinning, modulePath);
+        return new InferredCompilerChainModule(repositories, resolvers, process, pinning, modulePath);
     }
 
     @Override
@@ -60,7 +61,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         SequencedSet<String> compileInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
         compileInputs.add(SCAN);
         buildExecutor.addModule(COMPILE,
-                new Compile(repositories, resolvers, process, strictPinning, modulePath),
+                new Compile(repositories, resolvers, process, pinning, modulePath),
                 compileInputs);
     }
 
@@ -120,7 +121,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private record Compile(Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            boolean process,
-                           boolean strictPinning,
+                           Pinning pinning,
                            PathPlacement modulePath) implements BuildExecutorModule {
 
         @Override
@@ -143,7 +144,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             if (hasKotlin) {
                 buildExecutor.addModule(KOTLINC,
                         new KotlinCompilerModule(repositories, resolvers)
-                                .strictPinning(strictPinning)
+                                .pinning(pinning)
                                 .includeResources(!hasJava && !hasScala && !hasGroovy),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
@@ -153,7 +154,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             if (hasScala) {
                 buildExecutor.addModule(SCALAC,
                         new ScalaCompilerModule(repositories, resolvers)
-                                .strictPinning(strictPinning)
+                                .pinning(pinning)
                                 .includeResources(!hasJava && !hasKotlin && !hasGroovy),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
@@ -173,7 +174,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             if (hasGroovy) {
                 buildExecutor.addModule(GROOVYC,
                         new GroovyCompilerModule(repositories, resolvers)
-                                .strictPinning(strictPinning)
+                                .pinning(pinning)
                                 .includeResources(!hasJava && !hasKotlin && !hasScala),
                         dependencies);
             }

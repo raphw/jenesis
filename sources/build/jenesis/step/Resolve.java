@@ -14,11 +14,21 @@ public class Resolve implements DependencyProcessingBuildStep {
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final boolean compile;
+    private final boolean pinned;
 
     public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers, boolean compile) {
+        this(repositories, resolvers, compile, true);
+    }
+
+    private Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers, boolean compile, boolean pinned) {
         this.repositories = repositories;
         this.resolvers = new LinkedHashMap<>(resolvers);
         this.compile = compile;
+        this.pinned = pinned;
+    }
+
+    public Resolve pinned(boolean pinned) {
+        return new Resolve(repositories, resolvers, compile, pinned);
     }
 
     @Override
@@ -68,10 +78,12 @@ public class Resolve implements DependencyProcessingBuildStep {
             Resolver resolver = requireNonNull(
                     resolvers.get(Resolver.base(group.getKey())),
                     "Unknown resolver: " + Resolver.base(group.getKey()));
-            SequencedMap<String, String> groupVersions = new LinkedHashMap<>(
-                    versions.getOrDefault(group.getKey(), new LinkedHashMap<>()));
-            for (String managed : resolver.managedPrefixes()) {
-                versions.getOrDefault(managed, new LinkedHashMap<>()).forEach(groupVersions::putIfAbsent);
+            SequencedMap<String, String> groupVersions = new LinkedHashMap<>();
+            if (pinned) {
+                groupVersions.putAll(versions.getOrDefault(group.getKey(), new LinkedHashMap<>()));
+                for (String managed : resolver.managedPrefixes()) {
+                    versions.getOrDefault(managed, new LinkedHashMap<>()).forEach(groupVersions::putIfAbsent);
+                }
             }
             for (Map.Entry<String, String> entry : resolver.dependencies(
                     executor,

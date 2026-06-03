@@ -1,6 +1,7 @@
 package build;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.Project;
 
 public class Demo {
@@ -13,7 +14,7 @@ public class Demo {
 
         // 1. ... but strict pinning rejects it - there is no checksum to verify.
         expectFailure("unpinned: a version-only dependency under strict pinning",
-                () -> new Project().strictPinning(true).build("+unpinned"));
+                () -> new Project().pinning(Pinning.STRICT).build("+unpinned"));
 
         // 2. A wrong checksum fails the build even without strict pinning: every
         // download is verified against its pin regardless.

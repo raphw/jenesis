@@ -40,8 +40,8 @@ outcome of each:
     Both supply-chain checks blocked the build, as expected.
 
 The first line shows the baseline: a version-only pin is accepted by default.
-Passing `strictPinning(true)` (the in-code form of
-`-Djenesis.project.strictPinning=true`) then turns any unpinned coordinate into a
+Passing `pinning(Pinning.STRICT)` (the in-code form of
+`-Dbuild.jenesis.pinning=strict`) then turns any unpinned coordinate into a
 build failure - useful in a hardened environment that should never download an
 unverified artifact. The `tampered` module needs no such flag: `Download` hashes
 every fetched file and compares it to the pin, so a coordinate whose bytes do not
@@ -52,6 +52,28 @@ Together these are the two halves of pinning: **strict pinning** decides *whethe
 an unverified dependency may be used at all, and **checksums** verify that a
 pinned dependency is the exact artifact you vetted. (See `../demo-01-java-pom` for
 the everyday case: a dependency correctly pinned with its real checksum.)
+
+Updating pins: refresh versions and hashes
+------------------------------------------
+
+Pins freeze both the version and the checksum of every dependency, which is what
+makes a build reproducible and resistant to a swapped artifact - but it also means
+a pinned project never picks up a newer version on its own. To deliberately refresh
+the pins, run `pin` with `-Dbuild.jenesis.pinning=ignore`:
+
+    java -Dbuild.jenesis.pinning=ignore build/jenesis/Project.java pin
+
+`ignore` drops every existing Jenesis pin: versions float to the latest the
+repository offers, and the recorded checksums are not consulted. `pin` then
+re-resolves that fresh closure and rewrites each `pom.xml` (or `module-info.java`)
+with the new versions and freshly computed `SHA-256` checksums - leaving a normal
+pinned project again, now tracking the latest reviewed versions.
+
+Because `ignore` bypasses checksum verification while it resolves - it is the step
+that *establishes* trust rather than enforcing it - run it only on a **trusted
+machine** against a **trusted repository**. Review the resulting diff, commit it,
+and every subsequent build (the default, or `-Dbuild.jenesis.pinning=strict`)
+enforces the new pins against the artifacts you just vetted.
 
 POMs are not pinned, and why strict pinning matters
 ---------------------------------------------------

@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -12,20 +13,20 @@ import build.jenesis.SequencedProperties;
 public class Download implements DependencyProcessingBuildStep {
 
     private final transient Map<String, Repository> repositories;
-    private final boolean strictPinning;
+    private final Pinning pinning;
     private final String scope;
 
     public Download(Map<String, Repository> repositories) {
-        this(repositories, false, null);
+        this(repositories, null, null);
     }
 
-    public Download(Map<String, Repository> repositories, boolean strictPinning) {
-        this(repositories, strictPinning, null);
+    public Download(Map<String, Repository> repositories, Pinning pinning) {
+        this(repositories, pinning, null);
     }
 
-    public Download(Map<String, Repository> repositories, boolean strictPinning, String scope) {
+    public Download(Map<String, Repository> repositories, Pinning pinning, String scope) {
         this.repositories = repositories;
-        this.strictPinning = strictPinning;
+        this.pinning = pinning;
         this.scope = scope;
     }
 
@@ -46,7 +47,7 @@ public class Download implements DependencyProcessingBuildStep {
                 locations.setProperty(dependency, DEPENDENCIES + name);
                 Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
                 if (entry.getValue().isEmpty()) {
-                    if (previous != null && Files.exists(previous) && !strictPinning) {
+                    if (previous != null && Files.exists(previous) && pinning != Pinning.STRICT) {
                         BuildStep.linkOrCopy(libs.resolve(name), previous);
                         continue;
                     }
@@ -55,7 +56,7 @@ public class Download implements DependencyProcessingBuildStep {
                         try {
                             RepositoryItem source = repository.fetch(executor, entry.getKey()).orElseThrow(
                                     () -> new IllegalStateException("Unresolved: " + dependency));
-                            if (strictPinning && !source.internal()) {
+                            if (pinning == Pinning.STRICT && !source.internal()) {
                                 throw new IllegalStateException(
                                         "No checksum pinned for " + dependency + " (strict pinning is enabled)");
                             }

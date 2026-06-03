@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -33,6 +34,7 @@ public class InternalModule implements BuildExecutorModule {
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
     private final String qualifier;
+    private final Pinning pinning;
 
     public InternalModule(String prefix,
                           String qualifier,
@@ -49,7 +51,14 @@ public class InternalModule implements BuildExecutorModule {
                           Path source,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(prefix, source, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier);
+        this(prefix,
+                source,
+                repositories,
+                resolvers,
+                Collections.emptyNavigableSet(),
+                null,
+                qualifier,
+                null);
     }
 
     private InternalModule(String prefix,
@@ -58,7 +67,8 @@ public class InternalModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
-                           String qualifier) {
+                           String qualifier,
+                           Pinning pinning) {
         this.prefix = prefix;
         this.source = source;
         this.repositories = repositories;
@@ -66,6 +76,7 @@ public class InternalModule implements BuildExecutorModule {
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
+        this.pinning = pinning;
     }
 
     public InternalModule dependencies(String... dependencies) {
@@ -75,7 +86,8 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 new LinkedHashSet<>(List.of(dependencies)),
                 buildModuleName,
-                qualifier);
+                qualifier,
+                pinning);
     }
 
     public InternalModule dependencies(SequencedSet<String> dependencies) {
@@ -85,7 +97,8 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 new LinkedHashSet<>(dependencies),
                 buildModuleName,
-                qualifier);
+                qualifier,
+                pinning);
     }
 
     public InternalModule buildModuleName(String name) {
@@ -95,7 +108,19 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 additionalDependencies,
                 name,
-                qualifier);
+                qualifier,
+                pinning);
+    }
+
+    public InternalModule pinning(Pinning pinning) {
+        return new InternalModule(prefix,
+                source,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                buildModuleName,
+                qualifier,
+                pinning);
     }
 
     @Override
@@ -125,7 +150,7 @@ public class InternalModule implements BuildExecutorModule {
                     new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier),
                     Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
             buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, compile, false,
+                    new DependenciesModule(repositories, resolvers, compile, pinning,
                             qualifier == null ? null : "module:" + qualifier),
                     requiresId);
         }
@@ -159,7 +184,10 @@ public class InternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record ParseModuleInfo(String prefix, boolean compile, SequencedSet<String> additionalDependencies, String qualifier) implements BuildStep {
+    private record ParseModuleInfo(String prefix,
+                                   boolean compile,
+                                   SequencedSet<String> additionalDependencies,
+                                   String qualifier) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -195,7 +223,9 @@ public class InternalModule implements BuildExecutorModule {
                 properties.setProperty(Resolver.qualify(dependency, qualifier), "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
-            SequencedProperties versions = pinnedVersions(arguments, qualifier == null ? prefix : prefix + "@" + qualifier);
+            SequencedProperties versions = pinnedVersions(arguments, qualifier == null
+                    ? prefix
+                    : prefix + "@" + qualifier);
             if (!versions.isEmpty()) {
                 versions.store(context.next().resolve(BuildStep.VERSIONS));
             }
@@ -203,7 +233,8 @@ public class InternalModule implements BuildExecutorModule {
         }
     }
 
-    private static SequencedProperties pinnedVersions(SequencedMap<String, BuildStepArgument> arguments, String pinned) throws IOException {
+    private static SequencedProperties pinnedVersions(SequencedMap<String, BuildStepArgument> arguments,
+                                                      String pinned) throws IOException {
         SequencedProperties versions = new SequencedProperties();
         for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
             if (argument.getKey().equals(SOURCE)) {
