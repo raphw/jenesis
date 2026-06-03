@@ -16,7 +16,7 @@ shows both guarantees by deliberately getting them wrong, in two modules, and a
 Layout
 ------
 
-    demo-20-supply-chain-security
+    demo-21-supply-chain-security
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          asserts both modules fail to build
     |-- pom.xml                  aggregator over the two modules

@@ -36,7 +36,7 @@ not request.)
 Layout
 ------
 
-    demo/demo-13-custom-jmod
+    demo/demo-14-custom-jmod
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: wraps the assembler, builds, runs the packaged app
     `-- sources/

@@ -1,7 +1,7 @@
 ExternalModule demo
 ===================
 
-The `ExternalModule` counterpart of `../demo-14-internal-module`. It does exactly the
+The `ExternalModule` counterpart of `../demo-15-internal-module`. It does exactly the
 same thing - wraps the stock `JavaMultiProjectAssembler` so a build module
 preprocesses the project's Java sources (a `${greeting}` substitution driven by
 the `org.json` dependency) before the regular compile, jar, and test flow runs.
@@ -18,7 +18,7 @@ without complaint.
 Layout
 ------
 
-    demo/demo-15-external-module
+    demo/demo-16-external-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (stage, then Project + assembler)
     |-- plugin/                  the build module (identical to internal-module)

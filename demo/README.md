@@ -30,9 +30,9 @@ That runs the default `build` goal. You pass other goals as arguments:
 
 Some demos ship their own launcher and are run with `java build/Demo.java`
 instead: the ones that customize, replace, or drive the template directly
-(`custom-assembler`, `internal-module`, `external-module`, `custom-maven`,
-`custom-modular`, `custom-build`, `custom-jmod`, `supply-chain-security`,
-`publishing`) and the two executable demos (`java-pom-executable`,
+(`module-layout`, `custom-assembler`, `internal-module`, `external-module`,
+`custom-maven`, `custom-modular`, `custom-build`, `custom-jmod`,
+`supply-chain-security`, `publishing`) and the two executable demos (`java-pom-executable`,
 `java-modular-executable`), which stage a
 `jpackage` image and run it with the arguments you pass, and additionally ship a
 `build/DemoNative.java` sibling that builds a native installer. Each demo writes
@@ -54,16 +54,17 @@ Quick index
 | 9  | [`scala`](demo-09-scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
 | 10 | [`groovy`](demo-10-groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
 | 11 | [`maven-exclusions`](demo-11-maven-exclusions/README.md)     | Maven only: a dependency with an `<exclusions>` block; a test asserts the excluded transitive is absent | `java build/jenesis/Project.java`  |
-| 12 | [`custom-assembler`](demo-12-custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
-| 13 | [`custom-jmod`](demo-13-custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod`, `jlink` it into a runtime, and `jpackage` that into a runnable app | `java build/Demo.java`             |
-| 14 | [`internal-module`](demo-14-internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
-| 15 | [`external-module`](demo-15-external-module/README.md)       | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
-| 16 | [`custom-maven`](demo-16-custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
-| 17 | [`custom-modular`](demo-17-custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
-| 18 | [`custom-build`](demo-18-custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
-| 19 | [`docker-isolation`](demo-19-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
-| 20 | [`supply-chain-security`](demo-20-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
-| 21 | [`publishing`](demo-21-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
+| 12 | [`module-layout`](demo-12-module-layout/README.md)           | Explicitly select the pure MODULAR layout: resolve by module name, emit a modular jar with no `pom.xml` | `java build/Demo.java`             |
+| 13 | [`custom-assembler`](demo-13-custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
+| 14 | [`custom-jmod`](demo-14-custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod`, `jlink` it into a runtime, and `jpackage` that into a runnable app | `java build/Demo.java`             |
+| 15 | [`internal-module`](demo-15-internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
+| 16 | [`external-module`](demo-16-external-module/README.md)       | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
+| 17 | [`custom-maven`](demo-17-custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
+| 18 | [`custom-modular`](demo-18-custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
+| 19 | [`custom-build`](demo-19-custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
+| 20 | [`docker-isolation`](demo-20-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
+| 21 | [`supply-chain-security`](demo-21-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
+| 22 | [`publishing`](demo-22-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -243,7 +244,27 @@ missing Commons Lang), and - exactly as in Maven, where test scope extends
 compile scope - the exclusion applies to the test class path too, not just the
 main one.
 
-## 8. Customizing the build - [`custom-assembler`](demo-12-custom-assembler/README.md)
+## 8. Choosing the pure modular layout - [`module-layout`](demo-12-module-layout/README.md)
+----------------------------------------------------
+
+`module-layout` is the same shape of project as `demo-02-java-modular` - a
+`module-info.java` requiring a named module - but `build/Demo.java` selects the
+layout in code: `new Project().layout(Project.Layout.MODULAR)`.
+
+The new idea is the **layout choice**. A `module-info.java` with no `pom.xml`
+auto-detects MODULAR_TO_MAVEN, which translates each `requires` into a Maven
+coordinate, resolves the closure through Maven, and emits the modular jar *plus* a
+generated `pom.xml`. The pure **MODULAR** layout instead resolves dependencies by
+Java module name against the Jenesis module repository and emits **only the
+modular jar - no `pom.xml`** - so the build never touches Maven coordinates at all;
+`stage` then produces `target/stage/modular` with no `target/stage/maven`. Because
+every dependency is resolved as a named module the closure is provably
+module-path-consumable, which is also why MODULAR is opt-in (it cannot resolve a
+dependency that ships only as an automatic module, so `AUTO` never picks it).
+Reach for it when artifacts are consumed only as Java modules and you want no POMs
+in the pipeline; keep the default when you also need a `pom.xml`.
+
+## 9. Customizing the build - [`custom-assembler`](demo-13-custom-assembler/README.md)
 
 The remaining demos open up the template. `custom-assembler` keeps the standard
 MODULAR_TO_MAVEN flow but **wraps** the stock `JavaMultiProjectAssembler` so each
@@ -261,7 +282,7 @@ transformation is simply interposed in front of it. Any step that produces a
 `sources/` tree (template expansion, code generation, license headers) fits the
 same shape. This demo is launched with `java build/Demo.java`.
 
-[`custom-jmod`](demo-13-custom-jmod/README.md) is a sibling example of the same wrapping technique, applied to a
+[`custom-jmod`](demo-14-custom-jmod/README.md) is a sibling example of the same wrapping technique, applied to a
 different extension point. It enables the stock `jmod`, `jlink`, and `jpackage`
 steps (`new JavaMultiProjectAssembler().jmod(true).jlink(true).packaging("app-image")`)
 and only *contributes an extra input*: a `config` step that emits a `jmodconfig/`
@@ -275,7 +296,7 @@ the jmod's config section, it travels `jmod -> jlink runtime -> jpackage image`,
 the launched app reads it back from its own `<java.home>/conf/` - content a jar cannot
 carry into a packaged runtime. Also `java build/Demo.java`.
 
-## 9. Preprocessing in a reusable build module - [`internal-module`](demo-14-internal-module/README.md), [`external-module`](demo-15-external-module/README.md)
+## 10. Preprocessing in a reusable build module - [`internal-module`](demo-15-internal-module/README.md), [`external-module`](demo-16-external-module/README.md)
 
 `internal-module` does the same preprocessing as `custom-assembler`, but moves it
 out of an inline step and into a **build module** - a `BuildExecutorModule`
@@ -299,7 +320,7 @@ authored inline, loaded from source, or consumed as a versioned artifact.
 > against. They will work once a matching `build.jenesis` is released; see their
 > `README.md`s.
 
-## 10. Driving the build without `Project` - [`custom-maven`](demo-16-custom-maven/README.md), [`custom-modular`](demo-17-custom-modular/README.md)
+## 11. Driving the build without `Project` - [`custom-maven`](demo-17-custom-maven/README.md), [`custom-modular`](demo-18-custom-modular/README.md)
 
 The previous customizations still went through `Project`. These two go a step
 further: they drive a multi-module build directly from a hand-written
@@ -322,7 +343,7 @@ adapted with a one-line wrapper so each discovered descriptor becomes a
 `Project` itself uses) when you need a custom repository, strict pinning, or a
 specific digest.
 
-## 11. Dropping the template entirely - [`custom-build`](demo-18-custom-build/README.md)
+## 12. Dropping the template entirely - [`custom-build`](demo-19-custom-build/README.md)
 
 The last demo removes `Project`, the layout, and the assembler altogether and
 wires a `BuildExecutor` **by hand** in one `main` method. There is no `pom.xml`
@@ -340,7 +361,7 @@ step down to the `BuildExecutor` primitives and build exactly the graph you want
 Run it with `java build/Demo.java`, then `java -cp target/jar/output/artifacts/classes.jar
 sample.Sample`.
 
-## 12. Confining the build with Docker - [`docker-isolation`](demo-19-docker-isolation/README.md)
+## 13. Confining the build with Docker - [`docker-isolation`](demo-20-docker-isolation/README.md)
 
 A build executes untrusted code even when nothing about it is customised: the
 stock pipeline runs your tests (and whatever your test dependencies pull in), and
@@ -362,7 +383,7 @@ mounted **read-only**: dependencies must be pre-cached, and `export` fails insid
 the container. It needs a Docker daemon, so it is a local exercise rather than a
 CI one. There are no assertions; each actor just reports what it managed to do.
 
-## 13. Supply-chain security - [`supply-chain-security`](demo-20-supply-chain-security/README.md)
+## 14. Supply-chain security - [`supply-chain-security`](demo-21-supply-chain-security/README.md)
 ----------------------------------------------------
 
 Pinning has two halves, and this demo shows both by getting them wrong on purpose.
@@ -380,7 +401,7 @@ The new idea is **strict pinning vs. checksum verification**: the former decides
 dependency is the exact artifact you vetted. Unlike every other demo, this one is
 a project that must *not* build.
 
-## 14. Publishing to Maven Central - [`publishing`](demo-21-publishing/README.md)
+## 15. Publishing to Maven Central - [`publishing`](demo-22-publishing/README.md)
 
 The final demo closes the loop from sources to a release. Publishing to Central is
 two jobs - **produce a correct bundle** and **upload it** - and Jenesis owns the

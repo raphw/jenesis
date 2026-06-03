@@ -1,7 +1,7 @@
 InternalModule demo
 ===================
 
-This demo does the same thing as `../demo-12-custom-assembler`: it wraps the stock
+This demo does the same thing as `../demo-13-custom-assembler`: it wraps the stock
 `JavaMultiProjectAssembler` so the project's Java sources are preprocessed (a
 `${greeting}` substitution) before the regular compile, jar, and test flow runs.
 The difference is *where the preprocessing lives*. Instead of an inline build
@@ -18,7 +18,7 @@ runs against, so the class-loader bridge loads it without complaint.
 Layout
 ------
 
-    demo/demo-14-internal-module
+    demo/demo-15-internal-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (Project + wrapping assembler)
     |-- plugin/

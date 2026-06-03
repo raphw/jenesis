@@ -9,14 +9,14 @@ project under the root and supplies sane defaults for the repositories,
 resolvers, and digest a normal build would configure.
 
 It sits between `../demo-03-java-pom-multi` (the same shape of project driven by the full
-`Project` entry point) and `../demo-18-custom-build` (a build wired entirely by hand): a
+`Project` entry point) and `../demo-19-custom-build` (a build wired entirely by hand): a
 "custom but not so custom" build that reuses the stock toolchain through one
 convenience call.
 
 Layout
 ------
 
-    demo/demo-16-custom-maven
+    demo/demo-17-custom-maven
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: BuildExecutor + MavenProject.make(...)
     |-- pom.xml              aggregator (packaging pom); lists the two modules
@@ -63,4 +63,4 @@ standard compile/jar/test flow runs unchanged.
 To take full control - a custom repository, strict pinning, a different digest -
 switch to the full `make(root, prefix, repositories, resolvers, strictPinning,
 digest, assembler)` overload that `Project` itself uses. To drop the templates
-entirely and wire the build graph by hand, see `../demo-18-custom-build`.
+entirely and wire the build graph by hand, see `../demo-19-custom-build`.
