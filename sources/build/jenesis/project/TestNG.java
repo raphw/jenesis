@@ -30,29 +30,27 @@ public record TestNG() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments(Path supplement, String group, boolean parallel) {
-        List<String> arguments = new ArrayList<>(List.of("-d", supplement.resolve("test-output").toString()));
-        if (group != null) {
-            arguments.add("-groups");
-            arguments.add(group);
+    public List<String> commands(Path supplement,
+                                 SequencedSet<String> classes,
+                                 SequencedMap<String, SequencedSet<String>> methods,
+                                 SequencedSet<String> groups,
+                                 boolean parallel) {
+        List<String> commands = new ArrayList<>(List.of("-d", supplement.resolve("test-output").toString()));
+        if (!groups.isEmpty()) {
+            commands.add("-groups");
+            commands.add(String.join(",", groups));
         }
         if (parallel) {
-            arguments.add("-parallel");
-            arguments.add("methods");
+            commands.add("-parallel");
+            commands.add("methods");
         }
-        return arguments;
-    }
-
-    @Override
-    public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
-        List<String> commands = new ArrayList<>();
         if (!classes.isEmpty()) {
             commands.add("-testclass");
             commands.add(String.join(",", classes));
         }
         if (!methods.isEmpty()) {
             List<String> joined = new ArrayList<>();
-            for (Map.Entry<String, List<String>> entry : methods.entrySet()) {
+            for (Map.Entry<String, SequencedSet<String>> entry : methods.entrySet()) {
                 for (String method : entry.getValue()) {
                     joined.add(entry.getKey() + "." + method);
                 }

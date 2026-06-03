@@ -89,62 +89,105 @@ public class TestEngineTest {
 
     @Test
     public void junit4_emits_class_names_positionally() {
-        assertThat(new JUnit4().commands(List.of("sample.AlphaTest", "sample.BetaTest"), new LinkedHashMap<>()))
+        assertThat(new JUnit4().commands(root,
+                new LinkedHashSet<>(List.of("sample.AlphaTest", "sample.BetaTest")),
+                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableSet(),
+                false))
                 .containsExactly("sample.AlphaTest", "sample.BetaTest");
     }
 
     @Test
     public void junit4_rejects_method_selectors() {
-        SequencedMap<String, List<String>> methods = new LinkedHashMap<>();
-        methods.put("sample.AlphaTest", List.of("first"));
-        assertThatThrownBy(() -> new JUnit4().commands(List.of(), methods))
+        SequencedMap<String, SequencedSet<String>> methods = new LinkedHashMap<>();
+        methods.put("sample.AlphaTest", new LinkedHashSet<>(List.of("first")));
+        assertThatThrownBy(() -> new JUnit4().commands(root,
+                Collections.emptyNavigableSet(),
+                methods,
+                Collections.emptyNavigableSet(),
+                false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void junit_platform_emits_select_class_and_method_arguments() {
-        SequencedMap<String, List<String>> methods = new LinkedHashMap<>();
-        methods.put("sample.AlphaTest", List.of("first", "second"));
-        assertThat(new JUnitPlatform().commands(List.of("sample.BetaTest"), methods))
-                .containsExactly("--select-class=sample.BetaTest",
+        SequencedMap<String, SequencedSet<String>> methods = new LinkedHashMap<>();
+        methods.put("sample.AlphaTest", new LinkedHashSet<>(List.of("first", "second")));
+        assertThat(new JUnitPlatform().commands(root,
+                new LinkedHashSet<>(List.of("sample.BetaTest")),
+                methods,
+                Collections.emptyNavigableSet(),
+                false))
+                .containsExactly("execute", "--disable-banner", "--disable-ansi-colors",
+                        "--select-class=sample.BetaTest",
                         "--select-method=sample.AlphaTest#first",
                         "--select-method=sample.AlphaTest#second");
     }
 
     @Test
     public void testng_joins_classes_and_methods() {
-        SequencedMap<String, List<String>> methods = new LinkedHashMap<>();
-        methods.put("sample.AlphaTest", List.of("first"));
-        assertThat(new TestNG().commands(List.of("sample.AlphaTest", "sample.BetaTest"), methods))
-                .containsExactly("-testclass", "sample.AlphaTest,sample.BetaTest",
+        SequencedMap<String, SequencedSet<String>> methods = new LinkedHashMap<>();
+        methods.put("sample.AlphaTest", new LinkedHashSet<>(List.of("first")));
+        assertThat(new TestNG().commands(root,
+                new LinkedHashSet<>(List.of("sample.AlphaTest", "sample.BetaTest")),
+                methods,
+                Collections.emptyNavigableSet(),
+                false))
+                .containsSubsequence("-testclass", "sample.AlphaTest,sample.BetaTest",
                         "-methods", "sample.AlphaTest.first");
     }
 
     @Test
-    public void junit_platform_arguments_add_tag_and_parallel_config() {
-        assertThat(new JUnitPlatform().arguments(root, "slow", true))
+    public void junit_platform_commands_add_one_tag_per_group_and_parallel_config() {
+        assertThat(new JUnitPlatform().commands(root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                new LinkedHashSet<>(List.of("slow", "flaky")),
+                true))
                 .contains("--include-tag=slow",
+                        "--include-tag=flaky",
                         "--config=junit.jupiter.execution.parallel.enabled=true",
                         "--config=junit.jupiter.execution.parallel.mode.default=concurrent");
-        assertThat(new JUnitPlatform().arguments(root, null, false))
+        assertThat(new JUnitPlatform().commands(root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableSet(),
+                false))
                 .doesNotContain("--include-tag=slow",
                         "--config=junit.jupiter.execution.parallel.enabled=true");
     }
 
     @Test
-    public void testng_arguments_add_groups_and_parallel() {
-        assertThat(new TestNG().arguments(root, "slow", true))
-                .containsSubsequence("-groups", "slow")
+    public void testng_joins_groups_with_commas_and_adds_parallel() {
+        assertThat(new TestNG().commands(root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                new LinkedHashSet<>(List.of("slow", "flaky")),
+                true))
+                .containsSubsequence("-groups", "slow,flaky")
                 .containsSubsequence("-parallel", "methods");
     }
 
     @Test
     public void junit4_rejects_groups_and_parallel() {
-        assertThatThrownBy(() -> new JUnit4().arguments(root, "slow", false))
+        assertThatThrownBy(() -> new JUnit4().commands(root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                new LinkedHashSet<>(List.of("slow")),
+                false))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new JUnit4().arguments(root, null, true))
+        assertThatThrownBy(() -> new JUnit4().commands(root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableSet(),
+                true))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(new JUnit4().arguments(root, null, false)).isEmpty();
+        assertThat(new JUnit4().commands(root,
+                new LinkedHashSet<>(List.of("sample.AlphaTest")),
+                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableSet(),
+                false))
+                .containsExactly("sample.AlphaTest");
     }
 
     private static void writeJar(Path folder, String name, String moduleName) throws IOException {

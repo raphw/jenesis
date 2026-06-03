@@ -224,7 +224,7 @@ public class TestModule implements BuildExecutorModule {
         private final String moduleName;
         private final String filter;
         private final String group;
-        private final boolean parallel;
+        private final transient boolean parallel;
 
         private Run(TestEngine engine,
                     Predicate<String> isTest,
@@ -263,7 +263,7 @@ public class TestModule implements BuildExecutorModule {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-            return filter != null || super.shouldRun(arguments);
+            return filter != null || group != null || super.shouldRun(arguments);
         }
 
         @Override
@@ -276,6 +276,7 @@ public class TestModule implements BuildExecutorModule {
                     : TestEngine.of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
                     .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
             List<TestSpec> specs = TestSpec.parse(filter);
+            SequencedSet<String> groups = groups(group);
             List<String> commands = new ArrayList<>();
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
@@ -290,9 +291,8 @@ public class TestModule implements BuildExecutorModule {
             } else {
                 commands.add(resolved.mainClass());
             }
-            commands.addAll(resolved.arguments(context.supplement(), group, parallel));
-            List<String> matchedClasses = new ArrayList<>();
-            SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
+            SequencedSet<String> matchedClasses = new LinkedHashSet<>();
+            SequencedMap<String, SequencedSet<String>> matchedMethods = new LinkedHashMap<>();
             ClassFile classFile = ClassFile.of();
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(CLASSES);
@@ -307,19 +307,17 @@ public class TestModule implements BuildExecutorModule {
                                     return FileVisitResult.CONTINUE;
                                 }
                                 if (specs.isEmpty()) {
-                                    if (isTest.test(className) && !matchedClasses.contains(className)) {
+                                    if (isTest.test(className)) {
                                         matchedClasses.add(className);
                                     }
                                 } else {
                                     for (TestSpec spec : specs) {
                                         if (spec.classPattern.matcher(className).matches()) {
                                             if (spec.method == null) {
-                                                if (!matchedClasses.contains(className)) {
-                                                    matchedClasses.add(className);
-                                                }
+                                                matchedClasses.add(className);
                                             } else {
                                                 matchedMethods
-                                                        .computeIfAbsent(className, _ -> new ArrayList<>())
+                                                        .computeIfAbsent(className, _ -> new LinkedHashSet<>())
                                                         .add(spec.method);
                                             }
                                             break;
@@ -332,8 +330,22 @@ public class TestModule implements BuildExecutorModule {
                     });
                 }
             }
-            commands.addAll(resolved.commands(matchedClasses, matchedMethods));
+            commands.addAll(resolved.commands(context.supplement(), matchedClasses, matchedMethods, groups, parallel));
             return CompletableFuture.completedFuture(commands);
+        }
+
+        private static SequencedSet<String> groups(String group) {
+            if (group == null || group.isBlank()) {
+                return Collections.emptyNavigableSet();
+            }
+            SequencedSet<String> groups = new LinkedHashSet<>();
+            for (String entry : group.split(",")) {
+                String trimmed = entry.trim();
+                if (!trimmed.isEmpty()) {
+                    groups.add(trimmed);
+                }
+            }
+            return groups;
         }
     }
 

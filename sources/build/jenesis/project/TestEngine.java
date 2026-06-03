@@ -19,9 +19,11 @@ public interface TestEngine extends Serializable {
         return Map.of();
     }
 
-    List<String> arguments(Path supplement, String group, boolean parallel);
-
-    List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods);
+    List<String> commands(Path supplement,
+                          SequencedSet<String> classes,
+                          SequencedMap<String, SequencedSet<String>> methods,
+                          SequencedSet<String> groups,
+                          boolean parallel);
 
     default Optional<ModuleDescriptor> match(List<ModuleDescriptor> modules) {
         for (ModuleDescriptor module : modules) {

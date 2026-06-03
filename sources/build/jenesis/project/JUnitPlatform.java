@@ -39,25 +39,23 @@ public record JUnitPlatform() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments(Path supplement, String group, boolean parallel) {
-        List<String> arguments = new ArrayList<>(List.of("execute", "--disable-banner", "--disable-ansi-colors"));
-        if (group != null) {
-            arguments.add("--include-tag=" + group);
+    public List<String> commands(Path supplement,
+                                 SequencedSet<String> classes,
+                                 SequencedMap<String, SequencedSet<String>> methods,
+                                 SequencedSet<String> groups,
+                                 boolean parallel) {
+        List<String> commands = new ArrayList<>(List.of("execute", "--disable-banner", "--disable-ansi-colors"));
+        for (String group : groups) {
+            commands.add("--include-tag=" + group);
         }
         if (parallel) {
-            arguments.add("--config=junit.jupiter.execution.parallel.enabled=true");
-            arguments.add("--config=junit.jupiter.execution.parallel.mode.default=concurrent");
+            commands.add("--config=junit.jupiter.execution.parallel.enabled=true");
+            commands.add("--config=junit.jupiter.execution.parallel.mode.default=concurrent");
         }
-        return arguments;
-    }
-
-    @Override
-    public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
-        List<String> commands = new ArrayList<>();
         for (String className : classes) {
             commands.add("--select-class=" + className);
         }
-        for (Map.Entry<String, List<String>> entry : methods.entrySet()) {
+        for (Map.Entry<String, SequencedSet<String>> entry : methods.entrySet()) {
             for (String method : entry.getValue()) {
                 commands.add("--select-method=" + entry.getKey() + "#" + method);
             }

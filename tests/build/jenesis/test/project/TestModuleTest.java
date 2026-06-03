@@ -672,12 +672,11 @@ public class TestModuleTest {
         }
 
         @Override
-        public List<String> arguments(Path supplement, String group, boolean parallel) {
-            return List.of();
-        }
-
-        @Override
-        public List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods) {
+        public List<String> commands(Path supplement,
+                                     SequencedSet<String> classes,
+                                     SequencedMap<String, SequencedSet<String>> methods,
+                                     SequencedSet<String> groups,
+                                     boolean parallel) {
             return List.of();
         }
     }
