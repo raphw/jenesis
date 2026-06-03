@@ -147,3 +147,35 @@ or, identically, with Podman:
 Either prints the same greeting the local launcher does, and because the bundled
 runtime is trimmed to the module graph (`demo.modular.executable`, `org.slf4j`,
 `java.base`) the resulting image stays small.
+
+This is where a modular project pays off for deployment. jpackage runs `jlink`
+over the resolved module graph, so it ships only the part of the standard library
+those modules actually need. Measured with Temurin 25.0.3, this app-image is about
+57 MB (its trimmed runtime about 56 MB), against about 138 MB for the classpath
+sibling `../demo-05-java-pom-executable`, which has to bundle a full runtime - less
+than half the size, and the gap is almost entirely the JVM. For reference, the
+full Temurin 25.0.3 JDK is about 303 MB and `java.base` alone links to about
+60 MB, so a modular runtime sits near that floor. So a modular project tends to
+produce a markedly smaller deployment image than one that ships plain jars against
+an off-the-shelf JVM.
+
+One caveat, since these app-images bundle the JVM inside the application layer:
+that "smaller" is per artifact. Two *different* services packaged this way share
+only the OS base layer - each carries its own runtime - so at scale you duplicate
+the JVM across services. The alternative is a common `eclipse-temurin:<version>-jre`
+base with only your jars layered on top: image layers are content-addressed, so
+that one JVM layer is stored and pulled once and shared by every image built on
+it, and at run time containers sharing it also share its read-only pages in the
+host page cache (per-process heap and metaspace stay private either way). None of this is
+Docker-specific: it is OCI-image and Linux-kernel behaviour, so Podman shares base
+layers and their page cache the same way - rootless Podman on `fuse-overlayfs`
+still deduplicates the layer on disk, with a thin FUSE indirection on top. The
+trade is a larger but shared runtime and coupling to that base's JVM version. The
+self-contained image avoids that coupling in the strongest way: jpackage links the
+bundled runtime with `jlink` from the very JDK that compiled the code and ran the
+tests, so the application is shipped on **exactly the same JVM** it was built and
+verified against - not whatever patch version or distribution a shared base happens
+to provide. So a trimmed self-contained image is smallest, simplest, and
+runtime-faithful as a single deliverable,
+while a shared base is often leaner in aggregate when you run many distinct
+services; replicas of one service share the JVM regardless.

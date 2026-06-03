@@ -132,6 +132,22 @@ or, identically, with Podman:
     podman build -t java-pom-executable .
     podman run --rm java-pom-executable ada lovelace
 
-Either prints the same greeting the local launcher does. (The modular sibling
-yields a smaller image, since its bundled runtime is `jlink`-trimmed to the
-module graph.)
+Either prints the same greeting the local launcher does.
+
+Because this is a **classpath** application, the bundled runtime is a *full* Java
+runtime: jpackage cannot prove which standard-library modules you do not use, so
+it ships them all. Measured with Temurin 25.0.3 that runtime is about 136 MB and
+the whole app-image about 138 MB, so the container carries a JVM the size of an
+off-the-shelf JRE. The modular sibling `../demo-06-java-modular-executable` is far
+smaller, because it bundles only the runtime its module graph resolves - see its
+note for the numbers.
+
+Whichever way you size it, this self-contained image carries one guarantee a
+shared base image gives up: jpackage builds the bundled runtime from the very JDK
+that compiled the code and ran the tests, so the app ships on **exactly the same
+JVM** it was built and verified against - not whatever patch version or
+distribution a base image happens to provide. The flip side - that a self-contained
+image cannot share its JVM layer across *different* services, where a common
+`eclipse-temurin:<version>-jre` base can (deduplicated on disk and in the page
+cache) - applies here too; see `../demo-06-java-modular-executable` for that
+trade-off in full.
