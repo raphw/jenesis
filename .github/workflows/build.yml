@@ -20,7 +20,10 @@ jobs:
         # (-Djenesis.project.layout=modular) on the same sources that otherwise
         # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
         # `*-executable` demos run their build/Run.java launcher, which stages a
-        # jpackage app-image and runs it. The `-jmod-jlink` entry enables the jmod
+        # jpackage app-image and runs it. `java-multi-release` runs the shipped
+        # build/jenesis/Execute.java, which builds the multi-release jar and then
+        # launches it, so CI (on JDK 25) verifies that the Java 25 overlay is
+        # selected at runtime rather than only that it compiles. The `-jmod-jlink` entry enables the jmod
         # and jlink steps and stages their results (a .jmod beside the modular jar
         # and a jlink runtime image under stage/runtime). `custom-jmod` runs its
         # build/Demo.java, which wraps the assembler to pack extra content into the
@@ -35,6 +38,7 @@ jobs:
           - { name: java-modular-jmod-jlink, dir: java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: java-pom-executable, entry: build/Run.java }
           - { name: java-modular-executable, dir: java-modular-executable, entry: build/Run.java }
+          - { name: java-multi-release, dir: java-multi-release, entry: build/jenesis/Execute.java }
           - { name: kotlin, dir: kotlin, entry: build/jenesis/Project.java }
           - { name: scala, dir: scala, entry: build/jenesis/Project.java }
           - { name: groovy, dir: groovy, entry: build/jenesis/Project.java }
