@@ -84,47 +84,179 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule engine(TestEngine engine) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule filter(String filter) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule strictPinning(boolean strictPinning) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule modulePath(PathPlacement modulePath) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule moduleName(String moduleName) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule group(String group) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     public TestModule parallel(boolean parallel) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                strictPinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel);
     }
 
     @Override

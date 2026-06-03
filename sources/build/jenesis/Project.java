@@ -364,7 +364,7 @@ public record Project(
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
                       %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
 
-                    %{header}Test filter (-Djenesis.java.test=<patterns>):%{reset}
+                    %{header}Test filter (-Djenesis.java.test.filter=<patterns>):%{reset}
                       Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
                       tests the default JavaMultiProjectAssembler executes. Changing
                       the value invalidates the test step's cache and forces a re-run.
@@ -656,7 +656,7 @@ public record Project(
                       -Djenesis.verbose=true            Verbose step output.
 
                     Test execution:
-                      -Djenesis.java.test=<patterns>    Comma-separated
+                      -Djenesis.java.test.filter=<patterns>    Comma-separated
                                                         <classRegex>[#<method>]
                                                         entries restricting which
                                                         tests the default

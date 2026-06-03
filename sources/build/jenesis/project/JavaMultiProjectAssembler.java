@@ -65,7 +65,7 @@ public record JavaMultiProjectAssembler(boolean process,
     @Override
     public JavaMultiProjectAssembler resolveProperties() {
         boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-        String filterOverride = System.getProperty("jenesis.java.test");
+        String filterOverride = System.getProperty("jenesis.java.test.filter");
         String packagingOverride = System.getProperty("jenesis.java.package");
         String groupOverride = System.getProperty("jenesis.java.test.group");
         return new JavaMultiProjectAssembler(
