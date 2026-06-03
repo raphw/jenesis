@@ -31,10 +31,12 @@ public record TestNG() implements TestEngine {
 
     @Override
     public List<String> commands(Path supplement,
+                                 Path output,
                                  SequencedSet<String> classes,
                                  SequencedMap<String, SequencedSet<String>> methods,
                                  SequencedSet<String> groups,
-                                 boolean parallel) {
+                                 boolean parallel,
+                                 boolean reporting) {
         List<String> commands = new ArrayList<>(List.of("-d", supplement.resolve("test-output").toString()));
         if (!groups.isEmpty()) {
             commands.add("-groups");

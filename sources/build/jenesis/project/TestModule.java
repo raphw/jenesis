@@ -35,6 +35,7 @@ public class TestModule implements BuildExecutorModule {
     private final String moduleName;
     private final String group;
     private final boolean parallel;
+    private final boolean reporting;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
@@ -53,6 +54,7 @@ public class TestModule implements BuildExecutorModule {
                 PathPlacement.CLASS_PATH,
                 null,
                 null,
+                false,
                 false);
     }
 
@@ -68,7 +70,8 @@ public class TestModule implements BuildExecutorModule {
                        PathPlacement modulePath,
                        String moduleName,
                        String group,
-                       boolean parallel) {
+                       boolean parallel,
+                       boolean reporting) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -82,6 +85,7 @@ public class TestModule implements BuildExecutorModule {
         this.moduleName = moduleName;
         this.group = group;
         this.parallel = parallel;
+        this.reporting = reporting;
     }
 
     public TestModule engine(TestEngine engine) {
@@ -97,7 +101,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
@@ -113,7 +118,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
@@ -129,7 +135,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule filter(String filter) {
@@ -145,7 +152,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
@@ -161,7 +169,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
@@ -177,7 +186,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule pinning(Pinning pinning) {
@@ -193,7 +203,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule modulePath(PathPlacement modulePath) {
@@ -209,7 +220,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule moduleName(String moduleName) {
@@ -225,7 +237,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule group(String group) {
@@ -241,7 +254,8 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
     }
 
     public TestModule parallel(boolean parallel) {
@@ -257,7 +271,25 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 group,
-                parallel);
+                parallel,
+                reporting);
+    }
+
+    public TestModule reporting(boolean reporting) {
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                pinning,
+                filter,
+                modulePath,
+                moduleName,
+                group,
+                parallel,
+                reporting);
     }
 
     @Override
@@ -282,8 +314,27 @@ public class TestModule implements BuildExecutorModule {
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning), REQUIRED);
         Run run = factory == null
-                ? new Run(resolved, isTest, jarsOnly, modulePath, moduleName, filter, group, parallel)
-                : new Run(factory, resolved, isTest, jarsOnly, modulePath, moduleName, filter, group, parallel);
+                ? new Run(
+                        resolved,
+                        isTest,
+                        jarsOnly,
+                        modulePath,
+                        moduleName,
+                        filter,
+                        group,
+                        parallel,
+                        reporting)
+                : new Run(
+                        factory,
+                        resolved,
+                        isTest,
+                        jarsOnly,
+                        modulePath,
+                        moduleName,
+                        filter,
+                        group,
+                        parallel,
+                        reporting);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
@@ -358,6 +409,7 @@ public class TestModule implements BuildExecutorModule {
         private final String filter;
         private final String group;
         private final transient boolean parallel;
+        private final boolean reporting;
 
         private Run(TestEngine engine,
                     Predicate<String> isTest,
@@ -366,7 +418,8 @@ public class TestModule implements BuildExecutorModule {
                     String moduleName,
                     String filter,
                     String group,
-                    boolean parallel) {
+                    boolean parallel,
+                    boolean reporting) {
             super(modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
@@ -374,6 +427,7 @@ public class TestModule implements BuildExecutorModule {
             this.filter = filter;
             this.group = group;
             this.parallel = parallel;
+            this.reporting = reporting;
         }
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
@@ -384,7 +438,8 @@ public class TestModule implements BuildExecutorModule {
                     String moduleName,
                     String filter,
                     String group,
-                    boolean parallel) {
+                    boolean parallel,
+                    boolean reporting) {
             super(factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
@@ -392,6 +447,7 @@ public class TestModule implements BuildExecutorModule {
             this.filter = filter;
             this.group = group;
             this.parallel = parallel;
+            this.reporting = reporting;
         }
 
         @Override
@@ -463,7 +519,14 @@ public class TestModule implements BuildExecutorModule {
                     });
                 }
             }
-            commands.addAll(resolved.commands(context.supplement(), matchedClasses, matchedMethods, groups, parallel));
+            commands.addAll(resolved.commands(
+                    context.supplement(),
+                    context.next(),
+                    matchedClasses,
+                    matchedMethods,
+                    groups,
+                    parallel,
+                    reporting));
             return CompletableFuture.completedFuture(commands);
         }
 

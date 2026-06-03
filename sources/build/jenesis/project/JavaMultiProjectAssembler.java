@@ -25,42 +25,47 @@ public record JavaMultiProjectAssembler(boolean process,
                                         boolean jlink,
                                         TestEngine testEngine,
                                         String group,
-                                        boolean parallel) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        boolean parallel,
+                                        boolean reporting) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(false, null, null, false, false, null, null, false);
+        this(false, null, null, false, false, null, null, false, false);
     }
 
     public JavaMultiProjectAssembler process(boolean process) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler filter(String filter) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler group(String group) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler parallel(boolean parallel) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+    }
+
+    public JavaMultiProjectAssembler reporting(boolean reporting) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
     }
 
     @Override
@@ -77,7 +82,8 @@ public record JavaMultiProjectAssembler(boolean process,
                 jlink || Boolean.getBoolean("jenesis.java.jlink"),
                 testEngine,
                 groupOverride != null ? groupOverride : group,
-                parallel || Boolean.getBoolean("jenesis.java.test.parallel"));
+                parallel || Boolean.getBoolean("jenesis.java.test.parallel"),
+                reporting || Boolean.getBoolean("jenesis.project.tests.reporting"));
     }
 
     @Override
@@ -115,6 +121,7 @@ public record JavaMultiProjectAssembler(boolean process,
                                         .filter(filter)
                                         .group(group)
                                         .parallel(parallel)
+                                        .reporting(reporting)
                                         .pinning(descriptor.pinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),

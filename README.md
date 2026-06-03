@@ -866,21 +866,28 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
 - `artifacts` (`Download`) fetches the unified resolved set into `artifacts/`, validating checksums when
   present and hard-linking from the local cache when available so the second resolve doesn't re-fetch jars
   the project's own resolve already brought down.
-- `executed` (`TestModule.Run` extends `Java`) accepts `filter`, `group`, and `parallel` arguments. `filter` is a
-  comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`; `group` is a
-  comma-separated list of test groups; `parallel` is a flag. When wired by `JavaMultiProjectAssembler`, `filter`
-  comes from `-Djenesis.java.test.filter=<patterns>`, `group` from `-Djenesis.java.test.group=<groups>`, and
-  `parallel` from `-Djenesis.java.test.parallel`; callers that construct `TestModule` directly pass them
-  explicitly. The matched class and method names, the parsed group set, and the parallel flag are handed to the
-  engine's `commands(supplement, classes, methods, groups, parallel)`, which shapes them into the runner's
-  argument syntax: `JUnitPlatform` emits `--select-class=` / `--select-method=` per entry, one `--include-tag=`
-  per group, and the `junit.jupiter.execution.parallel.*` config parameters when parallel; `TestNG` joins the
-  groups into a single comma-separated `-groups` argument and adds `-parallel methods`; `JUnit4` rejects groups
-  (its console runner cannot select `@Category` by name) and ignores the parallel flag. `filter` and `group` are
-  part of the step's serialized state (so changing either invalidates the cache) and, when set, force the step to
-  re-run regardless of cache consistency; `parallel` is transient - it changes how tests run, not their result,
-  so toggling it neither invalidates the cache nor forces a re-run. `Java` scans each argument's `artifacts/` for
-  jars and dispatches them to `--module-path` or `--class-path` based on its own `modular` flag.
+- `executed` (`TestModule.Run` extends `Java`) accepts `filter`, `group`, `parallel`, and `reporting` arguments.
+  `filter` is a comma-separated list of Java regex entries, each `<classRegex>` or `<classRegex>#<methodName>`;
+  `group` is a comma-separated list of test groups; `parallel` and `reporting` are flags. When wired by
+  `JavaMultiProjectAssembler`, `filter` comes from `-Djenesis.java.test.filter=<patterns>`, `group` from
+  `-Djenesis.java.test.group=<groups>`, `parallel` from `-Djenesis.java.test.parallel`, and `reporting` from
+  `-Djenesis.project.tests.reporting`; callers that construct `TestModule` directly pass them explicitly. The
+  matched class and method names, the parsed group set, and the two flags are handed to the engine's
+  `commands(supplement, output, classes, methods, groups, parallel, reporting)`, which shapes them into the
+  runner's argument syntax: `JUnitPlatform` emits `--select-class=` / `--select-method=` per entry, one
+  `--include-tag=` per group, the `junit.jupiter.execution.parallel.*` config parameters when parallel, and the
+  `junit.platform.reporting.open.xml.enabled` / `junit.platform.reporting.output.dir` config parameters when
+  reporting, writing the Open Test Reporting XML into the step's `output` folder (the listener ships in
+  `org.junit.platform.reporting`, which the console runner already requires); `TestNG` joins the groups into a
+  single comma-separated `-groups` argument and adds `-parallel methods`; `JUnit4` rejects groups (its console
+  runner cannot select `@Category` by name) and ignores the parallel and reporting flags. `filter` and `group`
+  are part of the step's serialized state (so changing either invalidates the cache) and, when set, force the step
+  to re-run regardless of cache consistency; `reporting` is also part of the serialized state (so toggling it
+  invalidates the cache and re-runs to produce or drop the report) but, like `parallel`, is not forced to re-run
+  on every invocation; `parallel` is transient - it changes how tests run, not their result, so toggling it
+  neither invalidates the cache nor forces a re-run. `Java` scans each
+  argument's `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on its own
+  `modular` flag.
 
 ```mermaid
 flowchart LR
@@ -1320,6 +1327,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.java.test.filter`     | system property     | Read by `JavaMultiProjectAssembler` and passed to its `TestModule` as the test filter: a comma-separated list of `<classRegex>[#<method>]` entries. When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching those patterns. The value becomes part of the step's serialized state, and the step is forced to re-run regardless of cache consistency. Callers that construct `TestModule` directly pass the filter explicitly through the `String filter` constructor; the module itself no longer reads any system property. |
 | `jenesis.java.test.group`     | system property     | Read by `JavaMultiProjectAssembler` and passed to its `TestModule` as the test group selector: a comma-separated list of groups mapped per framework (JUnit Platform tags, TestNG groups). Like the filter it becomes part of the step's serialized state and forces a re-run when set; `JUnit4` rejects it, since its console runner cannot select `@Category` by name. |
 | `jenesis.java.test.parallel` | system property     | Read by `JavaMultiProjectAssembler` and passed to its `TestModule`; enables parallel test execution where the framework supports it (JUnit Platform parallel config parameters, TestNG `-parallel methods`; ignored by `JUnit4`). It is transient on the test step, so toggling it neither invalidates the cache nor forces a re-run. |
+| `jenesis.project.tests.reporting` | system property     | Read by `JavaMultiProjectAssembler` and passed to its `TestModule`; when `true`, `JUnitPlatform` enables the JUnit Platform Open Test Reporting listener (`junit.platform.reporting.open.xml.enabled` plus `junit.platform.reporting.output.dir`), writing the lossless Open Test Reporting XML into the test step's `output` folder. The listener ships in `org.junit.platform.reporting`, which the console runner (`org.junit.platform.console`) already requires, so no extra coordinate is resolved. `TestNG` and `JUnit4` ignore the flag. Unlike `filter`/`group` it is part of the step's serialized state without forcing a re-run, so toggling it invalidates the cache and re-runs to produce or drop the report, but a cached run with the flag unchanged is reused. Default `false`. |
 | `jenesis.java.package`  | system property     | Read by `JavaMultiProjectAssembler`. When set, it wires a per-module `jpackage` step that runs `jpackage` for every module declaring a main class (a `@jenesis.main` Javadoc tag, or a `<mainClass>` POM property); modules without one are skipped. The value is the `jpackage --type`; a bare `-Djenesis.java.package` defaults to `app-image` (a self-contained launcher plus runtime, the only type that needs no platform-native tooling), while `-Djenesis.java.package=deb|rpm|dmg|pkg|exe|msi` selects a native installer. Unset means no per-module `jpackage` step is wired, so nothing is produced. The `--name` and the launcher are derived by the `prepare` step from the module's metadata and main class: a module built for the module path (`descriptor.modulePath().modular()`, i.e. the `MODULAR`/`MODULAR_TO_MAVEN` layouts) gets a modular launcher (`--module <module>/<class>`, run from `--module-path`), while a classpath module (the `MAVEN` layout) gets `--main-jar`/`--main-class` run from `--input`. Each produced image is recorded in `inventory.properties` as `prefix.package`, and the `STAGE` module's `packages` step (always registered, alongside `maven`/`modular`) collects every module's image into `stage/packages/` - the staging analogue of `stage/maven`/`stage/modular`. When no module produced an image, the `packages` stage step simply stages nothing. Application images are staged but never exported (they do not belong in a Maven or module repository). |
 | `jenesis.java.jmod`     | system property     | Read by `JavaMultiProjectAssembler`. When `true`, it wires a per-module `jmod` step that runs the `jmod` tool over every modular module's `classes/`, producing `jmods/<module>.jmod` (modules with no `module-info.class` are skipped). `Inventory` records it as `prefix.jmod`, and `ModularStaging` hardlinks it **alongside the jar** as `<moduleName>/[<version>/]<moduleName>.jmod` in `stage/modular`. A `.jmod` is the link-time form of the module (consumable by `javac`/`jlink`, never at runtime), which is why it is staged into the module repository next to the jar rather than into `artifacts/`. Default `false`. |
 | `jenesis.java.jlink`    | system property     | Read by `JavaMultiProjectAssembler`. When `true`, it wires a per-module `jlink` step that runs the `jlink` tool over every modular module plus its runtime dependency jars, producing a custom runtime image in `runtime/`. The root module (`--add-modules <module>`) is supplied by the `prepare` step from the module's name, so non-modular modules (which get no `--add-modules`) are skipped. `Inventory` records the image as `prefix.image`, and the `STAGE` module's `runtime` step (`ImageStaging`) collects every module's image into `stage/runtime/`. Like the runtime image embedded by `jpackage`, it is staged but not exported. When `-Djenesis.java.jmod=true` is also set, `jlink` links from the produced `.jmod` (the richer link-time form, which can carry native libraries `jlink` places into the image) instead of the jar - the two never both feed `jlink`, which would be a duplicate module. Default `false`. |

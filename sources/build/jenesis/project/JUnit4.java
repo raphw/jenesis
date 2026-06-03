@@ -31,10 +31,12 @@ public record JUnit4() implements TestEngine {
 
     @Override
     public List<String> commands(Path supplement,
+                                 Path output,
                                  SequencedSet<String> classes,
                                  SequencedMap<String, SequencedSet<String>> methods,
                                  SequencedSet<String> groups,
-                                 boolean parallel) {
+                                 boolean parallel,
+                                 boolean reporting) {
         if (!methods.isEmpty()) {
             throw new IllegalArgumentException("JUnit4 does not support running individual methods");
         }

@@ -40,10 +40,12 @@ public record JUnitPlatform() implements TestEngine {
 
     @Override
     public List<String> commands(Path supplement,
+                                 Path output,
                                  SequencedSet<String> classes,
                                  SequencedMap<String, SequencedSet<String>> methods,
                                  SequencedSet<String> groups,
-                                 boolean parallel) {
+                                 boolean parallel,
+                                 boolean reporting) {
         List<String> commands = new ArrayList<>(List.of("execute", "--disable-banner", "--disable-ansi-colors"));
         for (String group : groups) {
             commands.add("--include-tag=" + group);
@@ -51,6 +53,10 @@ public record JUnitPlatform() implements TestEngine {
         if (parallel) {
             commands.add("--config=junit.jupiter.execution.parallel.enabled=true");
             commands.add("--config=junit.jupiter.execution.parallel.mode.default=concurrent");
+        }
+        if (reporting) {
+            commands.add("--config=junit.platform.reporting.open.xml.enabled=true");
+            commands.add("--config=junit.platform.reporting.output.dir=" + output);
         }
         for (String className : classes) {
             commands.add("--select-class=" + className);

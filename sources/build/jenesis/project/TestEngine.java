@@ -20,10 +20,12 @@ public interface TestEngine extends Serializable {
     }
 
     List<String> commands(Path supplement,
+                          Path output,
                           SequencedSet<String> classes,
                           SequencedMap<String, SequencedSet<String>> methods,
                           SequencedSet<String> groups,
-                          boolean parallel);
+                          boolean parallel,
+                          boolean reporting);
 
     default Optional<ModuleDescriptor> match(List<ModuleDescriptor> modules) {
         for (ModuleDescriptor module : modules) {
