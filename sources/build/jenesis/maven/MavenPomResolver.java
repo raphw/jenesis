@@ -698,12 +698,27 @@ public class MavenPomResolver implements MavenResolver {
     }
 
     private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node) {
+        String type = toTextChild400(node, "type").orElse("jar");
+        String classifier = toTextChild400(node, "classifier").orElse(null);
+        String aliased = switch (type) {
+            case "test-jar" -> "tests";
+            case "ejb-client" -> "client";
+            case "javadoc" -> "javadoc";
+            case "java-source" -> "sources";
+            default -> null;
+        };
+        if (aliased != null) {
+            type = "jar";
+            if (classifier == null) {
+                classifier = aliased;
+            }
+        }
         return Map.entry(
                 new DependencyKey(
                         toTextChild400(node, "groupId").orElseThrow(missing("groupId")),
                         toTextChild400(node, "artifactId").orElseThrow(missing("artifactId")),
-                        toTextChild400(node, "type").orElse("jar"),
-                        toTextChild400(node, "classifier").orElse(null)),
+                        type,
+                        classifier),
                 new DependencyValue(
                         toTextChild400(node, "version").orElse(null),
                         toTextChild400(node, "scope").orElse(null),

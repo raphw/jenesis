@@ -81,7 +81,8 @@ public class MavenProject implements BuildExecutorModule {
                             Repository.ofProperties(BuildStep.IDENTITY,
                                     inherited.entrySet().stream()
                                             .filter(entry ->
-                                                    entry.getKey().startsWith(PREVIOUS + SIBLING_MODULE_PREFIX)
+                                                    (entry.getKey().startsWith(PREVIOUS + SIBLING_MODULE_PREFIX)
+                                                            || entry.getKey().startsWith(PREVIOUS + "test-" + SIBLING_MODULE_PREFIX))
                                                             && entry.getKey().endsWith("/" + ASSIGN))
                                             .map(Map.Entry::getValue)
                                             .toList(),
