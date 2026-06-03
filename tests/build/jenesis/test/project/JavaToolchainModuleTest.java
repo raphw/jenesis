@@ -4,8 +4,11 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepHashFunction;
+import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -69,6 +72,48 @@ public class JavaToolchainModuleTest {
                     .isEqualTo("other/Sample.class");
             assertThat(inputStream.getNextJarEntry()).isNull();
         }
+    }
+
+    @Test
+    public void transformer_rewrites_classes_before_archiving() throws IOException {
+        Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
+        try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("Sample.java"))) {
+            writer.append("package other;");
+            writer.newLine();
+            writer.append("public class Sample { }");
+            writer.newLine();
+        }
+        buildExecutor.addSource("input", input);
+        buildExecutor.addModule("output", new JavaToolchainModule().transformer(TRANSFORMER), "input");
+        SequencedMap<String, Path> steps = buildExecutor.execute();
+        assertThat(steps).containsKeys("output/classes", "output/artifacts");
+        assertThat(steps.get("output/classes").resolve(BuildStep.CLASSES).resolve("transformed.marker")).exists();
+        try (JarInputStream inputStream = new JarInputStream(Files.newInputStream(steps.get("output/artifacts")
+                .resolve(BuildStep.ARTIFACTS)
+                .resolve("classes.jar")))) {
+            Set<String> names = new LinkedHashSet<>();
+            for (JarEntry entry = inputStream.getNextJarEntry(); entry != null; entry = inputStream.getNextJarEntry()) {
+                names.add(entry.getName());
+            }
+            assertThat(names).contains("other/Sample.class", "transformed.marker");
+        }
+    }
+
+    @Test
+    public void validator_consumes_classes_as_independent_side_step() throws IOException {
+        Path sources = Files.createDirectories(input.resolve(BuildStep.SOURCES + "other"));
+        try (BufferedWriter writer = Files.newBufferedWriter(sources.resolve("Sample.java"))) {
+            writer.append("package other;");
+            writer.newLine();
+            writer.append("public class Sample { }");
+            writer.newLine();
+        }
+        buildExecutor.addSource("input", input);
+        buildExecutor.addModule("output", new JavaToolchainModule().validator(VALIDATOR), "input");
+        SequencedMap<String, Path> steps = buildExecutor.execute();
+        assertThat(steps).containsKeys("output/classes", "output/artifacts", "output/validate");
+        assertThat(steps.get("output/validate").resolve("validated").resolve("classes.txt"))
+                .hasContent("other/Sample.class");
     }
 
     @Test
@@ -163,6 +208,45 @@ public class JavaToolchainModuleTest {
             assertThat(inputStream.getNextJarEntry()).isNull();
         }
     }
+
+    private static final BuildExecutorModule TRANSFORMER = ((BuildStep) (_, context, arguments) -> {
+        Path classes = Files.createDirectories(context.next().resolve(BuildStep.CLASSES));
+        for (BuildStepArgument argument : arguments.values()) {
+            Path incoming = argument.folder().resolve(BuildStep.CLASSES);
+            if (Files.isDirectory(incoming)) {
+                try (Stream<Path> stream = Files.walk(incoming)) {
+                    List<Path> files = stream.filter(Files::isRegularFile).toList();
+                    for (Path file : files) {
+                        Path target = classes.resolve(incoming.relativize(file).toString());
+                        Files.createDirectories(target.getParent());
+                        Files.copy(file, target);
+                    }
+                }
+            }
+        }
+        Files.writeString(classes.resolve("transformed.marker"), "transformed");
+        return CompletableFuture.completedStage(new BuildStepResult(true));
+    }).asModule("transform");
+
+    private static final BuildExecutorModule VALIDATOR = ((BuildStep) (_, context, arguments) -> {
+        List<String> names = new ArrayList<>();
+        for (BuildStepArgument argument : arguments.values()) {
+            Path incoming = argument.folder().resolve(BuildStep.CLASSES);
+            if (Files.isDirectory(incoming)) {
+                try (Stream<Path> stream = Files.walk(incoming)) {
+                    stream.filter(Files::isRegularFile)
+                            .map(path -> incoming.relativize(path).toString())
+                            .forEach(names::add);
+                }
+            }
+        }
+        if (names.isEmpty()) {
+            throw new IllegalStateException("No classes to validate");
+        }
+        Path report = Files.createDirectories(context.next().resolve("validated"));
+        Files.writeString(report.resolve("classes.txt"), String.join("\n", names));
+        return CompletableFuture.completedStage(new BuildStepResult(true));
+    }).asModule("validate");
 
     private static List<Path> bootModuleJars() throws IOException {
         Set<Path> jars = new LinkedHashSet<>();

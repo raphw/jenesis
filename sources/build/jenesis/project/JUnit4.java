@@ -30,7 +30,10 @@ public record JUnit4() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments(Path supplement) {
+    public List<String> arguments(Path supplement, String group, boolean parallel) {
+        if (group != null || parallel) {
+            throw new IllegalArgumentException("JUnit4 does not support test groups or parallel execution");
+        }
         return List.of();
     }
 

@@ -284,7 +284,7 @@ public class JavaMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType, jmod, jlink, null).apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType, jmod, jlink, null, null, false).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),

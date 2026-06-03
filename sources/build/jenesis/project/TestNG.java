@@ -30,8 +30,17 @@ public record TestNG() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments(Path supplement) {
-        return List.of("-d", supplement.resolve("test-output").toString());
+    public List<String> arguments(Path supplement, String group, boolean parallel) {
+        List<String> arguments = new ArrayList<>(List.of("-d", supplement.resolve("test-output").toString()));
+        if (group != null) {
+            arguments.add("-groups");
+            arguments.add(group);
+        }
+        if (parallel) {
+            arguments.add("-parallel");
+            arguments.add("methods");
+        }
+        return arguments;
     }
 
     @Override

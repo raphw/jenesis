@@ -672,7 +672,7 @@ public class TestModuleTest {
         }
 
         @Override
-        public List<String> arguments(Path supplement) {
+        public List<String> arguments(Path supplement, String group, boolean parallel) {
             return List.of();
         }
 

@@ -39,8 +39,16 @@ public record JUnitPlatform() implements TestEngine {
     }
 
     @Override
-    public List<String> arguments(Path supplement) {
-        return List.of("execute", "--disable-banner", "--disable-ansi-colors");
+    public List<String> arguments(Path supplement, String group, boolean parallel) {
+        List<String> arguments = new ArrayList<>(List.of("execute", "--disable-banner", "--disable-ansi-colors"));
+        if (group != null) {
+            arguments.add("--include-tag=" + group);
+        }
+        if (parallel) {
+            arguments.add("--config=junit.jupiter.execution.parallel.enabled=true");
+            arguments.add("--config=junit.jupiter.execution.parallel.mode.default=concurrent");
+        }
+        return arguments;
     }
 
     @Override

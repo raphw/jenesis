@@ -7,14 +7,29 @@ import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Versions;
 
-public record JavaToolchainModule(BuildExecutorModule compiler, BuildExecutorModule archiver) implements BuildExecutorModule {
+public record JavaToolchainModule(BuildExecutorModule compiler,
+                                  BuildExecutorModule transformer,
+                                  BuildExecutorModule validator,
+                                  BuildExecutorModule archiver) implements BuildExecutorModule {
+
+    public static final String ARTIFACTS = "artifacts", CLASSES = "classes", TRANSFORM = "transform", VALIDATE = "validate";
+    private static final String COMPILED = "compiled";
 
     public JavaToolchainModule() {
-        this(Javac.tool().asModule("javac"), Jar.tool(Jar.Sort.CLASSES).asModule("jar"));
+        this(Javac.tool().asModule("javac"), null, null, Jar.tool(Jar.Sort.CLASSES).asModule("jar"));
     }
 
-    public static final String ARTIFACTS = "artifacts", CLASSES = "classes";
-    private static final String COMPILED = "compiled";
+    public JavaToolchainModule(BuildExecutorModule compiler, BuildExecutorModule archiver) {
+        this(compiler, null, null, archiver);
+    }
+
+    public JavaToolchainModule transformer(BuildExecutorModule transformer) {
+        return new JavaToolchainModule(compiler, transformer, validator, archiver);
+    }
+
+    public JavaToolchainModule validator(BuildExecutorModule validator) {
+        return new JavaToolchainModule(compiler, transformer, validator, archiver);
+    }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
@@ -22,13 +37,32 @@ public record JavaToolchainModule(BuildExecutorModule compiler, BuildExecutorMod
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
                 inherited.sequencedKeySet().stream()));
+        String classes;
+        if (transformer == null) {
+            classes = CLASSES;
+        } else {
+            buildExecutor.addModule(TRANSFORM, transformer, Stream.concat(
+                    Stream.of(CLASSES),
+                    inherited.sequencedKeySet().stream()));
+            classes = TRANSFORM;
+        }
+        if (validator != null) {
+            buildExecutor.addModule(VALIDATE, validator, Stream.concat(
+                    Stream.of(classes),
+                    inherited.sequencedKeySet().stream()));
+        }
         buildExecutor.addModule(ARTIFACTS, archiver, Stream.concat(
-                Stream.of(CLASSES),
+                Stream.of(classes),
                 inherited.sequencedKeySet().stream()));
     }
 
     @Override
     public Optional<String> resolve(String path) {
-        return path.equals(COMPILED) ? Optional.empty() : Optional.of(path);
+        return switch (path) {
+            case COMPILED -> Optional.empty();
+            case TRANSFORM -> Optional.of(CLASSES);
+            case CLASSES -> transformer == null ? Optional.of(CLASSES) : Optional.empty();
+            default -> Optional.of(path);
+        };
     }
 }

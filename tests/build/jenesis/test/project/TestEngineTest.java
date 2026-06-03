@@ -120,6 +120,33 @@ public class TestEngineTest {
                         "-methods", "sample.AlphaTest.first");
     }
 
+    @Test
+    public void junit_platform_arguments_add_tag_and_parallel_config() {
+        assertThat(new JUnitPlatform().arguments(root, "slow", true))
+                .contains("--include-tag=slow",
+                        "--config=junit.jupiter.execution.parallel.enabled=true",
+                        "--config=junit.jupiter.execution.parallel.mode.default=concurrent");
+        assertThat(new JUnitPlatform().arguments(root, null, false))
+                .doesNotContain("--include-tag=slow",
+                        "--config=junit.jupiter.execution.parallel.enabled=true");
+    }
+
+    @Test
+    public void testng_arguments_add_groups_and_parallel() {
+        assertThat(new TestNG().arguments(root, "slow", true))
+                .containsSubsequence("-groups", "slow")
+                .containsSubsequence("-parallel", "methods");
+    }
+
+    @Test
+    public void junit4_rejects_groups_and_parallel() {
+        assertThatThrownBy(() -> new JUnit4().arguments(root, "slow", false))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new JUnit4().arguments(root, null, true))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(new JUnit4().arguments(root, null, false)).isEmpty();
+    }
+
     private static void writeJar(Path folder, String name, String moduleName) throws IOException {
         Files.createDirectories(folder);
         Manifest manifest = new Manifest();

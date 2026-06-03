@@ -22,34 +22,44 @@ public record JavaMultiProjectAssembler(boolean process,
                                         String packaging,
                                         boolean jmod,
                                         boolean jlink,
-                                        TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        TestEngine testEngine,
+                                        String group,
+                                        boolean parallel) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(false, null, null, false, false, null);
+        this(false, null, null, false, false, null, null, false);
     }
 
     public JavaMultiProjectAssembler process(boolean process) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
     }
 
     public JavaMultiProjectAssembler filter(String filter) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
     }
 
     public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
     }
 
     public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
     }
 
     public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+    }
+
+    public JavaMultiProjectAssembler group(String group) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
+    }
+
+    public JavaMultiProjectAssembler parallel(boolean parallel) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel);
     }
 
     @Override
@@ -57,13 +67,16 @@ public record JavaMultiProjectAssembler(boolean process,
         boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
         String filterOverride = System.getProperty("jenesis.java.test");
         String packagingOverride = System.getProperty("jenesis.java.package");
+        String groupOverride = System.getProperty("jenesis.java.test.group");
         return new JavaMultiProjectAssembler(
                 process || nativeImage || Boolean.getBoolean("jenesis.java.process"),
                 filterOverride != null ? filterOverride : filter,
                 packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 jmod || Boolean.getBoolean("jenesis.java.jmod"),
                 jlink || Boolean.getBoolean("jenesis.java.jlink"),
-                testEngine);
+                testEngine,
+                groupOverride != null ? groupOverride : group,
+                parallel || Boolean.getBoolean("jenesis.java.test.parallel"));
     }
 
     @Override
@@ -99,6 +112,8 @@ public record JavaMultiProjectAssembler(boolean process,
                                 new TestModule(repositories, resolvers)
                                         .engine(testEngine)
                                         .filter(filter)
+                                        .group(group)
+                                        .parallel(parallel)
                                         .strictPinning(descriptor.strictPinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),

@@ -19,7 +19,7 @@ public interface TestEngine extends Serializable {
         return Map.of();
     }
 
-    List<String> arguments(Path supplement);
+    List<String> arguments(Path supplement, String group, boolean parallel);
 
     List<String> commands(List<String> classes, SequencedMap<String, List<String>> methods);
 

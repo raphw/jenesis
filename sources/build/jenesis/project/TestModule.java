@@ -32,6 +32,8 @@ public class TestModule implements BuildExecutorModule {
     private final String filter;
     private final PathPlacement modulePath;
     private final String moduleName;
+    private final String group;
+    private final boolean parallel;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
@@ -48,7 +50,9 @@ public class TestModule implements BuildExecutorModule {
                 false,
                 null,
                 PathPlacement.CLASS_PATH,
-                null);
+                null,
+                null,
+                false);
     }
 
     private TestModule(TestEngine engine,
@@ -61,7 +65,9 @@ public class TestModule implements BuildExecutorModule {
                        boolean strictPinning,
                        String filter,
                        PathPlacement modulePath,
-                       String moduleName) {
+                       String moduleName,
+                       String group,
+                       boolean parallel) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -73,42 +79,52 @@ public class TestModule implements BuildExecutorModule {
         this.filter = filter;
         this.modulePath = modulePath;
         this.moduleName = moduleName;
+        this.group = group;
+        this.parallel = parallel;
     }
 
     public TestModule engine(TestEngine engine) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule filter(String filter) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule strictPinning(boolean strictPinning) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule modulePath(PathPlacement modulePath) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     public TestModule moduleName(String moduleName) {
-        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName);
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+    }
+
+    public TestModule group(String group) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
+    }
+
+    public TestModule parallel(boolean parallel) {
+        return new TestModule(engine, isTest, factory, repositories, resolvers, jarsOnly, requireEngine, strictPinning, filter, modulePath, moduleName, group, parallel);
     }
 
     @Override
@@ -133,8 +149,8 @@ public class TestModule implements BuildExecutorModule {
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories, strictPinning), REQUIRED);
         Run run = factory == null
-                ? new Run(resolved, isTest, jarsOnly, modulePath, moduleName, filter)
-                : new Run(factory, resolved, isTest, jarsOnly, modulePath, moduleName, filter);
+                ? new Run(resolved, isTest, jarsOnly, modulePath, moduleName, filter, group, parallel)
+                : new Run(factory, resolved, isTest, jarsOnly, modulePath, moduleName, filter, group, parallel);
         buildExecutor.addStep(EXECUTED, run,
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
@@ -207,18 +223,24 @@ public class TestModule implements BuildExecutorModule {
         private final Predicate<String> isTest;
         private final String moduleName;
         private final String filter;
+        private final String group;
+        private final boolean parallel;
 
         private Run(TestEngine engine,
                     Predicate<String> isTest,
                     boolean jarsOnly,
                     PathPlacement modulePath,
                     String moduleName,
-                    String filter) {
+                    String filter,
+                    String group,
+                    boolean parallel) {
             super(modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
             this.moduleName = moduleName;
             this.filter = filter;
+            this.group = group;
+            this.parallel = parallel;
         }
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
@@ -227,12 +249,16 @@ public class TestModule implements BuildExecutorModule {
                     boolean jarsOnly,
                     PathPlacement modulePath,
                     String moduleName,
-                    String filter) {
+                    String filter,
+                    String group,
+                    boolean parallel) {
             super(factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
             this.moduleName = moduleName;
             this.filter = filter;
+            this.group = group;
+            this.parallel = parallel;
         }
 
         @Override
@@ -264,7 +290,7 @@ public class TestModule implements BuildExecutorModule {
             } else {
                 commands.add(resolved.mainClass());
             }
-            commands.addAll(resolved.arguments(context.supplement()));
+            commands.addAll(resolved.arguments(context.supplement(), group, parallel));
             List<String> matchedClasses = new ArrayList<>();
             SequencedMap<String, List<String>> matchedMethods = new LinkedHashMap<>();
             ClassFile classFile = ClassFile.of();
