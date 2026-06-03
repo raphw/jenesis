@@ -19,7 +19,7 @@ jobs:
         # The `-as-modular` entries force the pure MODULAR layout
         # (-Djenesis.project.layout=modular) on the same sources that otherwise
         # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
-        # `*-executable` demos run their build/Run.java launcher, which stages a
+        # `*-executable` demos run their build/Demo.java launcher, which stages a
         # jpackage app-image and runs it. `java-multi-release` runs the shipped
         # build/jenesis/Execute.java, which builds the multi-release jar and then
         # launches it, so CI (on JDK 25) verifies that the Java 25 overlay is
@@ -29,27 +29,35 @@ jobs:
         # build/Demo.java, which wraps the assembler to pack extra content into the
         # .jmod and chains jmod -> jlink -> jpackage, then launches the produced app.
         demo:
-          - { name: java-pom, dir: java-pom, entry: build/jenesis/Project.java }
-          - { name: java-modular, dir: java-modular, entry: build/jenesis/Project.java }
-          - { name: java-modular-as-modular, dir: java-modular, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
-          - { name: java-pom-multi, dir: java-pom-multi, entry: build/jenesis/Project.java }
-          - { name: java-modular-multi, dir: java-modular-multi, entry: build/jenesis/Project.java }
-          - { name: java-modular-multi-as-modular, dir: java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
-          - { name: java-modular-jmod-jlink, dir: java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
-          - { name: java-pom-executable, dir: java-pom-executable, entry: build/Run.java }
-          - { name: java-modular-executable, dir: java-modular-executable, entry: build/Run.java }
-          - { name: java-multi-release, dir: java-multi-release, entry: build/jenesis/Execute.java }
-          - { name: kotlin, dir: kotlin, entry: build/jenesis/Project.java }
-          - { name: scala, dir: scala, entry: build/jenesis/Project.java }
-          - { name: groovy, dir: groovy, entry: build/jenesis/Project.java }
-          - { name: custom-assembler, dir: custom-assembler, entry: build/Demo.java }
-          - { name: custom-jmod, dir: custom-jmod, entry: build/Demo.java }
-          - { name: custom-build, dir: custom-build, entry: build/Demo.java }
-          - { name: custom-maven, dir: custom-maven, entry: build/Demo.java }
-          - { name: custom-modular, dir: custom-modular, entry: build/Demo.java }
-          - { name: internal-module, dir: internal-module, entry: build/Demo.java }
-          - { name: external-module, dir: external-module, entry: build/Demo.java }
-          - { name: publishing, dir: publishing, entry: build/Demo.java }
+          - { name: java-pom, dir: demo-01-java-pom, entry: build/jenesis/Project.java }
+          - { name: java-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java }
+          - { name: java-modular-as-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          - { name: java-pom-multi, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java }
+          - { name: java-modular-multi, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java }
+          - { name: java-modular-multi-as-modular, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
+          # The `*-module` and `*-test-filter` entries exercise selectors and test
+          # filtering: a `+<module>` selector scopes the build to one module's
+          # subtree (appended to entry), and `-Djenesis.java.test` narrows which
+          # tests run (a -D flag, so it precedes the source file in flags).
+          - { name: java-pom-multi-module, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java +greeter }
+          - { name: java-pom-multi-test-filter, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-modular-multi-module, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java +greeter-test }
+          - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-modular-jmod-jlink, dir: demo-02-java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
+          - { name: java-pom-executable, dir: demo-05-java-pom-executable, entry: build/Demo.java }
+          - { name: java-modular-executable, dir: demo-06-java-modular-executable, entry: build/Demo.java }
+          - { name: java-multi-release, dir: demo-07-java-multi-release, entry: build/jenesis/Execute.java }
+          - { name: kotlin, dir: demo-08-kotlin, entry: build/jenesis/Project.java }
+          - { name: scala, dir: demo-09-scala, entry: build/jenesis/Project.java }
+          - { name: groovy, dir: demo-10-groovy, entry: build/jenesis/Project.java }
+          - { name: custom-assembler, dir: demo-11-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-12-custom-jmod, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-17-custom-build, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-15-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-16-custom-modular, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-13-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-14-external-module, entry: build/Demo.java }
+          - { name: publishing, dir: demo-19-publishing, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
