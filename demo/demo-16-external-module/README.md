@@ -76,3 +76,19 @@ The assembler redirects the descriptor's sources to the module's output with
 `internal-module`. Unlike `InternalModule`, `ExternalModule` does not compile the
 plugin (it is already staged), so the project's sources are simply forwarded to
 the resolved module at run time.
+
+Isolating the build module's Jenesis
+------------------------------------
+
+Just as in `../demo-15-internal-module`, the resolved build module is loaded into
+its **own `ModuleLayer` with its own class loader** carrying its own
+`build.jenesis`, bridged to the host across class loaders so the two Jenesis
+copies never clash and the module may pin a different version. The build module
+itself must be a named (explicit) module, since it is discovered in that layer as
+a `BuildExecutorModule` service provider; its *dependencies* are not so
+restricted - a module layer admits automatic modules too, so dependencies
+resolved by Maven coordinate (rather than by module name, as this demo does) can
+include automatic or otherwise non-modular jars. A module built against a *newer*
+Jenesis that calls a `BuildExecutor` method this version lacks fails with an
+`UnsupportedOperationException` advising you to upgrade Jenesis. See that demo's
+"Isolating the build module's Jenesis" section for the full explanation.

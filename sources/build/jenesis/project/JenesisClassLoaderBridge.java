@@ -294,7 +294,11 @@ class JenesisClassLoaderBridge {
                     yield null;
                 }
                 case "execute" -> host.execute((Executor) args[0], (String[]) args[1]);
-                default -> throw new UnsupportedOperationException(method.toString());
+                default -> throw new UnsupportedOperationException(
+                        "This build module calls BuildExecutor." + method.getName()
+                                + ", which the running version of Jenesis does not provide. The module was "
+                                + "built against a newer Jenesis API; upgrade Jenesis to a version that "
+                                + "supports it (" + method + ").");
             };
         }
     }

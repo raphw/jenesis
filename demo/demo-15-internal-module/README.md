@@ -87,3 +87,40 @@ that ends up in the jar is the substituted one.
 The plugin's `substitute` step is reachable in the build graph as
 `preprocess/substitute` (the delegated module's steps surface directly under the
 module name), which is exactly the key the assembler redirects the sources to.
+
+Isolating the build module's Jenesis
+------------------------------------
+
+A build module brings its own `build.jenesis` (here the pinned
+`@tool/build.jenesis` `0.3.0`), which is generally a *different* copy from the
+Jenesis running the build. To let the two coexist, `InternalModule` loads the
+module into its **own `ModuleLayer` with its own class loader**, so the module's
+`build.jenesis` never clashes with the host's on a single class path. A
+class-loader bridge (`JenesisClassLoaderBridge`) then translates across the
+boundary: the host invokes the module's `BuildExecutorModule.accept` and
+`BuildStep` methods by method handle, and the module's calls back onto the
+`BuildExecutor` it is handed run through a proxy that dispatches to the host's
+executor.
+
+This isolation rests on a **module layer**: the module is resolved into a
+`ModuleLayer` and discovered there as a `BuildExecutorModule` service provider. A
+service provider is found through its module's `provides` declaration, so the
+**build module itself must be a named (explicit) module** - this plugin's
+`module-info.java` is what makes it loadable as a service at all. Its
+*dependencies*, by contrast, are not restricted to named modules: a module layer
+admits automatic modules too, so what a build module may depend on comes down to
+how those dependencies are resolved. This demo resolves them by Java module name
+from the Jenesis module repository (and `org.json` here is itself a named module),
+but `InternalModule` takes arbitrary resolvers - wire a Maven resolver and the
+closure is fetched by coordinate, which is how an automatic-module or otherwise
+non-modular dependency is brought in and loaded into the layer. (The pure MODULAR
+*layout* in `../demo-12-module-layout` is the stricter case: it resolves only by
+module name and so rejects automatic modules outright.)
+
+Because the two `build.jenesis` copies are isolated rather than merged, a build
+module can pin a different Jenesis version than the host without conflict - as
+long as the API surface it uses lines up. If a module built against a *newer*
+Jenesis calls a `BuildExecutor` method this (older) Jenesis does not provide, the
+bridge cannot map it and fails with an `UnsupportedOperationException` that names
+the method and tells you to upgrade Jenesis, rather than a confusing linkage
+error.

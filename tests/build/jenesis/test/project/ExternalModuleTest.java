@@ -405,6 +405,70 @@ public class ExternalModuleTest {
                 .hasMessageContaining("Mismatched digest");
     }
 
+    @Test
+    public void fails_clearly_when_module_uses_newer_build_executor_api() throws IOException {
+        // Emulate a build module built against a newer Jenesis whose BuildExecutor
+        // has a method this (running) Jenesis lacks: synthesize that build.jenesis by
+        // adding an abstract method to BuildExecutor, compile the plugin against it,
+        // and have the plugin call the method. The bridge cannot map it to the host,
+        // so it must fail with a clear "upgrade Jenesis" message.
+        Path newerJenesisJar = jenesisJarWithExtraBuildExecutorMethod(
+                work.resolve("build.jenesis-newer.jar"), "jenesisFutureMethod");
+        Path pluginJar = compileModule(work.resolve("plugin"),
+                work.resolve("plugin.jar"),
+                "module test.plugin { requires build.jenesis; provides build.jenesis.BuildExecutorModule with test.plugin.Plugin; }",
+                Map.of("test/plugin/Plugin.java", """
+                        package test.plugin;
+                        import build.jenesis.BuildExecutor;
+                        import build.jenesis.BuildExecutorModule;
+                        import java.nio.file.Path;
+                        import java.util.SequencedMap;
+                        public class Plugin implements BuildExecutorModule {
+                            public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
+                                executor.jenesisFutureMethod();
+                            }
+                        }
+                        """),
+                newerJenesisJar);
+
+        buildExecutor.addModule("external", new ExternalModule(
+                "module/test.plugin",
+                null,
+                Map.of("module", versionInsensitive(Map.of(
+                        "test.plugin", pluginJar,
+                        "build.jenesis", newerJenesisJar))),
+                Map.of("module", new ModularJarResolver(true))));
+
+        assertThatThrownBy(() -> buildExecutor.execute())
+                .rootCause()
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("jenesisFutureMethod")
+                .hasMessageContaining("upgrade Jenesis");
+    }
+
+    private static Path jenesisJarWithExtraBuildExecutorMethod(Path out, String methodName) throws IOException {
+        String entry = BuildExecutor.class.getName().replace('.', '/') + ".class";
+        byte[] original;
+        try (FileSystem fileSystem = FileSystems.newFileSystem(jenesisJar)) {
+            original = Files.readAllBytes(fileSystem.getPath(entry));
+        }
+        // Add an abstract method to BuildExecutor with the ClassFile API, emulating a
+        // newer Jenesis whose BuildExecutor has a method this version does not.
+        ClassFile classFile = ClassFile.of();
+        byte[] modified = classFile.transformClass(classFile.parse(original),
+                ((ClassTransform) (builder, element) -> builder.with(element))
+                        .andThen(ClassTransform.endHandler(builder -> builder.withMethod(
+                                methodName,
+                                MethodTypeDesc.of(ConstantDescs.CD_void),
+                                ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
+                                _ -> {}))));
+        Files.copy(jenesisJar, out);
+        try (FileSystem fileSystem = FileSystems.newFileSystem(out)) {
+            Files.write(fileSystem.getPath(entry), modified);
+        }
+        return out;
+    }
+
     private static String sha256(Path file) throws IOException {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
@@ -417,6 +481,14 @@ public class ExternalModuleTest {
                                       Path jarOut,
                                       String moduleInfo,
                                       Map<String, String> sources) throws IOException {
+        return compileModule(sourceDir, jarOut, moduleInfo, sources, jenesisJar);
+    }
+
+    private static Path compileModule(Path sourceDir,
+                                      Path jarOut,
+                                      String moduleInfo,
+                                      Map<String, String> sources,
+                                      Path jenesis) throws IOException {
         Files.createDirectories(sourceDir);
         Files.writeString(sourceDir.resolve("module-info.java"), moduleInfo);
         List<Path> files = new ArrayList<>();
@@ -432,7 +504,7 @@ public class ExternalModuleTest {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null)) {
             fileManager.setLocationFromPaths(StandardLocation.CLASS_OUTPUT, List.of(classes));
-            fileManager.setLocationFromPaths(StandardLocation.MODULE_PATH, List.of(jenesisJar));
+            fileManager.setLocationFromPaths(StandardLocation.MODULE_PATH, List.of(jenesis));
             boolean success = compiler.getTask(null,
                     fileManager,
                     diagnostics,
