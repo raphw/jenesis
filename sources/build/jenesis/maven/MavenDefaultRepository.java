@@ -184,9 +184,12 @@ public class MavenDefaultRepository implements MavenRepository {
                             entry.getKey().storeIfNotPresent(entry.getValue());
                         }
                     } else if (writable) {
-                        Files.delete(cached);
-                        for (LazyRepositoryItem item : results.keySet()) {
-                            item.deleteIfPresent();
+                        try {
+                            Files.delete(cached);
+                            for (LazyRepositoryItem item : results.keySet()) {
+                                item.deleteIfPresent();
+                            }
+                        } catch (IOException _) {
                         }
                     }
                 }
@@ -194,7 +197,11 @@ public class MavenDefaultRepository implements MavenRepository {
                     return new StoredRepositoryItem(cached);
                 }
             } else if (writable) {
-                Files.createDirectories(cached.getParent());
+                try {
+                    Files.createDirectories(cached.getParent());
+                } catch (IOException _) {
+                    cached = null;
+                }
             }
         }
         Map<LazyRepositoryItem, MessageDigest> digests = new HashMap<>();
@@ -353,7 +360,11 @@ public class MavenDefaultRepository implements MavenRepository {
                 Files.delete(temporary);
                 throw t;
             }
-            Files.move(temporary, path);
+            try {
+                Files.move(temporary, path);
+            } catch (IOException _) {
+                Files.deleteIfExists(temporary);
+            }
         }
 
         @Override
@@ -391,7 +402,11 @@ public class MavenDefaultRepository implements MavenRepository {
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.of(new StoredRepositoryItem(Files.move(temporary.get(), path)));
+            try {
+                return Optional.of(new StoredRepositoryItem(Files.move(temporary.get(), path)));
+            } catch (IOException _) {
+                return Optional.of(new StoredRepositoryItem(temporary.get()));
+            }
         }
     }
 }

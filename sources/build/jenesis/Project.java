@@ -360,6 +360,9 @@ public record Project(
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
+                      %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
+                      %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
+                      %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
 
                     %{header}Test filter (-Djenesis.java.test=<patterns>):%{reset}
                       Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
@@ -686,7 +689,11 @@ public record Project(
                     `-Djenesis.execute.mainClass=<fqcn>`. Wrap the launched
                     program in Docker independently of the build with
                     `-Djenesis.execute.docker=true` and (optional)
-                    `-Djenesis.execute.docker.image=<reference>`. Execute is a
+                    `-Djenesis.execute.docker.image=<reference>` plus
+                    `-Djenesis.execute.docker.mount` (read-only) /
+                    `.mountWritable` (read-write) bind mounts and
+                    `.env=<name[=value],...>` to forward host environment
+                    variables. Execute is a
                     separate entry point: Project's `build`/`stage`/... selectors
                     do NOT apply to it, and its `jenesis.execute.*` properties do
                     NOT apply to plain `Project` invocations.
@@ -1297,6 +1304,9 @@ public record Project(
                     docker = docker.mount(absolute, absolute.toString(), false);
                 }
             }
+            docker = docker.mounts(System.getProperty("jenesis.project.docker.mount"), root, true);
+            docker = docker.mounts(System.getProperty("jenesis.project.docker.mountWritable"), root, false);
+            docker = docker.envs(System.getProperty("jenesis.project.docker.env"));
             String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
             if (mavenRepositoryUri != null) {
                 docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);

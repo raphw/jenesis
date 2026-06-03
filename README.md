@@ -421,6 +421,23 @@ the host JVM:
 A minimal image is built on demand the first time and cached for subsequent runs. To target a different image,
 add `-Djenesis.project.docker.image=<reference>`.
 
+By default only the project root (plus the JDK and the read-only local repositories) is mounted into the
+container, so anything the build needs from outside the root - a `build/jenesis` symlinked to a shared engine
+checkout, a sibling source tree, a generated-sources directory - is invisible inside it. Add those paths with
+`-Djenesis.project.docker.mount=<host>[:<container>],...`: a bare `host` is mounted at the **same** path inside
+the container (`host:host`), which is what a symlink or absolute path reference needs to resolve, while
+`host:container` remaps it. These mounts are **read-only** (the build should not write outside its own tree); use
+`-Djenesis.project.docker.mountWritable=<host>[:<container>],...` for the rare case that the build must write to
+a host path outside the project root. Relative host paths are resolved against the project root, and several
+mounts are comma-separated. For example, a project whose `build/jenesis` is a symlink into `../shared/sources`
+builds in a container with `-Djenesis.project.docker.mount=../shared/sources`.
+
+By default no host environment is forwarded into the container. Pass selected variables with
+`-Djenesis.project.docker.env=<name>[=<value>],...`: a bare `name` forwards the host's current value of that
+variable, while `name=value` sets it explicitly. This is the channel for build inputs that legitimately live in
+the environment (a private-repository token, a proxy setting), and is deliberately opt-in so ambient host
+secrets do not leak into the build by default.
+
 ### Running a module's main entry
 
 `build/jenesis/Execute.java` is a companion launcher to `Project.java`. It runs the build first, finds the
@@ -441,8 +458,11 @@ narrows the build to that module's subtree, skipping siblings:
 Execute can also run the launched program inside a container, independently of whether the build itself was
 dockerised. Set `-Djenesis.execute.docker=true` to dispatch the final `java -m <module>/<main>` (or `java -cp
 ... <main>`) invocation through Docker, with `-Djenesis.execute.docker.image=<reference>` overriding the
-image. The build runs as usual (locally, or in `jenesis.project.docker.image` if set), and only the launch
-step crosses the container boundary, so the build image and the runtime image can differ.
+image. `-Djenesis.execute.docker.mount` (read-only) and `-Djenesis.execute.docker.mountWritable` (read-write)
+add bind mounts, and `-Djenesis.execute.docker.env=<name>[=<value>],...` forwards host environment variables -
+all with the same syntax as the `jenesis.project.docker.*` flags above. The build runs as usual (locally, or in
+`jenesis.project.docker.image` if set), and only the launch step crosses the container boundary, so the build
+image and the runtime image can differ.
 
 Architecture
 ------------

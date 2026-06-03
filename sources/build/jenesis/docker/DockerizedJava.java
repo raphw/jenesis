@@ -80,6 +80,25 @@ public class DockerizedJava {
         return new DockerizedJava(workingDirectory, image, windowsDaemon, copy, environment);
     }
 
+    public DockerizedJava mounts(String specification, Path base, boolean readOnly) {
+        DockerizedJava docker = this;
+        for (Mount mount : Mount.parse(specification, base)) {
+            docker = docker.mount(mount.host(), mount.container(), readOnly);
+        }
+        return docker;
+    }
+
+    public DockerizedJava envs(String specification) {
+        DockerizedJava docker = this;
+        for (Env entry : Env.parse(specification)) {
+            String value = entry.value() == null ? System.getenv(entry.name()) : entry.value();
+            if (value != null) {
+                docker = docker.env(entry.name(), value);
+            }
+        }
+        return docker;
+    }
+
     public DockerizedJava env(String name, String value) {
         SequencedMap<String, String> copy = new LinkedHashMap<>(environment);
         copy.put(name, value);
@@ -150,5 +169,47 @@ public class DockerizedJava {
             throw new IOException("Failed to query Docker server OS: " + output);
         }
         return "windows".equals(output);
+    }
+
+    public record Mount(Path host, String container) {
+
+        public static List<Mount> parse(String specification, Path base) {
+            List<Mount> mounts = new ArrayList<>();
+            if (specification == null) {
+                return mounts;
+            }
+            for (String entry : specification.split(",")) {
+                String spec = entry.strip();
+                if (spec.isEmpty()) {
+                    continue;
+                }
+                int start = spec.length() > 1 && spec.charAt(1) == ':' && Character.isLetter(spec.charAt(0)) ? 2 : 0;
+                int separator = spec.indexOf(':', start);
+                Path host = base.resolve(separator < 0 ? spec : spec.substring(0, separator)).normalize();
+                mounts.add(new Mount(host, separator < 0 ? host.toString() : spec.substring(separator + 1)));
+            }
+            return mounts;
+        }
+    }
+
+    public record Env(String name, String value) {
+
+        public static List<Env> parse(String specification) {
+            List<Env> envs = new ArrayList<>();
+            if (specification == null) {
+                return envs;
+            }
+            for (String entry : specification.split(",")) {
+                String spec = entry.strip();
+                if (spec.isEmpty()) {
+                    continue;
+                }
+                int separator = spec.indexOf('=');
+                envs.add(separator < 0
+                        ? new Env(spec, null)
+                        : new Env(spec.substring(0, separator), spec.substring(separator + 1)));
+            }
+            return envs;
+        }
     }
 }

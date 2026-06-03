@@ -57,6 +57,7 @@ Quick index
 | [`custom-maven`](custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
 | [`custom-modular`](custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
 | [`custom-build`](custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
+| [`docker-isolation`](docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
 
 1. A single Maven project - [`java-pom`](java-pom/README.md)
 ---------------------------------------
@@ -324,6 +325,29 @@ This is the escape hatch: when a build needs something the templates do not mode
 step down to the `BuildExecutor` primitives and build exactly the graph you want.
 Run it with `java build/Demo.java`, then `java -cp target/jar/output/artifacts/classes.jar
 sample.Sample`.
+
+11. Confining the build with Docker - [`docker-isolation`](docker-isolation/README.md)
+-------------------------------------------------------------
+
+A build executes untrusted code even when nothing about it is customised: the
+stock pipeline runs your tests (and whatever your test dependencies pull in), and
+the artifact it produces has a `main` that runs later - all with the rights of
+whoever started the build. `docker-isolation` is a plain `Project`-based build
+(deliberately not customised - a custom launcher's own `main` would only add
+another place for a vulnerability to hide) whose **test** and artifact **`main`**
+each read a secret file (`~/.demo-credentials`) and a secret environment variable
+(`DEMO_SECRET`), then overwrite the file. Run on the host with the stock launchers
+(`java build/jenesis/Project.java`, then `java build/jenesis/Execute.java`), both
+actors reach the secrets.
+
+The new idea is that **Jenesis can run the build and the launched program inside a
+throwaway container** - `-Djenesis.execute.docker=true` sandboxes the program's
+`main`, `-Djenesis.project.docker=true` sandboxes the build (the test included) -
+where the host home and environment are absent, so neither secret is in reach. The
+demo also shows the consequence of the local Maven/Jenesis repositories being
+mounted **read-only**: dependencies must be pre-cached, and `export` fails inside
+the container. It needs a Docker daemon, so it is a local exercise rather than a
+CI one. There are no assertions; each actor just reports what it managed to do.
 
 Cross-cutting concepts
 ----------------------

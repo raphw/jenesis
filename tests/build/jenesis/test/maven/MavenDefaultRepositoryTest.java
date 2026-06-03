@@ -104,6 +104,26 @@ public class MavenDefaultRepositoryTest {
     }
 
     @Test
+    public void fetches_without_caching_when_local_repository_is_read_only() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar"), "foo");
+        local.toFile().setWritable(false, false);
+        try {
+            Assumptions.assumeFalse(Files.isWritable(local), "read-only enforcement requires a non-root user");
+            Path dependency = result.resolve("dependency.jar");
+            try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(), local, Map.of(), _ -> {})
+                    .fetch(Runnable::run, "group", "artifact", "1", "jar", null, null).orElseThrow().toInputStream()) {
+                Files.copy(inputStream, dependency);
+            }
+            assertThat(dependency).content().isEqualTo("foo");
+            assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
+        } finally {
+            local.toFile().setWritable(true, false);
+        }
+    }
+
+    @Test
     public void can_fetch_and_validate_dependency() throws IOException, NoSuchAlgorithmException {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))

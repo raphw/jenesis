@@ -45,6 +45,8 @@ jobs:
           - { name: custom-assembler, dir: custom-assembler, entry: build/Demo.java }
           - { name: custom-jmod, dir: custom-jmod, entry: build/Demo.java }
           - { name: custom-build, dir: custom-build, entry: build/Demo.java }
+          - { name: custom-maven, dir: custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: custom-modular, entry: build/Demo.java }
           - { name: internal-module, dir: internal-module, entry: build/Demo.java }
           - { name: external-module, dir: external-module, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
