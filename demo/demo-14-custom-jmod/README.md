@@ -62,7 +62,7 @@ consume it:
     inner.accept(sub, inherited);                   // the stock java -> jmod -> jlink -> jpackage pipeline
 
 The link between the two is the module descriptor's `content` set. The wrapper
-calls `descriptor.withContent("config")` before delegating, and the stock `jmod`
+calls `descriptor.content("config")` before delegating, and the stock `jmod`
 step depends on every step named in `content` in addition to `java`. The only
 other framework knowledge involved is a folder convention: the `JMod` step routes
 a predecessor's `jmodconfig/` directory to `jmod --config` (and likewise

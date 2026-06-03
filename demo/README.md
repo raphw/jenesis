@@ -276,7 +276,7 @@ before compile, jar, and test run unchanged:
 
 The trick is small and reusable: the wrapper adds a `preprocess` step that
 rewrites the sources, then redirects the descriptor at it with
-`descriptor.withSources("preprocess")` and hands the unchanged stock assembler
+`descriptor.sources("preprocess")` and hands the unchanged stock assembler
 the redirected descriptor. The Java toolchain is never reimplemented - a source
 transformation is simply interposed in front of it. Any step that produces a
 `sources/` tree (template expansion, code generation, license headers) fits the
@@ -286,7 +286,7 @@ same shape. This demo is launched with `java build/Demo.java`.
 different extension point. It enables the stock `jmod`, `jlink`, and `jpackage`
 steps (`new JavaMultiProjectAssembler().jmod(true).jlink(true).packaging("app-image")`)
 and only *contributes an extra input*: a `config` step that emits a `jmodconfig/`
-directory, declared as the module's `content` with `descriptor.withContent("config")`.
+directory, declared as the module's `content` with `descriptor.content("config")`.
 The stock `jmod` step depends on every step named in `content`, routes
 `jmodconfig/`/`jmodlibs/`/`jmodcmds/` to `jmod --config`/`--libs`/`--cmds`; `jlink`
 links the resulting `.jmod` into a runtime image; and `jpackage`, seeing that runtime

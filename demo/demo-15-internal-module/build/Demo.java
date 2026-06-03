@@ -62,7 +62,7 @@ public class Demo {
             // them downstream.
             SequencedSet<String> original = descriptor.sources();
             SequencedSet<String> manifests = descriptor.manifests();
-            ProjectModuleDescriptor redirected = descriptor.withSources("preprocess/substitute");
+            ProjectModuleDescriptor redirected = descriptor.sources("preprocess/substitute");
             BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
             return (sub, inherited) -> {
                 InternalModule preprocess = new InternalModule(

@@ -70,7 +70,7 @@ public class Demo {
         public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers) {
-            BuildExecutorModule inner = delegate.apply(descriptor.withContent("config"), repositories, resolvers);
+            BuildExecutorModule inner = delegate.apply(descriptor.content("config"), repositories, resolvers);
             return (sub, inherited) -> {
                 sub.addStep("config", new GenerateConfig());
                 inner.accept(sub, inherited);

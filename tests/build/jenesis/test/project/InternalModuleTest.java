@@ -225,7 +225,7 @@ public class InternalModuleTest {
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
-                .withBuildModuleName("foo"));
+                .buildModuleName("foo"));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps.get("internal/marker").resolve("out.txt")).content().isEqualTo("named");
@@ -254,7 +254,7 @@ public class InternalModuleTest {
                 source,
                 Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
                 Map.of("module", new ModularJarResolver(true)))
-                .withBuildModuleName("bar"));
+                .buildModuleName("bar"));
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()

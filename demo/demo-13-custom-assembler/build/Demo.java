@@ -35,7 +35,7 @@ public class Demo {
             // the ProjectModuleDescriptor wither, then let the stock assembler
             // wire the regular flow against the preprocessed tree.
             SequencedSet<String> original = descriptor.sources();
-            ProjectModuleDescriptor redirected = descriptor.withSources("preprocess");
+            ProjectModuleDescriptor redirected = descriptor.sources("preprocess");
             BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
             return (sub, inherited) -> {
                 sub.addStep("preprocess", new Preprocess(), original.stream());

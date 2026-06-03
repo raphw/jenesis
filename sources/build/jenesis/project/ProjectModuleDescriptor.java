@@ -93,7 +93,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return name;
     }
 
-    public ProjectModuleDescriptor withName(String name) {
+    public ProjectModuleDescriptor name(String name) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -115,7 +115,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return dependencies;
     }
 
-    public ProjectModuleDescriptor withDependencies(SequencedSet<String> dependencies) {
+    public ProjectModuleDescriptor dependencies(SequencedSet<String> dependencies) {
         return new ProjectModuleDescriptor(name,
                 immutable(dependencies),
                 sources,
@@ -132,8 +132,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withDependencies(String... dependencies) {
-        return withDependencies(new LinkedHashSet<>(List.of(dependencies)));
+    public ProjectModuleDescriptor dependencies(String... dependencies) {
+        return dependencies(new LinkedHashSet<>(List.of(dependencies)));
     }
 
     @Override
@@ -141,7 +141,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return sources;
     }
 
-    public ProjectModuleDescriptor withSources(SequencedSet<String> sources) {
+    public ProjectModuleDescriptor sources(SequencedSet<String> sources) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 immutable(sources),
@@ -158,8 +158,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withSources(String... sources) {
-        return withSources(new LinkedHashSet<>(List.of(sources)));
+    public ProjectModuleDescriptor sources(String... sources) {
+        return sources(new LinkedHashSet<>(List.of(sources)));
     }
 
     @Override
@@ -167,7 +167,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return resources;
     }
 
-    public ProjectModuleDescriptor withResources(SequencedSet<String> resources) {
+    public ProjectModuleDescriptor resources(SequencedSet<String> resources) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -184,8 +184,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withResources(String... resources) {
-        return withResources(new LinkedHashSet<>(List.of(resources)));
+    public ProjectModuleDescriptor resources(String... resources) {
+        return resources(new LinkedHashSet<>(List.of(resources)));
     }
 
     @Override
@@ -193,7 +193,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return manifests;
     }
 
-    public ProjectModuleDescriptor withManifests(SequencedSet<String> manifests) {
+    public ProjectModuleDescriptor manifests(SequencedSet<String> manifests) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -210,8 +210,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withManifests(String... manifests) {
-        return withManifests(new LinkedHashSet<>(List.of(manifests)));
+    public ProjectModuleDescriptor manifests(String... manifests) {
+        return manifests(new LinkedHashSet<>(List.of(manifests)));
     }
 
     @Override
@@ -219,7 +219,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return coordinates;
     }
 
-    public ProjectModuleDescriptor withCoordinates(SequencedSet<String> coordinates) {
+    public ProjectModuleDescriptor coordinates(SequencedSet<String> coordinates) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -236,8 +236,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withCoordinates(String... coordinates) {
-        return withCoordinates(new LinkedHashSet<>(List.of(coordinates)));
+    public ProjectModuleDescriptor coordinates(String... coordinates) {
+        return coordinates(new LinkedHashSet<>(List.of(coordinates)));
     }
 
     @Override
@@ -245,7 +245,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return artifacts.getOrDefault(scope, Collections.emptyNavigableSet());
     }
 
-    public ProjectModuleDescriptor withArtifacts(DependencyScope scope, SequencedSet<String> artifacts) {
+    public ProjectModuleDescriptor artifacts(DependencyScope scope, SequencedSet<String> artifacts) {
         Map<DependencyScope, SequencedSet<String>> replaced = new LinkedHashMap<>(this.artifacts);
         replaced.put(scope, immutable(artifacts));
         return new ProjectModuleDescriptor(name,
@@ -264,8 +264,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withArtifacts(DependencyScope scope, String... artifacts) {
-        return withArtifacts(scope, new LinkedHashSet<>(List.of(artifacts)));
+    public ProjectModuleDescriptor artifacts(DependencyScope scope, String... artifacts) {
+        return artifacts(scope, new LinkedHashSet<>(List.of(artifacts)));
     }
 
     @Override
@@ -273,7 +273,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return resolved.getOrDefault(scope, Collections.emptyNavigableSet());
     }
 
-    public ProjectModuleDescriptor withResolved(DependencyScope scope, SequencedSet<String> resolved) {
+    public ProjectModuleDescriptor resolved(DependencyScope scope, SequencedSet<String> resolved) {
         Map<DependencyScope, SequencedSet<String>> replaced = new LinkedHashMap<>(this.resolved);
         replaced.put(scope, immutable(resolved));
         return new ProjectModuleDescriptor(name,
@@ -292,15 +292,15 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withResolved(DependencyScope scope, String... resolved) {
-        return withResolved(scope, new LinkedHashSet<>(List.of(resolved)));
+    public ProjectModuleDescriptor resolved(DependencyScope scope, String... resolved) {
+        return resolved(scope, new LinkedHashSet<>(List.of(resolved)));
     }
 
     public SequencedSet<String> content() {
         return content;
     }
 
-    public ProjectModuleDescriptor withContent(SequencedSet<String> content) {
+    public ProjectModuleDescriptor content(SequencedSet<String> content) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -317,15 +317,15 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor withContent(String... content) {
-        return withContent(new LinkedHashSet<>(List.of(content)));
+    public ProjectModuleDescriptor content(String... content) {
+        return content(new LinkedHashSet<>(List.of(content)));
     }
 
     public boolean test() {
         return test;
     }
 
-    public ProjectModuleDescriptor withTest(boolean test) {
+    public ProjectModuleDescriptor test(boolean test) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -346,7 +346,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return source;
     }
 
-    public ProjectModuleDescriptor withSource(boolean source) {
+    public ProjectModuleDescriptor source(boolean source) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -367,7 +367,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return documentation;
     }
 
-    public ProjectModuleDescriptor withDocumentation(boolean documentation) {
+    public ProjectModuleDescriptor documentation(boolean documentation) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -388,7 +388,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return strictPinning;
     }
 
-    public ProjectModuleDescriptor withStrictPinning(boolean strictPinning) {
+    public ProjectModuleDescriptor strictPinning(boolean strictPinning) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -409,7 +409,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return modulePath;
     }
 
-    public ProjectModuleDescriptor withModulePath(PathPlacement modulePath) {
+    public ProjectModuleDescriptor modulePath(PathPlacement modulePath) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,

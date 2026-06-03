@@ -44,15 +44,15 @@ public class ExternalModule implements BuildExecutorModule {
         this.qualifier = qualifier;
     }
 
-    public ExternalModule withDependencies(String... dependencies) {
+    public ExternalModule dependencies(String... dependencies) {
         return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(List.of(dependencies)), buildModuleName, qualifier);
     }
 
-    public ExternalModule withDependencies(SequencedSet<String> dependencies) {
+    public ExternalModule dependencies(SequencedSet<String> dependencies) {
         return new ExternalModule(coordinate, repositories, resolvers, new LinkedHashSet<>(dependencies), buildModuleName, qualifier);
     }
 
-    public ExternalModule withBuildModuleName(String name) {
+    public ExternalModule buildModuleName(String name) {
         return new ExternalModule(coordinate, repositories, resolvers, additionalDependencies, name, qualifier);
     }
 

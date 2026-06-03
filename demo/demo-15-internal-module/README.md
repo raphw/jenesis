@@ -69,7 +69,7 @@ the wrapper:
    the local export (`~/.jenesis`) prepended, so the plugin's `build.jenesis` and
    `org.json` dependencies resolve from there - nothing is downloaded explicitly.
 2. Redirects the descriptor's sources to the module's output with
-   `descriptor.withSources("preprocess/substitute")`, so the stock assembler's
+   `descriptor.sources("preprocess/substitute")`, so the stock assembler's
    regular flow compiles, jars, and tests the preprocessed sources.
 
 The project's sources are passed to the module as inherited steps.

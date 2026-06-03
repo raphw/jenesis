@@ -67,7 +67,7 @@ For each module the wrapper does three things:
 2. Hands the stock assembler a `ProjectModuleDescriptor` whose `sources()` is
    redirected to the `preprocess` step instead of the original source folder.
    `ProjectModuleDescriptor` is immutable with a wither per property, so this is
-   a one-liner: `descriptor.withSources("preprocess")`. Every reference
+   a one-liner: `descriptor.sources("preprocess")`. Every reference
    accessor (`sources`, `resources`, `manifests`, `coordinates`, `artifacts`,
    `resolved`) returns a `SequencedSet<String>`, so a customizer can add folders
    as readily as replace them.

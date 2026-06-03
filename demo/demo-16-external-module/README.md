@@ -72,7 +72,7 @@ source, `main` first stages the build module to stand in for that artifact:
    flow then compiles, jars, and tests.
 
 The assembler redirects the descriptor's sources to the module's output with
-`descriptor.withSources("preprocess/substitute")`, exactly as in
+`descriptor.sources("preprocess/substitute")`, exactly as in
 `internal-module`. Unlike `InternalModule`, `ExternalModule` does not compile the
 plugin (it is already staged), so the project's sources are simply forwarded to
 the resolved module at run time.

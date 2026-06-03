@@ -286,8 +286,8 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   sibling sub-module's `assign` URI prepended, so a coordinate resolved locally never falls back to the global
   repository). `Project` parameterises this over `ProjectModuleDescriptor`, an immutable class that captures the
   layout's base descriptor (`MavenProject.MavenModuleDescriptor` or `ModularProject.ModularModuleDescriptor`) and adds
-  the project-level flags `test`, `source`, `documentation`; it exposes a wither per property (`withSources(...)`,
-  `withArtifacts(scope, ...)`, `withTest(...)`, and so on, each with a `String...` overload) so a wrapping assembler
+  the project-level flags `test`, `source`, `documentation`; it exposes a wither per property (`sources(...)`,
+  `artifacts(scope, ...)`, `test(...)`, and so on, each with a `String...` overload) so a wrapping assembler
   can customise any input without reimplementing the descriptor. The default assembler `JavaMultiProjectAssembler` is
   stateless and reads those flags off the descriptor it receives - no `Context` object: a `prepare` step plus a
   `JavaToolchainModule` is wired against the descriptor's reference-key sets (`sources`, `manifests`, and the
@@ -1117,7 +1117,7 @@ Given a `<prefix>/<coordinate>` string, a `qualifier` (the pin trail to record t
 `null` for the unqualified trail), a map of `Repository` instances, and a map of `Resolver` instances,
 `ExternalModule` registers three internal nodes:
 
-- `coordinate` writes the requested coordinate (plus any added via `withDependencies(...)`) into a fresh
+- `coordinate` writes the requested coordinate (plus any added via `dependencies(...)`) into a fresh
   `requires.properties`. It also scans its inherited inputs for a `versions.properties` and copies through
   every entry on this module's own pin trail (`<prefix>` when the qualifier is `null`, `<prefix>@<qualifier>`
   otherwise) as the plug-in's `versions.properties`, so the project's `@<qualifier>/<module> <version>
@@ -1139,7 +1139,7 @@ their published names disappear.
 
 ```java
 new ExternalModule("module/com.example.plugin", "tool", repositories, resolvers)
-        .withDependencies("module/com.example.extra");
+        .dependencies("module/com.example.extra");
 ```
 
 ### `InternalModule`
@@ -1172,7 +1172,7 @@ with the local export prepended - and registers:
 - `delegate` builds a `ModuleLayer` over the compiled jar plus the runtime classpath and runs the
   plug-in.
 
-`withDependencies(...)` adds extra coordinates (written verbatim, no prefix added) to both
+`dependencies(...)` adds extra coordinates (written verbatim, no prefix added) to both
 `requires.properties` files, for plug-ins that need modules not declared in their own `module-info.java`.
 The source must declare `requires build.jenesis;` (plus whatever else it uses from Jenesis); the resolver
 fetches Jenesis like any other module dependency. `InternalModule` errors at build time if the source
@@ -1211,10 +1211,10 @@ The reflective calls use `MethodHandles`, and the bridge uses `ModuleLayer.Contr
 lookup is required so the JVM's loader-constraint check (which would otherwise complain that the host and
 foreign loaders define different `BuildExecutor` `Class` objects for the same name) does not trip.
 
-### Picking a specific plug-in: `@BuildModuleName` and `withBuildModuleName(...)`
+### Picking a specific plug-in: `@BuildModuleName` and `buildModuleName(...)`
 
 The plug-in's layer must resolve to **exactly one** `BuildExecutorModule` service provider. By default
-(no `withBuildModuleName(...)` call), only providers without a `@build.jenesis.BuildModuleName` annotation
+(no `buildModuleName(...)` call), only providers without a `@build.jenesis.BuildModuleName` annotation
 qualify. Annotated providers are selected explicitly:
 
 ```java
@@ -1226,10 +1226,10 @@ public class Publish implements BuildExecutorModule { ... }
 
 ```java
 new ExternalModule("module/com.example.plugin", repositories, resolvers)
-        .withBuildModuleName("publish");
+        .buildModuleName("publish");
 ```
 
-`InternalModule` exposes the same `withBuildModuleName(String)` factory. If zero or more than one provider
+`InternalModule` exposes the same `buildModuleName(String)` factory. If zero or more than one provider
 match the (possibly null) requested name, the build fails at `delegate` time with a descriptive error.
 This makes it possible to ship multiple entry points in a single plug-in jar and let the consumer pick
 which one to run per `ExternalModule` / `InternalModule` instance.

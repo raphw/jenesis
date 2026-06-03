@@ -68,7 +68,7 @@ public class InternalModule implements BuildExecutorModule {
         this.qualifier = qualifier;
     }
 
-    public InternalModule withDependencies(String... dependencies) {
+    public InternalModule dependencies(String... dependencies) {
         return new InternalModule(prefix,
                 source,
                 repositories,
@@ -78,7 +78,7 @@ public class InternalModule implements BuildExecutorModule {
                 qualifier);
     }
 
-    public InternalModule withDependencies(SequencedSet<String> dependencies) {
+    public InternalModule dependencies(SequencedSet<String> dependencies) {
         return new InternalModule(prefix,
                 source,
                 repositories,
@@ -88,7 +88,7 @@ public class InternalModule implements BuildExecutorModule {
                 qualifier);
     }
 
-    public InternalModule withBuildModuleName(String name) {
+    public InternalModule buildModuleName(String name) {
         return new InternalModule(prefix,
                 source,
                 repositories,
