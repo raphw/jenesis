@@ -34,7 +34,21 @@ public class TestModule implements BuildExecutorModule {
     private final String moduleName;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(null, defaultIsTest(), null, repositories, resolvers, true, true, false, null, PathPlacement.CLASS_PATH, null);
+        List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
+                .map(Pattern::compile)
+                .toList();
+        this(null,
+                (Predicate<String> & Serializable)
+                        (name -> patterns.stream().anyMatch(pattern -> pattern.matcher(name).matches())),
+                null,
+                repositories,
+                resolvers,
+                true,
+                true,
+                false,
+                null,
+                PathPlacement.CLASS_PATH,
+                null);
     }
 
     private TestModule(TestEngine engine,
@@ -59,14 +73,6 @@ public class TestModule implements BuildExecutorModule {
         this.filter = filter;
         this.modulePath = modulePath;
         this.moduleName = moduleName;
-    }
-
-    private static Predicate<String> defaultIsTest() {
-        List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
-                .map(Pattern::compile)
-                .toList();
-        return (Predicate<String> & Serializable) (name -> patterns.stream().anyMatch(pattern ->
-                pattern.matcher(name).matches()));
     }
 
     public TestModule engine(TestEngine engine) {
@@ -242,7 +248,7 @@ public class TestModule implements BuildExecutorModule {
             TestEngine resolved = engine != null
                     ? engine
                     : TestEngine.of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
-                            .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
+                    .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
             List<TestSpec> specs = TestSpec.parse(filter);
             List<String> commands = new ArrayList<>();
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {

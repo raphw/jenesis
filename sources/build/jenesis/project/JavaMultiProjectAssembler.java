@@ -21,30 +21,35 @@ public record JavaMultiProjectAssembler(boolean process,
                                         String filter,
                                         String packaging,
                                         boolean jmod,
-                                        boolean jlink) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        boolean jlink,
+                                        TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(false, null, null, false, false);
+        this(false, null, null, false, false, null);
     }
 
     public JavaMultiProjectAssembler process(boolean process) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
     }
 
     public JavaMultiProjectAssembler filter(String filter) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
     }
 
     public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
     }
 
     public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
+    }
+
+    public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine);
     }
 
     @Override
@@ -57,7 +62,8 @@ public record JavaMultiProjectAssembler(boolean process,
                 filterOverride != null ? filterOverride : filter,
                 packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 jmod || Boolean.getBoolean("jenesis.java.jmod"),
-                jlink || Boolean.getBoolean("jenesis.java.jlink"));
+                jlink || Boolean.getBoolean("jenesis.java.jlink"),
+                testEngine);
     }
 
     @Override
@@ -68,7 +74,7 @@ public record JavaMultiProjectAssembler(boolean process,
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
-            sub.addModule("java", new JavaToolchainModule(
+            sub.addModule("binary", new JavaToolchainModule(
                     new InferredCompilerChainModule(repositories, resolvers)
                             .process(process)
                             .strictPinning(descriptor.strictPinning())
@@ -91,44 +97,46 @@ public record JavaMultiProjectAssembler(boolean process,
                     if (properties.getProperty("test") != null) {
                         sub.addModule("test",
                                 new TestModule(repositories, resolvers)
+                                        .engine(testEngine)
                                         .filter(filter)
                                         .strictPinning(descriptor.strictPinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),
-                                Stream.concat(Stream.of("java", "prepare"), inputs(descriptor)));
+                                Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
                     }
                 }
             }
             if (descriptor.source()) {
-                sub.addStep("sources",
-                        process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES),
-                        descriptor.sources());
+                sub.addModule("sources", (module, inherited) ->
+                        module.addStep("archive",
+                            process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES),
+                            inherited.sequencedKeySet()), descriptor.sources());
             }
             if (descriptor.documentation()) {
-                sub.addModule("javadoc", (module, inherited) -> {
-                    module.addStep("classes",
+                sub.addModule("documentation", (module, inherited) -> {
+                    module.addStep("javadoc",
                             process ? Javadoc.process() : Javadoc.tool(),
-                            inherited.sequencedKeySet().stream());
-                    module.addStep("artifacts",
+                            inherited.sequencedKeySet());
+                    module.addStep("archive",
                             process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC),
-                            "classes");
+                            "javadoc");
                 }, inputs(descriptor));
             }
             if (jmod) {
                 sub.addStep("jmod",
                         process ? JMod.process() : JMod.tool(),
-                        Stream.concat(Stream.of("java"), descriptor.content().stream()));
+                        Stream.concat(Stream.of("binary"), descriptor.content().stream()));
             }
             if (jlink) {
                 sub.addStep("jlink",
                         process ? JLink.process() : JLink.tool(),
                         Stream.concat(
-                                Stream.of("prepare", jmod ? "jmod" : "java"),
+                                Stream.of("prepare", jmod ? "jmod" : "binary"),
                                 descriptor.artifacts(DependencyScope.RUNTIME).stream()));
             }
             if (packaging != null) {
                 Stream<String> inputs = Stream.concat(
-                        Stream.of("prepare", "java"),
+                        Stream.of("prepare", "binary"),
                         descriptor.artifacts(DependencyScope.RUNTIME).stream());
                 sub.addStep("jpackage",
                         process ? JPackage.process(packaging) : JPackage.tool(packaging),

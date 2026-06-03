@@ -161,16 +161,16 @@ public class JavaMultiProjectAssemblerTest {
         Fixture fixture = setUp("path=\n", false, true, false);
         Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES));
         Files.writeString(fixture.sources.resolve(BuildStep.SOURCES).resolve("foo.java"), "// dummy");
-        Path sourcesOutput = fixture.execute("sub/sources").get("sub/sources");
+        Path sourcesOutput = fixture.execute("sub/sources/archive").get("sub/sources/archive");
         assertThat(sourcesOutput.resolve("sources").resolve("sources.jar")).exists();
     }
 
     @Test
     public void source_flag_disabled_omits_sources_jar_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false);
-        assertThatThrownBy(() -> fixture.execute("sub/sources"))
+        assertThatThrownBy(() -> fixture.execute("sub/sources/archive"))
                 .rootCause()
-                .hasMessage("Unknown selector: sources");
+                .hasMessage("Unknown selector: sources/archive");
     }
 
     @Test
@@ -181,16 +181,16 @@ public class JavaMultiProjectAssemblerTest {
                 module foo {
                 }
                 """);
-        Path javadocOutput = fixture.execute("sub/javadoc/artifacts").get("sub/javadoc/artifacts");
+        Path javadocOutput = fixture.execute("sub/documentation/archive").get("sub/documentation/archive");
         assertThat(javadocOutput.resolve("documentation").resolve("javadoc.jar")).exists();
     }
 
     @Test
     public void javadoc_flag_disabled_omits_javadoc_sub_module() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false);
-        assertThatThrownBy(() -> fixture.execute("sub/javadoc/artifacts"))
+        assertThatThrownBy(() -> fixture.execute("sub/documentation/archive"))
                 .rootCause()
-                .hasMessage("Unknown selector: javadoc/artifacts");
+                .hasMessage("Unknown selector: documentation/archive");
     }
 
     @Test
@@ -284,7 +284,7 @@ public class JavaMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, false, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType, jmod, jlink).apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new JavaMultiProjectAssembler(false, null, packageType, jmod, jlink, null).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
