@@ -75,7 +75,6 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                 }
                 MultiProject project = factory.apply(projects);
                 SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>(projects);
-                SequencedSet<String> added = new LinkedHashSet<>();
                 while (!pending.isEmpty()) {
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
@@ -99,11 +98,10 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                                     dependencies,
                                     arguments), Stream.of(
                                             arguments.sequencedKeySet().stream(),
-                                            added.stream(),
+                                            dependencies.sequencedKeySet().stream(),
                                             inherited.sequencedKeySet().stream()
                                                     .map(identifier -> PREVIOUS.repeat(2) + identifier))
                                     .flatMap(Function.identity()));
-                            added.add(entry.getKey());
                             it.remove();
                         }
                     }

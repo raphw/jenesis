@@ -16,7 +16,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MultiProjectModuleTest {
 
     @TempDir
-    private Path root, module1, module2, module3, source1, source2, source3;
+    private Path root,
+            module1, module2, module3, module4, module5,
+            source1, source2, source3, source4, source5;
     private BuildExecutor buildExecutor;
 
     @BeforeEach
@@ -247,12 +249,18 @@ public class MultiProjectModuleTest {
             SequencedProperties coordinates2 = new SequencedProperties();
             coordinates2.put("foo/qux", "");
             coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("foo/bar", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
                     .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
             SequencedProperties coordinates3 = new SequencedProperties();
             coordinates3.put("foo/baz", "");
             coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies3 = new SequencedProperties();
+            dependencies3.put("foo/qux", "");
+            dependencies3.store(module3.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
@@ -278,6 +286,64 @@ public class MultiProjectModuleTest {
             default -> throw new AssertionError("Unexpected module: " + name);
         }));
         buildExecutor.execute();
+    }
+
+    @Test
+    public void selector_builds_transitive_dependencies_but_not_dependents() {
+        Set<String> built = ConcurrentHashMap.newKeySet();
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/a", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies1 = new SequencedProperties();
+            dependencies1.put("foo/b", "");
+            dependencies1.store(module1.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "a"));
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/b", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("foo/c", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "b"));
+            SequencedProperties coordinates3 = new SequencedProperties();
+            coordinates3.put("foo/c", "");
+            coordinates3.store(module3.resolve(BuildStep.IDENTITY));
+            buildExecutor.addSource("3-module", module3);
+            buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "c"));
+            SequencedProperties coordinates4 = new SequencedProperties();
+            coordinates4.put("foo/d", "");
+            coordinates4.store(module4.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies4 = new SequencedProperties();
+            dependencies4.put("foo/e", "");
+            dependencies4.store(module4.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("4-module", module4);
+            buildExecutor.addSource("4-source", Files.writeString(Files.createDirectory(source4
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "d"));
+            SequencedProperties coordinates5 = new SequencedProperties();
+            coordinates5.put("foo/e", "");
+            coordinates5.store(module5.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies5 = new SequencedProperties();
+            dependencies5.put("foo/c", "");
+            dependencies5.store(module5.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("5-module", module5);
+            buildExecutor.addSource("5-source", Files.writeString(Files.createDirectory(source5
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "e"));
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
+                modules -> (name, dependencies, identifiers) -> (module, inherited) -> {
+            built.add(name);
+            module.addStep("step", (_, context, _) -> {
+                Files.writeString(context.next().resolve("file"), name);
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            });
+        }));
+        buildExecutor.execute("project/compose/module/1", "project/compose/module/5");
+        assertThat(built).contains("1", "2", "3", "5").doesNotContain("4");
     }
 
 }
