@@ -1,7 +1,7 @@
 Custom modular build demo
 =========================
 
-The modular counterpart of `../demo-15-custom-maven`: a multi-module **modular** project
+The modular counterpart of `../demo-16-custom-maven`: a multi-module **modular** project
 built **without going through `Project`** - no layout, no goals - yet **without
 wiring every step by hand** either. The launcher `build/Demo.java` uses the
 convenience `ModularProject.make(root, assembler)` overload, which discovers the
@@ -9,14 +9,14 @@ convenience `ModularProject.make(root, assembler)` overload, which discovers the
 repositories, resolvers, and digest a normal modular build configures.
 
 It sits between `../demo-04-java-modular-multi` (the same shape of project driven by the
-full `Project` entry point) and `../demo-17-custom-build` (a build wired entirely by
+full `Project` entry point) and `../demo-18-custom-build` (a build wired entirely by
 hand): a "custom but not so custom" build that reuses the stock toolchain through
 one convenience call.
 
 Layout
 ------
 
-    demo/demo-16-custom-modular
+    demo/demo-17-custom-modular
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: BuildExecutor + ModularProject.make(...)
     |-- greeter/             the library module
@@ -64,4 +64,4 @@ also emit a generated POM and stage to a Maven repository (the MODULAR_TO_MAVEN
 behavior), or to use a custom repository or strict pinning, switch to the full
 `make(root, prefix, filter, repositories, resolvers, strictPinning, modular,
 digest, assembler)` overload that `Project` uses. To drop the templates
-entirely and wire the build graph by hand, see `../demo-17-custom-build`.
+entirely and wire the build graph by hand, see `../demo-18-custom-build`.

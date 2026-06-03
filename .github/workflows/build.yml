@@ -50,14 +50,15 @@ jobs:
           - { name: kotlin, dir: demo-08-kotlin, entry: build/jenesis/Project.java }
           - { name: scala, dir: demo-09-scala, entry: build/jenesis/Project.java }
           - { name: groovy, dir: demo-10-groovy, entry: build/jenesis/Project.java }
-          - { name: custom-assembler, dir: demo-11-custom-assembler, entry: build/Demo.java }
-          - { name: custom-jmod, dir: demo-12-custom-jmod, entry: build/Demo.java }
-          - { name: custom-build, dir: demo-17-custom-build, entry: build/Demo.java }
-          - { name: custom-maven, dir: demo-15-custom-maven, entry: build/Demo.java }
-          - { name: custom-modular, dir: demo-16-custom-modular, entry: build/Demo.java }
-          - { name: internal-module, dir: demo-13-internal-module, entry: build/Demo.java }
-          - { name: external-module, dir: demo-14-external-module, entry: build/Demo.java }
-          - { name: publishing, dir: demo-19-publishing, entry: build/Demo.java }
+          - { name: maven-exclusions, dir: demo-11-maven-exclusions, entry: build/jenesis/Project.java }
+          - { name: custom-assembler, dir: demo-12-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-13-custom-jmod, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-18-custom-build, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-16-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-17-custom-modular, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-14-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-15-external-module, entry: build/Demo.java }
+          - { name: publishing, dir: demo-20-publishing, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

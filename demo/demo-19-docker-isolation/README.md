@@ -42,7 +42,7 @@ Its only build descriptors are `module-info.java` files (no `pom.xml`), so Jenes
 auto-detects the MODULAR_TO_MAVEN layout. The test lives in its own `@jenesis.test`
 module, the standard modular way to ship tests:
 
-    demo/demo-18-docker-isolation
+    demo/demo-19-docker-isolation
     |-- build/jenesis                    symlink to ../../../sources/build/jenesis
     |-- app/
     |   |-- module-info.java             module demo.dockerisolation, @jenesis.main sample.Sample

@@ -15,7 +15,7 @@ Jenesis assembling all of that from a `module-info.java` and a `project.properti
 Layout
 ------
 
-    demo/demo-19-publishing
+    demo/demo-20-publishing
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          stages the release bundle, then resolves it back to prove it is consumable
     |-- project.properties       only what a module declaration cannot express: url, license, developer, scm

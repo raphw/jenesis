@@ -92,7 +92,7 @@ public class MavenProjectTest {
         Path testModuleRequires = testModule.resolve(BuildStep.REQUIRES);
         assertThat(testModuleRequires).exists();
         SequencedProperties testDependencies = SequencedProperties.ofFiles(testModuleRequires);
-        assertThat(testDependencies).containsOnlyKeys("maven/group/artifact/1");
+        assertThat(testDependencies).containsOnlyKeys("maven/other/artifact/1", "maven/group/artifact/1");
         assertThat(testDependencies.getProperty("maven/group/artifact/1")).isEmpty();
     }
 
@@ -163,9 +163,57 @@ public class MavenProjectTest {
                 .resolve(BuildStep.REQUIRES);
         SequencedProperties testRequiresProps = SequencedProperties.ofFiles(testRequires);
         assertThat(testRequiresProps.stringPropertyNames()).containsExactlyInAnyOrder(
-                "maven/scope/test-dep/1",
+                "maven/scope/compile-dep/1",
+                "maven/scope/runtime-dep/1",
                 "maven/scope/provided-dep/1",
+                "maven/scope/test-dep/1",
                 "maven/group/artifact/1");
+    }
+
+    @Test
+    public void exclusions_are_written_for_both_main_and_test_modules() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>lib</artifactId>
+                            <version>1</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>excluded</groupId>
+                                    <artifactId>transitive</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        Files.writeString(Files.createDirectories(project.resolve("src/test/java")).resolve("source"), "bar");
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties mainExclusions = SequencedProperties.ofFiles(
+                results.get("maven/module-/manifests").resolve(BuildStep.EXCLUSIONS));
+        assertThat(mainExclusions.getProperty("maven/other/lib/1")).isEqualTo("excluded/transitive");
+        Path testExclusions = results.get("maven/test-module-/manifests").resolve(BuildStep.EXCLUSIONS);
+        assertThat(testExclusions).exists();
+        SequencedProperties testExclusionProps = SequencedProperties.ofFiles(testExclusions);
+        assertThat(testExclusionProps.getProperty("maven/other/lib/1")).isEqualTo("excluded/transitive");
+
+        SequencedProperties testRequires = SequencedProperties.ofFiles(
+                results.get("maven/test-module-/manifests").resolve(BuildStep.REQUIRES));
+        assertThat(testRequires.stringPropertyNames()).contains("maven/other/lib/1");
     }
 
     @Test

@@ -11,7 +11,7 @@ one. Built with the stock assembler, the placeholder would survive verbatim.
 Layout
 ------
 
-    demo/demo-11-custom-assembler
+    demo/demo-12-custom-assembler
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java    the launcher: wires the wrapping assembler, builds, runs
     `-- sources/
