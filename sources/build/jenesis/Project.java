@@ -380,7 +380,7 @@ public record Project(
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
                       but tolerates missing ones.
 
-                    %{header}Test filter (-Djenesis.java.test.filter=<patterns>):%{reset}
+                    %{header}Test filter (-Djenesis.test.filter=<patterns>):%{reset}
                       Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
                       tests the default JavaMultiProjectAssembler executes. Changing
                       the value invalidates the test step's cache and forces a re-run.
@@ -684,7 +684,7 @@ public record Project(
                       -Djenesis.verbose=true            Verbose step output.
 
                     Test execution:
-                      -Djenesis.java.test.filter=<patterns>    Comma-separated
+                      -Djenesis.test.filter=<patterns>    Comma-separated
                                                         <classRegex>[#<method>]
                                                         entries restricting which
                                                         tests the default
@@ -1254,7 +1254,7 @@ public record Project(
                         "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
             };
         }
-        if (System.getProperty("jenesis.project.tests.skip") != null) {
+        if (System.getProperty("jenesis.test.skip") != null) {
             resolvedTests = false;
         }
         if (Boolean.getBoolean("jenesis.project.sources")) {
@@ -1263,7 +1263,7 @@ public record Project(
         if (Boolean.getBoolean("jenesis.project.documentation")) {
             resolvedDocumentation = true;
         }
-        if (Boolean.getBoolean("jenesis.project.tests.stage")) {
+        if (Boolean.getBoolean("jenesis.test.stage")) {
             resolvedStageTests = true;
         }
         String pinningOverride = System.getProperty("build.jenesis.pinning");

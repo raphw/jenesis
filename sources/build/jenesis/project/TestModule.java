@@ -35,8 +35,8 @@ public class TestModule implements BuildExecutorModule {
     private final PathPlacement modulePath;
     private final String moduleName;
     private final String group;
-    private final boolean parallel;
-    private final boolean reporting;
+    private final Boolean parallel;
+    private final Boolean reporting;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
@@ -55,8 +55,8 @@ public class TestModule implements BuildExecutorModule {
                 PathPlacement.CLASS_PATH,
                 null,
                 null,
-                false,
-                false);
+                null,
+                null);
     }
 
     private TestModule(TestEngine engine,
@@ -71,8 +71,8 @@ public class TestModule implements BuildExecutorModule {
                        PathPlacement modulePath,
                        String moduleName,
                        String group,
-                       boolean parallel,
-                       boolean reporting) {
+                       Boolean parallel,
+                       Boolean reporting) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -321,10 +321,10 @@ public class TestModule implements BuildExecutorModule {
                         jarsOnly,
                         modulePath,
                         moduleName,
-                        filter,
-                        group,
-                        parallel,
-                        reporting),
+                        filter != null ? filter : System.getProperty("jenesis.test.filter"),
+                        group != null ? group : System.getProperty("jenesis.test.group"),
+                        parallel != null ? parallel : Boolean.getBoolean("jenesis.test.parallel"),
+                        reporting != null ? reporting : Boolean.getBoolean("jenesis.test.reporting")),
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
 

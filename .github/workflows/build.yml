@@ -37,12 +37,12 @@ jobs:
           - { name: java-modular-multi-as-modular, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
           # The `*-module` and `*-test-filter` entries exercise selectors and test
           # filtering: a `+<module>` selector scopes the build to one module's
-          # subtree (appended to entry), and `-Djenesis.java.test` narrows which
+          # subtree (appended to entry), and `-Djenesis.test.filter` narrows which
           # tests run (a -D flag, so it precedes the source file in flags).
           - { name: java-pom-multi-module, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java +greeter }
-          - { name: java-pom-multi-test-filter, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-pom-multi-test-filter, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.test.filter=.*GreeterTest#prefix_is_a_greeting" }
           - { name: java-modular-multi-module, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java +greeter-test }
-          - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.test.filter=.*GreeterTest#prefix_is_a_greeting" }
           - { name: java-modular-jmod-jlink, dir: demo-02-java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: demo-05-java-pom-executable, entry: build/Demo.java }
           - { name: java-pom-bundle, dir: demo-05-java-pom-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }

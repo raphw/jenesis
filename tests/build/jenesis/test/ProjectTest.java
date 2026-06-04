@@ -23,7 +23,7 @@ public class ProjectTest {
     @AfterEach
     public void clearProperties() {
         System.clearProperty("jenesis.project.layout");
-        System.clearProperty("jenesis.project.tests.skip");
+        System.clearProperty("jenesis.test.skip");
         System.clearProperty("jenesis.project.root");
         System.clearProperty("jenesis.project.target");
         System.clearProperty("jenesis.project.cache");
@@ -113,7 +113,7 @@ public class ProjectTest {
 
     @Test
     public void system_property_disables_tests() {
-        System.setProperty("jenesis.project.tests.skip", "");
+        System.setProperty("jenesis.test.skip", "");
         assertThat(new Project().resolveProperties().tests()).isFalse();
     }
 

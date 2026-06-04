@@ -123,24 +123,24 @@ Wildcards are lenient (non-matching branches are skipped), and once a module is
 reached its own pipeline steps run - so a wildcard chooses *which steps* you ask
 for across the tree, not how much of each matched module is rebuilt.
 
-Test runs are narrowed with `-Djenesis.java.test.filter`, a comma-separated list of
+Test runs are narrowed with `-Djenesis.test.filter`, a comma-separated list of
 `<class-regex>[#<method>]` patterns; the regex matches the fully-qualified class
 name. `greeter` ships two tests, so this runs only one of them:
 
-    java -Djenesis.java.test.filter='.*GreeterTest#prefix_is_a_greeting' build/jenesis/Project.java
+    java -Djenesis.test.filter='.*GreeterTest#prefix_is_a_greeting' build/jenesis/Project.java
 
 The test step's summary then reports `1 tests successful` instead of the default
 `2`. The `-D` flag must come **before** the source file - anything after it is
 read as a selector.
 
-Tests can also be selected by group with `-Djenesis.java.test.group`, which maps to
+Tests can also be selected by group with `-Djenesis.test.group`, which maps to
 the test framework's own grouping mechanism - JUnit Platform tags, JUnit 4
 categories, or TestNG groups. `GreeterTest#prefix_is_a_greeting` is annotated
 `@Tag("slow")`, so this again runs only that one test, this time by tag:
 
-    java -Djenesis.java.test.group=slow build/jenesis/Project.java
+    java -Djenesis.test.group=slow build/jenesis/Project.java
 
-Passing `-Djenesis.java.test.parallel` runs the matched tests in parallel, letting
+Passing `-Djenesis.test.parallel` runs the matched tests in parallel, letting
 the test framework execute them concurrently where its configuration allows.
 
 Pinned dependencies

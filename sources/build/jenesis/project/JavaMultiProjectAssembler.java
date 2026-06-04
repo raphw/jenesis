@@ -21,77 +21,51 @@ import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
 
 public record JavaMultiProjectAssembler(boolean process,
-                                        String filter,
                                         String packaging,
                                         boolean jmod,
                                         boolean jlink,
                                         boolean bundle,
-                                        TestEngine testEngine,
-                                        String group,
-                                        boolean parallel,
-                                        boolean reporting) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(false, null, null, false, false, false, null, null, false, false);
+        this(false, null, false, false, false, null);
     }
 
     public JavaMultiProjectAssembler process(boolean process) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler filter(String filter) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler bundle(boolean bundle) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler group(String group) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler parallel(boolean parallel) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler reporting(boolean reporting) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, packaging, jmod, jlink, bundle, testEngine);
     }
 
     @Override
     public JavaMultiProjectAssembler resolveProperties() {
         boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-        String filterOverride = System.getProperty("jenesis.java.test.filter");
         String packagingOverride = System.getProperty("jenesis.java.package");
-        String groupOverride = System.getProperty("jenesis.java.test.group");
         return new JavaMultiProjectAssembler(
                 process || nativeImage || Boolean.getBoolean("jenesis.java.process"),
-                filterOverride != null ? filterOverride : filter,
                 packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 jmod || Boolean.getBoolean("jenesis.java.jmod"),
                 jlink || Boolean.getBoolean("jenesis.java.jlink"),
                 bundle || Boolean.getBoolean("jenesis.java.bundle"),
-                testEngine,
-                groupOverride != null ? groupOverride : group,
-                parallel || Boolean.getBoolean("jenesis.java.test.parallel"),
-                reporting || Boolean.getBoolean("jenesis.project.tests.reporting"));
+                testEngine);
     }
 
     @Override
@@ -126,10 +100,6 @@ public record JavaMultiProjectAssembler(boolean process,
                         sub.addModule("test",
                                 new TestModule(repositories, resolvers)
                                         .engine(testEngine)
-                                        .filter(filter)
-                                        .group(group)
-                                        .parallel(parallel)
-                                        .reporting(reporting)
                                         .pinning(descriptor.pinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),
