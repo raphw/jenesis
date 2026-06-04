@@ -245,13 +245,16 @@ public class Inventory implements BuildStep {
         if (!Files.isDirectory(folder)) {
             return;
         }
+        List<Path> files = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder)) {
             for (Path file : stream) {
                 if (Files.isRegularFile(file)) {
-                    sink.add(file);
+                    files.add(file);
                 }
             }
         }
+        files.sort(Comparator.comparing(file -> file.getFileName().toString()));
+        sink.addAll(files);
     }
 
     private static void collectClosure(Path folder,
