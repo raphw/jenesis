@@ -345,23 +345,25 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   that library still reaches the compilation classpath, but not the compiler's own runtime.
 - The **inferred documentation chain** (`InferredDocumentationChainModule`) mirrors the compiler chain for API
   documentation. A `scan` step walks the module's `sources/` and records which languages are present
-  (`.java`, `.kt`, `.scala`, `.groovy`); a `document` sub-module then wires one documentation tool per language
-  and an `aggregate` step that merges their output into a single `javadoc/` tree (archived into the module's
-  `-javadoc.jar`). Java is the baseline: `javadoc` always renders at the tree root in class-path mode (it skips
-  `module-info.java` and documents the sources against the resolved dependencies, so a mixed-language module whose
-  `module-info` exports a package implemented only in another language still produces valid Java docs). Each other
-  language renders through its native tool, resolved on its own qualified trail like the compilers: Kotlin through
-  Dokka in its **Javadoc output format** (`@dokka`, `dokka-cli` plus `analysis-kotlin-descriptors` and the
-  `javadoc-plugin` - which pulls `dokka-base`, `kotlin-as-java-plugin` and the Korte templating engine - on the
-  plugins class-path, presenting Kotlin as Java so the output is a javadoc-structured tree that `javadoc.io`
-  renders), Scala through `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty
-  rather than source), and Groovy through `groovydoc` (`@groovydoc`). When a single language is present its tool renders at the
-  root and the others are dropped; when more than one is present the native tools render into per-language
-  subfolders (`dokka/`, `scaladoc/`, `groovydoc/`) alongside the Java baseline. Scala and Kotlin tools are version
-  coordinated to the project's resolved compiler version (read from the upstream dependency jars). The chain is
-  best-effort: every tool tolerates a non-zero exit so a documentation tool that fails never fails the build, and
-  `aggregate` always guarantees a root `index.html` (linking to any per-language subfolders that rendered) so the
-  produced `-javadoc.jar`, a Maven Central prerequisite, is never empty.
+  (`.java`, `.kt`, `.scala`, `.groovy`); a `document` sub-module then wires the documentation tools and an
+  `aggregate` step that merges their output into a single `javadoc/` tree (archived into the module's
+  `-javadoc.jar`). The tools are resolved on their own qualified trails like the compilers: Kotlin through Dokka in
+  its **Javadoc output format** (`@dokka`, `dokka-cli` plus `analysis-kotlin-descriptors` and the `javadoc-plugin` -
+  which pulls `dokka-base`, `kotlin-as-java-plugin` and the Korte templating engine - on the plugins class-path,
+  presenting Kotlin as Java so the output is a javadoc-structured tree that `javadoc.io` renders), Scala through
+  `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty rather than source), Groovy
+  through `groovydoc` (`@groovydoc`, in source-path plus package-name mode so packages render correctly), and Java
+  through the JDK's `javadoc` (in class-path mode, skipping `module-info.java`). The layout follows what each tool
+  can cover: Dokka also documents Java (as Java) and `groovydoc` also documents Java, but `scaladoc` documents only
+  Scala. So when **one tool can document every language present**, only that tool runs and renders at the archive
+  root - Java + Kotlin is a single Dokka document, Java + Groovy a single groovydoc document, and a single-language
+  module is just that language's tool. Only when the mix is **incompatible** (Java + Scala, or three or more
+  languages, where no single tool covers everything) does `javadoc` render the Java at the root as the baseline and
+  each remaining language render into its own subfolder (`dokka/`, `scaladoc/`, `groovydoc/`). Scala and Kotlin
+  tools are version coordinated to the project's resolved compiler version (read from the upstream dependency jars).
+  The chain is best-effort: every tool tolerates a non-zero exit so a documentation tool that fails never fails the
+  build, and `aggregate` always guarantees a root `index.html` (linking to any per-language subfolders that
+  rendered) so the produced `-javadoc.jar`, a Maven Central prerequisite, is never empty.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, a chained
 Jenesis module repository for `MODULAR`) with any user-provided ones. The merged map then has each sub-module's `assign`

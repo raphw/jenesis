@@ -128,30 +128,51 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
             sourceInputs.remove(PREVIOUS + SCAN);
 
             SequencedSet<String> outputs = new LinkedHashSet<>();
-            boolean sole = (hasJava ? 1 : 0) + (hasGroovy ? 1 : 0) + (hasScala ? 1 : 0) + (hasKotlin ? 1 : 0) == 1;
-            if (hasJava) {
+            if (hasKotlin && !hasScala && !hasGroovy) {
+                buildExecutor.addModule(DOKKA,
+                        new DokkaDocumentationModule(repositories, resolvers).pinning(pinning),
+                        sourceInputs);
+                outputs.add(DOKKA);
+            } else if (hasGroovy && !hasScala && !hasKotlin) {
+                buildExecutor.addModule(GROOVYDOC,
+                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).includeJava(hasJava),
+                        sourceInputs);
+                outputs.add(GROOVYDOC);
+            } else if (hasScala && !hasJava && !hasKotlin && !hasGroovy) {
+                buildExecutor.addModule(SCALADOC,
+                        new ScalaDocumentationModule(repositories, resolvers).pinning(pinning),
+                        sourceInputs);
+                outputs.add(SCALADOC);
+            } else if (hasJava && !hasKotlin && !hasScala && !hasGroovy) {
                 buildExecutor.addStep(JAVADOC,
                         (process ? Javadoc.process() : Javadoc.tool()).classpath(),
                         sourceInputs);
                 outputs.add(JAVADOC);
-            }
-            if (hasGroovy) {
-                buildExecutor.addModule(GROOVYDOC,
-                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).within(sole ? null : GROOVYDOC),
-                        sourceInputs);
-                outputs.add(GROOVYDOC);
-            }
-            if (hasScala) {
-                buildExecutor.addModule(SCALADOC,
-                        new ScalaDocumentationModule(repositories, resolvers).pinning(pinning).within(sole ? null : SCALADOC),
-                        sourceInputs);
-                outputs.add(SCALADOC);
-            }
-            if (hasKotlin) {
-                buildExecutor.addModule(DOKKA,
-                        new DokkaDocumentationModule(repositories, resolvers).pinning(pinning).within(sole ? null : DOKKA),
-                        sourceInputs);
-                outputs.add(DOKKA);
+            } else {
+                if (hasJava) {
+                    buildExecutor.addStep(JAVADOC,
+                            (process ? Javadoc.process() : Javadoc.tool()).classpath(),
+                            sourceInputs);
+                    outputs.add(JAVADOC);
+                }
+                if (hasKotlin) {
+                    buildExecutor.addModule(DOKKA,
+                            new DokkaDocumentationModule(repositories, resolvers).pinning(pinning).within(DOKKA),
+                            sourceInputs);
+                    outputs.add(DOKKA);
+                }
+                if (hasScala) {
+                    buildExecutor.addModule(SCALADOC,
+                            new ScalaDocumentationModule(repositories, resolvers).pinning(pinning).within(SCALADOC),
+                            sourceInputs);
+                    outputs.add(SCALADOC);
+                }
+                if (hasGroovy) {
+                    buildExecutor.addModule(GROOVYDOC,
+                            new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).within(GROOVYDOC),
+                            sourceInputs);
+                    outputs.add(GROOVYDOC);
+                }
             }
             buildExecutor.addStep(AGGREGATE, new Aggregate(), outputs);
         }
