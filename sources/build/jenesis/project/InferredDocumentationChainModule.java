@@ -128,20 +128,36 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
             sourceInputs.remove(PREVIOUS + SCAN);
 
             int nonJava = (hasGroovy ? 1 : 0) + (hasScala ? 1 : 0) + (hasKotlin ? 1 : 0);
+            int total = (hasJava ? 1 : 0) + nonJava;
+            if (total == 1) {
+                if (hasJava) {
+                    buildExecutor.addStep(JAVADOC, process ? Javadoc.process() : Javadoc.tool(), sourceInputs);
+                } else if (hasGroovy) {
+                    buildExecutor.addModule(GROOVYDOC,
+                            new GroovyDocumentationModule(repositories, resolvers).pinning(pinning), sourceInputs);
+                } else if (hasScala) {
+                    buildExecutor.addModule(SCALADOC,
+                            new ScalaDocumentationModule(repositories, resolvers).pinning(pinning), sourceInputs);
+                }
+                return;
+            }
             if (nonJava == 1 && hasGroovy) {
                 buildExecutor.addModule(GROOVYDOC,
-                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).includeJava(hasJava),
+                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).includeJava(true),
                         sourceInputs);
                 return;
             }
             if (hasJava) {
-                buildExecutor.addStep(JAVADOC,
-                        process ? Javadoc.process() : Javadoc.tool(),
-                        sourceInputs);
+                buildExecutor.addStep(JAVADOC, process ? Javadoc.process() : Javadoc.tool(), sourceInputs);
             }
             if (hasGroovy) {
                 buildExecutor.addModule(GROOVYDOC,
                         new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).within(GROOVYDOC),
+                        sourceInputs);
+            }
+            if (hasScala) {
+                buildExecutor.addModule(SCALADOC,
+                        new ScalaDocumentationModule(repositories, resolvers).pinning(pinning).within(SCALADOC),
                         sourceInputs);
             }
         }
