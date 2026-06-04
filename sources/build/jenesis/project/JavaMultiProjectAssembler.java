@@ -146,7 +146,7 @@ public record JavaMultiProjectAssembler(boolean process,
                     module.addStep("archive",
                             process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC),
                             "generate");
-                }, inputs(descriptor));
+                }, Stream.concat(Stream.of("binary"), inputs(descriptor)));
             }
             if (jmod) {
                 sub.addStep("jmod",

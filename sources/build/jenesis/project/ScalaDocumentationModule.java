@@ -125,6 +125,9 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
             };
             SequencedProperties requires = new SequencedProperties();
             requires.setProperty(coordinate, "");
+            if (selectedPrefix.equals("maven")) {
+                requires.setProperty(namespace + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
+            }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

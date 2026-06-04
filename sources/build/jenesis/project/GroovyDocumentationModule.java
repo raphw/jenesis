@@ -251,26 +251,35 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 throw new IllegalStateException(
                         "No groovydoc jars resolved upstream of the Groovy documentation step");
             }
-            List<String> launch = new ArrayList<>();
-            for (String jar : jars) {
-                if (new File(jar).getName().indexOf('@') != -1) {
-                    launch.add(jar);
-                }
-            }
-            if (launch.isEmpty()) {
-                launch = jars;
-            }
-            List<String> userClasspath = new ArrayList<>(jars);
-            userClasspath.addAll(classpath);
+            List<String> launch = new ArrayList<>(jars);
+            launch.addAll(classpath);
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, launch),
                     "org.codehaus.groovy.tools.groovydoc.Main",
                     "-d", output.toString(),
-                    "-classpath", String.join(File.pathSeparator, userClasspath),
-                    "-javaVersion=" + (release == null ? "21" : release),
-                    "-notimestamp"));
+                    "-notimestamp",
+                    "-javaVersion", languageLevel(release)));
             commands.addAll(files);
             return CompletableFuture.completedStage(commands);
+        }
+
+        private static String languageLevel(String release) {
+            String feature = release == null ? "21" : release;
+            if (feature.startsWith("1.")) {
+                feature = feature.substring(2);
+            }
+            int level;
+            try {
+                level = Integer.parseInt(feature);
+            } catch (NumberFormatException e) {
+                level = 21;
+            }
+            if (level < 8) {
+                level = 8;
+            } else if (level > 25) {
+                level = 25;
+            }
+            return "JAVA_" + level;
         }
     }
 }
