@@ -435,19 +435,23 @@ file makes watch a project's default.
 
 ### Printing the dependency tree
 
-Set `-Djenesis.project.tree=true` to print the resolved dependency tree after the build, the way
-`mvn dependency:tree` / `gradle dependencies` do:
+Set `-Djenesis.project.tree=true` to print each module's dependency tree as it is resolved, verbose-style,
+the way `mvn dependency:tree` / `gradle dependencies` do:
 
     java -Djenesis.project.tree=true build/jenesis/Project.java
 
 Unlike a separate "resolve" goal, this captures the **actual** resolution the build performs. It works by
-passing an optional `ResolutionListener` into the resolver (`Resolver.dependencies(..., listener)`, a no-op
-default overload otherwise, so nothing changes when the flag is off): the resolver reports each discovered
-parent -> child edge - with the property-file key, the resolved version and scope, and a `followed` flag that
-is `false` on a dedup re-encounter. A `DependencyTreeReport` (wired in through `DependenciesModule`, which forces
-its `Resolve` step to re-run so the tree always prints) collects those edges and prints a **deduplicated** tree
-(each dependency once, under the first parent) with box-drawing. Each node shows its key (e.g.
-`maven/org.apache.commons/commons-lang3/3.14.0` or `module/org.slf4j/2.0.16`) and, for Maven, its scope. The
+passing an optional `ResolutionListener` into the resolver (`Resolver.dependencies(..., listener)`, which
+defaults to `null`, so nothing changes and nothing is allocated when the flag is off): the resolver reports
+each discovered parent -> child edge - with the property-file key, the discovered version and scope, and a
+`followed` flag that is `false` on a dedup re-encounter - and announces each negotiated version through
+`onResolution`. A `DependencyTreeReport` implements `ResolutionListener` directly; the flag wires a fresh one
+per resolve (through `DependenciesModule` -> `Resolve`, which forces a re-run so the tree always prints), and on
+the completion callback (`onResolved`) it renders and prints that resolve's tree to a `PrintStream` (defaulting
+to `System.out`) - the printing happens on the callback, not as a build step. Each node shows the version each
+parent requested, the negotiated version inline when it differs (`[1,2] -> 2`), the Maven scope, and any module
+metadata; not-followed duplicates are dimmed and marked `(*)`, and a per-declared-dependency colour gradient
+tints the tree connectors. A `Resolved dependencies` list of negotiated versions follows each tree. The
 resolution tree itself is never persisted or hashed - only the flat closure remains the build's product - and the
 report never reads or downloads anything the build did not already fetch. For `MODULAR_TO_MAVEN`, each module's
 resolved Maven coordinate is what the tree shows (e.g. the `org.slf4j` module resolves to
@@ -1388,7 +1392,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `jenesis.project.watch`         | system property | When `true`, `Project.doMain(...)` does not return after one build: it registers a `java.nio` `WatchService` over the project root (via `ProjectWatch`) and re-runs the requested target on every file change, excluding the output folders (`target/`, the configured cache) and dot-directories so the build's own writes do not re-trigger. Each rebuild reuses the incremental cache, so only changed steps re-execute; module selectors are honored. See *Watching for changes*. Default `false` (single build). |
-| `jenesis.project.tree`          | system property | When `true`, `Project.doMain(...)` runs the build with a `ResolutionListener` threaded into every resolver (through `DependenciesModule` -> `Resolve`, which forces a re-run so it always fires), then prints the **deduplicated** dependency tree it observed via `DependencyTreeReport`. The listener argument has a no-op default overload, so a normal build is byte-identical and unaffected; the tree is never persisted or hashed and the report reads/downloads nothing extra. Each node shows the property-file key, resolved version, and (Maven) scope; `MODULAR_TO_MAVEN` shows each module's resolved Maven coordinate. See *Printing the dependency tree*. Default `false`. |
+| `jenesis.project.tree`          | system property | When `true`, `Project.doMain(...)` runs the build with a fresh `DependencyTreeReport` (which implements `ResolutionListener`) per resolve, threaded in through `DependenciesModule` -> `Resolve` (forced to re-run so it always fires). Each report prints its tree to `System.out` on its `onResolved` callback as the module is resolved - printing happens on the callback, not as a build step. The listener argument defaults to `null`, so a normal build is byte-identical and allocates nothing extra; the tree is never persisted or hashed and the report reads/downloads nothing extra. Each node shows the property-file key, the requested version (with the negotiated version inline when it differs), and (Maven) scope; `MODULAR_TO_MAVEN` shows each module's resolved Maven coordinate. See *Printing the dependency tree*. Default `false`. |
 | `jenesis.project.sources`       | system property | When `true` (bare flag accepted), resolves the project-level `source` flag to `true`, so `JavaMultiProjectAssembler` also assembles a per-module sources jar. |
 | `jenesis.project.documentation` | system property | When `true` (bare flag accepted), resolves the project-level `documentation` flag to `true`, so `JavaMultiProjectAssembler` also assembles a per-module javadoc jar. |
 | `jenesis.project.metadata`      | system property | Path to a project-level metadata override file (conventionally `project.properties`) whose entries are merged into every module's `metadata.properties` between the framework defaults and `jenesis.project.version`. |
