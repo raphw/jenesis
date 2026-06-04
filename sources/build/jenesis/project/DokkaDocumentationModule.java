@@ -26,9 +26,8 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private static final String REQUIRED = "required", RESOLVED = "resolved", ARTIFACTS = "artifacts";
 
     private static final String MAVEN_GROUP = "org.jetbrains.dokka";
-    private static final List<String> CLI_ARTIFACTS = List.of("dokka-cli", "dokka-base", "analysis-kotlin-descriptors");
-    private static final List<String> PLUGIN_MARKERS = List.of(
-            "dokka-base", "analysis-kotlin-descriptors", "kotlinx-html", "freemarker");
+    private static final List<String> CLI_ARTIFACTS = List.of(
+            "dokka-cli", "analysis-kotlin-descriptors", "javadoc-plugin");
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -84,7 +83,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(ARTIFACTS);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within) : new Document(within, factory),
+                factory == null ? new Document(within, qualifier) : new Document(within, qualifier, factory),
                 documentInputs);
     }
 
@@ -118,14 +117,16 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private static class Document extends JdkProcessBuildStep {
 
         private final String within;
+        private final String qualifierTrail;
 
-        private Document(String within) {
-            this(within, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String qualifierTrail) {
+            this(within, qualifierTrail, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, String qualifierTrail, Function<List<String>, ? extends ProcessHandler> factory) {
             super("dokka", factory);
             this.within = within;
+            this.qualifierTrail = qualifierTrail;
         }
 
         @Override
@@ -197,18 +198,12 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
             List<String> plugins = new ArrayList<>(), dependencies = new ArrayList<>();
             for (String jar : jars) {
                 String name = new File(jar).getName();
-                if (name.indexOf('@') == -1) {
-                    dependencies.add(jar);
-                    continue;
-                }
                 if (name.contains("dokka-cli")) {
                     cli = jar;
-                }
-                for (String marker : PLUGIN_MARKERS) {
-                    if (name.contains(marker)) {
-                        plugins.add(jar);
-                        break;
-                    }
+                } else if (name.contains("@" + qualifierTrail)) {
+                    plugins.add(jar);
+                } else if (name.indexOf('@') == -1) {
+                    dependencies.add(jar);
                 }
             }
             if (cli == null || plugins.isEmpty()) {
