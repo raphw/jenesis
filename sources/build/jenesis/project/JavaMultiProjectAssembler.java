@@ -58,7 +58,7 @@ public record JavaMultiProjectAssembler(boolean process,
     @Override
     public JavaMultiProjectAssembler resolveProperties() {
         boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-        String packagingOverride = System.getProperty("jenesis.java.package");
+        String packagingOverride = System.getProperty("jenesis.java.jpackage");
         return new JavaMultiProjectAssembler(
                 process || nativeImage || Boolean.getBoolean("jenesis.java.process"),
                 packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),

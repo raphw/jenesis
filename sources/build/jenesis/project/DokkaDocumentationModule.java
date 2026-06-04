@@ -13,17 +13,16 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Download;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
-import build.jenesis.step.Resolve;
 
 public class DokkaDocumentationModule implements BuildExecutorModule {
 
     public static final String DOCUMENTED = "documented";
-    private static final String REQUIRED = "required", RESOLVED = "resolved", ARTIFACTS = "artifacts";
+    private static final String REQUIRED = "required", RESOLVED = "resolved", ARTIFACTS = "artifacts",
+            DEPENDENCIES = "dependencies";
 
     private static final String MAVEN_GROUP = "org.jetbrains.dokka";
     private static final List<String> CLI_ARTIFACTS = List.of(
@@ -77,10 +76,11 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, DependencyScope.RUNTIME).pinned(pinning != Pinning.IGNORE), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories).pinning(pinning).tag("compiler:" + qualifier), RESOLVED);
+        buildExecutor.addModule(DEPENDENCIES,
+                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning).tag("compiler:" + qualifier),
+                resolveInputs);
         SequencedSet<String> documentInputs = new LinkedHashSet<>();
-        documentInputs.add(ARTIFACTS);
+        documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
                 factory == null ? new Document(within, qualifier) : new Document(within, qualifier, factory),
@@ -89,10 +89,16 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
 
     @Override
     public Optional<String> resolve(String path) {
-        return switch (path) {
-            case DOCUMENTED, RESOLVED, ARTIFACTS -> Optional.of(path);
-            default -> Optional.empty();
-        };
+        if (path.equals(DOCUMENTED)) {
+            return Optional.of(DOCUMENTED);
+        }
+        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)) {
+            return Optional.of(RESOLVED);
+        }
+        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+            return Optional.of(ARTIFACTS);
+        }
+        return Optional.empty();
     }
 
     private record Requires(boolean maven, String qualifier) implements BuildStep {
