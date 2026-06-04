@@ -374,7 +374,7 @@ public record Project(
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
                       %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
 
-                    %{header}Pinning (-Dbuild.jenesis.pinning=<mode>):%{reset}
+                    %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
                       versions to the latest and skips checksum verification (refresh the
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
@@ -664,7 +664,7 @@ public record Project(
                                                   property-file key and scope.
 
                     Pinning:
-                      -Dbuild.jenesis.pinning=strict|ignore  strict fails on
+                      -Djenesis.dependency.pin=strict|ignore  strict fails on
                                                   any unpinned artifact; ignore
                                                   floats to the latest and skips
                                                   checksums (refresh pins via
@@ -741,9 +741,9 @@ public record Project(
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
                     (`@jenesis.pin <mod> <ver> [<algo>/<hex>]` tags), per layout.
                     The same pins can be written by hand. Enforce coverage with
-                    `-Dbuild.jenesis.pinning=strict`, which fails the build on
+                    `-Djenesis.dependency.pin=strict`, which fails the build on
                     any unpinned artifact, or refresh them with
-                    `-Dbuild.jenesis.pinning=ignore` and the `pin` step.
+                    `-Djenesis.dependency.pin=ignore` and the `pin` step.
 
                     12. Study a demo for a worked example
                     -------------------------------------
@@ -901,7 +901,7 @@ public record Project(
                 false,
                 false,
                 false,
-                null,
+                Pinning.fromProperty(),
                 List.of(),
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
@@ -1265,10 +1265,6 @@ public record Project(
         }
         if (Boolean.getBoolean("jenesis.test.stage")) {
             resolvedStageTests = true;
-        }
-        String pinningOverride = System.getProperty("build.jenesis.pinning");
-        if (pinningOverride != null) {
-            resolvedPinning = Pinning.valueOf(pinningOverride.toUpperCase(Locale.ROOT));
         }
         String metadataOverride = System.getProperty("jenesis.project.metadata");
         if (metadataOverride != null) {

@@ -31,12 +31,12 @@ public class TestModule implements BuildExecutorModule {
     private final boolean jarsOnly;
     private final boolean requireEngine;
     private final Pinning pinning;
-    private final String filter;
     private final PathPlacement modulePath;
     private final String moduleName;
+    private final String filter;
     private final String group;
-    private final Boolean parallel;
-    private final Boolean reporting;
+    private final boolean parallel;
+    private final boolean reporting;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
@@ -51,12 +51,12 @@ public class TestModule implements BuildExecutorModule {
                 true,
                 true,
                 null,
-                null,
                 PathPlacement.CLASS_PATH,
                 null,
-                null,
-                null,
-                null);
+                System.getProperty("jenesis.test.filter"),
+                System.getProperty("jenesis.test.group"),
+                Boolean.getBoolean("jenesis.test.parallel"),
+                Boolean.getBoolean("jenesis.test.reporting"));
     }
 
     private TestModule(TestEngine engine,
@@ -67,12 +67,12 @@ public class TestModule implements BuildExecutorModule {
                        boolean jarsOnly,
                        boolean requireEngine,
                        Pinning pinning,
-                       String filter,
                        PathPlacement modulePath,
                        String moduleName,
+                       String filter,
                        String group,
-                       Boolean parallel,
-                       Boolean reporting) {
+                       boolean parallel,
+                       boolean reporting) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -81,9 +81,9 @@ public class TestModule implements BuildExecutorModule {
         this.jarsOnly = jarsOnly;
         this.requireEngine = requireEngine;
         this.pinning = pinning;
-        this.filter = filter;
         this.modulePath = modulePath;
         this.moduleName = moduleName;
+        this.filter = filter;
         this.group = group;
         this.parallel = parallel;
         this.reporting = reporting;
@@ -98,9 +98,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -115,9 +115,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -132,9 +132,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -149,9 +149,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -166,9 +166,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -183,9 +183,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -200,9 +200,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -217,9 +217,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -234,9 +234,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -251,9 +251,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -268,9 +268,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -285,9 +285,9 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                filter,
                 modulePath,
                 moduleName,
+                filter,
                 group,
                 parallel,
                 reporting);
@@ -321,10 +321,10 @@ public class TestModule implements BuildExecutorModule {
                         jarsOnly,
                         modulePath,
                         moduleName,
-                        filter != null ? filter : System.getProperty("jenesis.test.filter"),
-                        group != null ? group : System.getProperty("jenesis.test.group"),
-                        parallel != null ? parallel : Boolean.getBoolean("jenesis.test.parallel"),
-                        reporting != null ? reporting : Boolean.getBoolean("jenesis.test.reporting")),
+                        filter,
+                        group,
+                        parallel,
+                        reporting),
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
 
