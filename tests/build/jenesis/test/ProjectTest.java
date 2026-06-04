@@ -202,7 +202,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler());
+                new JavaMultiProjectAssembler(), null);
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-");
     }
@@ -218,7 +218,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler());
+                new JavaMultiProjectAssembler(), null);
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
@@ -234,7 +234,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler());
+                new JavaMultiProjectAssembler(), null);
         assertThat(resolver.apply("sources/compile/dependencies/resolved"))
                 .isEqualTo("build/maven/compose/module/module-sources/compile/dependencies/resolved");
         assertThat(resolver.apply("/compile"))
@@ -252,7 +252,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler());
+                new JavaMultiProjectAssembler(), null);
         assertThat(resolver.apply("sources/compile/dependencies/resolved"))
                 .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/resolved");
         assertThat(resolver.apply("/compile"))
@@ -270,7 +270,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler());
+                new JavaMultiProjectAssembler(), null);
         assertThat(resolver.apply("sources/compile/dependencies/resolved"))
                 .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/resolved");
         assertThat(resolver.apply("/compile"))
@@ -287,7 +287,7 @@ public class ProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
 
-        Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler());
+        Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler(), null);
 
         // replaceStep throws when nothing is registered at the identity, so a no-throw call proves
         // the layout wired the `export` registration.
@@ -305,7 +305,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler());
+                new JavaMultiProjectAssembler(), null);
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
@@ -314,7 +314,7 @@ public class ProjectTest {
     public void build_returns_paths_for_the_default_target() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
         Path source = Files.createDirectory(root.resolve("source"));
-        Project.Layout layout = (executor, _, _) -> {
+        Project.Layout layout = (executor, _, _, _) -> {
             executor.addSource(Project.BUILD, source);
             return name -> name;
         };
@@ -331,7 +331,7 @@ public class ProjectTest {
         Path target = Files.createDirectory(root.resolve("target"));
         Path alpha = Files.createDirectory(root.resolve("alpha"));
         Path beta = Files.createDirectory(root.resolve("beta"));
-        Project.Layout layout = (executor, _, _) -> {
+        Project.Layout layout = (executor, _, _, _) -> {
             executor.addSource("alpha", alpha);
             executor.addSource("beta", beta);
             return name -> name;
@@ -348,7 +348,7 @@ public class ProjectTest {
     public void build_resolves_plus_prefixed_selectors_via_the_layout() throws IOException {
         Path target = Files.createDirectory(root.resolve("target"));
         Path source = Files.createDirectory(root.resolve("source"));
-        Project.Layout layout = (executor, _, _) -> {
+        Project.Layout layout = (executor, _, _, _) -> {
             executor.addSource("resolved", source);
             return name -> "resolved";
         };

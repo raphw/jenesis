@@ -506,6 +506,7 @@ public class MavenProjectTest {
                 Map.of("maven", new MavenPomResolver()),
                 null,
                 new HashDigestFunction("MD5"),
+                null,
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();

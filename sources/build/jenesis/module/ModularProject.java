@@ -2,6 +2,7 @@ package build.jenesis.module;
 
 import module java.base;
 import build.jenesis.Pinning;
+import build.jenesis.ResolutionListener;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -56,6 +57,7 @@ public class ModularProject implements BuildExecutorModule {
                 null,
                 true,
                 new HashDigestFunction("MD5"),
+                null,
                 assembler);
     }
 
@@ -67,6 +69,7 @@ public class ModularProject implements BuildExecutorModule {
                                            Pinning pinning,
                                            boolean modular,
                                            HashDigestFunction digest,
+                                           Supplier<ResolutionListener> listener,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root, filter, modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
@@ -91,7 +94,8 @@ public class ModularProject implements BuildExecutorModule {
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, pinning),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, pinning)
+                                            .listener(listener),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }

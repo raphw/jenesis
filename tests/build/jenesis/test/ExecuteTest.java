@@ -212,7 +212,7 @@ public class ExecuteTest {
     }
 
     private Project.Layout layoutWithModules(Map<String, Path> modules) {
-        return (executor, _, _) -> {
+        return (executor, _, _, _) -> {
             executor.addModule(Project.BUILD, (sub, _) -> {
                 for (Map.Entry<String, Path> entry : modules.entrySet()) {
                     sub.addModule(entry.getKey(), (inner, _) -> inner.addSource("manifests", entry.getValue()));
