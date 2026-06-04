@@ -6,6 +6,21 @@ one real Maven dependency. It shows Jenesis driving plain `javac` through the
 default `JavaMultiProjectAssembler`, resolving and downloading the declared
 dependency, and pinning it. Its modular counterpart is `../demo-02-java-modular`.
 
+Printing the dependency tree
+----------------------------
+
+`-Djenesis.project.tree=true` prints the resolved dependency tree as the module
+resolves (a verbose toggle, not a build step):
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.apache.commons/commons-lang3 3.14.0 [compile]
+
+Each node shows the property-file key, the requested version (with the negotiated
+version inline when it differs), and the Maven scope; transitive dependencies nest
+underneath and duplicates are dimmed and marked `(*)`.
+
 Layout
 ------
 

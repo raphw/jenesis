@@ -8,6 +8,22 @@ Jenesis module repository, and emits a modular jar alongside a generated POM. It
 POM-based counterpart is `../demo-01-java-pom`, and its multi-module counterpart is
 `../demo-04-java-modular-multi`.
 
+Printing the dependency tree
+----------------------------
+
+`-Djenesis.project.tree=true` prints the resolved dependency tree as the module
+resolves (a verbose toggle, not a build step):
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.slf4j/slf4j-api 2.0.16 [compile]
+
+Because this is the default MODULAR_TO_MAVEN layout, `requires org.slf4j` is shown
+as the Maven coordinate it resolves to, with a Maven scope. Under the pure MODULAR
+layout the same dependency shows as a Java module name (`module/org.slf4j`) instead
+- see `../demo-12-module-layout`, which contrasts the two.
+
 Layout
 ------
 
