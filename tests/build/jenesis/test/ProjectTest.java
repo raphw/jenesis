@@ -28,6 +28,7 @@ public class ProjectTest {
         System.clearProperty("jenesis.project.target");
         System.clearProperty("jenesis.project.cache");
         System.clearProperty("jenesis.project.digest");
+        System.clearProperty("jenesis.test.sample.key");
     }
 
     @Test
@@ -357,5 +358,26 @@ public class ProjectTest {
                 .layout(layout)
                 .build("+anything");
         assertThat(result).containsExactly(Map.entry("resolved", source));
+    }
+
+    @Test
+    public void load_jenesis_properties_reads_a_file_from_root() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.test.sample.key=fromFile\n");
+        Project.loadJenesisProperties(root);
+        assertThat(System.getProperty("jenesis.test.sample.key")).isEqualTo("fromFile");
+    }
+
+    @Test
+    public void load_jenesis_properties_does_not_override_an_explicit_system_property() throws IOException {
+        System.setProperty("jenesis.test.sample.key", "fromCommandLine");
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.test.sample.key=fromFile\n");
+        Project.loadJenesisProperties(root);
+        assertThat(System.getProperty("jenesis.test.sample.key")).isEqualTo("fromCommandLine");
+    }
+
+    @Test
+    public void load_jenesis_properties_is_a_no_op_when_absent() throws IOException {
+        Project.loadJenesisProperties(root);
+        assertThat(System.getProperty("jenesis.test.sample.key")).isNull();
     }
 }

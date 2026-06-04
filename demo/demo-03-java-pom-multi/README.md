@@ -65,6 +65,28 @@ closure, with its checksum) overrides it, so the pinned version always wins - yo
 could pin a higher console version here than the derived default and Jenesis would
 honor it.
 
+Sharing test code across modules
+--------------------------------
+
+Because `greeter` carries a test source folder, Jenesis produces a `tests` variant
+of it alongside the main jar. Another module can depend on that variant to reuse
+shared test fixtures - declare it in the consumer's `pom.xml` with either form:
+
+    <dependency>
+        <groupId>build.jenesis.demo</groupId>
+        <artifactId>greeter</artifactId>
+        <version>1.0.0</version>
+        <type>test-jar</type>          <!-- or: <classifier>tests</classifier> -->
+    </dependency>
+
+Both resolve to the same `-tests` artifact: Jenesis normalizes Maven's `test-jar`
+type to the `tests` classifier (the same way it handles `javadoc` / `java-source` /
+`ejb-client`). Within this build the consumer compiles directly against `greeter`'s
+sibling test module; against an already-published project it resolves the deployed
+`greeter-<version>-tests.jar`. This demo does not wire such a dependency, to stay
+minimal - it is the same sibling resolution shown above, applied to the `tests`
+variant.
+
 Build it
 --------
 

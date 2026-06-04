@@ -28,6 +28,13 @@ That runs the default `build` goal. You pass other goals as arguments:
     java build/jenesis/Project.java export   # publish them into the local repositories
     java build/jenesis/Project.java help     # usage; `skill` prints an agent-oriented briefing
 
+Two run-time switches apply to any demo, on the command line or in a `jenesis.properties`
+file at the demo root (the file is loaded into system properties before the build; an
+explicit `-D` wins over a file entry):
+
+    java -Djenesis.project.watch=true build/jenesis/Project.java   # rebuild on every source change (Ctrl+C to stop)
+    java -Djenesis.project.docker=true build/jenesis/Project.java  # run the whole build inside a throwaway container
+
 Some demos ship their own launcher and are run with `java build/Demo.java`
 instead: the ones that customize, replace, or drive the template directly
 (`module-layout`, `custom-assembler`, `internal-module`, `external-module`,

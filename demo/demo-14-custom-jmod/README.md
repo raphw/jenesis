@@ -33,6 +33,16 @@ own; a plain library jar has none, so a jar is the right form for it. (Feeding a
 separate, opt-in `<coordinate>:jmod` resolution, which the stock assembler does
 not request.)
 
+One constraint underlies all of this: `jlink` links **explicit modules only**.
+Every jar it links must carry a `module-info` (or be a `.jmod`); an automatic
+module - a plain, non-modular jar dropped on the module path - is rejected with
+"automatic modules cannot be used with jlink". This demo links cleanly because
+`org.slf4j` is a real module. When a dependency is not modularized, the options
+are to modularize it (add a `module-info`, e.g. via `jdeps --generate-module-info`)
+or to skip baking it into the image and run the app jars against a `jlink`ed
+runtime that contains only the JDK modules. `jpackage`, which calls `jlink`
+under the hood, inherits the same rule.
+
 Layout
 ------
 

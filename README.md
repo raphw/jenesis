@@ -107,6 +107,14 @@ lets you target a project that lives outside the directory holding `build/jenesi
 
     java -Djenesis.project.root=/path/to/other/project build/jenesis/Project.java
 
+Any of these `-Djenesis.*` / `-Dbuild.jenesis.*` properties can also live in a `jenesis.properties` file at the
+project root. `Project.doMain(...)` loads it (the static `Project.loadJenesisProperties(Path)`) into the system
+properties before the build, so a project carries its own defaults without a wrapper script. The file is optional,
+and an explicit `-D` on the command line wins over a file entry (the file only fills values not already set). It is
+read in `doMain`, after `resolveProperties()`, so it drives everything decided at run time (for example
+`jenesis.project.watch` below); the fields `resolveProperties()` fixes up front - layout, target, cache, pinning -
+are still taken from the command line.
+
 **2. Custom entry point under `build/`.** When you want code-level control - a tailored assembler, an extra
 step on top of the default per-module pipeline - drop a `.java` file alongside `Project.java` and use the
 Builder there. Run it the same way (`java build/MyBuild.java`):
@@ -410,6 +418,20 @@ consumer opts in, by requesting the `:jmod` qualifier rather than the default ja
 
 Run `java build/jenesis/Project.java stage` to materialize that tree (it's the canonical entry point for
 release publishing - see [The stage step](#the-stage-step) for the full release pipeline).
+
+### Watching for changes
+
+Set `-Djenesis.project.watch=true` to keep the process alive and rebuild on every source change:
+
+    java -Djenesis.project.watch=true build/jenesis/Project.java
+
+The first build runs as usual; Jenesis then registers a `WatchService` over the project root and re-runs the
+requested target whenever a file changes, reusing the content-hash cache so each rebuild only re-executes the steps
+whose inputs actually changed (a no-op change settles in well under a second). The watch excludes the output folders
+(`target/` and the configured cache) and dot-directories, so the build's own writes never trigger a rebuild. Module
+selectors still apply, so `-Djenesis.project.watch=true build/jenesis/Project.java +mymodule` watches and rebuilds
+just that module's subgraph. Press Ctrl+C to stop. Setting `jenesis.project.watch=true` in a `jenesis.properties`
+file makes watch a project's default.
 
 ### Running inside Docker
 
@@ -1344,6 +1366,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.root`          | system property | Overrides the project root that `Project` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
+| `jenesis.project.watch`         | system property | When `true`, `Project.doMain(...)` does not return after one build: it registers a `java.nio` `WatchService` over the project root (via `ProjectWatch`) and re-runs the requested target on every file change, excluding the output folders (`target/`, the configured cache) and dot-directories so the build's own writes do not re-trigger. Each rebuild reuses the incremental cache, so only changed steps re-execute; module selectors are honored. See *Watching for changes*. Default `false` (single build). |
 | `jenesis.project.sources`       | system property | When `true` (bare flag accepted), resolves the project-level `source` flag to `true`, so `JavaMultiProjectAssembler` also assembles a per-module sources jar. |
 | `jenesis.project.documentation` | system property | When `true` (bare flag accepted), resolves the project-level `documentation` flag to `true`, so `JavaMultiProjectAssembler` also assembles a per-module javadoc jar. |
 | `jenesis.project.metadata`      | system property | Path to a project-level metadata override file (conventionally `project.properties`) whose entries are merged into every module's `metadata.properties` between the framework defaults and `jenesis.project.version`. |
@@ -2107,6 +2130,13 @@ target/stage/modular/output/
 `<scope>test</scope>`; the per-module `prefix.test=<main-artifactId>` marker on the inventory triggers this
 in `MavenRepositoryStaging`. `MODULAR` ignores that marker and stages every discovered Java module under its
 own Java-module-named directory at the same level when `-Djenesis.project.tests.stage=true`.)
+
+A module can also **depend on** another module's test jar - the standard way to share test fixtures. In a `pom.xml`
+declare the dependency with either `<type>test-jar</type>` or `<classifier>tests</classifier>`; Jenesis resolves
+both to the sibling's `-tests` artifact, because `MavenPomResolver` normalizes Maven's `test-jar` type to the
+`tests` classifier (along with the other classifier-bearing types `javadoc`, `java-source` and `ejb-client`, which
+it maps to `javadoc`/`sources`/`client`). Within a multi-module build the consumer is wired against the sibling
+test module's compiled classes directly; against an external project it resolves the published `-tests.jar`.
 
 The `MAVEN` and `MODULAR_TO_MAVEN` layouts additionally wire a `MavenRepositoryExport` step after `stage`,
 which copies the staged tree into the user's local Maven repository (default `~/.m2/repository`) and writes the
