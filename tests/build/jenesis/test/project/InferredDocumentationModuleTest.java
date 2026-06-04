@@ -77,8 +77,8 @@ public class InferredDocumentationModuleTest {
                 .resolve("dokka").resolve("required").resolve("output").resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames()).containsExactlyInAnyOrder(
                 "maven@dokka/org.jetbrains.dokka/dokka-cli/RELEASE",
-                "maven@dokka/org.jetbrains.dokka/analysis-kotlin-descriptors/RELEASE",
-                "maven@dokka/org.jetbrains.dokka/javadoc-plugin/RELEASE");
+                "maven@dokka/org.jetbrains.dokka/dokka-base/RELEASE",
+                "maven@dokka/org.jetbrains.dokka/analysis-kotlin-descriptors/RELEASE");
     }
 
     @Test
