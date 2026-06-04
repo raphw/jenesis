@@ -22,7 +22,7 @@ public class Demo {
 
     static void main(String[] args) throws Exception {
         // Configure packaging explicitly on the assembler instead of through the
-        // -Djenesis.java.package system property: hand the Project a stock
+        // -Djenesis.java.jpackage system property: hand the Project a stock
         // JavaMultiProjectAssembler with its packaging type set, via the wither, to a
         // self-contained app-image.
         Project project = new Project()

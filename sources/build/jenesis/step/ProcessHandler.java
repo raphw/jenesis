@@ -8,6 +8,36 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
 
     int execute(Path output, Path error) throws IOException;
 
+    enum Factory {
+        TOOL {
+            @Override
+            Function<List<String>, ? extends ProcessHandler> apply(String tool, String fork) {
+                return ProcessHandler.OfTool.of(tool);
+            }
+        },
+        FORK {
+            @Override
+            Function<List<String>, ? extends ProcessHandler> apply(String tool, String fork) {
+                return ProcessHandler.OfProcess.ofJavaHome(fork);
+            }
+        };
+
+        public static Factory of() {
+            String factory = System.getProperty("jenesis.process.factory");
+            if (factory == null) {
+                return System.getProperty("org.graalvm.nativeimage.imagecode") != null ? FORK : TOOL;
+            }
+            return switch (factory) {
+                case "tool" -> TOOL;
+                case "fork" -> FORK;
+                default -> throw new IllegalArgumentException(
+                        "Unknown process factory: " + factory + " (expected 'tool' or 'fork')");
+            };
+        }
+
+        abstract Function<List<String>, ? extends ProcessHandler> apply(String tool, String fork);
+    }
+
     final class OfTool implements ProcessHandler {
 
         private final ToolProvider toolProvider;

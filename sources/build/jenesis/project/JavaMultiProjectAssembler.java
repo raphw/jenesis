@@ -12,95 +12,70 @@ import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Bundle;
 import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
+import build.jenesis.step.ProcessHandler;
 
-public record JavaMultiProjectAssembler(boolean process,
-                                        String filter,
-                                        String packaging,
+public record JavaMultiProjectAssembler(String packaging,
                                         boolean jmod,
                                         boolean jlink,
-                                        TestEngine testEngine,
-                                        String group,
-                                        boolean parallel,
-                                        boolean reporting) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                        boolean bundle,
+                                        TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(false, null, null, false, false, null, null, false, false);
-    }
-
-    public JavaMultiProjectAssembler process(boolean process) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler filter(String filter) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        this(null, false, false, false, null);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
+    }
+
+    public JavaMultiProjectAssembler bundle(boolean bundle) {
+        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
     }
 
     public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler group(String group) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler parallel(boolean parallel) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
-    }
-
-    public JavaMultiProjectAssembler reporting(boolean reporting) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
     }
 
     @Override
     public JavaMultiProjectAssembler resolveProperties() {
-        boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-        String filterOverride = System.getProperty("jenesis.java.test.filter");
-        String packagingOverride = System.getProperty("jenesis.java.package");
-        String groupOverride = System.getProperty("jenesis.java.test.group");
+        String packagingOverride = System.getProperty("jenesis.java.jpackage");
         return new JavaMultiProjectAssembler(
-                process || nativeImage || Boolean.getBoolean("jenesis.java.process"),
-                filterOverride != null ? filterOverride : filter,
                 packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 jmod || Boolean.getBoolean("jenesis.java.jmod"),
                 jlink || Boolean.getBoolean("jenesis.java.jlink"),
-                testEngine,
-                groupOverride != null ? groupOverride : group,
-                parallel || Boolean.getBoolean("jenesis.java.test.parallel"),
-                reporting || Boolean.getBoolean("jenesis.project.tests.reporting"));
+                bundle || Boolean.getBoolean("jenesis.java.bundle"),
+                testEngine);
     }
 
     @Override
     public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                      Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers) {
+        ProcessHandler.Factory factory = ProcessHandler.Factory.of();
         return (sub, outerInherited) -> {
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
             sub.addModule("binary", new JavaToolchainModule()
                     .compiler(new InferredCompilerChainModule(repositories, resolvers)
-                            .process(process)
                             .pinning(descriptor.pinning())
                             .modulePath(descriptor.modulePath()))
-                    .archiver((process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
+                    .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
                     Stream.concat(
                             Stream.of("prepare"),
                             Stream.concat(inputs(descriptor), descriptor.resources().stream())));
@@ -119,10 +94,6 @@ public record JavaMultiProjectAssembler(boolean process,
                         sub.addModule("test",
                                 new TestModule(repositories, resolvers)
                                         .engine(testEngine)
-                                        .filter(filter)
-                                        .group(group)
-                                        .parallel(parallel)
-                                        .reporting(reporting)
                                         .pinning(descriptor.pinning())
                                         .modulePath(descriptor.modulePath())
                                         .moduleName(properties.getProperty("module")),
@@ -133,29 +104,28 @@ public record JavaMultiProjectAssembler(boolean process,
             if (descriptor.source()) {
                 sub.addModule("sources", (module, inherited) ->
                         module.addStep("archive",
-                            process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES),
+                            new Jar(factory, Jar.Sort.SOURCES),
                             inherited.sequencedKeySet()), descriptor.sources());
             }
             if (descriptor.documentation()) {
                 sub.addModule("documentation", (module, inherited) -> {
                     module.addModule("generate",
                             new InferredDocumentationChainModule(repositories, resolvers)
-                                    .process(process)
                                     .pinning(descriptor.pinning()),
                             inherited.sequencedKeySet());
                     module.addStep("archive",
-                            process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC),
+                            new Jar(factory, Jar.Sort.JAVADOC),
                             "generate");
                 }, Stream.concat(Stream.of("binary"), inputs(descriptor)));
             }
             if (jmod) {
                 sub.addStep("jmod",
-                        process ? JMod.process() : JMod.tool(),
+                        new JMod(factory),
                         Stream.concat(Stream.of("binary"), descriptor.content().stream()));
             }
             if (jlink) {
                 sub.addStep("jlink",
-                        process ? JLink.process() : JLink.tool(),
+                        new JLink(factory),
                         Stream.concat(
                                 Stream.of("prepare", jmod ? "jmod" : "binary"),
                                 descriptor.artifacts(DependencyScope.RUNTIME).stream()));
@@ -165,8 +135,15 @@ public record JavaMultiProjectAssembler(boolean process,
                         Stream.of("prepare", "binary"),
                         descriptor.artifacts(DependencyScope.RUNTIME).stream());
                 sub.addStep("jpackage",
-                        process ? JPackage.process(packaging) : JPackage.tool(packaging),
+                        new JPackage(factory, packaging),
                         jlink ? Stream.concat(Stream.of("jlink"), inputs) : inputs);
+            }
+            if (bundle) {
+                sub.addStep("bundle",
+                        new Bundle(),
+                        Stream.concat(
+                                Stream.of("prepare", "binary"),
+                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
             }
         };
     }

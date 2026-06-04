@@ -138,7 +138,7 @@ public record Execute(Project project, String mainClass, String module) {
             docker = docker.mounts(System.getProperty("jenesis.execute.docker.mount"), root, true);
             docker = docker.mounts(System.getProperty("jenesis.execute.docker.mountWritable"), root, false);
             docker = docker.envs(System.getProperty("jenesis.execute.docker.env"));
-            if (Boolean.getBoolean("jenesis.verbose")) {
+            if (Boolean.parseBoolean(System.getProperty("jenesis.print.docker", "true"))) {
                 System.out.println("Launching Java execution within Docker image: " + docker.image());
             }
             return docker.execute(javaArgs);

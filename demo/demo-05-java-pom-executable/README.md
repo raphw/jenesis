@@ -18,7 +18,7 @@ receive on its command line:
 
 `Demo.java` configures packaging directly on the assembler -
 `new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
-`-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
+`-Djenesis.java.jpackage=app-image` with no system property - builds the `stage` goal,
 then reads the image folder from the `stage/packages` entry of the map that
 `build("stage")` returns (a fixed build target) and launches the produced platform
 launcher with your arguments. The packaged app prints:
@@ -64,7 +64,7 @@ whole runtime closure, not just your own code.
 How packaging fits the build
 ----------------------------
 
-Packaging is opt-in through a single system property, `-Djenesis.java.package`.
+Packaging is opt-in through a single system property, `-Djenesis.java.jpackage`.
 When it is set, `JavaMultiProjectAssembler` wires a per-module `package` step that
 runs `jpackage` for every module declaring a main class (modules without one are
 skipped). The property's value is the `jpackage --type`; a bare flag defaults to
@@ -80,6 +80,31 @@ into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular
     `-- packages/output/java-pom-executable/
         |-- bin/java-pom-executable      the launcher
         `-- lib/                          app jars + bundled runtime
+
+Bundle the jars for a JRE-based image
+-------------------------------------
+
+`jpackage` bundles a whole runtime into the image. The lighter alternative is to ship
+only your jars onto an off-the-shelf JRE base. For that, `-Djenesis.java.bundle=true`
+wires a per-module `bundle` step that writes a single `bundle/bundle.zip` for every
+module with a main class:
+
+    java -Djenesis.java.bundle=true build/jenesis/Project.java
+
+    bundle.zip
+    |-- application.properties     mainClass=sample.Sample
+    `-- classpath/                 the app jar and commons-lang3
+
+Because this is a classpath (non-modular) project, every jar goes under `classpath/`
+and `application.properties` carries just `mainClass`. Unzipped onto a JRE base, it
+needs no JDK and no jpackage:
+
+    FROM eclipse-temurin:25-jre
+    COPY bundle/ /opt/app/
+    ENTRYPOINT ["java", "-cp", "/opt/app/classpath/*", "sample.Sample"]
+
+The modular sibling `../demo-06-java-modular-executable` splits its jars into
+`modulepath/` and `classpath/` and adds a `mainModule` entry.
 
 Fully bundled native installer
 ------------------------------

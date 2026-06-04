@@ -8,6 +8,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
@@ -40,7 +41,7 @@ public class JarTest {
                     .createDirectory(folder.resolve("sample"))
                     .resolve("Sample.class"));
         }
-        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+        BuildStepResult result = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
@@ -64,7 +65,7 @@ public class JarTest {
                     }
                 }
                 """);
-        BuildStepResult result = (process ? Jar.process(Jar.Sort.SOURCES) : Jar.tool(Jar.Sort.SOURCES)).apply(
+        BuildStepResult result = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.SOURCES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
@@ -85,7 +86,7 @@ public class JarTest {
                   <p>This is a javadoc.</p>
                 </html>
                 """);
-        BuildStepResult result = (process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC)).apply(
+        BuildStepResult result = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.JAVADOC).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
@@ -105,7 +106,7 @@ public class JarTest {
                     .resolve("Sample.class"));
         }
         Files.writeString(classes.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
-        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+        BuildStepResult result = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
@@ -138,7 +139,7 @@ public class JarTest {
         Path second = Files.createDirectory(root.resolve("second"));
         Files.writeString(second.resolve("manifest.mf"),
                 "Manifest-Version: 1.0\r\nMain-Class: sample.Sample\r\nImplementation-Title: example\r\n");
-        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+        BuildStepResult result = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -171,7 +172,7 @@ public class JarTest {
         Files.writeString(classes.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
         Path second = Files.createDirectory(root.resolve("second"));
         Files.writeString(second.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
-        BuildStepResult result = (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).apply(
+        BuildStepResult result = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of(
@@ -193,7 +194,7 @@ public class JarTest {
         LinkedHashMap<String, BuildStepArgument> args = new LinkedHashMap<>();
         args.put("classes", new BuildStepArgument(classes, Map.of(Path.of("manifest.mf"), ChecksumStatus.ADDED)));
         args.put("second", new BuildStepArgument(second, Map.of(Path.of("manifest.mf"), ChecksumStatus.ADDED)));
-        assertThatThrownBy(() -> Jar.tool(Jar.Sort.CLASSES).apply(
+        assertThatThrownBy(() -> new Jar(ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 args).toCompletableFuture().join())
@@ -217,7 +218,7 @@ public class JarTest {
         BuildStepArgument argument = new BuildStepArgument(
                 classes,
                 Map.of(Path.of("sample/Sample.class"), ChecksumStatus.ADDED));
-        Jar jar = process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES);
+        Jar jar = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES);
         jar.apply(Runnable::run,
                 new BuildStepContext(previous, firstNext, supplement),
                 new LinkedHashMap<>(Map.of("sources", argument))).toCompletableFuture().join();

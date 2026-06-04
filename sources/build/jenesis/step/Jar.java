@@ -9,17 +9,9 @@ public class Jar extends JdkProcessBuildStep {
 
     private final Sort sort;
 
-    protected Jar(Function<List<String>, ? extends ProcessHandler> factory, Sort sort) {
-        super("jar", factory);
+    public Jar(ProcessHandler.Factory factory, Sort sort) {
+        super("jar", factory.apply("jar", "bin/jar"));
         this.sort = sort;
-    }
-
-    public static Jar tool(Sort sort) {
-        return new Jar(ProcessHandler.OfTool.of("jar"), sort);
-    }
-
-    public static Jar process(Sort sort) {
-        return new Jar(ProcessHandler.OfProcess.ofJavaHome("bin/jar"), sort);
     }
 
     @Override

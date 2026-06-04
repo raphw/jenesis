@@ -361,29 +361,36 @@ public record Project(
                       values, or sets fields after resolveProperties(), may ignore them.
                       %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
-                      %{name}tests.skip%{reset}                       Skip executing tests
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
-                      %{name}tests.stage%{reset}                      Stage test artifacts alongside main artifacts
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}watch%{reset}                            Rebuild the selected target whenever a source file changes (Ctrl+C to stop)
-                      %{name}tree%{reset}                             Print each module's dependency tree as it is resolved (verbose-style)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
                       %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
                       %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
 
-                    %{header}Pinning (-Dbuild.jenesis.pinning=<mode>):%{reset}
+                    %{header}Printing (-Djenesis.print.<key>=<value>):%{reset}
+                      %{name}progress%{reset}                         Print the build progress lines (default: true)
+                      %{name}checksum%{reset}                         Print each step's input/output file checksums
+                      %{name}command%{reset}                          Print each external tool command line as it runs
+                      %{name}fetch%{reset}                            Print each artifact downloaded from a repository
+                      %{name}docker%{reset}                           Print the Docker image when a build/run is wrapped (default: true)
+                      %{name}tree%{reset}                             Print each module's dependency tree as it resolves
+
+                    %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
                       versions to the latest and skips checksum verification (refresh the
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
                       but tolerates missing ones.
 
-                    %{header}Test filter (-Djenesis.java.test.filter=<patterns>):%{reset}
-                      Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
-                      tests the default JavaMultiProjectAssembler executes. Changing
-                      the value invalidates the test step's cache and forces a re-run.
+                    %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
+                      %{name}skip%{reset}                             Skip executing tests
+                      %{name}stage%{reset}                            Stage test artifacts alongside main artifacts
+                      %{name}filter%{reset} <patterns>                Comma-separated %{name}<classRegex>[#<method>]%{reset} entries
+                                                      restricting which tests run; changing the value
+                                                      invalidates the test step's cache and forces a re-run
 
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
@@ -458,7 +465,7 @@ public record Project(
                         `javac`/`jar` tools (keep a JDK on `JAVA_HOME`/`PATH`); the
                         incremental cache serializes build steps, so the image
                         needs reachability metadata captured from a real build:
-                          java -Djenesis.java.process=true \\
+                          java -Djenesis.process.factory=fork \\
                               -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \\
                               -cp .jenesis/launcher build.jenesis.Project build
                           native-image --no-fallback \\
@@ -645,9 +652,7 @@ public record Project(
                       root, target, cache         Override input/output locations.
                       layout                      auto, maven, modular,
                                                   modular_to_maven.
-                      tests.skip                  Skip wiring test execution.
                       sources, documentation      Assemble sources / javadoc jars.
-                      tests.stage                 Stage test artifacts.
                       metadata                    Path-separated list of extra
                                                   metadata files.
                       version                     Stamp version onto every
@@ -658,13 +663,9 @@ public record Project(
                       watch                       Rebuild the selected target
                                                   whenever a source file changes
                                                   (Ctrl+C to stop).
-                      tree                        Print each module's dependency
-                                                  tree as it is resolved
-                                                  (verbose-style), with the
-                                                  property-file key and scope.
 
                     Pinning:
-                      -Dbuild.jenesis.pinning=strict|ignore  strict fails on
+                      -Djenesis.dependency.pin=strict|ignore  strict fails on
                                                   any unpinned artifact; ignore
                                                   floats to the latest and skips
                                                   checksums (refresh pins via
@@ -681,10 +682,34 @@ public record Project(
                                                         for content and
                                                         serialization hashes
                                                         (default MD5).
-                      -Djenesis.verbose=true            Verbose step output.
 
-                    Test execution:
-                      -Djenesis.java.test.filter=<patterns>    Comma-separated
+                    Printing (-Djenesis.print.<key>=<value>):
+                      -Djenesis.print.progress=false      Suppress the build
+                                                        progress lines
+                                                        (default: true).
+                      -Djenesis.print.checksum=true       Print each step's
+                                                        input/output file
+                                                        checksums.
+                      -Djenesis.print.command=true        Print each external tool
+                                                        command line as it runs.
+                      -Djenesis.print.fetch=true          Print each artifact
+                                                        downloaded from a
+                                                        repository.
+                      -Djenesis.print.docker=false        Suppress the Docker
+                                                        image notice when a
+                                                        build/run is wrapped in
+                                                        a container (default:
+                                                        true).
+                      -Djenesis.print.tree=true           Print each module's
+                                                        dependency tree as it
+                                                        resolves.
+
+                    Test execution (-Djenesis.test.<key>=<value>):
+                      -Djenesis.test.skip=true            Skip wiring test
+                                                        execution.
+                      -Djenesis.test.stage=true           Stage test artifacts
+                                                        alongside main artifacts.
+                      -Djenesis.test.filter=<patterns>    Comma-separated
                                                         <classRegex>[#<method>]
                                                         entries restricting which
                                                         tests the default
@@ -693,7 +718,9 @@ public record Project(
                                                         value invalidates the test
                                                         step's cache and forces a
                                                         re-run.
-                      -Djenesis.java.process=true       Fork JDK tools (jar,
+
+                    Tool execution:
+                      -Djenesis.process.factory=fork      Fork JDK tools (jar,
                                                         javadoc, ...) into
                                                         separate processes instead
                                                         of invoking them
@@ -741,9 +768,9 @@ public record Project(
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
                     (`@jenesis.pin <mod> <ver> [<algo>/<hex>]` tags), per layout.
                     The same pins can be written by hand. Enforce coverage with
-                    `-Dbuild.jenesis.pinning=strict`, which fails the build on
+                    `-Djenesis.dependency.pin=strict`, which fails the build on
                     any unpinned artifact, or refresh them with
-                    `-Dbuild.jenesis.pinning=ignore` and the `pin` step.
+                    `-Djenesis.dependency.pin=ignore` and the `pin` step.
 
                     12. Study a demo for a worked example
                     -------------------------------------
@@ -901,7 +928,7 @@ public record Project(
                 false,
                 false,
                 false,
-                null,
+                Pinning.fromProperty(),
                 List.of(),
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
@@ -1254,7 +1281,7 @@ public record Project(
                         "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
             };
         }
-        if (System.getProperty("jenesis.project.tests.skip") != null) {
+        if (System.getProperty("jenesis.test.skip") != null) {
             resolvedTests = false;
         }
         if (Boolean.getBoolean("jenesis.project.sources")) {
@@ -1263,12 +1290,8 @@ public record Project(
         if (Boolean.getBoolean("jenesis.project.documentation")) {
             resolvedDocumentation = true;
         }
-        if (Boolean.getBoolean("jenesis.project.tests.stage")) {
+        if (Boolean.getBoolean("jenesis.test.stage")) {
             resolvedStageTests = true;
-        }
-        String pinningOverride = System.getProperty("build.jenesis.pinning");
-        if (pinningOverride != null) {
-            resolvedPinning = Pinning.valueOf(pinningOverride.toUpperCase(Locale.ROOT));
         }
         String metadataOverride = System.getProperty("jenesis.project.metadata");
         if (metadataOverride != null) {
@@ -1309,7 +1332,7 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
-        if (Boolean.getBoolean("jenesis.project.tree")) {
+        if (Boolean.getBoolean("jenesis.print.tree")) {
             return build(DependencyTreeReport::new, selectors);
         }
         return build((Supplier<ResolutionListener>) null, selectors);
@@ -1403,7 +1426,7 @@ public record Project(
                     docker = docker.env("JENESIS_REPOSITORY_LOCAL", jenesisLocal.toString());
                 }
             }
-            if (Boolean.getBoolean("jenesis.verbose")) {
+            if (Boolean.parseBoolean(System.getProperty("jenesis.print.docker", "true"))) {
                 System.out.println("Launching build within Docker image: " + docker.image());
             }
             int code = docker.execute("build/jenesis/Project.java", properties, selectors);

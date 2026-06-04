@@ -17,20 +17,16 @@ public class Javac extends JdkProcessBuildStep {
     private final boolean includeResources;
     private final PathPlacement placement;
 
+    public Javac(ProcessHandler.Factory factory) {
+        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED);
+    }
+
     private Javac(Function<List<String>, ? extends ProcessHandler> factory,
                   boolean includeResources,
                   PathPlacement placement) {
         super("javac", factory);
         this.includeResources = includeResources;
         this.placement = placement;
-    }
-
-    public static Javac tool() {
-        return new Javac(ProcessHandler.OfTool.of("javac"), true, PathPlacement.INFERRED);
-    }
-
-    public static Javac process() {
-        return new Javac(ProcessHandler.OfProcess.ofJavaHome("bin/javac"), true, PathPlacement.INFERRED);
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {

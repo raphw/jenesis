@@ -80,7 +80,7 @@ public abstract class ProcessBuildStep implements BuildStep {
                 Path output = context.supplement().resolve("output"), error = context.supplement().resolve("error");
                 ProcessHandler handler = factory.apply(Stream.concat(prepended.stream(), processed.stream()).toList());
                 Files.writeString(context.supplement().resolve("command"), String.join(" ", handler.commands()));
-                if (Boolean.getBoolean("jenesis.verbose")) {
+                if (Boolean.getBoolean("jenesis.print.command")) {
                     System.out.printf("%s%-11s%s %s%n",
                         BuildExecutorCallback.YELLOW,
                         "[EXECUTED]",

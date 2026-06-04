@@ -9,16 +9,8 @@ public class JLink extends JdkProcessBuildStep {
 
     public static final String RUNTIME = "runtime/";
 
-    protected JLink(Function<List<String>, ? extends ProcessHandler> factory) {
-        super("jlink", factory);
-    }
-
-    public static JLink tool() {
-        return new JLink(ProcessHandler.OfTool.of("jlink"));
-    }
-
-    public static JLink process() {
-        return new JLink(ProcessHandler.OfProcess.ofJavaHome("bin/jlink"));
+    public JLink(ProcessHandler.Factory factory) {
+        super("jlink", factory.apply("jlink", "bin/jlink"));
     }
 
     @Override

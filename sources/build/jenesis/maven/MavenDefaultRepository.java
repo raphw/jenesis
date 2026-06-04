@@ -33,7 +33,7 @@ public class MavenDefaultRepository implements MavenRepository {
         this.writable = this.local != null && Files.isWritable(this.local);
         token = System.getenv("MAVEN_REPOSITORY_TOKEN");
         validations = Map.of("SHA1", repository);
-        boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        boolean verbose = Boolean.getBoolean("jenesis.print.fetch");
         callback = verbose ? path -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,
                 "[FETCHED]",
