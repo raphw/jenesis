@@ -4,6 +4,8 @@ import module java.base;
 import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.RepositoryItem;
+import build.jenesis.ResolutionContext;
+import build.jenesis.ResolutionListener;
 import build.jenesis.module.ModularJarResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +34,44 @@ public class ModularJarResolverTest {
                 Map.entry("foo/root", ""),
                 Map.entry("foo/transitive", ""),
                 Map.entry("foo/last", ""));
+    }
+
+    @Test
+    public void emits_followed_and_not_followed_module_edges_to_the_listener() throws IOException {
+        List<String> followedEdges = new ArrayList<>();
+        List<String> notFollowedEdges = new ArrayList<>();
+        new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", require("a", 0), require("b", 0));
+                        case "a" -> () -> toJar("a");
+                        case "b" -> () -> toJar("b", require("a", 0));
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE,
+                new ResolutionListener() {
+                    @Override
+                    public void onDependency(String prefix,
+                                             String parent,
+                                             String coordinate,
+                                             String version,
+                                             String scope,
+                                             boolean followed,
+                                             Supplier<ResolutionContext> context) {
+                        (followed ? followedEdges : notFollowedEdges).add(parent + " -> " + coordinate);
+                    }
+                });
+        assertThat(followedEdges).containsExactly(
+                "null -> foo/root",
+                "foo/root -> foo/a",
+                "foo/root -> foo/b");
+        assertThat(notFollowedEdges).containsExactly("foo/b -> foo/a");
     }
 
     @Test
