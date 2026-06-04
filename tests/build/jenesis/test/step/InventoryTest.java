@@ -157,6 +157,24 @@ public class InventoryTest {
     }
 
     @Test
+    public void records_test_reports_when_present() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "foo");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path reports = Files.createDirectory(produce.resolve("testreport"));
+        Path first = Files.writeString(reports.resolve("junit-platform-events-1.xml"), "<events/>");
+        Path second = Files.writeString(reports.resolve("junit-platform-events-2.xml"), "<events/>");
+
+        run(args("manifests", manifests, "produce", produce));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module-foo.testreport.0")).isEqualTo(relativize(first));
+        assertThat(inventory.getProperty("module-foo.testreport.1")).isEqualTo(relativize(second));
+    }
+
+    @Test
     public void records_tests_marker_for_test_module() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();

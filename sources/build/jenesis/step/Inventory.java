@@ -24,7 +24,8 @@ public class Inventory implements BuildStep {
                 Path.of(DEPENDENCIES),
                 Path.of(JPackage.PACKAGES),
                 Path.of(JMod.JMODS),
-                Path.of(JLink.RUNTIME)));
+                Path.of(JLink.RUNTIME),
+                Path.of(TEST_REPORT)));
     }
 
     @Override
@@ -45,6 +46,7 @@ public class Inventory implements BuildStep {
         SequencedSet<Path> sources = new LinkedHashSet<>();
         SequencedSet<Path> documentation = new LinkedHashSet<>();
         SequencedSet<Path> jmods = new LinkedHashSet<>();
+        SequencedSet<Path> testReports = new LinkedHashSet<>();
         SequencedMap<String, Path> closureJars = new LinkedHashMap<>();
         SequencedMap<String, String> closureScopes = new LinkedHashMap<>();
         SequencedMap<String, String> closureChecksums = new LinkedHashMap<>();
@@ -91,6 +93,7 @@ public class Inventory implements BuildStep {
                 image = packages;
             }
             collect(folder.resolve(JMod.JMODS), jmods);
+            collect(folder.resolve(TEST_REPORT), testReports);
             Path runtime = folder.resolve(JLink.RUNTIME);
             if (runtimeImage == null && Files.isDirectory(runtime)) {
                 runtimeImage = runtime;
@@ -120,6 +123,7 @@ public class Inventory implements BuildStep {
         writePaths(inventory, context, prefix + "sources", sources);
         writePaths(inventory, context, prefix + "documentation", documentation);
         writePaths(inventory, context, prefix + "jmod", jmods);
+        writePaths(inventory, context, prefix + "testreport", testReports);
         if (image != null) {
             inventory.setProperty(prefix + "package", relativize(context, image));
         }

@@ -3,6 +3,7 @@ package build.jenesis.test.project;
 import module java.base;
 import module org.junit.jupiter.api;
 import java.util.jar.Attributes;
+import build.jenesis.BuildStep;
 import build.jenesis.project.JUnit4;
 import build.jenesis.project.JUnitPlatform;
 import build.jenesis.project.TestEngine;
@@ -90,9 +91,11 @@ public class TestEngineTest {
     @Test
     public void junit4_emits_class_names_positionally() {
         assertThat(new JUnit4().commands(root,
+                root,
                 new LinkedHashSet<>(List.of("sample.AlphaTest", "sample.BetaTest")),
                 Collections.emptyNavigableMap(),
                 Collections.emptyNavigableSet(),
+                false,
                 false))
                 .containsExactly("sample.AlphaTest", "sample.BetaTest");
     }
@@ -102,9 +105,11 @@ public class TestEngineTest {
         SequencedMap<String, SequencedSet<String>> methods = new LinkedHashMap<>();
         methods.put("sample.AlphaTest", new LinkedHashSet<>(List.of("first")));
         assertThatThrownBy(() -> new JUnit4().commands(root,
+                root,
                 Collections.emptyNavigableSet(),
                 methods,
                 Collections.emptyNavigableSet(),
+                false,
                 false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -114,9 +119,11 @@ public class TestEngineTest {
         SequencedMap<String, SequencedSet<String>> methods = new LinkedHashMap<>();
         methods.put("sample.AlphaTest", new LinkedHashSet<>(List.of("first", "second")));
         assertThat(new JUnitPlatform().commands(root,
+                root,
                 new LinkedHashSet<>(List.of("sample.BetaTest")),
                 methods,
                 Collections.emptyNavigableSet(),
+                false,
                 false))
                 .containsExactly("execute", "--disable-banner", "--disable-ansi-colors",
                         "--select-class=sample.BetaTest",
@@ -129,9 +136,11 @@ public class TestEngineTest {
         SequencedMap<String, SequencedSet<String>> methods = new LinkedHashMap<>();
         methods.put("sample.AlphaTest", new LinkedHashSet<>(List.of("first")));
         assertThat(new TestNG().commands(root,
+                root,
                 new LinkedHashSet<>(List.of("sample.AlphaTest", "sample.BetaTest")),
                 methods,
                 Collections.emptyNavigableSet(),
+                false,
                 false))
                 .containsSubsequence("-testclass", "sample.AlphaTest,sample.BetaTest",
                         "-methods", "sample.AlphaTest.first");
@@ -140,30 +149,57 @@ public class TestEngineTest {
     @Test
     public void junit_platform_commands_add_one_tag_per_group_and_parallel_config() {
         assertThat(new JUnitPlatform().commands(root,
+                root,
                 Collections.emptyNavigableSet(),
                 Collections.emptyNavigableMap(),
                 new LinkedHashSet<>(List.of("slow", "flaky")),
-                true))
+                true,
+                false))
                 .contains("--include-tag=slow",
                         "--include-tag=flaky",
                         "--config=junit.jupiter.execution.parallel.enabled=true",
                         "--config=junit.jupiter.execution.parallel.mode.default=concurrent");
         assertThat(new JUnitPlatform().commands(root,
+                root,
                 Collections.emptyNavigableSet(),
                 Collections.emptyNavigableMap(),
                 Collections.emptyNavigableSet(),
+                false,
                 false))
                 .doesNotContain("--include-tag=slow",
                         "--config=junit.jupiter.execution.parallel.enabled=true");
     }
 
     @Test
+    public void junit_platform_commands_add_open_test_reporting_when_enabled() {
+        assertThat(new JUnitPlatform().commands(root,
+                root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableSet(),
+                false,
+                true))
+                .contains("--config=junit.platform.reporting.open.xml.enabled=true",
+                        "--config=junit.platform.reporting.output.dir=" + root.resolve(BuildStep.TEST_REPORT));
+        assertThat(new JUnitPlatform().commands(root,
+                root,
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableSet(),
+                false,
+                false))
+                .noneMatch(command -> command.startsWith("--config=junit.platform.reporting."));
+    }
+
+    @Test
     public void testng_joins_groups_with_commas_and_adds_parallel() {
         assertThat(new TestNG().commands(root,
+                root,
                 Collections.emptyNavigableSet(),
                 Collections.emptyNavigableMap(),
                 new LinkedHashSet<>(List.of("slow", "flaky")),
-                true))
+                true,
+                false))
                 .containsSubsequence("-groups", "slow,flaky")
                 .containsSubsequence("-parallel", "methods");
     }
@@ -171,9 +207,11 @@ public class TestEngineTest {
     @Test
     public void junit4_rejects_groups() {
         assertThatThrownBy(() -> new JUnit4().commands(root,
+                root,
                 Collections.emptyNavigableSet(),
                 Collections.emptyNavigableMap(),
                 new LinkedHashSet<>(List.of("slow")),
+                false,
                 false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -181,10 +219,12 @@ public class TestEngineTest {
     @Test
     public void junit4_ignores_parallel() {
         assertThat(new JUnit4().commands(root,
+                root,
                 new LinkedHashSet<>(List.of("sample.AlphaTest")),
                 Collections.emptyNavigableMap(),
                 Collections.emptyNavigableSet(),
-                true))
+                true,
+                false))
                 .containsExactly("sample.AlphaTest");
     }
 

@@ -21,9 +21,11 @@ import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
+import build.jenesis.project.ProjectWatch;
 import build.jenesis.step.Bind;
 import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
+import build.jenesis.step.TestReportStaging;
 
 public record Project(
         Path root,
@@ -93,6 +95,7 @@ public record Project(
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
+                stage.addStep("reports", new TestReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven"), STAGE);
@@ -148,6 +151,7 @@ public record Project(
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
+                stage.addStep("reports", new TestReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular"), STAGE);
@@ -209,6 +213,7 @@ public record Project(
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
+                stage.addStep("reports", new TestReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> {
                 export.addStep("maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven");
@@ -358,6 +363,7 @@ public record Project(
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
+                      %{name}watch%{reset}                            Rebuild the selected target whenever a source file changes (Ctrl+C to stop)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
                       %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
@@ -644,6 +650,9 @@ public record Project(
                       digest                      Algorithm for pin and
                                                   dependency checksums
                                                   (default SHA-256).
+                      watch                       Rebuild the selected target
+                                                  whenever a source file changes
+                                                  (Ctrl+C to stop).
 
                     Pinning:
                       -Dbuild.jenesis.pinning=strict|ignore  strict fails on
@@ -1298,7 +1307,27 @@ public record Project(
                 .toArray(String[]::new));
     }
 
+    private void watch(String... selectors) throws IOException, InterruptedException {
+        Path absoluteRoot = root().toAbsolutePath().normalize();
+        Set<Path> excluded = new LinkedHashSet<>();
+        excluded.add((target().isAbsolute() ? target() : absoluteRoot.resolve(target())).normalize());
+        if (cache() != null) {
+            excluded.add((cache().isAbsolute() ? cache() : absoluteRoot.resolve(cache())).normalize());
+        }
+        new ProjectWatch(absoluteRoot, excluded, 200L).watch(() -> {
+            try {
+                build(selectors);
+            } catch (Exception e) {
+                System.out.println("Build failed: " + e);
+            }
+        });
+    }
+
     SequencedMap<String, Path> doMain(String... selectors) throws IOException, InterruptedException {
+        if (Boolean.getBoolean("jenesis.project.watch")) {
+            watch(selectors);
+            return new LinkedHashMap<>();
+        }
         if (Boolean.getBoolean("jenesis.project.docker")) {
             SortedMap<String, String> properties = new TreeMap<>();
             for (String name : System.getProperties().stringPropertyNames()) {

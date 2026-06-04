@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.BuildStep;
 
 public record JUnitPlatform() implements TestEngine {
 
@@ -56,7 +57,7 @@ public record JUnitPlatform() implements TestEngine {
         }
         if (reporting) {
             commands.add("--config=junit.platform.reporting.open.xml.enabled=true");
-            commands.add("--config=junit.platform.reporting.output.dir=" + output);
+            commands.add("--config=junit.platform.reporting.output.dir=" + output.resolve(BuildStep.TEST_REPORT));
         }
         for (String className : classes) {
             commands.add("--select-class=" + className);

@@ -10,7 +10,8 @@ public interface BuildStep extends Serializable {
             CLASSES = "classes/",
             ARTIFACTS = "artifacts/",
             DOCUMENTATION = "documentation/",
-            DEPENDENCIES = "dependencies/";
+            DEPENDENCIES = "dependencies/",
+            TEST_REPORT = "testreport/";
 
     String IDENTITY = "identity.properties",
             REQUIRES = "requires.properties",

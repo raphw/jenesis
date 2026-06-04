@@ -313,18 +313,7 @@ public class TestModule implements BuildExecutorModule {
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning), REQUIRED);
-        Run run = factory == null
-                ? new Run(
-                        resolved,
-                        isTest,
-                        jarsOnly,
-                        modulePath,
-                        moduleName,
-                        filter,
-                        group,
-                        parallel,
-                        reporting)
-                : new Run(
+        buildExecutor.addStep(EXECUTED, new Run(
                         factory,
                         resolved,
                         isTest,
@@ -334,8 +323,7 @@ public class TestModule implements BuildExecutorModule {
                         filter,
                         group,
                         parallel,
-                        reporting);
-        buildExecutor.addStep(EXECUTED, run,
+                        reporting),
                 Stream.concat(upstream.stream(), Stream.of(ARTIFACTS)));
     }
 
@@ -411,25 +399,6 @@ public class TestModule implements BuildExecutorModule {
         private final transient boolean parallel;
         private final boolean reporting;
 
-        private Run(TestEngine engine,
-                    Predicate<String> isTest,
-                    boolean jarsOnly,
-                    PathPlacement modulePath,
-                    String moduleName,
-                    String filter,
-                    String group,
-                    boolean parallel,
-                    boolean reporting) {
-            super(modulePath, jarsOnly);
-            this.engine = engine;
-            this.isTest = isTest;
-            this.moduleName = moduleName;
-            this.filter = filter;
-            this.group = group;
-            this.parallel = parallel;
-            this.reporting = reporting;
-        }
-
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
                     TestEngine engine,
                     Predicate<String> isTest,
@@ -440,7 +409,7 @@ public class TestModule implements BuildExecutorModule {
                     String group,
                     boolean parallel,
                     boolean reporting) {
-            super(factory, modulePath, jarsOnly);
+            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
             this.moduleName = moduleName;
