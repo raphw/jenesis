@@ -15,10 +15,24 @@ public final class DependencyTreeReport {
         synchronized (trees) {
             snapshot = new ArrayList<>(trees);
         }
+        List<Set<String>> signatures = new ArrayList<>();
+        for (List<Edge> tree : snapshot) {
+            Set<String> signature = new HashSet<>();
+            for (Edge edge : tree) {
+                if (edge.followed()) {
+                    signature.add(edge.parent() + " -> " + edge.coordinate());
+                }
+            }
+            signatures.add(signature);
+        }
         Set<String> rendered = new LinkedHashSet<>();
         List<String> blocks = new ArrayList<>();
-        for (List<Edge> tree : snapshot) {
-            String block = render(tree);
+        for (int index = 0; index < snapshot.size(); index++) {
+            Set<String> signature = signatures.get(index);
+            if (signature.isEmpty() || subsumed(signature, index, signatures)) {
+                continue;
+            }
+            String block = render(snapshot.get(index));
             if (!block.isEmpty() && rendered.add(block)) {
                 blocks.add(block);
             }
@@ -32,6 +46,20 @@ public final class DependencyTreeReport {
             out.println();
             out.print(block);
         }
+    }
+
+    private static boolean subsumed(Set<String> signature, int index, List<Set<String>> signatures) {
+        for (int other = 0; other < signatures.size(); other++) {
+            if (other == index) {
+                continue;
+            }
+            Set<String> candidate = signatures.get(other);
+            if (candidate.containsAll(signature)
+                    && (candidate.size() > signature.size() || other < index)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String render(List<Edge> tree) {
