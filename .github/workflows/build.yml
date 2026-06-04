@@ -48,8 +48,11 @@ jobs:
           - { name: java-modular-executable, dir: demo-06-java-modular-executable, entry: build/Demo.java }
           - { name: java-multi-release, dir: demo-07-java-multi-release, entry: build/jenesis/Execute.java }
           - { name: kotlin, dir: demo-08-kotlin, entry: build/jenesis/Project.java }
+          - { name: kotlin-documentation, dir: demo-08-kotlin, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
           - { name: scala, dir: demo-09-scala, entry: build/jenesis/Project.java }
+          - { name: scala-documentation, dir: demo-09-scala, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
           - { name: groovy, dir: demo-10-groovy, entry: build/jenesis/Project.java }
+          - { name: groovy-documentation, dir: demo-10-groovy, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
           - { name: maven-exclusions, dir: demo-11-maven-exclusions, entry: build/jenesis/Project.java }
           - { name: module-layout, dir: demo-12-module-layout, entry: build/Demo.java }
           - { name: custom-assembler, dir: demo-13-custom-assembler, entry: build/Demo.java }
