@@ -10,14 +10,16 @@ public class Javadoc extends JdkProcessBuildStep {
     public static final String JAVADOC = "javadoc/";
 
     private final String within;
+    private final boolean classpath;
 
     protected Javadoc(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, null);
+        this(factory, null, false);
     }
 
-    private Javadoc(Function<List<String>, ? extends ProcessHandler> factory, String within) {
+    private Javadoc(Function<List<String>, ? extends ProcessHandler> factory, String within, boolean classpath) {
         super("javadoc", factory);
         this.within = within;
+        this.classpath = classpath;
     }
 
     public static Javadoc tool() {
@@ -29,7 +31,19 @@ public class Javadoc extends JdkProcessBuildStep {
     }
 
     public Javadoc within(String within) {
-        return new Javadoc(factory, within);
+        return new Javadoc(factory, within, classpath);
+    }
+
+    public Javadoc classpath() {
+        return new Javadoc(factory, within, true);
+    }
+
+    @Override
+    public boolean acceptableExitCode(int code,
+                                      Executor executor,
+                                      BuildStepContext context,
+                                      SequencedMap<String, BuildStepArgument> arguments) {
+        return true;
     }
 
     @Override
@@ -44,6 +58,8 @@ public class Javadoc extends JdkProcessBuildStep {
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
                 "-d", documentation.toString(),
                 "-notimestamp",
+                "-quiet",
+                "-Xdoclint:none",
                 "-tag", "jenesis.release:a:Release:",
                 "-tag", "jenesis.main:a:Main class:",
                 "-tag", "jenesis.test:a:Tests the module:",
@@ -70,8 +86,10 @@ public class Javadoc extends JdkProcessBuildStep {
                 Files.walkFileTree(sources, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        if (file.toString().endsWith(".java")) {
-                            files.add(file.toString());
+                        String name = file.toString();
+                        if (name.endsWith(".java")
+                                && !(classpath && name.endsWith(File.separator + "module-info.java"))) {
+                            files.add(name);
                         }
                         return FileVisitResult.CONTINUE;
                     }
@@ -80,7 +98,8 @@ public class Javadoc extends JdkProcessBuildStep {
         }
         files.sort(null);
         path.sort(null);
-        boolean module = files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
+        boolean module = !classpath
+                && files.stream().anyMatch(file -> file.endsWith(File.separator + "module-info.java"));
         if (!path.isEmpty()) {
             for (String entry : path) {
                 if (entry.indexOf(File.pathSeparatorChar) != -1) {
