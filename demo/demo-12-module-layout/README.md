@@ -1,10 +1,28 @@
 Pure modular layout demo
 ========================
 
-The same kind of modular project as `../demo-02-java-modular`, but built with the
-**MODULAR** layout selected explicitly instead of the default MODULAR_TO_MAVEN.
-The point of this demo is the layout choice itself: a pure-modular build resolves
-dependencies by Java module name and produces a modular jar with **no `pom.xml`**.
+Build a modular Java project whose artifacts are consumed only as Java modules:
+dependencies are resolved by Java module name and the build produces a modular
+jar with no `pom.xml` at all. This is the same kind of project as
+`../demo-02-java-modular`, but with the pure MODULAR layout selected explicitly
+instead of the default MODULAR_TO_MAVEN, so the build stays free of Maven
+coordinates end to end.
+
+Run it
+------
+
+    java build/Demo.java
+
+`requires org.slf4j` is satisfied by fetching `org.slf4j` as a named module from
+the module repository. Building leaves **no `pom.xml`** anywhere under `target/`
+(contrast `../demo-02-java-modular`, the same project under MODULAR_TO_MAVEN, which
+emits one). Staging shows the same split:
+
+    java build/Demo.java stage      # target/stage/modular only - no target/stage/maven
+
+`export` then publishes the modular jar (and any `.jmod`) into the local Jenesis
+module repository (`~/.jenesis`), keyed by module name and version, with no Maven
+coordinate anywhere in the pipeline.
 
 Selecting the layout in code
 ----------------------------
@@ -82,22 +100,6 @@ node is a Maven artifact carrying a Maven scope:
 In a project with transitive dependencies the Maven side expands the full
 nearest-wins closure (resolved versions, scopes, and duplicates dimmed and marked
 `(*)`), while the modular side stays a graph of named modules.
-
-Run it
-------
-
-    java build/Demo.java
-
-`requires org.slf4j` is satisfied by fetching `org.slf4j` as a named module from
-the module repository. Building leaves **no `pom.xml`** anywhere under `target/`
-(contrast `../demo-02-java-modular`, the same project under MODULAR_TO_MAVEN, which
-emits one). Staging shows the same split:
-
-    java build/Demo.java stage      # target/stage/modular only - no target/stage/maven
-
-`export` then publishes the modular jar (and any `.jmod`) into the local Jenesis
-module repository (`~/.jenesis`), keyed by module name and version, with no Maven
-coordinate anywhere in the pipeline.
 
 When to use it
 --------------

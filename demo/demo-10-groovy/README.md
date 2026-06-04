@@ -1,22 +1,10 @@
 Groovy demo
 ===========
 
-A MODULAR_TO_MAVEN project (a `module-info.java`, no `pom.xml`) whose single
-module mixes a Java type with a Groovy type. It shows Jenesis driving the Groovy
-compiler through the default `JavaMultiProjectAssembler`, with the module
-participating in the Java module system and emitting a modular jar alongside a
-generated POM.
-
-Layout
-------
-
-    demo/demo-10-groovy
-    |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    `-- sources
-        |-- module-info.java       requires org.apache.groovy; exports sample
-        `-- sample
-            |-- Greeter.java       a Java type in the exported package
-            `-- Sample.groovy      a Groovy type that calls Greeter
+Build a project that mixes a Java type with a Groovy type in one module of the
+Java module system. You point Jenesis at the project, it compiles the `.java` and
+`.groovy` sources together, and emits a modular jar alongside a generated POM -
+there is no build script to write.
 
 Build it
 --------
@@ -29,6 +17,27 @@ Jenesis auto-detects the MODULAR_TO_MAVEN layout (a `module-info.java`, no
 `pom.xml`), scans the sources, resolves the Groovy compiler, compiles
 `module-info.java` and `Greeter.java` with `javac`, then compiles `Sample.groovy`
 with `groovyc`, and packages a modular jar plus a generated POM.
+
+Layout
+------
+
+The module declares its dependency in `module-info.java` and keeps the Java and
+Groovy types in one package:
+
+    demo/demo-10-groovy
+    |-- build/jenesis              symlink to ../../../sources/build/jenesis
+    `-- sources
+        |-- module-info.java       requires org.apache.groovy; exports sample
+        `-- sample
+            |-- Greeter.java       a Java type in the exported package
+            `-- Sample.groovy      a Groovy type that calls Greeter
+
+How Jenesis builds it
+---------------------
+
+Jenesis drives the Groovy compiler through the default
+`JavaMultiProjectAssembler`, with the module participating in the Java module
+system and emitting a modular jar alongside a generated POM.
 
 How Groovy fits the inferred compiler chain
 -------------------------------------------

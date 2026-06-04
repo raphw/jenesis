@@ -1,30 +1,12 @@
 Supply-chain security demo
 ==========================
 
-Jenesis pins dependencies not just by version but by the **content checksum** of
-every downloaded artifact, and can be told to **require** such a pin. This demo
-shows both guarantees by deliberately getting them wrong, in two modules, and a
-`build/Demo.java` that asserts each one fails the build.
-
-- **`unpinned`** declares a dependency with a version but **no checksum**. It
-  builds by default, but fails under **strict pinning** - there is nothing to
-  verify the download against.
-- **`tampered`** pins the same dependency to a **wrong `SHA-256`**. It fails the
-  build **even without** strict pinning: every download is checked against its
-  pin regardless.
-
-Layout
-------
-
-    demo-21-supply-chain-security
-    |-- build/jenesis            symlink to ../../../sources/build/jenesis
-    |-- build/Demo.java          asserts both modules fail to build
-    |-- pom.xml                  aggregator over the two modules
-    |-- unpinned/pom.xml         commons-lang3 with a version but no checksum
-    `-- tampered/pom.xml         commons-lang3 pinned to a deliberately wrong SHA-256
-
-Both pins are wrong on purpose, so unlike the other demos this one is *not* a
-project that builds - it is a project that must *not* build.
+Guarantee that a build downloads exactly the dependency bytes you vetted, and
+refuse to build when a dependency cannot be verified. This demo proves both
+guarantees by deliberately getting them wrong in two modules and asserting that
+each one fails the build: `unpinned` declares a dependency with a version but no
+checksum, and `tampered` pins a dependency to a checksum that does not match the
+real artifact.
 
 Run it
 ------
@@ -52,6 +34,33 @@ Together these are the two halves of pinning: **strict pinning** decides *whethe
 an unverified dependency may be used at all, and **checksums** verify that a
 pinned dependency is the exact artifact you vetted. (See `../demo-01-java-pom` for
 the everyday case: a dependency correctly pinned with its real checksum.)
+
+The two modules in detail
+-------------------------
+
+Jenesis pins dependencies not just by version but by the **content checksum** of
+every downloaded artifact, and can be told to **require** such a pin. The two
+modules get one guarantee wrong each:
+
+- **`unpinned`** declares a dependency with a version but **no checksum**. It
+  builds by default, but fails under **strict pinning** - there is nothing to
+  verify the download against.
+- **`tampered`** pins the same dependency to a **wrong `SHA-256`**. It fails the
+  build **even without** strict pinning: every download is checked against its
+  pin regardless.
+
+Layout
+------
+
+    demo-21-supply-chain-security
+    |-- build/jenesis            symlink to ../../../sources/build/jenesis
+    |-- build/Demo.java          asserts both modules fail to build
+    |-- pom.xml                  aggregator over the two modules
+    |-- unpinned/pom.xml         commons-lang3 with a version but no checksum
+    `-- tampered/pom.xml         commons-lang3 pinned to a deliberately wrong SHA-256
+
+Both pins are wrong on purpose, so unlike the other demos this one is *not* a
+project that builds - it is a project that must *not* build.
 
 Updating pins: refresh versions and hashes
 ------------------------------------------

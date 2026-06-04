@@ -1,17 +1,23 @@
 Custom modular build demo
 =========================
 
-The modular counterpart of `../demo-17-custom-maven`: a multi-module **modular** project
-built **without going through `Project`** - no layout, no goals - yet **without
-wiring every step by hand** either. The launcher `build/Demo.java` uses the
-convenience `ModularProject.make(root, assembler)` overload, which discovers the
-`module-info.java` modules under the root and supplies sane defaults for the
-repositories, resolvers, and digest a normal modular build configures.
+Build a multi-module Java module system project from your own launcher instead of
+the standard entry point, while still reusing Jenesis's stock toolchain. You write a
+small `build/Demo.java` that points Jenesis at the project root, and one convenience
+call discovers the `module-info.java` modules, builds the library module first, and
+resolves it when compiling the consumer module - a custom launcher without wiring
+every step by hand. This is the modular counterpart of `../demo-17-custom-maven`.
 
-It sits between `../demo-04-java-modular-multi` (the same shape of project driven by the
-full `Project` entry point) and `../demo-19-custom-build` (a build wired entirely by
-hand): a "custom but not so custom" build that reuses the stock toolchain through
-one convenience call.
+Run it
+------
+
+From this directory:
+
+    java build/Demo.java
+
+Jenesis discovers the two `module-info.java` modules, builds `greeter` first, and
+resolves it from within the build when compiling `app` (which `requires
+demo.greeter`). Each module produces a modular jar under `target/`.
 
 Layout
 ------
@@ -26,16 +32,16 @@ Layout
         |-- module-info.java     module demo.app { requires demo.greeter; }
         `-- sample/app/App.java   uses Greeter
 
-Run it
-------
+Where this demo sits
+--------------------
 
-From this directory:
-
-    java build/Demo.java
-
-Jenesis discovers the two `module-info.java` modules, builds `greeter` first, and
-resolves it from within the build when compiling `app` (which `requires
-demo.greeter`). Each module produces a modular jar under `target/`.
+It sits between `../demo-04-java-modular-multi` (the same shape of project driven by the
+full `Project` entry point) and `../demo-19-custom-build` (a build wired entirely by
+hand): a "custom but not so custom" build that reuses the stock toolchain through
+one convenience call. The launcher avoids going through `Project` - no layout, no
+goals - yet without wiring every step by hand either, because
+`ModularProject.make(root, assembler)` supplies sane defaults for the repositories,
+resolvers, and digest a normal modular build configures.
 
 How the convenience make is wired
 ---------------------------------

@@ -1,25 +1,21 @@
 Java (POM-based) demo
 =====================
 
-A minimal **Maven-layout** project: a `pom.xml` plus a single Java source with
-one real Maven dependency. It shows Jenesis driving plain `javac` through the
-default `JavaMultiProjectAssembler`, resolving and downloading the declared
-dependency, and pinning it. Its modular counterpart is `../demo-02-java-modular`.
+The simplest way to build a Maven-style Java project with Jenesis: a `pom.xml`
+and your sources. You point Jenesis at the project and it resolves the declared
+dependency, compiles against it, and produces a jar - there is no build script to
+write. Its modular counterpart is `../demo-02-java-modular`.
 
-Printing the dependency tree
-----------------------------
+Build it
+--------
 
-`-Djenesis.project.tree=true` prints the resolved dependency tree as the module
-resolves (a verbose toggle, not a build step):
+From this directory:
 
-    java -Djenesis.project.tree=true build/jenesis/Project.java
+    java build/jenesis/Project.java
 
-    Dependency tree:
-    maven/org.apache.commons/commons-lang3 3.14.0 [compile]
-
-Each node shows the property-file key, the requested version (with the negotiated
-version inline when it differs), and the Maven scope; transitive dependencies nest
-underneath and duplicates are dimmed and marked `(*)`.
+Jenesis auto-detects the MAVEN layout from the `pom.xml`, resolves and downloads
+`commons-lang3` from Maven Central (or `~/.m2`), and compiles `Sample.java`
+against it.
 
 Layout
 ------
@@ -29,19 +25,24 @@ Layout
     |-- pom.xml              Maven coordinates, <sourceDirectory>, one <dependency>; ships pinned
     `-- sources/sample/Sample.java
 
-The presence of `pom.xml` makes Jenesis auto-detect the MAVEN layout.
-`Sample.java` uses `org.apache.commons.lang3.StringUtils`, so the build resolves
-a real dependency from Maven Central (or `~/.m2`).
+`Sample.java` uses `org.apache.commons.lang3.StringUtils`, which is what makes
+the build resolve the real dependency. Under the hood Jenesis drives plain
+`javac` through the default `JavaMultiProjectAssembler`.
 
-Build it
---------
+Printing the dependency tree
+----------------------------
 
-From this directory:
+To see what the build resolves, `-Djenesis.project.tree=true` prints the
+dependency tree as the module resolves (a verbose toggle, not a build step):
 
-    java build/jenesis/Project.java
+    java -Djenesis.project.tree=true build/jenesis/Project.java
 
-Jenesis resolves `commons-lang3`, downloads it, and compiles `Sample.java`
-against it.
+    Dependency tree:
+    maven/org.apache.commons/commons-lang3 3.14.0 [compile]
+
+Each node shows the property-file key, the requested version (with the negotiated
+version inline when it differs), and the Maven scope; transitive dependencies nest
+underneath and duplicates are dimmed and marked `(*)`.
 
 Pinned dependency
 -----------------

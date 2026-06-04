@@ -1,17 +1,43 @@
 Executable Java (modular) demo
 ==============================
 
-A minimal **modular** project that is also **runnable**: a `module-info.java`
-plus a single Java source with a `main` method and one real module dependency
-(`org.slf4j`), packaged into a native application image by the JDK's `jpackage`.
-It is the executable counterpart of `../demo-02-java-modular`, and its POM-based sibling
-is `../demo-05-java-pom-executable`.
+Take a modular Java app and ship it as a self-contained native application image -
+a launcher with its own bundled Java runtime that a user can run without installing
+a JDK, and one that stays small because the runtime is trimmed to the module graph.
+The project is just a `module-info.java` plus a single Java source with a `main`
+method and one real module dependency (`org.slf4j`), and Jenesis packages it with
+the JDK's `jpackage`. It is the executable counterpart of `../demo-02-java-modular`,
+and its POM-based sibling is `../demo-05-java-pom-executable`.
+
+Run it
+------
+
+From this directory, pass the arguments you want the packaged application to
+receive on its command line:
+
+    java build/Demo.java Ada Lovelace
+
+`Demo.java` configures packaging directly on the assembler -
+`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
+`-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
+then reads the image folder from the `stage/packages` entry of the map that
+`build("stage")` returns (a fixed build target) and launches the produced platform
+launcher with your arguments. The packaged app prints:
+
+    Hello, Ada Lovelace, from a packaged Java module built by Jenesis!
+
+(Because no SLF4J backend is bundled, SLF4J prints a one-time "no providers" notice
+and uses a no-op logger - the `slf4j-api` jar is still bundled and on the app's
+classpath.) With no arguments it greets `world`. Building the plain
+`java build/jenesis/Project.java` (no `package` property) compiles and jars the
+module exactly as `../demo-02-java-modular` does, without producing an image.
 
 Declaring the entry point with `@jenesis.main`
 ----------------------------------------------
 
-A module becomes runnable when the build knows its main class. In the modular
-layout that is declared with a `@jenesis.main` Javadoc tag on `module-info.java`:
+For the build to package a runnable image it first has to know the main class. In
+the modular layout that is declared with a `@jenesis.main` Javadoc tag on
+`module-info.java`:
 
     /**
      * @jenesis.release 25
@@ -66,29 +92,6 @@ into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular
     `-- packages/output/demo.modular.executable/
         |-- bin/demo.modular.executable             the launcher
         `-- lib/                                     app jars + bundled runtime
-
-Run it
-------
-
-From this directory, pass the arguments you want the packaged application to
-receive on its command line:
-
-    java build/Demo.java Ada Lovelace
-
-`Demo.java` configures packaging directly on the assembler -
-`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
-`-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
-then reads the image folder from the `stage/packages` entry of the map that
-`build("stage")` returns (a fixed build target) and launches the produced platform
-launcher with your arguments. The packaged app prints:
-
-    Hello, Ada Lovelace, from a packaged Java module built by Jenesis!
-
-(Because no SLF4J backend is bundled, SLF4J prints a one-time "no providers" notice
-and uses a no-op logger - the `slf4j-api` jar is still bundled and on the app's
-classpath.) With no arguments it greets `world`. Building the plain
-`java build/jenesis/Project.java` (no `package` property) compiles and jars the
-module exactly as `../demo-02-java-modular` does, without producing an image.
 
 Fully bundled native installer
 ------------------------------

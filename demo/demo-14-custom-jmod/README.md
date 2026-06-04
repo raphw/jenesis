@@ -1,11 +1,35 @@
 Custom jmod + jlink + jpackage demo
 ===================================
 
-A custom assembler that packages **extra, non-class content** into a module's
-`.jmod`, links it into a **runtime image** with `jlink`, and wraps that runtime in
-a self-contained **application image** with `jpackage` - the full chain by which a
-jmod's content reaches a packaged, runnable app, and the case where the jmod form
-is worth more than a jar.
+Ship a self-contained application image that carries extra, non-class content -
+here a config file - all the way into the packaged app. The build packs that
+content into the module's `.jmod`, links it into a runtime image with `jlink`,
+and wraps the runtime in an application image with `jpackage`, so the launched
+app can read the file back from its own runtime. This is the case where the jmod
+form is worth more than a jar, since a jar cannot carry this content where the
+runtime needs it.
+
+Run it
+------
+
+From this directory:
+
+    java build/Demo.java
+
+It builds the module, packs `classes/` plus `jmodconfig/` into `demo.config.jmod`,
+links that jmod into a runtime image, wraps the runtime into a `demo.config`
+application image, and then launches the packaged app. The app reads its config
+back from the runtime that `jpackage` bundled into it:
+
+    The packaged app read its bundled config from .../demo.config/lib/runtime/conf/app.properties:
+    Configured in a .jmod, linked into the runtime by jlink
+
+Built from the jar instead, that file would be stranded inside the jar rather
+than sitting in the runtime's `conf/` where the launched app can read it from
+`<java.home>/conf/app.properties`.
+
+Why a jmod here
+---------------
 
 A jar can only hold classes and resources; an embedded resource stays inside the
 jar at runtime. A `.jmod` additionally has dedicated sections for native
@@ -83,22 +107,3 @@ rest. `jlink` reads the module from the `.jmod` (not the jar) and gets its
 `--add-modules` root from the `prepare` step's `jlink.properties`; `jpackage`,
 seeing a `jlink` runtime among its inputs, wraps it with `--runtime-image` rather
 than linking its own, so the jmod content carries through into the image.
-
-Run it
-------
-
-From this directory:
-
-    java build/Demo.java
-
-It builds the module, packs `classes/` plus `jmodconfig/` into `demo.config.jmod`,
-links that jmod into a runtime image, wraps the runtime into a `demo.config`
-application image, and then launches the packaged app. The app reads its config
-back from the runtime that `jpackage` bundled into it:
-
-    The packaged app read its bundled config from .../demo.config/lib/runtime/conf/app.properties:
-    Configured in a .jmod, linked into the runtime by jlink
-
-Built from the jar instead, that file would be stranded inside the jar rather
-than sitting in the runtime's `conf/` where the launched app can read it from
-`<java.home>/conf/app.properties`.

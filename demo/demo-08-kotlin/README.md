@@ -1,25 +1,10 @@
 Kotlin demo
 ===========
 
-A MODULAR_TO_MAVEN project (a `module-info.java`, no `pom.xml`) that mixes Java
-and Kotlin in one module of the Java module system. It shows Jenesis detecting
-the `.kt` sources and driving the Kotlin compiler through the default
-`JavaMultiProjectAssembler`, with `javac` participating for `module-info.java`
-and the companion `.java` file. The module exports both a mixed package and a
-package that holds only Kotlin.
-
-Layout
-------
-
-    demo/demo-08-kotlin
-    |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    `-- sources
-        |-- module-info.java       requires kotlin.stdlib; exports sample; exports sample.pure
-        `-- sample
-            |-- Greeter.java       a Java type in the exported 'sample' package
-            |-- Sample.kt          Kotlin that calls Greeter
-            `-- pure
-                `-- Pure.kt        a pure-Kotlin package, exported with no Java type
+Build a project that mixes Java and Kotlin in one module of the Java module
+system, and export a package that holds only Kotlin. You point Jenesis at the
+project, it compiles the `.java` and `.kt` sources together, and emits a modular
+jar alongside a generated POM - there is no build script to write.
 
 Build it
 --------
@@ -31,6 +16,30 @@ From this directory:
 Jenesis auto-detects the MODULAR_TO_MAVEN layout (a `module-info.java`, no
 `pom.xml`), resolves the Kotlin compiler, compiles the module, and emits a
 modular jar alongside a generated POM.
+
+Layout
+------
+
+The module declares its dependency in `module-info.java` and lays the mixed
+sources out under one package:
+
+    demo/demo-08-kotlin
+    |-- build/jenesis              symlink to ../../../sources/build/jenesis
+    `-- sources
+        |-- module-info.java       requires kotlin.stdlib; exports sample; exports sample.pure
+        `-- sample
+            |-- Greeter.java       a Java type in the exported 'sample' package
+            |-- Sample.kt          Kotlin that calls Greeter
+            `-- pure
+                `-- Pure.kt        a pure-Kotlin package, exported with no Java type
+
+How Jenesis builds it
+---------------------
+
+Jenesis detects the `.kt` sources and drives the Kotlin compiler through the
+default `JavaMultiProjectAssembler`, with `javac` participating for
+`module-info.java` and the companion `.java` file. The module exports both a
+mixed package and a package that holds only Kotlin.
 
 Compile order and exporting a Kotlin package
 --------------------------------------------

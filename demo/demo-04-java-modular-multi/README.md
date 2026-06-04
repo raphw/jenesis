@@ -1,36 +1,25 @@
 Java (multi-module modular) demo
 ================================
 
-A multi-module **modular** project: every build descriptor is a
-`module-info.java` and there is no `pom.xml` anywhere. One module depends on the
-other plus a real external named module, so the demo shows intra-project and
-external resolution side by side. A third module is the test variant of the
-library, so the demo doubles as a MODULAR_TO_MAVEN testing example. Its
-single-module counterpart is `../demo-02-java-modular`, and its POM-based sibling is
-`../demo-03-java-pom-multi`.
+Build a multi-module project of Java modules where one module depends on another:
+every build descriptor is a `module-info.java` and there is no `pom.xml` anywhere.
+One module `requires` the sibling plus a real external named module, so you get
+intra-project and external resolution side by side with no build script to write.
+A third module is the test variant of the library, so the demo doubles as a
+modular testing example. Its single-module counterpart is `../demo-02-java-modular`,
+and its POM-based sibling is `../demo-03-java-pom-multi`.
 
-Printing the dependency tree
-----------------------------
+Build it
+--------
 
-`-Djenesis.project.tree=true` prints each module's resolved tree as it resolves
-(a verbose toggle, not a build step), one block per module and scope:
+From this directory:
 
-    java -Djenesis.project.tree=true build/jenesis/Project.java
-
-    Dependency tree:
-    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
-    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
-    │  └─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
-    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
-
-Even though every descriptor here is a `module-info.java`, the default
-MODULAR_TO_MAVEN layout resolves each `requires` through Maven, so the tree shows
-Maven coordinates and their transitive Maven closure - the same shape as the
-POM-based `../demo-03-java-pom-multi`. The pure MODULAR layout
-(`../demo-12-module-layout`) shows the same dependencies as Java module names.
+    java build/jenesis/Project.java
 
 Layout
 ------
+
+The project is three module directories, each with its own `module-info.java`:
 
     demo/demo-04-java-modular-multi
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
@@ -93,13 +82,6 @@ line the tests compile against - though the `@jenesis.pin org.junit.platform.con
 tag overrides that default, so the pinned version always wins. Unlike the `pin` runs of the other demos, the JUnit closure is kept on
 the test module alone rather than propagated project-wide, to keep `greeter` and
 `app` focused on their own dependencies.
-
-Build it
---------
-
-From this directory:
-
-    java build/jenesis/Project.java
 
 Selecting modules and filtering tests
 -------------------------------------
@@ -181,3 +163,24 @@ version closure back into the module declarations and is idempotent. The
 intra-project `demo.greeter` dependency is never pinned, since coordinates
 produced within the project are resolved from the build itself rather than
 downloaded.
+
+Printing the dependency tree
+----------------------------
+
+To see what each module resolves, `-Djenesis.project.tree=true` prints each
+module's resolved tree as it resolves (a verbose toggle, not a build step), one
+block per module and scope:
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
+    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
+    │  └─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
+    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
+
+Even though every descriptor here is a `module-info.java`, the default
+MODULAR_TO_MAVEN layout resolves each `requires` through Maven, so the tree shows
+Maven coordinates and their transitive Maven closure - the same shape as the
+POM-based `../demo-03-java-pom-multi`. The pure MODULAR layout
+(`../demo-12-module-layout`) shows the same dependencies as Java module names.

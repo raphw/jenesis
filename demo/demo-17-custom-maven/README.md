@@ -1,17 +1,22 @@
 Custom Maven build demo
 =======================
 
-A multi-module Maven project built **without going through `Project`** - no
-layout, no goals, no `java build/jenesis/Project.java` - yet **without wiring
-every step by hand** either. The launcher `build/Demo.java` uses the convenience
-`MavenProject.make(root, assembler)` overload, which discovers the multi-module
-project under the root and supplies sane defaults for the repositories,
-resolvers, and digest a normal build would configure.
+Build a multi-module Maven project from your own launcher instead of the standard
+entry point, while still reusing Jenesis's stock toolchain. You write a small
+`build/Demo.java` that points Jenesis at the project root, and one convenience call
+discovers the modules, builds the library first, and resolves it when compiling the
+consumer - so you get a custom launcher without wiring every step by hand.
 
-It sits between `../demo-03-java-pom-multi` (the same shape of project driven by the full
-`Project` entry point) and `../demo-19-custom-build` (a build wired entirely by hand): a
-"custom but not so custom" build that reuses the stock toolchain through one
-convenience call.
+Run it
+------
+
+From this directory:
+
+    java build/Demo.java
+
+Jenesis discovers the aggregator and its two sub-modules, builds `greeter` first,
+and resolves it from within the build when compiling `app`. Each module's jar is
+produced under `target/`.
 
 Layout
 ------
@@ -27,16 +32,16 @@ Layout
         |-- pom.xml          depends on greeter
         `-- sources/sample/app/App.java   uses Greeter
 
-Run it
-------
+Where this demo sits
+--------------------
 
-From this directory:
-
-    java build/Demo.java
-
-Jenesis discovers the aggregator and its two sub-modules, builds `greeter` first,
-and resolves it from within the build when compiling `app`. Each module's jar is
-produced under `target/`.
+It sits between `../demo-03-java-pom-multi` (the same shape of project driven by the full
+`Project` entry point) and `../demo-19-custom-build` (a build wired entirely by hand): a
+"custom but not so custom" build that reuses the stock toolchain through one
+convenience call. The launcher avoids going through `Project` - no layout, no goals,
+no `java build/jenesis/Project.java` - yet without wiring every step by hand either,
+because `MavenProject.make(root, assembler)` supplies sane defaults for the
+repositories, resolvers, and digest a normal build would configure.
 
 How the convenience make is wired
 ---------------------------------

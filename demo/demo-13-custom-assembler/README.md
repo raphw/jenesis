@@ -1,26 +1,13 @@
 Custom assembler demo
 =====================
 
-A `Project` whose `JavaMultiProjectAssembler` is **wrapped** by a custom
-assembler that preprocesses each module's Java sources before the regular
-compile, jar, and test flow runs. The preprocessing here is a simple textual
-substitution: the `${greeting}` placeholder in `Sample.java` is rewritten to a
-real message, so the value that ends up compiled into the jar is the substituted
-one. Built with the stock assembler, the placeholder would survive verbatim.
-
-Layout
-------
-
-    demo/demo-13-custom-assembler
-    |-- build/jenesis        symlink to ../../../sources/build/jenesis
-    |-- build/Demo.java    the launcher: wires the wrapping assembler, builds, runs
-    `-- sources/
-        |-- module-info.java     module demo.custom { exports sample; } (@jenesis.main)
-        `-- sample/Sample.java    defines GREETING = "${greeting}", prints its substituted value
-
-With a `module-info.java` and no `pom.xml`, Jenesis auto-detects the
-MODULAR_TO_MAVEN layout and emits a modular jar (plus a generated POM), exactly
-as the `java-modular` demo does. The only difference is the assembler.
+Run a preprocessing pass over your Java sources before they are compiled, so the
+code that lands in the jar is the transformed version rather than what you wrote
+on disk. Here the transformation is a simple textual substitution: the
+`${greeting}` placeholder in `Sample.java` is rewritten to a real message before
+the regular compile, jar, and test flow runs, so the value compiled into the jar
+is the substituted one. Built with the stock build, the placeholder would survive
+verbatim.
 
 Run it
 ------
@@ -48,9 +35,24 @@ which prints:
 Built with the stock assembler instead, the same command would print the
 unsubstituted `${greeting}` placeholder.
 
+Layout
+------
+
+    demo/demo-13-custom-assembler
+    |-- build/jenesis        symlink to ../../../sources/build/jenesis
+    |-- build/Demo.java    the launcher: wires the wrapping assembler, builds, runs
+    `-- sources/
+        |-- module-info.java     module demo.custom { exports sample; } (@jenesis.main)
+        `-- sample/Sample.java    defines GREETING = "${greeting}", prints its substituted value
+
+With a `module-info.java` and no `pom.xml`, Jenesis auto-detects the
+MODULAR_TO_MAVEN layout and emits a modular jar (plus a generated POM), exactly
+as the `java-modular` demo does. The only difference is the assembler.
+
 How the wrapping works
 ----------------------
 
+The preprocessing is delivered by a custom assembler that wraps the stock one.
 `Project.assembler(...)` accepts any
 `MultiProjectAssembler<? super ProjectModuleDescriptor>`. The default is
 `JavaMultiProjectAssembler`; this demo passes a `PreprocessingAssembler` that

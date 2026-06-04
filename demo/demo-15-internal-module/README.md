@@ -1,19 +1,27 @@
 InternalModule demo
 ===================
 
-This demo does the same thing as `../demo-13-custom-assembler`: it wraps the stock
-`JavaMultiProjectAssembler` so the project's Java sources are preprocessed (a
-`${greeting}` substitution) before the regular compile, jar, and test flow runs.
-The difference is *where the preprocessing lives*. Instead of an inline build
-step, the substitution is performed by a **build module** (`BuildExecutorModule`
-service provider) that `InternalModule` loads straight from local source - and
-that build module uses an **external dependency** (`org.json`) to drive the
-substitution.
+Drive a source preprocessing pass from a reusable build module - a plugin kept in
+its own project, loaded straight from local source - instead of an inline build
+step. The plugin performs a `${greeting}` substitution over the project's Java
+sources before the regular compile, jar, and test flow runs, and it leans on an
+external dependency (`org.json`) to do so. The companion
+`../demo-16-external-module` runs the identical plugin, but resolves it as a
+published artifact rather than compiling it from source.
 
-The plugin's `build.jenesis` dependency resolves from the default Jenesis
-repository as the published `0.3.0` artifact (pinned via the `@tool/build.jenesis`
-tag in `sources/module-info.java`), whose API matches the local sources the host
-runs against, so the class-loader bridge loads it without complaint.
+Run it
+------
+
+From this directory:
+
+    java build/Demo.java
+
+which builds the project and then launches the built module, printing the
+greeting the plugin substituted in:
+
+    Hello from a source preprocessed by an internal build module, using the org.json dependency!
+
+Built without the plugin the literal `${greeting}` would print instead.
 
 Layout
 ------
@@ -38,19 +46,10 @@ The project under `sources/` is an ordinary modular project, exactly like
 project; its `.jenesis.skip` marker keeps the host project's module discovery
 from mistaking it for a second project module.
 
-Run it
-------
-
-From this directory:
-
-    java build/Demo.java
-
-which builds the project and then launches the built module, printing the
-greeting the plugin substituted in:
-
-    Hello from a source preprocessed by an internal build module, using the org.json dependency!
-
-Built without the plugin the literal `${greeting}` would print instead.
+The plugin's `build.jenesis` dependency resolves from the default Jenesis
+repository as the published `0.3.0` artifact (pinned via the `@tool/build.jenesis`
+tag in `sources/module-info.java`), whose API matches the local sources the host
+runs against, so the class-loader bridge loads it without complaint.
 
 How it works
 ------------
