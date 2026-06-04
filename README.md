@@ -351,9 +351,11 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `module-info.java` and documents the sources against the resolved dependencies, so a mixed-language module whose
   `module-info` exports a package implemented only in another language still produces valid Java docs). Each other
   language renders through its native tool, resolved on its own qualified trail like the compilers: Kotlin through
-  Dokka (`@dokka`, `dokka-cli` plus `dokka-base` and `analysis-kotlin-descriptors` on the plugins class-path),
-  Scala through `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty rather than
-  source), and Groovy through `groovydoc` (`@groovydoc`). When a single language is present its tool renders at the
+  Dokka in its **Javadoc output format** (`@dokka`, `dokka-cli` plus `analysis-kotlin-descriptors` and the
+  `javadoc-plugin` - which pulls `dokka-base`, `kotlin-as-java-plugin` and the Korte templating engine - on the
+  plugins class-path, presenting Kotlin as Java so the output is a javadoc-structured tree that `javadoc.io`
+  renders), Scala through `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty
+  rather than source), and Groovy through `groovydoc` (`@groovydoc`). When a single language is present its tool renders at the
   root and the others are dropped; when more than one is present the native tools render into per-language
   subfolders (`dokka/`, `scaladoc/`, `groovydoc/`) alongside the Java baseline. Scala and Kotlin tools are version
   coordinated to the project's resolved compiler version (read from the upstream dependency jars). The chain is
