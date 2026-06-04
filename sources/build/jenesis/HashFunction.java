@@ -61,11 +61,12 @@ public interface HashFunction {
 
     static void write(Path file, Map<Path, byte[]> checksums) throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        for (Map.Entry<Path, byte[]> entry : checksums.entrySet()) {
-            properties.setProperty(
-                    entry.getKey().toString().replace(File.separatorChar, '/'),
-                    HexFormat.of().formatHex(entry.getValue()));
-        }
+        checksums.entrySet().stream()
+                .map(entry -> Map.entry(
+                        entry.getKey().toString().replace(File.separatorChar, '/'),
+                        HexFormat.of().formatHex(entry.getValue())))
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> properties.setProperty(entry.getKey(), entry.getValue()));
         properties.store(file);
     }
 
