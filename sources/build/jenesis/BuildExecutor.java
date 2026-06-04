@@ -36,7 +36,7 @@ public interface BuildExecutor {
             return new Configuration(
                     Duration.parse(System.getProperty("jenesis.executor.timeout", timeout.toString())),
                     System.getProperty("jenesis.executor.digest", digest),
-                    verbose || Boolean.getBoolean("jenesis.verbose"),
+                    verbose || Boolean.getBoolean("jenesis.print.checksum"),
                     rebuild || Boolean.getBoolean("jenesis.executor.rebuild"));
         }
 
@@ -45,7 +45,9 @@ public interface BuildExecutor {
                     timeout,
                     new HashDigestFunction(digest),
                     BuildStepHashFunction.ofSerializationDigest(digest),
-                    BuildExecutorCallback.printing(System.out, verbose, target),
+                    Boolean.parseBoolean(System.getProperty("jenesis.print.progress", "true"))
+                            ? BuildExecutorCallback.printing(System.out, verbose, target)
+                            : BuildExecutorCallback.nop(),
                     rebuild);
         }
     }

@@ -167,11 +167,11 @@ downloaded.
 Printing the dependency tree
 ----------------------------
 
-To see what each module resolves, `-Djenesis.project.tree=true` prints each
+To see what each module resolves, `-Djenesis.print.tree=true` prints each
 module's resolved tree as it resolves (a verbose toggle, not a build step), one
 block per module and scope:
 
-    java -Djenesis.project.tree=true build/jenesis/Project.java
+    java -Djenesis.print.tree=true build/jenesis/Project.java
 
     Dependency tree:
     maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]

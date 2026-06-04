@@ -18,7 +18,7 @@ public interface Repository {
         if (folder == null) {
             return this;
         }
-        boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        boolean verbose = Boolean.getBoolean("jenesis.print.fetch");
         return cached(folder, verbose ? target -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,
                 "[FETCHED]",
@@ -86,7 +86,7 @@ public interface Repository {
     static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> Repository ofUris(
             Map<String, URI> uris,
             F versionResolver) {
-        boolean verbose = Boolean.getBoolean("jenesis.verbose");
+        boolean verbose = Boolean.getBoolean("jenesis.print.fetch");
         return ofUris(uris, versionResolver, verbose ? uri -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,
                 "[FETCHED]",

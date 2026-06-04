@@ -32,10 +32,10 @@ the build resolve the real dependency. Under the hood Jenesis drives plain
 Printing the dependency tree
 ----------------------------
 
-To see what the build resolves, `-Djenesis.project.tree=true` prints the
+To see what the build resolves, `-Djenesis.print.tree=true` prints the
 dependency tree as the module resolves (a verbose toggle, not a build step):
 
-    java -Djenesis.project.tree=true build/jenesis/Project.java
+    java -Djenesis.print.tree=true build/jenesis/Project.java
 
     Dependency tree:
     maven/org.apache.commons/commons-lang3 3.14.0 [compile]

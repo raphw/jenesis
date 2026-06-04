@@ -368,11 +368,18 @@ public record Project(
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}watch%{reset}                            Rebuild the selected target whenever a source file changes (Ctrl+C to stop)
-                      %{name}tree%{reset}                             Print each module's dependency tree as it is resolved (verbose-style)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
                       %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
                       %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
+
+                    %{header}Printing (-Djenesis.print.<key>=<value>):%{reset}
+                      %{name}progress%{reset}                         Print the build progress lines (default: true)
+                      %{name}checksum%{reset}                         Print each step's input/output file checksums
+                      %{name}command%{reset}                          Print each external tool command line as it runs
+                      %{name}fetch%{reset}                            Print each artifact downloaded from a repository
+                      %{name}docker%{reset}                           Print the Docker image when a build/run is wrapped (default: true)
+                      %{name}tree%{reset}                             Print each module's dependency tree as it resolves
 
                     %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
@@ -658,10 +665,6 @@ public record Project(
                       watch                       Rebuild the selected target
                                                   whenever a source file changes
                                                   (Ctrl+C to stop).
-                      tree                        Print each module's dependency
-                                                  tree as it is resolved
-                                                  (verbose-style), with the
-                                                  property-file key and scope.
 
                     Pinning:
                       -Djenesis.dependency.pin=strict|ignore  strict fails on
@@ -681,7 +684,27 @@ public record Project(
                                                         for content and
                                                         serialization hashes
                                                         (default MD5).
-                      -Djenesis.verbose=true            Verbose step output.
+
+                    Printing (-Djenesis.print.<key>=<value>):
+                      -Djenesis.print.progress=false      Suppress the build
+                                                        progress lines
+                                                        (default: true).
+                      -Djenesis.print.checksum=true       Print each step's
+                                                        input/output file
+                                                        checksums.
+                      -Djenesis.print.command=true        Print each external tool
+                                                        command line as it runs.
+                      -Djenesis.print.fetch=true          Print each artifact
+                                                        downloaded from a
+                                                        repository.
+                      -Djenesis.print.docker=false        Suppress the Docker
+                                                        image notice when a
+                                                        build/run is wrapped in
+                                                        a container (default:
+                                                        true).
+                      -Djenesis.print.tree=true           Print each module's
+                                                        dependency tree as it
+                                                        resolves.
 
                     Test execution:
                       -Djenesis.test.filter=<patterns>    Comma-separated
@@ -1305,7 +1328,7 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
-        if (Boolean.getBoolean("jenesis.project.tree")) {
+        if (Boolean.getBoolean("jenesis.print.tree")) {
             return build(DependencyTreeReport::new, selectors);
         }
         return build((Supplier<ResolutionListener>) null, selectors);
@@ -1399,7 +1422,7 @@ public record Project(
                     docker = docker.env("JENESIS_REPOSITORY_LOCAL", jenesisLocal.toString());
                 }
             }
-            if (Boolean.getBoolean("jenesis.verbose")) {
+            if (Boolean.parseBoolean(System.getProperty("jenesis.print.docker", "true"))) {
                 System.out.println("Launching build within Docker image: " + docker.image());
             }
             int code = docker.execute("build/jenesis/Project.java", properties, selectors);
