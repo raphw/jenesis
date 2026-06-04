@@ -1323,7 +1323,19 @@ public record Project(
         });
     }
 
+    public static void loadJenesisProperties(Path path) throws IOException {
+        Path file = path.resolve("jenesis.properties");
+        if (!Files.isRegularFile(file)) {
+            return;
+        }
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
+        for (String name : properties.stringPropertyNames()) {
+            System.getProperties().putIfAbsent(name, properties.getProperty(name));
+        }
+    }
+
     SequencedMap<String, Path> doMain(String... selectors) throws IOException, InterruptedException {
+        loadJenesisProperties(root());
         if (Boolean.getBoolean("jenesis.project.watch")) {
             watch(selectors);
             return new LinkedHashMap<>();
