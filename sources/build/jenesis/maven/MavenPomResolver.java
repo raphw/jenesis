@@ -95,7 +95,11 @@ public class MavenPomResolver implements MavenResolver {
                         true,
                         null,
                         Set.of(),
-                        null), new HashMap<>(), new HashMap<>(), null, (p, par, c, v, s, f, ctx) -> {});
+                        null),
+                new HashMap<>(),
+                new HashMap<>(),
+                null,
+                (_, _, _, _, _, _, _) -> {});
     }
 
     @Override
@@ -161,13 +165,19 @@ public class MavenPomResolver implements MavenResolver {
             throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
-        return dependencies(executor, repository, new ContextualPom(resolveOrCached(executor,
+        return dependencies(executor,
                 repository,
-                groupId,
-                artifactId,
-                version,
+                new ContextualPom(resolveOrCached(executor,
+                        repository,
+                        groupId,
+                        artifactId,
+                        version,
+                        resolved,
+                        unresolved), true, scope, Set.of(), null),
+                unresolved,
                 resolved,
-                unresolved), true, scope, Set.of(), null), unresolved, resolved, null, (p, par, c, v, s, f, ctx) -> {});
+                null,
+                (_, _, _, _, _, _, _) -> {});
     }
 
     private SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
