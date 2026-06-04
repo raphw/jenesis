@@ -63,8 +63,8 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                 }
             }
             process.addStep(GROUP,
-                    new Group(identifier -> Optional.of(modules.get(identifier)),
-                            BuildStep.REQUIRES),
+                    new Group(identifier -> Optional.of(modules.get(identifier)))
+                            .requiresPath(BuildStep.REQUIRES),
                     modules.sequencedKeySet());
             process.addModule(MODULE, (build, paths) -> {
                 SequencedMap<String, SequencedSet<String>> projects = new LinkedHashMap<>();

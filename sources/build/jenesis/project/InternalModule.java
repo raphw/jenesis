@@ -41,25 +41,21 @@ public class InternalModule implements BuildExecutorModule {
                           String qualifier,
                           Path source) {
         this(prefix,
-                qualifier,
                 source,
                 Map.of(prefix, new JenesisModuleRepository(true).prepend(JenesisModuleRepository.ofLocal())),
-                Map.of(prefix, new ModularJarResolver(true)));
-    }
-
-    public InternalModule(String prefix,
-                          String qualifier,
-                          Path source,
-                          Map<String, Repository> repositories,
-                          Map<String, Resolver> resolvers) {
-        this(prefix,
-                source,
-                repositories,
-                resolvers,
+                Map.of(prefix, new ModularJarResolver(true)),
                 Collections.emptyNavigableSet(),
                 null,
                 qualifier,
                 null);
+    }
+
+    public InternalModule repositories(Map<String, Repository> repositories) {
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning);
+    }
+
+    public InternalModule resolvers(Map<String, Resolver> resolvers) {
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning);
     }
 
     private InternalModule(String prefix,
@@ -151,8 +147,9 @@ public class InternalModule implements BuildExecutorModule {
                     new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier),
                     Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
             buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, scope, pinning,
-                            qualifier == null ? null : "module:" + qualifier),
+                    new DependenciesModule(repositories, resolvers, scope)
+                            .pinning(pinning)
+                            .tag(qualifier == null ? null : "module:" + qualifier),
                     requiresId);
         }
         buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, COMPILE_ARTIFACTS);

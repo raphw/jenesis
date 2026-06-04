@@ -24,19 +24,12 @@ public record DependenciesModule(Map<String, Repository> repositories,
         this(repositories, resolvers, scope, null, null, null);
     }
 
-    public DependenciesModule(Map<String, Repository> repositories,
-                              Map<String, Resolver> resolvers,
-                              DependencyScope scope,
-                              Pinning pinning) {
-        this(repositories, resolvers, scope, pinning, null, null);
+    public DependenciesModule pinning(Pinning pinning) {
+        return new DependenciesModule(repositories, resolvers, scope, pinning, tag, listener);
     }
 
-    public DependenciesModule(Map<String, Repository> repositories,
-                              Map<String, Resolver> resolvers,
-                              DependencyScope scope,
-                              Pinning pinning,
-                              String tag) {
-        this(repositories, resolvers, scope, pinning, tag, null);
+    public DependenciesModule tag(String tag) {
+        return new DependenciesModule(repositories, resolvers, scope, pinning, tag, listener);
     }
 
     public DependenciesModule listener(Supplier<ResolutionListener> listener) {
@@ -49,7 +42,7 @@ public record DependenciesModule(Map<String, Repository> repositories,
                 new Resolve(repositories, resolvers, scope).pinned(pinning != Pinning.IGNORE).listening(listener),
                 inherited.sequencedKeySet());
         buildExecutor.addStep(ARTIFACTS,
-                new Download(repositories, pinning, tag),
+                new Download(repositories).pinning(pinning).tag(tag),
                 RESOLVED);
     }
 }

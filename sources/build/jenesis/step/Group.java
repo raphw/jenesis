@@ -19,9 +19,13 @@ public class Group implements BuildStep {
         this(identification, REQUIRES);
     }
 
-    public <F extends Function<String, Optional<String>> & Serializable> Group(F identification, String requiresPath) {
+    private Group(Function<String, Optional<String>> identification, String requiresPath) {
         this.identification = identification;
         this.requiresPath = requiresPath;
+    }
+
+    public Group requiresPath(String requiresPath) {
+        return new Group(identification, requiresPath);
     }
 
     @Override

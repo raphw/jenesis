@@ -41,12 +41,6 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         this(repositories, resolvers, null, true, "groovy", null);
     }
 
-    public GroovyCompilerModule(Map<String, Repository> repositories,
-                                Map<String, Resolver> resolvers,
-                                Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, null, true, "groovy", factory);
-    }
-
     private GroovyCompilerModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
                                  Pinning pinning,
@@ -59,6 +53,10 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         this.includeResources = includeResources;
         this.qualifier = qualifier;
         this.factory = factory;
+    }
+
+    public GroovyCompilerModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     public GroovyCompilerModule pinning(Pinning pinning) {
@@ -81,7 +79,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, DependencyScope.RUNTIME).pinned(pinning != Pinning.IGNORE), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning, "compiler:" + qualifier), RESOLVED);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories).pinning(pinning).tag("compiler:" + qualifier), RESOLVED);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(ARTIFACTS);
         compileInputs.addAll(upstream);

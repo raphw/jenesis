@@ -91,9 +91,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))));
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKey("internal/marker");
@@ -132,9 +132,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))));
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps.get("internal/second").resolve("out.txt")).content().isEqualTo("seen:produced");
@@ -168,9 +168,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))));
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps.get("internal/inner/marker").resolve("out.txt")).content().isEqualTo("nested");
@@ -184,9 +184,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))));
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))));
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()
@@ -222,9 +222,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true)))
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true)))
                 .buildModuleName("foo"));
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
@@ -251,9 +251,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true)))
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true)))
                 .buildModuleName("bar"));
 
         assertThatThrownBy(() -> buildExecutor.execute())
@@ -282,9 +282,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))));
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))));
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()
@@ -321,9 +321,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))));
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))));
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()
@@ -362,9 +362,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 "tool",
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))), "manifests");
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))), "manifests");
 
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps.get("internal/marker").resolve("out.txt")).content().isEqualTo("hello");
@@ -401,9 +401,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 "tool",
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))), "manifests");
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))), "manifests");
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()
@@ -442,9 +442,9 @@ public class InternalModuleTest {
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
                 null,
-                source,
-                Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))),
-                Map.of("module", new ModularJarResolver(true))), "manifests");
+                source)
+                .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
+                .resolvers(Map.of("module", new ModularJarResolver(true))), "manifests");
 
         assertThatThrownBy(() -> buildExecutor.execute())
                 .rootCause()

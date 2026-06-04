@@ -20,14 +20,18 @@ public class Download implements DependencyProcessingBuildStep {
         this(repositories, null, null);
     }
 
-    public Download(Map<String, Repository> repositories, Pinning pinning) {
-        this(repositories, pinning, null);
-    }
-
-    public Download(Map<String, Repository> repositories, Pinning pinning, String tag) {
+    private Download(Map<String, Repository> repositories, Pinning pinning, String tag) {
         this.repositories = repositories;
         this.pinning = pinning;
         this.tag = tag;
+    }
+
+    public Download pinning(Pinning pinning) {
+        return new Download(repositories, pinning, tag);
+    }
+
+    public Download tag(String tag) {
+        return new Download(repositories, pinning, tag);
     }
 
     @Override

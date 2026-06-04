@@ -313,7 +313,7 @@ public class TestModule implements BuildExecutorModule {
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, DependencyScope.RUNTIME).pinned(pinning != Pinning.IGNORE), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning), REQUIRED);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories).pinning(pinning), REQUIRED);
         buildExecutor.addStep(EXECUTED, new Run(
                         factory,
                         resolved,

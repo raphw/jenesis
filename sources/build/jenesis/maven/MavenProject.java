@@ -100,7 +100,7 @@ public class MavenProject implements BuildExecutorModule {
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope, pinning)
+                                    new DependenciesModule(mergedRepositories, resolvers, scope).pinning(pinning)
                                             .listener(listener),
                                     PREPARE);
                         }, inherited.sequencedKeySet());

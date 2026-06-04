@@ -19,8 +19,12 @@ public record JavaToolchainModule(BuildExecutorModule compiler,
         this(Javac.tool().asModule("javac"), null, null, Jar.tool(Jar.Sort.CLASSES).asModule("jar"));
     }
 
-    public JavaToolchainModule(BuildExecutorModule compiler, BuildExecutorModule archiver) {
-        this(compiler, null, null, archiver);
+    public JavaToolchainModule compiler(BuildExecutorModule compiler) {
+        return new JavaToolchainModule(compiler, transformer, validator, archiver);
+    }
+
+    public JavaToolchainModule archiver(BuildExecutorModule archiver) {
+        return new JavaToolchainModule(compiler, transformer, validator, archiver);
     }
 
     public JavaToolchainModule transformer(BuildExecutorModule transformer) {

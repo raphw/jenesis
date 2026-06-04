@@ -107,7 +107,7 @@ public class DownloadTest {
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-        ), Pinning.IGNORE).apply(
+        )).pinning(Pinning.IGNORE).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -220,7 +220,7 @@ public class DownloadTest {
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-        ), Pinning.STRICT).apply(
+        )).pinning(Pinning.STRICT).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -240,7 +240,7 @@ public class DownloadTest {
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
-        ), null).apply(
+        )).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(

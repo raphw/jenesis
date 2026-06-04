@@ -42,12 +42,6 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         this(repositories, resolvers, null, true, "kotlin", null);
     }
 
-    public KotlinCompilerModule(Map<String, Repository> repositories,
-                                Map<String, Resolver> resolvers,
-                                Function<List<String>, ? extends ProcessHandler> factory) {
-        this(repositories, resolvers, null, true, "kotlin", factory);
-    }
-
     private KotlinCompilerModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
                                  Pinning pinning,
@@ -60,6 +54,10 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         this.includeResources = includeResources;
         this.qualifier = qualifier;
         this.factory = factory;
+    }
+
+    public KotlinCompilerModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
     }
 
     public KotlinCompilerModule pinning(Pinning pinning) {
@@ -82,7 +80,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, DependencyScope.RUNTIME).pinned(pinning != Pinning.IGNORE), resolveInputs);
-        buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning, "compiler:" + qualifier), RESOLVED);
+        buildExecutor.addStep(ARTIFACTS, new Download(repositories).pinning(pinning).tag("compiler:" + qualifier), RESOLVED);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(ARTIFACTS);
         compileInputs.addAll(upstream);

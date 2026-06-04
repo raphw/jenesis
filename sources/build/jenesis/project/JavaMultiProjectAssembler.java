@@ -95,12 +95,12 @@ public record JavaMultiProjectAssembler(boolean process,
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
-            sub.addModule("binary", new JavaToolchainModule(
-                    new InferredCompilerChainModule(repositories, resolvers)
+            sub.addModule("binary", new JavaToolchainModule()
+                    .compiler(new InferredCompilerChainModule(repositories, resolvers)
                             .process(process)
                             .pinning(descriptor.pinning())
-                            .modulePath(descriptor.modulePath()),
-                    (process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
+                            .modulePath(descriptor.modulePath()))
+                    .archiver((process ? Jar.process(Jar.Sort.CLASSES) : Jar.tool(Jar.Sort.CLASSES)).asModule("jar")),
                     Stream.concat(
                             Stream.of("prepare"),
                             Stream.concat(inputs(descriptor), descriptor.resources().stream())));

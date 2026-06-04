@@ -89,7 +89,7 @@ public class AssignTest {
         properties.setProperty("bar", argument.relativize(passthroughArtifact).toString());
         properties.store(argument.resolve(BuildStep.IDENTITY));
         Files.writeString(Files.createDirectory(argument.resolve(BuildStep.ARTIFACTS)).resolve("artifact"), "baz");
-        BuildStepResult result = new Assign((coordinates, files) -> {
+        BuildStepResult result = new Assign().assigner((coordinates, files) -> {
             assertThat(coordinates).containsExactly("foo");
             assertThat(files).containsExactly(argument.resolve(BuildStep.ARTIFACTS).resolve("artifact"));
             return Map.of(
