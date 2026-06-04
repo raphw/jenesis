@@ -4,6 +4,8 @@ import module java.base;
 import module java.xml;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.ResolutionContext;
+import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public class MavenPomResolver implements MavenResolver {
@@ -30,7 +32,8 @@ public class MavenPomResolver implements MavenResolver {
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
-                                                     boolean compile) throws IOException {
+                                                     boolean compile,
+                                                     ResolutionListener listener) throws IOException {
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         versions.forEach((coordinate, value) -> {
             MavenDependencyKey key = MavenDependencyKey.parseKey(coordinate);
@@ -71,8 +74,11 @@ public class MavenPomResolver implements MavenResolver {
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(Resolver.base(prefix), Repository.empty())),
-                managedDependencies,
-                dependencies).forEach((key, value) -> resolved.put(
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, null, Set.of(), null),
+                new HashMap<>(),
+                new HashMap<>(),
+                prefix,
+                listener).forEach((key, value) -> resolved.put(
                         key.coordinate(prefix, value.version()),
                         value.checksum() == null ? "" : value.checksum()));
         return resolved;
@@ -88,7 +94,8 @@ public class MavenPomResolver implements MavenResolver {
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies),
                         true,
                         null,
-                        Set.of()), new HashMap<>(), new HashMap<>());
+                        Set.of(),
+                        null), new HashMap<>(), new HashMap<>(), null, (p, par, c, v, s, f, ctx) -> {});
     }
 
     @Override
@@ -139,8 +146,8 @@ public class MavenPomResolver implements MavenResolver {
                     new MavenDependencyValue(version, scope, null, null, null, rootPom.checksum()));
         }
         return dependencies(executor, repository,
-                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of()),
-                unresolved, resolved);
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of(), null),
+                unresolved, resolved, null, (p, par, c, v, s, f, ctx) -> {});
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
@@ -158,7 +165,7 @@ public class MavenPomResolver implements MavenResolver {
                 artifactId,
                 version,
                 resolved,
-                unresolved), true, scope, Set.of()), unresolved, resolved);
+                unresolved), true, scope, Set.of(), null), unresolved, resolved, null, (p, par, c, v, s, f, ctx) -> {});
     }
 
     private SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
@@ -166,12 +173,16 @@ public class MavenPomResolver implements MavenResolver {
             MavenRepository repository,
             ContextualPom initial,
             Map<DependencyCoordinate, UnresolvedPom> unresolved,
-            Map<DependencyCoordinate, ResolvedPom> resolved) throws IOException {
+            Map<DependencyCoordinate, ResolvedPom> resolved,
+            String prefix,
+            ResolutionListener listener) throws IOException {
         Map<MavenDependencyKey, DependencyResolution> resolutions = new HashMap<>();
         SequencedSet<MavenDependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
+        List<Edge> edges = new ArrayList<>();
         MavenVersionNegotiator negotiator = negotiatorSupplier.get();
         do {
             dependencies.clear();
+            edges.clear();
             conflicts = traverse(executor,
                     repository,
                     negotiator,
@@ -180,7 +191,8 @@ public class MavenPomResolver implements MavenResolver {
                     resolutions,
                     initial.pom().managedDependencies(),
                     dependencies,
-                    initial);
+                    initial,
+                    edges);
             Iterator<MavenDependencyKey> it = conflicts.iterator();
             while (it.hasNext()) {
                 MavenDependencyKey key = it.next();
@@ -219,6 +231,18 @@ public class MavenPomResolver implements MavenResolver {
                     resolution.optional,
                     resolution.checksum));
         });
+        for (Edge edge : edges) {
+            DependencyResolution parent = edge.parent() == null ? null : resolutions.get(edge.parent());
+            listener.onDependency(prefix,
+                    edge.parent() == null
+                            ? null
+                            : edge.parent().coordinate(prefix, parent == null ? null : parent.currentVersion),
+                    edge.child().coordinate(prefix, edge.version()),
+                    edge.version(),
+                    edge.scope() == null ? null : edge.scope().name().toLowerCase(Locale.ROOT),
+                    edge.followed(),
+                    () -> null);
+        }
         return results;
     }
 
@@ -230,7 +254,8 @@ public class MavenPomResolver implements MavenResolver {
                                                       Map<MavenDependencyKey, DependencyResolution> resolutions,
                                                       Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
                                                       SequencedSet<MavenDependencyKey> dependencies,
-                                                      ContextualPom current) throws IOException {
+                                                      ContextualPom current,
+                                                      List<Edge> edges) throws IOException {
         SequencedSet<MavenDependencyKey> conflicting = new LinkedHashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>();
         do {
@@ -295,6 +320,7 @@ public class MavenPomResolver implements MavenResolver {
                     }
                 }
                 if (dependencies.add(entry.getKey())) {
+                    edges.add(new Edge(current.origin(), entry.getKey(), version, scope, true));
                     ResolvedPom pom = resolveOrCached(executor,
                             repository,
                             entry.getKey().groupId(),
@@ -307,7 +333,9 @@ public class MavenPomResolver implements MavenResolver {
                         exclusions = new HashSet<>(exclusions);
                         exclusions.addAll(value.exclusions());
                     }
-                    queue.add(new ContextualPom(pom, false, scope, exclusions));
+                    queue.add(new ContextualPom(pom, false, scope, exclusions, entry.getKey()));
+                } else {
+                    edges.add(new Edge(current.origin(), entry.getKey(), version, scope, false));
                 }
             }
         } while ((current = queue.poll()) != null);
@@ -918,7 +946,15 @@ public class MavenPomResolver implements MavenResolver {
     private record ContextualPom(ResolvedPom pom,
                                  boolean root,
                                  MavenDependencyScope scope,
-                                 Set<MavenDependencyName> exclusions) {
+                                 Set<MavenDependencyName> exclusions,
+                                 MavenDependencyKey origin) {
+    }
+
+    private record Edge(MavenDependencyKey parent,
+                        MavenDependencyKey child,
+                        String version,
+                        MavenDependencyScope scope,
+                        boolean followed) {
     }
 
     private static class DependencyResolution {

@@ -3,6 +3,7 @@ package build.jenesis.module;
 import module java.base;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public class ModularJarResolver implements Resolver {
@@ -27,7 +28,8 @@ public class ModularJarResolver implements Resolver {
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
-                                                     boolean compile) throws IOException {
+                                                     boolean compile,
+                                                     ResolutionListener listener) throws IOException {
         coordinates.forEach((coordinate, exclusions) -> {
             if (!exclusions.isEmpty()) {
                 throw new IllegalArgumentException(
@@ -160,7 +162,7 @@ public class ModularJarResolver implements Resolver {
             for (String coordinate : unresolved) {
                 unresolvedCoordinates.put(coordinate, Collections.emptyNavigableSet());
             }
-            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, compile)
+            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, compile, listener)
                     .forEach(dependencies::putIfAbsent);
         }
         return dependencies;

@@ -170,7 +170,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         executor.execute("groovy/" + "required");
 
@@ -189,7 +189,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         executor.execute("groovy/" + "required");
 
@@ -208,7 +208,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("vendor", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("vendor", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
 
         assertThatThrownBy(() -> executor.execute("groovy/" + "required"))
@@ -225,7 +225,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 

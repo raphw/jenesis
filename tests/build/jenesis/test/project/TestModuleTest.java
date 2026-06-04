@@ -380,7 +380,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .engine(new JUnitPlatform())
                         .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
@@ -401,7 +401,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .engine(new JUnitPlatform())
                         .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
@@ -506,7 +506,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .engine(new JUnitPlatform())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -531,7 +531,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .engine(new JUnitPlatform())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -549,7 +549,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
                         .engine(new MultiRunnerEngine())
                         .jarsOnly(false),
                 "dependencies", "classes");

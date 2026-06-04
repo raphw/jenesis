@@ -10,14 +10,25 @@ public interface Resolver extends Serializable {
                                               Map<String, Repository> repositories,
                                               SequencedMap<String, SequencedSet<String>> coordinates,
                                               SequencedMap<String, String> versions,
-                                              boolean compile) throws IOException;
+                                              boolean compile,
+                                              ResolutionListener listener) throws IOException;
+
+    default SequencedMap<String, String> dependencies(Executor executor,
+                                                      String prefix,
+                                                      Map<String, Repository> repositories,
+                                                      SequencedMap<String, SequencedSet<String>> coordinates,
+                                                      SequencedMap<String, String> versions,
+                                                      boolean compile) throws IOException {
+        return dependencies(executor, prefix, repositories, coordinates, versions, compile,
+                (p, par, c, v, s, f, ctx) -> {});
+    }
 
     default SequencedSet<String> managedPrefixes() {
         return Collections.emptyNavigableSet();
     }
 
     default <F extends BiFunction<String, String, String> & Serializable> Resolver translated(String translated, F translator) {
-        return (executor, prefix, repositories, coordinates, versions, compile) -> {
+        return (executor, prefix, repositories, coordinates, versions, compile, listener) -> {
             SequencedMap<String, String> translatedVersions = new LinkedHashMap<>();
             versions.forEach((coordinate, version) -> translatedVersions.put(
                     pinVersion(translator.apply(prefix, coordinate), version),
@@ -31,7 +42,8 @@ public interface Resolver extends Serializable {
                     repositories,
                     translatedCoordinates,
                     translatedVersions,
-                    compile);
+                    compile,
+                    listener);
         };
     }
 
@@ -59,7 +71,7 @@ public interface Resolver extends Serializable {
     }
 
     static Resolver identity() {
-        return (_, prefix, _, coordinates, _, _) -> {
+        return (_, prefix, _, coordinates, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             coordinates.sequencedKeySet().forEach(coordinate -> resolved.put(prefix + "/" + coordinate, ""));
             return resolved;
@@ -67,7 +79,7 @@ public interface Resolver extends Serializable {
     }
 
     static <F extends Function<String, SequencedCollection<String>> & Serializable> Resolver of(F translator) {
-        return (_, prefix, _, coordinates, _, _) -> {
+        return (_, prefix, _, coordinates, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             coordinates.sequencedKeySet().stream()
                     .flatMap(coordinate -> translator.apply(coordinate).stream())

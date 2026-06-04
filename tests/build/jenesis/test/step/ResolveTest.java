@@ -33,7 +33,7 @@ public class ResolveTest {
         properties.setProperty("foo/qux", "");
         properties.setProperty("foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.sequencedKeySet().forEach(descriptor -> {
                         resolved.put(prefix + "/" +descriptor, "");
@@ -64,7 +64,7 @@ public class ResolveTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("maven@kotlin/org.jetbrains/something", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("maven", Repository.empty()), Map.of("maven", (_, prefix, _, descriptors, _, _) -> {
+        BuildStepResult result = new Resolve(Map.of("maven", Repository.empty()), Map.of("maven", (_, prefix, _, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
                     return resolved;
@@ -87,7 +87,7 @@ public class ResolveTest {
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "");
@@ -120,7 +120,7 @@ public class ResolveTest {
         properties.setProperty("foo/qux", "bar");
         properties.setProperty("foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _) -> {
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "qux/" + descriptor);

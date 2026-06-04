@@ -223,7 +223,7 @@ public class KotlinCompilerModuleTest {
                 "kotlin",
                 new KotlinCompilerModule(
                         Map.of(),
-                        Map.of("module", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         executor.execute("kotlin/" + "required");
 
@@ -242,7 +242,7 @@ public class KotlinCompilerModuleTest {
                 "kotlin",
                 new KotlinCompilerModule(
                         Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         executor.execute("kotlin/" + "required");
 
@@ -262,8 +262,8 @@ public class KotlinCompilerModuleTest {
                 new KotlinCompilerModule(
                         Map.of(),
                         Map.of(
-                                "module", (_, _, _, _, _, _) -> new LinkedHashMap<>(),
-                                "maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                                "module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>(),
+                                "maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         executor.execute("kotlin/" + "required");
 
@@ -282,7 +282,7 @@ public class KotlinCompilerModuleTest {
                 "kotlin",
                 new KotlinCompilerModule(
                         Map.of(),
-                        Map.of("vendor", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("vendor", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
 
         assertThatThrownBy(() -> executor.execute("kotlin/" + "required"))
@@ -316,7 +316,7 @@ public class KotlinCompilerModuleTest {
                 "kotlin",
                 new KotlinCompilerModule(
                         Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 
