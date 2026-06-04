@@ -12,6 +12,7 @@ import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Bundle;
 import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
@@ -24,49 +25,54 @@ public record JavaMultiProjectAssembler(boolean process,
                                         String packaging,
                                         boolean jmod,
                                         boolean jlink,
+                                        boolean bundle,
                                         TestEngine testEngine,
                                         String group,
                                         boolean parallel,
                                         boolean reporting) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(false, null, null, false, false, null, null, false, false);
+        this(false, null, null, false, false, false, null, null, false, false);
     }
 
     public JavaMultiProjectAssembler process(boolean process) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler filter(String filter) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
+    }
+
+    public JavaMultiProjectAssembler bundle(boolean bundle) {
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler group(String group) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler parallel(boolean parallel) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     public JavaMultiProjectAssembler reporting(boolean reporting) {
-        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, testEngine, group, parallel, reporting);
+        return new JavaMultiProjectAssembler(process, filter, packaging, jmod, jlink, bundle, testEngine, group, parallel, reporting);
     }
 
     @Override
@@ -81,6 +87,7 @@ public record JavaMultiProjectAssembler(boolean process,
                 packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 jmod || Boolean.getBoolean("jenesis.java.jmod"),
                 jlink || Boolean.getBoolean("jenesis.java.jlink"),
+                bundle || Boolean.getBoolean("jenesis.java.bundle"),
                 testEngine,
                 groupOverride != null ? groupOverride : group,
                 parallel || Boolean.getBoolean("jenesis.java.test.parallel"),
@@ -167,6 +174,13 @@ public record JavaMultiProjectAssembler(boolean process,
                 sub.addStep("jpackage",
                         process ? JPackage.process(packaging) : JPackage.tool(packaging),
                         jlink ? Stream.concat(Stream.of("jlink"), inputs) : inputs);
+            }
+            if (bundle) {
+                sub.addStep("bundle",
+                        new Bundle(),
+                        Stream.concat(
+                                Stream.of("prepare", "binary"),
+                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
             }
         };
     }

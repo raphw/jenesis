@@ -45,7 +45,9 @@ jobs:
           - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.java.test=.*GreeterTest#prefix_is_a_greeting" }
           - { name: java-modular-jmod-jlink, dir: demo-02-java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: demo-05-java-pom-executable, entry: build/Demo.java }
+          - { name: java-pom-bundle, dir: demo-05-java-pom-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }
           - { name: java-modular-executable, dir: demo-06-java-modular-executable, entry: build/Demo.java }
+          - { name: java-modular-bundle, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }
           - { name: java-multi-release, dir: demo-07-java-multi-release, entry: build/jenesis/Execute.java }
           - { name: kotlin, dir: demo-08-kotlin, entry: build/jenesis/Project.java }
           - { name: kotlin-documentation, dir: demo-08-kotlin, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }

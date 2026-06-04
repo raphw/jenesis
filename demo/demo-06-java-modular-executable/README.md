@@ -93,6 +93,35 @@ into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular
         |-- bin/demo.modular.executable             the launcher
         `-- lib/                                     app jars + bundled runtime
 
+Bundle the jars for a JRE-based image
+-------------------------------------
+
+`jpackage` bundles a trimmed runtime into the image. The lighter alternative is to
+ship only your jars onto an off-the-shelf JRE base (the shared-base trade discussed
+at the end of this page). For that, `-Djenesis.java.bundle=true` wires a per-module
+`bundle` step that writes a single `bundle/bundle.zip` for every module with a main
+class:
+
+    java -Djenesis.java.bundle=true build/jenesis/Project.java
+
+    bundle.zip
+    |-- application.properties     mainClass=sample.Sample, mainModule=demo.modular.executable
+    |-- modulepath/                jars that are modules (here the app jar and slf4j-api)
+    `-- classpath/                 any non-modular jars
+
+The zip carries exactly the runtime closure `Execute` would launch, split the same
+way: real and automatic modules under `modulepath/`, the rest under `classpath/`,
+with `application.properties` naming the entry point (`mainModule` only when the
+launcher is modular). Unzipped onto a JRE base, it needs no JDK and no jpackage:
+
+    FROM eclipse-temurin:25-jre
+    COPY bundle/ /opt/app/
+    ENTRYPOINT ["java", "--module-path", "/opt/app/modulepath", "-m", "demo.modular.executable/sample.Sample"]
+
+For a non-modular project the zip holds only `classpath/` and an `application.properties`
+with just `mainClass`, launched with `java -cp 'classpath/*' sample.Sample` (see
+`../demo-05-java-pom-executable`).
+
 Fully bundled native installer
 ------------------------------
 
