@@ -57,6 +57,32 @@ differ in how dependencies are resolved and what else is emitted:
   selects MODULAR for you. So picking this layout narrows what you can depend on to
   the subset of the ecosystem published as proper Java modules.
 
+Seeing the difference in the tree
+---------------------------------
+
+`-Djenesis.project.tree=true` prints each module's resolved dependency tree as it
+resolves (a verbose toggle, not a build step), and it makes the layout distinction
+concrete. The same `requires org.slf4j` shows up differently under each layout.
+
+Under **MODULAR** (this demo) the node is a Java module name resolved from the
+module repository - no Maven coordinate, no Maven scope:
+
+    java -Djenesis.project.tree=true build/Demo.java
+
+    Dependency tree:
+    module/org.slf4j 2.0.16
+
+Under **MODULAR_TO_MAVEN** (the same project in `../demo-02-java-modular`) the
+module is translated to its Maven coordinate and resolved through Maven, so the
+node is a Maven artifact carrying a Maven scope:
+
+    Dependency tree:
+    maven/org.slf4j/slf4j-api 2.0.16 [compile]
+
+In a project with transitive dependencies the Maven side expands the full
+nearest-wins closure (resolved versions, scopes, and duplicates dimmed and marked
+`(*)`), while the modular side stays a graph of named modules.
+
 Run it
 ------
 

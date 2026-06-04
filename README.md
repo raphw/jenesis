@@ -1607,7 +1607,8 @@ build.
 
 `Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
 `Map<String, Repository>` to fetch from, a `versions` pin map (with optional space-separated `<algorithm>/<hex>`
-checksum suffix), and a `compile`/`runtime` flag, and returns the resolved closure as a
+checksum suffix), a `DependencyScope` (`COMPILE` or `RUNTIME`), and an optional `ResolutionListener`, and
+returns the resolved closure as a
 `SequencedMap<String, String>`. The value carries the chosen version and/or checksum that the downstream
 `Download` step validates against. The default method `resolver.translated(targetPrefix, translator)`
 rewrites both coordinates and the prefix before delegating, which is useful when a generic translation

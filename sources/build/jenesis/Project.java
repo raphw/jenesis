@@ -1309,6 +1309,9 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
+        if (Boolean.getBoolean("jenesis.project.tree")) {
+            return build(DependencyTreeReport::new, selectors);
+        }
         return build((Supplier<ResolutionListener>) null, selectors);
     }
 
@@ -1407,9 +1410,6 @@ public record Project(
             if (code != 0) {
                 System.exit(code);
             }
-        }
-        if (Boolean.getBoolean("jenesis.project.tree")) {
-            return build(DependencyTreeReport::new, selectors);
         }
         return this.build(selectors);
     }
