@@ -1,6 +1,49 @@
 Docker isolation demo
 =====================
 
+Build and run a Java project inside a throwaway Docker container so that untrusted
+code - the tests run during the build, the dependencies they drag in, and the
+artifact's own `main` - cannot reach your host secrets or write outside the sandbox.
+This demo first shows the leak on the host (a single-class project lifts a
+credentials file and an environment secret at build time and again at run time),
+then confines both the build and the launched program with Docker.
+
+Set up the secrets
+------------------
+
+    printf 'aws_secret_key=PSEUDO-FILE-SECRET\n' > ~/.demo-credentials
+    export DEMO_SECRET=PSEUDO-ENV-SECRET
+
+(Use a throwaway file - the actors overwrite it. Remove it and unset the variable
+when you are done.)
+
+On the host (the leak)
+----------------------
+
+Build the project. The build compiles and runs the test, which reads both secrets
+and overwrites the file:
+
+    java build/jenesis/Project.java
+    cat ~/.demo-credentials          # now reads: overwritten by the test
+
+JUnit captures the test's console output, so the proof that the test ran is the
+clobbered file. Now run the program with `Execute`, whose `main` prints what it
+extracted:
+
+    printf 'aws_secret_key=PSEUDO-FILE-SECRET\n' > ~/.demo-credentials   # restore it
+    java build/jenesis/Execute.java
+
+    [program main] env DEMO_SECRET = PSEUDO-ENV-SECRET
+    [program main] extracted /home/you/.demo-credentials: aws_secret_key=PSEUDO-FILE-SECRET
+    [program main] overwrote /home/you/.demo-credentials
+
+A single-class project read and clobbered a credentials file and lifted an
+environment secret, at build time and again at run time, with no custom build
+code involved.
+
+What the leak stands for
+------------------------
+
 A build runs untrusted code even when nothing about it is customised. The stock
 pipeline compiles and runs your **tests** (and everything your test dependencies
 drag in), and the artifact it produces has a **`main`** that runs later - all with
@@ -50,39 +93,6 @@ module, the standard modular way to ship tests:
     `-- app-test/
         |-- module-info.java             @jenesis.test demo.dockerisolation; pins the JUnit closure
         `-- sampletest/SampleTest.java   a test that calls Sample.peek during the build
-
-Set up the secrets
-------------------
-
-    printf 'aws_secret_key=PSEUDO-FILE-SECRET\n' > ~/.demo-credentials
-    export DEMO_SECRET=PSEUDO-ENV-SECRET
-
-(Use a throwaway file - the actors overwrite it. Remove it and unset the variable
-when you are done.)
-
-On the host (the leak)
-----------------------
-
-Build the project. The build compiles and runs the test, which reads both secrets
-and overwrites the file:
-
-    java build/jenesis/Project.java
-    cat ~/.demo-credentials          # now reads: overwritten by the test
-
-JUnit captures the test's console output, so the proof that the test ran is the
-clobbered file. Now run the program with `Execute`, whose `main` prints what it
-extracted:
-
-    printf 'aws_secret_key=PSEUDO-FILE-SECRET\n' > ~/.demo-credentials   # restore it
-    java build/jenesis/Execute.java
-
-    [program main] env DEMO_SECRET = PSEUDO-ENV-SECRET
-    [program main] extracted /home/you/.demo-credentials: aws_secret_key=PSEUDO-FILE-SECRET
-    [program main] overwrote /home/you/.demo-credentials
-
-A single-class project read and clobbered a credentials file and lifted an
-environment secret, at build time and again at run time, with no custom build
-code involved.
 
 Confining it with Docker
 ------------------------

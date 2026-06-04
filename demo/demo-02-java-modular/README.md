@@ -1,31 +1,24 @@
 Java (modular) demo
 ===================
 
-A single-module **modular** Java project: its only build descriptor is
-`sources/module-info.java` - there is no `pom.xml`. Jenesis auto-detects the
-MODULAR_TO_MAVEN layout, resolves the declared module dependency through the
-Jenesis module repository, and emits a modular jar alongside a generated POM. Its
+The simplest way to build a single-module Java project that is itself a Java
+module: your only build descriptor is `sources/module-info.java`, with no
+`pom.xml` to write. You point Jenesis at the project and it resolves the module
+you `requires`, compiles your module against it, and produces a modular jar. Its
 POM-based counterpart is `../demo-01-java-pom`, and its multi-module counterpart is
 `../demo-04-java-modular-multi`.
 
-Printing the dependency tree
-----------------------------
+Build it
+--------
 
-`-Djenesis.project.tree=true` prints the resolved dependency tree as the module
-resolves (a verbose toggle, not a build step):
+From this directory:
 
-    java -Djenesis.project.tree=true build/jenesis/Project.java
-
-    Dependency tree:
-    maven/org.slf4j/slf4j-api 2.0.16 [compile]
-
-Because this is the default MODULAR_TO_MAVEN layout, `requires org.slf4j` is shown
-as the Maven coordinate it resolves to, with a Maven scope. Under the pure MODULAR
-layout the same dependency shows as a Java module name (`module/org.slf4j`) instead
-- see `../demo-12-module-layout`, which contrasts the two.
+    java build/jenesis/Project.java
 
 Layout
 ------
+
+The whole project is a `module-info.java` plus a source file:
 
     demo/demo-02-java-modular
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
@@ -44,13 +37,6 @@ and a Maven repository (`target/stage/maven`).
 `org.slf4j` is a genuine named Java module (`module-info` with a declared
 version), which is what lets the module overlay resolve it by module name -
 unlike many popular libraries that ship only as *automatic* modules.
-
-Build it
---------
-
-From this directory:
-
-    java build/jenesis/Project.java
 
 Pure modular layout
 -------------------
@@ -96,3 +82,19 @@ SHA-256/<hex>`), which `Download` then verifies on every fetch.
 A modular dependency pins under the plain `module/` prefix (no qualifier) - the
 `@<qualifier>` form is reserved for independent tool trails, as shown in the
 `kotlin` / `scala` and `internal-module` / `external-module` demos.
+
+Printing the dependency tree
+----------------------------
+
+To see what the build resolves, `-Djenesis.project.tree=true` prints the resolved
+dependency tree as the module resolves (a verbose toggle, not a build step):
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.slf4j/slf4j-api 2.0.16 [compile]
+
+Because this is the default MODULAR_TO_MAVEN layout, `requires org.slf4j` is shown
+as the Maven coordinate it resolves to, with a Maven scope. Under the pure MODULAR
+layout the same dependency shows as a Java module name (`module/org.slf4j`) instead
+- see `../demo-12-module-layout`, which contrasts the two.

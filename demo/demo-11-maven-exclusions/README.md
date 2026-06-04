@@ -1,19 +1,40 @@
 Maven dependency exclusions demo
 ================================
 
-A single **Maven-layout** project that declares one dependency with an
-`<exclusions>` block, and a test that proves the excluded transitive is not on
-the class path.
+Exclude an unwanted transitive dependency so it never reaches the class path.
+You declare one dependency with an `<exclusions>` block in a Maven-layout
+`pom.xml`, point Jenesis at the project, and a bundled test proves the excluded
+transitive is gone.
 
-Why only Maven? Exclusions are a Maven-graph concept: a dependency drags in a
-transitive subtree, and `<exclusions>` prunes part of it. A **modular** project
-does not have the same problem to solve - a module only sees what its
-`module-info.java` `requires`, so an unwanted transitive cannot silently appear
-on the module path, and there is no `<exclusions>` equivalent to add. So this
-idea is shown here, and only here, on a Maven project.
+Build it
+--------
+
+    java build/jenesis/Project.java
+
+The build compiles the sources and runs `ExclusionTest`, which checks the class
+path directly:
+
+- `commons-text`'s `StringSubstitutor.class` **is** present (the dependency
+  resolved);
+- `commons-lang3`'s `StringUtils.class` is **not** present (the exclusion took
+  effect).
+
+The test looks the classes up as **resources** rather than with
+`Class.forName(...)`: loading a Commons Text class would link it against the
+now-missing Commons Lang and fail with `NoClassDefFoundError` - which is itself a
+good illustration of why excluding a hard transitive is usually something you do
+to *replace* it, not to drop it outright. Resource lookup just asks whether each
+`.class` is on the class path, which is exactly what the exclusion changes.
+
+Like Maven, the exclusion applies to the whole module, test class path included:
+test scope extends compile scope, so the pruned transitive is absent when the
+tests run, not just when the main code does.
 
 Layout
 ------
+
+A single Maven-layout project: a `pom.xml`, the sources, and the test that proves
+the exclusion took effect.
 
     demo-11-maven-exclusions
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
@@ -39,29 +60,15 @@ dependency. The POM keeps Commons Text but drops Lang:
         </exclusions>
     </dependency>
 
-Build it
---------
+Why only Maven?
+---------------
 
-    java build/jenesis/Project.java
-
-The build compiles the sources and runs `ExclusionTest`, which checks the class
-path directly:
-
-- `commons-text`'s `StringSubstitutor.class` **is** present (the dependency
-  resolved);
-- `commons-lang3`'s `StringUtils.class` is **not** present (the exclusion took
-  effect).
-
-The test looks the classes up as **resources** rather than with
-`Class.forName(...)`: loading a Commons Text class would link it against the
-now-missing Commons Lang and fail with `NoClassDefFoundError` - which is itself a
-good illustration of why excluding a hard transitive is usually something you do
-to *replace* it, not to drop it outright. Resource lookup just asks whether each
-`.class` is on the class path, which is exactly what the exclusion changes.
-
-Like Maven, the exclusion applies to the whole module, test class path included:
-test scope extends compile scope, so the pruned transitive is absent when the
-tests run, not just when the main code does.
+Exclusions are a Maven-graph concept: a dependency drags in a transitive subtree,
+and `<exclusions>` prunes part of it. A **modular** project does not have the same
+problem to solve - a module only sees what its `module-info.java` `requires`, so
+an unwanted transitive cannot silently appear on the module path, and there is no
+`<exclusions>` equivalent to add. So this idea is shown here, and only here, on a
+Maven project.
 
 Pinned dependencies
 -------------------

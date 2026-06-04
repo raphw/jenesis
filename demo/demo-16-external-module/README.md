@@ -1,19 +1,28 @@
 ExternalModule demo
 ===================
 
-The `ExternalModule` counterpart of `../demo-15-internal-module`. It does exactly the
-same thing - wraps the stock `JavaMultiProjectAssembler` so a build module
-preprocesses the project's Java sources (a `${greeting}` substitution driven by
-the `org.json` dependency) before the regular compile, jar, and test flow runs.
-The only difference is how the build module is obtained: `internal-module`
-compiles it from local source with `InternalModule`, while here it is resolved
-as a published artifact from a repository **coordinate** with `ExternalModule`.
+Drive a source preprocessing pass from a build module that ships as a published
+artifact, resolved from a repository coordinate rather than compiled from local
+source. The plugin performs the same `${greeting}` substitution over the
+project's Java sources (driven by the `org.json` dependency) before the regular
+compile, jar, and test flow runs. This is the published-artifact counterpart of
+`../demo-15-internal-module`: same plugin, same outcome, only the plugin is
+obtained as a coordinate with `ExternalModule` instead of from source with
+`InternalModule`.
 
-Like `internal-module`, the build module's `build.jenesis` dependency resolves
-from the default Jenesis repository as the published `0.3.0` artifact (pinned via
-the `@tool/build.jenesis` tag in `sources/module-info.java`), whose API matches
-the local sources the host runs against, so the class-loader bridge loads it
-without complaint.
+Run it
+------
+
+From this directory:
+
+    java build/Demo.java
+
+which builds the project and then launches the built module, printing the
+greeting the plugin substituted in:
+
+    Hello from a source preprocessed by an internal build module, using the org.json dependency!
+
+Built without the plugin the literal `${greeting}` would print instead.
 
 Layout
 ------
@@ -34,19 +43,11 @@ Layout
 
 `plugin/` and `sources/` are exact copies of the `internal-module` demo.
 
-Run it
-------
-
-From this directory:
-
-    java build/Demo.java
-
-which builds the project and then launches the built module, printing the
-greeting the plugin substituted in:
-
-    Hello from a source preprocessed by an internal build module, using the org.json dependency!
-
-Built without the plugin the literal `${greeting}` would print instead.
+Like `internal-module`, the build module's `build.jenesis` dependency resolves
+from the default Jenesis repository as the published `0.3.0` artifact (pinned via
+the `@tool/build.jenesis` tag in `sources/module-info.java`), whose API matches
+the local sources the host runs against, so the class-loader bridge loads it
+without complaint.
 
 How it works
 ------------

@@ -1,36 +1,24 @@
 Java (multi-module POM) demo
 ============================
 
-A multi-module **Maven-layout** project. A root aggregator `pom.xml` lists two
-sub-modules, and one sub-module depends on the other plus a real external Maven
-dependency, so the demo shows intra-project and external resolution side by
-side. The `greeter` module also carries a JUnit test, so the demo doubles as a
-MAVEN-layout testing example. Its single-module counterpart is `../demo-01-java-pom`.
+Build a multi-module Maven-style project where one module depends on another:
+a root aggregator `pom.xml` lists two sub-modules, and one sub-module depends on
+the sibling plus a real external Maven dependency, so you get intra-project and
+external resolution side by side with no build script to write. The `greeter`
+module also carries a JUnit test, so the demo doubles as a Maven-layout testing
+example. Its single-module counterpart is `../demo-01-java-pom`.
 
-Printing the dependency tree
-----------------------------
+Build it
+--------
 
-`-Djenesis.project.tree=true` prints each module's resolved tree as it resolves
-(a verbose toggle, not a build step); a multi-module build prints one block per
-module and scope:
+From this directory:
 
-    java -Djenesis.project.tree=true build/jenesis/Project.java
-
-    Dependency tree:
-    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
-    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
-    │  ├─ maven/org.opentest4j/opentest4j 1.3.0 [compile]
-    │  ├─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
-    │  │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile] (*)
-    │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile]
-    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
-
-Each node shows the property-file key, version, and Maven scope; a dependency
-reached more than once is expanded under its first parent and dimmed with `(*)`
-everywhere else.
+    java build/jenesis/Project.java
 
 Layout
 ------
+
+The project is an aggregator `pom.xml` over two module directories:
 
     demo/demo-03-java-pom-multi
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
@@ -109,13 +97,6 @@ sibling test module; against an already-published project it resolves the deploy
 minimal - it is the same sibling resolution shown above, applied to the `tests`
 variant.
 
-Build it
---------
-
-From this directory:
-
-    java build/jenesis/Project.java
-
 Selecting modules and filtering tests
 -------------------------------------
 
@@ -184,3 +165,25 @@ bill-of-materials Maven projects keep in a parent. Pinning records external
 coordinates (`commons-lang3`, the JUnit closure) but skips the intra-project
 `greeter` dependency, since coordinates produced within the project are never
 pinned into dependency management.
+
+Printing the dependency tree
+----------------------------
+
+To see what each module resolves, `-Djenesis.project.tree=true` prints each
+module's resolved tree as it resolves (a verbose toggle, not a build step); a
+multi-module build prints one block per module and scope:
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
+    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
+    │  ├─ maven/org.opentest4j/opentest4j 1.3.0 [compile]
+    │  ├─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
+    │  │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile] (*)
+    │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile]
+    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
+
+Each node shows the property-file key, version, and Maven scope; a dependency
+reached more than once is expanded under its first parent and dimmed with `(*)`
+everywhere else.

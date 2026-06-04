@@ -1,19 +1,43 @@
 Executable Java (POM-based) demo
 ================================
 
-A minimal **Maven-layout** project that is also **runnable**: a `pom.xml` plus a
-single Java source with a `main` method and one real Maven dependency
-(`commons-lang3`), packaged into a native application image by the JDK's
-`jpackage`. It is the executable counterpart of `../demo-01-java-pom`, and its modular
-sibling is `../demo-06-java-modular-executable`.
+Take a Maven-layout Java app and ship it as a self-contained native application
+image - a launcher with its own bundled Java runtime that a user can run without
+installing a JDK. The project is just a `pom.xml` plus a single Java source with a
+`main` method and one real Maven dependency (`commons-lang3`), and Jenesis packages
+it with the JDK's `jpackage`. It is the executable counterpart of
+`../demo-01-java-pom`, and its modular sibling is `../demo-06-java-modular-executable`.
+
+Run it
+------
+
+From this directory, pass the arguments you want the packaged application to
+receive on its command line:
+
+    java build/Demo.java ada lovelace
+
+`Demo.java` configures packaging directly on the assembler -
+`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
+`-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
+then reads the image folder from the `stage/packages` entry of the map that
+`build("stage")` returns (a fixed build target) and launches the produced platform
+launcher with your arguments. The packaged app prints:
+
+    Hello, Ada lovelace, from a packaged Maven project built by Jenesis!
+
+(`commons-lang3`'s `StringUtils.capitalize` upper-cased the leading `a`, proving the
+bundled dependency is on the launched app's classpath.) With no arguments it greets
+`World`. Building the plain `java build/jenesis/Project.java` (no `package` property)
+compiles and jars the project exactly as `../demo-01-java-pom` does, without producing an image.
 
 Declaring the entry point
 --------------------------
 
-A module becomes runnable when the build knows its main class. In the modular
-layout that comes from a `@jenesis.main` Javadoc tag on `module-info.java` (see
-`../demo-06-java-modular-executable`). A POM project has no `module-info.java`, so the
-Maven-layout equivalent is a `<mainClass>` property in the POM:
+For the build to package a runnable image it first has to know the main class. In
+the modular layout that comes from a `@jenesis.main` Javadoc tag on
+`module-info.java` (see `../demo-06-java-modular-executable`). A POM project has no
+`module-info.java`, so the Maven-layout equivalent is a `<mainClass>` property in
+the POM:
 
     <properties>
         <mainClass>sample.Sample</mainClass>
@@ -56,28 +80,6 @@ into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular
     `-- packages/output/java-pom-executable/
         |-- bin/java-pom-executable      the launcher
         `-- lib/                          app jars + bundled runtime
-
-Run it
-------
-
-From this directory, pass the arguments you want the packaged application to
-receive on its command line:
-
-    java build/Demo.java ada lovelace
-
-`Demo.java` configures packaging directly on the assembler -
-`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
-`-Djenesis.java.package=app-image` with no system property - builds the `stage` goal,
-then reads the image folder from the `stage/packages` entry of the map that
-`build("stage")` returns (a fixed build target) and launches the produced platform
-launcher with your arguments. The packaged app prints:
-
-    Hello, Ada lovelace, from a packaged Maven project built by Jenesis!
-
-(`commons-lang3`'s `StringUtils.capitalize` upper-cased the leading `a`, proving the
-bundled dependency is on the launched app's classpath.) With no arguments it greets
-`World`. Building the plain `java build/jenesis/Project.java` (no `package` property)
-compiles and jars the project exactly as `../demo-01-java-pom` does, without producing an image.
 
 Fully bundled native installer
 ------------------------------
