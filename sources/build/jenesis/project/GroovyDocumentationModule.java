@@ -203,7 +203,9 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 throws IOException {
             Path documentation = context.next().resolve(Javadoc.JAVADOC);
             Path output = Files.createDirectories(within == null ? documentation : documentation.resolve(within));
-            List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            List<String> roots = new ArrayList<>(), rootFiles = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            SequencedSet<String> packages = new TreeSet<>();
+            boolean[] anyGroovy = new boolean[1];
             String release = null;
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(BuildStep.CLASSES);
@@ -224,12 +226,21 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(sources)) {
+                    roots.add(sources.toString());
                     Files.walkFileTree(sources, new SimpleFileVisitor<>() {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            String name = file.toString();
-                            if (name.endsWith(".groovy") || includeJava && name.endsWith(".java")) {
-                                files.add(name);
+                            String name = file.getFileName().toString();
+                            boolean groovy = name.endsWith(".groovy");
+                            boolean java = includeJava && name.endsWith(".java") && !name.equals("module-info.java");
+                            if (groovy || java) {
+                                anyGroovy[0] |= groovy;
+                                Path parent = sources.relativize(file).getParent();
+                                if (parent == null) {
+                                    rootFiles.add(file.toString());
+                                } else {
+                                    packages.add(parent.toString().replace(File.separatorChar, '.'));
+                                }
                             }
                             return FileVisitResult.CONTINUE;
                         }
@@ -242,9 +253,8 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                     release = candidate;
                 }
             }
-            files.sort(null);
             jars.sort(null);
-            if (files.stream().noneMatch(name -> name.endsWith(".groovy"))) {
+            if (!anyGroovy[0]) {
                 return CompletableFuture.completedStage(null);
             }
             if (jars.isEmpty()) {
@@ -258,8 +268,10 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                     "org.codehaus.groovy.tools.groovydoc.Main",
                     "-d", output.toString(),
                     "-notimestamp",
-                    "-javaVersion", languageLevel(release)));
-            commands.addAll(files);
+                    "-javaVersion", languageLevel(release),
+                    "-sourcepath", String.join(File.pathSeparator, roots)));
+            commands.addAll(packages);
+            commands.addAll(rootFiles);
             return CompletableFuture.completedStage(commands);
         }
 
