@@ -368,6 +368,7 @@ public record Project(
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}watch%{reset}                            Rebuild the selected target whenever a source file changes (Ctrl+C to stop)
+                      %{name}tree%{reset}                             Print the resolved dependency tree after the build (per module, deduplicated)
                       %{name}docker%{reset}[, %{name}docker.image%{reset}]           Wrap the build in a container
                       %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
@@ -657,6 +658,10 @@ public record Project(
                       watch                       Rebuild the selected target
                                                   whenever a source file changes
                                                   (Ctrl+C to stop).
+                      tree                        Print the resolved dependency
+                                                  tree after the build, per module
+                                                  and deduplicated, with the
+                                                  property-file key and scope.
 
                     Pinning:
                       -Dbuild.jenesis.pinning=strict|ignore  strict fails on
