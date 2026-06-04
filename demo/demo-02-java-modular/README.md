@@ -86,10 +86,10 @@ A modular dependency pins under the plain `module/` prefix (no qualifier) - the
 Printing the dependency tree
 ----------------------------
 
-To see what the build resolves, `-Djenesis.print.tree=true` prints the resolved
+To see what the build resolves, `-Djenesis.print.dependencies=true` prints the resolved
 dependency tree as the module resolves (a verbose toggle, not a build step):
 
-    java -Djenesis.print.tree=true build/jenesis/Project.java
+    java -Djenesis.print.dependencies=true build/jenesis/Project.java
 
     Dependency tree:
     maven/org.slf4j/slf4j-api 2.0.16 [compile]

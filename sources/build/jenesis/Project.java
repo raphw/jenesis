@@ -377,7 +377,7 @@ public record Project(
                       %{name}command%{reset}                          Print each external tool command line as it runs
                       %{name}fetch%{reset}                            Print each artifact downloaded from a repository
                       %{name}docker%{reset}                           Print the Docker image when a build/run is wrapped (default: true)
-                      %{name}tree%{reset}                             Print each module's dependency tree as it resolves
+                      %{name}dependencies%{reset}                     Print each module's dependency tree as it resolves
 
                     %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
@@ -700,7 +700,7 @@ public record Project(
                                                         build/run is wrapped in
                                                         a container (default:
                                                         true).
-                      -Djenesis.print.tree=true           Print each module's
+                      -Djenesis.print.dependencies=true   Print each module's
                                                         dependency tree as it
                                                         resolves.
 
@@ -1332,7 +1332,7 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
-        if (Boolean.getBoolean("jenesis.print.tree")) {
+        if (Boolean.getBoolean("jenesis.print.dependencies")) {
             return build(DependencyTreeReport::new, selectors);
         }
         return build((Supplier<ResolutionListener>) null, selectors);

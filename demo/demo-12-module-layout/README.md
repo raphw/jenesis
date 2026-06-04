@@ -78,14 +78,14 @@ differ in how dependencies are resolved and what else is emitted:
 Seeing the difference in the tree
 ---------------------------------
 
-`-Djenesis.print.tree=true` prints each module's resolved dependency tree as it
+`-Djenesis.print.dependencies=true` prints each module's resolved dependency tree as it
 resolves (a verbose toggle, not a build step), and it makes the layout distinction
 concrete. The same `requires org.slf4j` shows up differently under each layout.
 
 Under **MODULAR** (this demo) the node is a Java module name resolved from the
 module repository - no Maven coordinate, no Maven scope:
 
-    java -Djenesis.print.tree=true build/Demo.java
+    java -Djenesis.print.dependencies=true build/Demo.java
 
     Dependency tree:
     module/org.slf4j 2.0.16
