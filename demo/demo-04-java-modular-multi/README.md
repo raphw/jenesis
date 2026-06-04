@@ -9,6 +9,26 @@ library, so the demo doubles as a MODULAR_TO_MAVEN testing example. Its
 single-module counterpart is `../demo-02-java-modular`, and its POM-based sibling is
 `../demo-03-java-pom-multi`.
 
+Printing the dependency tree
+----------------------------
+
+`-Djenesis.project.tree=true` prints each module's resolved tree as it resolves
+(a verbose toggle, not a build step), one block per module and scope:
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
+    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
+    │  └─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
+    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
+
+Even though every descriptor here is a `module-info.java`, the default
+MODULAR_TO_MAVEN layout resolves each `requires` through Maven, so the tree shows
+Maven coordinates and their transitive Maven closure - the same shape as the
+POM-based `../demo-03-java-pom-multi`. The pure MODULAR layout
+(`../demo-12-module-layout`) shows the same dependencies as Java module names.
+
 Layout
 ------
 

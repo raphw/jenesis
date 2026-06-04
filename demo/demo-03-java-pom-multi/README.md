@@ -7,6 +7,28 @@ dependency, so the demo shows intra-project and external resolution side by
 side. The `greeter` module also carries a JUnit test, so the demo doubles as a
 MAVEN-layout testing example. Its single-module counterpart is `../demo-01-java-pom`.
 
+Printing the dependency tree
+----------------------------
+
+`-Djenesis.project.tree=true` prints each module's resolved tree as it resolves
+(a verbose toggle, not a build step); a multi-module build prints one block per
+module and scope:
+
+    java -Djenesis.project.tree=true build/jenesis/Project.java
+
+    Dependency tree:
+    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
+    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
+    │  ├─ maven/org.opentest4j/opentest4j 1.3.0 [compile]
+    │  ├─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
+    │  │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile] (*)
+    │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile]
+    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
+
+Each node shows the property-file key, version, and Maven scope; a dependency
+reached more than once is expanded under its first parent and dimmed with `(*)`
+everywhere else.
+
 Layout
 ------
 
