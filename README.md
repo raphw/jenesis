@@ -348,14 +348,13 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   (`.java`, `.kt`, `.scala`, `.groovy`); a `document` sub-module then wires the documentation tools and an
   `aggregate` step that merges their output into a single `javadoc/` tree (archived into the module's
   `-javadoc.jar`). The tools are resolved on their own qualified trails like the compilers: Kotlin through Dokka in
-  its **Javadoc output format** (`@dokka`, `dokka-cli` plus `analysis-kotlin-descriptors` and the `javadoc-plugin` -
-  which pulls `dokka-base`, `kotlin-as-java-plugin` and the Korte templating engine - on the plugins class-path,
-  presenting Kotlin as Java so the output is a javadoc-structured tree that `javadoc.io` renders), Scala through
-  `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty rather than source), Groovy
-  through `groovydoc` (`@groovydoc`, in source-path plus package-name mode so packages render correctly), and Java
-  through the JDK's `javadoc` (in class-path mode, skipping `module-info.java`). The layout follows what each tool
-  can cover: Dokka also documents Java (as Java) and `groovydoc` also documents Java, but `scaladoc` documents only
-  Scala. So when **one tool can document every language present**, only that tool runs and renders at the archive
+  its **HTML output format** (`@dokka`, `dokka-cli` plus `dokka-base` and `analysis-kotlin-descriptors` on the
+  plugins class-path) - the format Dokka recommends and the one most Kotlin libraries ship in their `-javadoc.jar`,
+  Scala through `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty rather than
+  source), Groovy through `groovydoc` (`@groovydoc`, in source-path plus package-name mode so packages render
+  correctly), and Java through the JDK's `javadoc` (in class-path mode, skipping `module-info.java`). The layout
+  follows what each tool can cover: Dokka also documents Java sources and `groovydoc` also documents Java, but
+  `scaladoc` documents only Scala. So when **one tool can document every language present**, only that tool runs and renders at the archive
   root - Java + Kotlin is a single Dokka document, Java + Groovy a single groovydoc document, and a single-language
   module is just that language's tool. Only when the mix is **incompatible** (Java + Scala, or three or more
   languages, where no single tool covers everything) does `javadoc` render the Java at the root as the baseline and

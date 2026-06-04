@@ -27,7 +27,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
 
     private static final String MAVEN_GROUP = "org.jetbrains.dokka";
     private static final List<String> CLI_ARTIFACTS = List.of(
-            "dokka-cli", "analysis-kotlin-descriptors", "javadoc-plugin");
+            "dokka-cli", "dokka-base", "analysis-kotlin-descriptors");
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
