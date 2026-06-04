@@ -16,7 +16,7 @@ import build.jenesis.step.Javadoc;
 public class InferredDocumentationChainModule implements BuildExecutorModule {
 
     public static final String JAVADOC = "javadoc", GROOVYDOC = "groovydoc", SCALADOC = "scaladoc", DOKKA = "dokka";
-    public static final String DOCUMENT = "document";
+    public static final String DOCUMENT = "document", AGGREGATE = "aggregate";
     private static final String SCAN = "scan";
     private static final String SCAN_FILE = "scan.properties";
 
@@ -127,39 +127,95 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
             SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
             sourceInputs.remove(PREVIOUS + SCAN);
 
-            int nonJava = (hasGroovy ? 1 : 0) + (hasScala ? 1 : 0) + (hasKotlin ? 1 : 0);
-            int total = (hasJava ? 1 : 0) + nonJava;
-            if (total == 1) {
-                if (hasJava) {
-                    buildExecutor.addStep(JAVADOC, process ? Javadoc.process() : Javadoc.tool(), sourceInputs);
-                } else if (hasGroovy) {
-                    buildExecutor.addModule(GROOVYDOC,
-                            new GroovyDocumentationModule(repositories, resolvers).pinning(pinning), sourceInputs);
-                } else if (hasScala) {
-                    buildExecutor.addModule(SCALADOC,
-                            new ScalaDocumentationModule(repositories, resolvers).pinning(pinning), sourceInputs);
-                }
-                return;
-            }
-            if (nonJava == 1 && hasGroovy) {
-                buildExecutor.addModule(GROOVYDOC,
-                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).includeJava(true),
-                        sourceInputs);
-                return;
-            }
+            SequencedSet<String> outputs = new LinkedHashSet<>();
+            boolean sole = (hasJava ? 1 : 0) + (hasGroovy ? 1 : 0) + (hasScala ? 1 : 0) + (hasKotlin ? 1 : 0) == 1;
             if (hasJava) {
-                buildExecutor.addStep(JAVADOC, process ? Javadoc.process() : Javadoc.tool(), sourceInputs);
+                buildExecutor.addStep(JAVADOC,
+                        (process ? Javadoc.process() : Javadoc.tool()).classpath(),
+                        sourceInputs);
+                outputs.add(JAVADOC);
             }
             if (hasGroovy) {
                 buildExecutor.addModule(GROOVYDOC,
-                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).within(GROOVYDOC),
+                        new GroovyDocumentationModule(repositories, resolvers).pinning(pinning).within(sole ? null : GROOVYDOC),
                         sourceInputs);
+                outputs.add(GROOVYDOC);
             }
             if (hasScala) {
                 buildExecutor.addModule(SCALADOC,
-                        new ScalaDocumentationModule(repositories, resolvers).pinning(pinning).within(SCALADOC),
+                        new ScalaDocumentationModule(repositories, resolvers).pinning(pinning).within(sole ? null : SCALADOC),
                         sourceInputs);
+                outputs.add(SCALADOC);
             }
+            if (hasKotlin) {
+                buildExecutor.addModule(DOKKA,
+                        new DokkaDocumentationModule(repositories, resolvers).pinning(pinning).within(sole ? null : DOKKA),
+                        sourceInputs);
+                outputs.add(DOKKA);
+            }
+            buildExecutor.addStep(AGGREGATE, new Aggregate(), outputs);
+        }
+
+        @Override
+        public Optional<String> resolve(String path) {
+            return path.equals(AGGREGATE) ? Optional.of(AGGREGATE) : Optional.empty();
+        }
+    }
+
+    private static class Aggregate implements BuildStep {
+
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments)
+                throws IOException {
+            Path combined = Files.createDirectories(context.next().resolve(Javadoc.JAVADOC));
+            for (BuildStepArgument argument : arguments.values()) {
+                Path source = argument.folder().resolve(Javadoc.JAVADOC);
+                if (!Files.exists(source)) {
+                    continue;
+                }
+                Files.walkFileTree(source, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                        Files.createDirectories(combined.resolve(source.relativize(dir)));
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        BuildStep.linkOrCopy(combined.resolve(source.relativize(file)), file);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+            if (!Files.exists(combined.resolve("index.html"))) {
+                SequencedSet<String> rendered = new TreeSet<>();
+                try (Stream<Path> entries = Files.list(combined)) {
+                    for (Path entry : entries.toList()) {
+                        if (Files.isDirectory(entry) && Files.exists(entry.resolve("index.html"))) {
+                            rendered.add(entry.getFileName().toString());
+                        }
+                    }
+                }
+                StringBuilder body = new StringBuilder();
+                body.append("<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">")
+                        .append("<title>API documentation</title></head><body>\n")
+                        .append("<h1>API documentation</h1>\n");
+                if (rendered.isEmpty()) {
+                    body.append("<p>No rendered API documentation is available for this module.</p>\n");
+                } else {
+                    body.append("<p>API documentation is available per language:</p>\n<ul>\n");
+                    for (String name : rendered) {
+                        body.append("<li><a href=\"").append(name).append("/index.html\">")
+                                .append(name).append("</a></li>\n");
+                    }
+                    body.append("</ul>\n");
+                }
+                body.append("</body></html>\n");
+                Files.writeString(combined.resolve("index.html"), body.toString());
+            }
+            return CompletableFuture.completedStage(new BuildStepResult(true));
         }
     }
 }

@@ -188,6 +188,14 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         }
 
         @Override
+        public boolean acceptableExitCode(int code,
+                                          Executor executor,
+                                          BuildStepContext context,
+                                          SequencedMap<String, BuildStepArgument> arguments) {
+            return true;
+        }
+
+        @Override
         public CompletionStage<List<String>> process(Executor executor,
                                                      BuildStepContext context,
                                                      SequencedMap<String, BuildStepArgument> arguments,

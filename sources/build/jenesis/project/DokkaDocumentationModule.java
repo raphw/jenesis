@@ -20,16 +20,15 @@ import build.jenesis.step.JdkProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Resolve;
 
-public class ScalaDocumentationModule implements BuildExecutorModule {
+public class DokkaDocumentationModule implements BuildExecutorModule {
 
     public static final String DOCUMENTED = "documented";
     private static final String REQUIRED = "required", RESOLVED = "resolved", ARTIFACTS = "artifacts";
 
-    private static final List<String> PREFERRED_PREFIXES = List.of("maven", "module");
-    private static final String MODULE_NAME = "org.scala.lang.scaladoc";
-    private static final String MAVEN_GROUP = "org.scala-lang";
-    private static final String MAVEN_ARTIFACT = "scaladoc_3";
-    private static final String LIBRARY_MARKER = "org.scala-lang-scala3-library_3-";
+    private static final String MAVEN_GROUP = "org.jetbrains.dokka";
+    private static final List<String> CLI_ARTIFACTS = List.of("dokka-cli", "dokka-base", "analysis-kotlin-descriptors");
+    private static final List<String> PLUGIN_MARKERS = List.of(
+            "dokka-base", "analysis-kotlin-descriptors", "kotlinx-html", "freemarker");
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -38,11 +37,11 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     private final String within;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
-    public ScalaDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "scaladoc", null, null);
+    public DokkaDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
+        this(repositories, resolvers, null, "dokka", null, null);
     }
 
-    private ScalaDocumentationModule(Map<String, Repository> repositories,
+    private DokkaDocumentationModule(Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers,
                                      Pinning pinning,
                                      String qualifier,
@@ -56,26 +55,26 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         this.factory = factory;
     }
 
-    public ScalaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+    public DokkaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
     }
 
-    public ScalaDocumentationModule pinning(Pinning pinning) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+    public DokkaDocumentationModule pinning(Pinning pinning) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
     }
 
-    public ScalaDocumentationModule qualifier(String qualifier) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+    public DokkaDocumentationModule qualifier(String qualifier) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
     }
 
-    public ScalaDocumentationModule within(String within) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+    public DokkaDocumentationModule within(String within) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), qualifier), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(resolvers.containsKey("maven"), qualifier), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -97,64 +96,22 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         };
     }
 
-    private record Requires(Set<String> prefixes, String qualifier) implements BuildStep {
+    private record Requires(boolean maven, String qualifier) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
                                                       BuildStepContext context,
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
-            String selectedPrefix = null;
-            for (String prefix : PREFERRED_PREFIXES) {
-                if (prefixes.contains(prefix)) {
-                    selectedPrefix = prefix;
-                    break;
+            SequencedProperties requires = new SequencedProperties();
+            if (maven) {
+                String namespace = qualifier == null ? "maven" : "maven@" + qualifier;
+                for (String artifact : CLI_ARTIFACTS) {
+                    requires.setProperty(namespace + "/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
                 }
             }
-            if (selectedPrefix == null) {
-                throw new IllegalStateException(
-                        "No suitable resolver for Scala documentation. Available prefixes: " + prefixes
-                                + ". Expected one of: " + PREFERRED_PREFIXES);
-            }
-            String version = resolvedVersion(arguments);
-            String namespace = qualifier == null ? selectedPrefix : selectedPrefix + "@" + qualifier;
-            String coordinate = switch (selectedPrefix) {
-                case "module" -> namespace + "/" + MODULE_NAME;
-                case "maven" -> namespace + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
-                default -> throw new IllegalStateException("Unreachable");
-            };
-            SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }
-
-        private static String resolvedVersion(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
-            String[] found = new String[1];
-            for (BuildStepArgument argument : arguments.values()) {
-                for (String jarFolder : List.of(BuildStep.DEPENDENCIES, BuildStep.ARTIFACTS)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (!Files.exists(jarRoot)) {
-                        continue;
-                    }
-                    Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            String name = file.getFileName().toString();
-                            int at = name.indexOf(LIBRARY_MARKER);
-                            if (at >= 0 && name.indexOf('@') < 0 && name.endsWith(".jar")) {
-                                String candidate = name.substring(at + LIBRARY_MARKER.length(), name.length() - ".jar".length());
-                                if (!candidate.isEmpty() && Character.isDigit(candidate.charAt(0))) {
-                                    found[0] = candidate;
-                                    return FileVisitResult.TERMINATE;
-                                }
-                            }
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
-            }
-            return found[0] == null ? "RELEASE" : found[0];
         }
     }
 
@@ -167,15 +124,15 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         }
 
         private Document(String within, Function<List<String>, ? extends ProcessHandler> factory) {
-            super("scaladoc", factory);
+            super("dokka", factory);
             this.within = within;
         }
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
             return Javac.hasRelevantChange(arguments,
-                    Set.of(".scala"),
-                    Set.of("scaladoc.properties"));
+                    Set.of(".kt"),
+                    Set.of("dokka.properties"));
         }
 
         @Override
@@ -194,7 +151,8 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 throws IOException {
             Path documentation = context.next().resolve(Javadoc.JAVADOC);
             Path output = Files.createDirectories(within == null ? documentation : documentation.resolve(within));
-            List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            List<String> sources = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            boolean[] kotlin = new boolean[1];
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(BuildStep.CLASSES);
                 if (Files.exists(classes)) {
@@ -212,48 +170,63 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                         });
                     }
                 }
-                Path sources = argument.folder().resolve(Bind.SOURCES);
-                if (Files.exists(sources)) {
-                    Files.walkFileTree(sources, new SimpleFileVisitor<>() {
+                Path source = argument.folder().resolve(Bind.SOURCES);
+                if (Files.exists(source)) {
+                    boolean[] hasKotlin = new boolean[1];
+                    Files.walkFileTree(source, new SimpleFileVisitor<>() {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            String name = file.toString();
-                            if (name.endsWith(".scala")) {
-                                files.add(name);
+                            if (file.getFileName().toString().endsWith(".kt")) {
+                                hasKotlin[0] = true;
+                                return FileVisitResult.TERMINATE;
                             }
                             return FileVisitResult.CONTINUE;
                         }
                     });
+                    if (hasKotlin[0]) {
+                        sources.add(source.toString());
+                        kotlin[0] = true;
+                    }
                 }
             }
-            files.sort(null);
+            if (!kotlin[0]) {
+                return CompletableFuture.completedStage(null);
+            }
             jars.sort(null);
-            if (files.isEmpty()) {
-                return CompletableFuture.completedStage(null);
-            }
-            if (jars.isEmpty()) {
-                throw new IllegalStateException(
-                        "No scaladoc jars resolved upstream of the Scala documentation step");
-            }
-            List<String> launch = new ArrayList<>();
+            String cli = null;
+            List<String> plugins = new ArrayList<>(), dependencies = new ArrayList<>();
             for (String jar : jars) {
-                if (new File(jar).getName().indexOf('@') != -1) {
-                    launch.add(jar);
+                String name = new File(jar).getName();
+                if (name.indexOf('@') == -1) {
+                    dependencies.add(jar);
+                    continue;
+                }
+                if (name.contains("dokka-cli")) {
+                    cli = jar;
+                }
+                for (String marker : PLUGIN_MARKERS) {
+                    if (name.contains(marker)) {
+                        plugins.add(jar);
+                        break;
+                    }
                 }
             }
-            if (launch.isEmpty()) {
-                launch = jars;
-            }
-            if (classpath.isEmpty()) {
+            if (cli == null || plugins.isEmpty()) {
                 return CompletableFuture.completedStage(null);
             }
+            List<String> moduleClasspath = new ArrayList<>(dependencies);
+            moduleClasspath.addAll(classpath);
+            StringBuilder sourceSet = new StringBuilder("-src ").append(String.join(";", sources));
+            if (!moduleClasspath.isEmpty()) {
+                sourceSet.append(" -classpath ").append(String.join(";", moduleClasspath));
+            }
+            sourceSet.append(" -analysisPlatform jvm");
             List<String> commands = new ArrayList<>(List.of(
-                    "-cp", String.join(File.pathSeparator, launch),
-                    "dotty.tools.scaladoc.Main",
-                    "-d", output.toString(),
-                    "-classpath", String.join(File.pathSeparator, jars),
-                    "-project", "documentation"));
-            commands.addAll(classpath);
+                    "-jar", cli,
+                    "-pluginsClasspath", String.join(";", plugins),
+                    "-sourceSet", sourceSet.toString(),
+                    "-outputDir", output.toString(),
+                    "-moduleName", "documentation"));
             return CompletableFuture.completedStage(commands);
         }
     }
