@@ -235,7 +235,7 @@ public class JavaToolchainModuleTest {
             if (Files.isDirectory(incoming)) {
                 try (Stream<Path> stream = Files.walk(incoming)) {
                     stream.filter(Files::isRegularFile)
-                            .map(path -> incoming.relativize(path).toString())
+                            .map(path -> incoming.relativize(path).toString().replace(File.separatorChar, '/'))
                             .forEach(names::add);
                 }
             }
