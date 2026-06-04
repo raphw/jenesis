@@ -9,6 +9,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.JLink;
 import build.jenesis.step.JPackage;
 import sample.Sample;
@@ -50,7 +51,7 @@ public class JPackageTest {
         configuration.setProperty("--main-jar", "app.jar");
         configuration.setProperty("--main-class", "sample.Sample");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
-        BuildStepResult result = (process ? JPackage.process("app-image") : JPackage.tool("app-image")).apply(
+        BuildStepResult result = new JPackage(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, "app-image").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -68,7 +69,7 @@ public class JPackageTest {
         SequencedProperties configuration = new SequencedProperties();
         configuration.setProperty("--main-jar", "app.jar");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
-        BuildStepResult result = (process ? JPackage.process("app-image") : JPackage.tool("app-image")).apply(
+        BuildStepResult result = new JPackage(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, "app-image").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -99,7 +100,7 @@ public class JPackageTest {
         configuration.setProperty("--name", "Sample");
         configuration.setProperty("--module", "sample/sample.Sample");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
-        BuildStepResult result = JPackage.tool("app-image").apply(
+        BuildStepResult result = new JPackage(ProcessHandler.Factory.TOOL, "app-image").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -136,7 +137,7 @@ public class JPackageTest {
         configuration.setProperty("--name", "Sample");
         configuration.setProperty("--module", "sample/sample.Sample");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
-        BuildStepResult result = JPackage.tool("app-image").apply(
+        BuildStepResult result = new JPackage(ProcessHandler.Factory.TOOL, "app-image").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("runtime", new BuildStepArgument(
@@ -161,7 +162,7 @@ public class JPackageTest {
         SequencedProperties configuration = new SequencedProperties();
         configuration.setProperty("--main-jar", "app.jar");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
-        assertThatThrownBy(() -> JPackage.tool("app-image").apply(
+        assertThatThrownBy(() -> new JPackage(ProcessHandler.Factory.TOOL, "app-image").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -184,7 +185,7 @@ public class JPackageTest {
             }
             jar.closeEntry();
         }
-        BuildStepResult result = (process ? JPackage.process("app-image") : JPackage.tool("app-image")).apply(
+        BuildStepResult result = new JPackage(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, "app-image").apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(

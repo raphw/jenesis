@@ -9,6 +9,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Javac;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +38,7 @@ public class JavacTest {
             writer.append("public class Sample { }");
             writer.newLine();
         }
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -72,7 +73,7 @@ public class JavacTest {
                 Path.of("metadata.properties"), ChecksumStatus.ADDED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
-        assertThat(Javac.tool().shouldRun(arguments)).isFalse();
+        assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isFalse();
     }
 
     @Test
@@ -81,7 +82,7 @@ public class JavacTest {
                 Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
-        assertThat(Javac.tool().shouldRun(arguments)).isTrue();
+        assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isTrue();
     }
 
     @Test
@@ -91,7 +92,7 @@ public class JavacTest {
                     Path.of(prefix + "x.jar"), ChecksumStatus.ADDED));
             SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
             arguments.put("input", argument);
-            assertThat(Javac.tool().shouldRun(arguments))
+            assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments))
                     .as("change under " + prefix + " triggers Javac")
                     .isTrue();
         }
@@ -103,7 +104,7 @@ public class JavacTest {
                 Path.of("process/javac.properties"), ChecksumStatus.ADDED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
-        assertThat(Javac.tool().shouldRun(arguments)).isTrue();
+        assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isTrue();
     }
 
     @Test
@@ -113,7 +114,7 @@ public class JavacTest {
                 Path.of("classes/Other.class"), ChecksumStatus.RETAINED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
-        assertThat(Javac.tool().shouldRun(arguments)).isFalse();
+        assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isFalse();
     }
 
     @ParameterizedTest
@@ -127,7 +128,7 @@ public class JavacTest {
             writer.newLine();
         }
         Javac.writeRelease(sources, "21");
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -149,7 +150,7 @@ public class JavacTest {
         javac.setProperty("--module-version", "1.2.3");
         Path processFolder = Files.createDirectories(sources.resolve("process"));
         javac.store(processFolder.resolve("javac.properties"));
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -170,7 +171,7 @@ public class JavacTest {
             writer.append("module sample { }");
             writer.newLine();
         }
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -195,7 +196,7 @@ public class JavacTest {
                 package sample;
                 public class Sample { public String greet() { return "21"; } }
                 """);
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -235,7 +236,7 @@ public class JavacTest {
                 package sample;
                 public class Caller { public String forward() { return Helper.name() + "/21"; } }
                 """);
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -269,7 +270,7 @@ public class JavacTest {
                 package sample;
                 public class Caller { public String value() { return Helper.name(); } }
                 """);
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -295,7 +296,7 @@ public class JavacTest {
                 package sample;
                 public class Caller { public String value() { return Helper.name(); } }
                 """);
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -316,7 +317,7 @@ public class JavacTest {
         Files.writeString(versioned.resolve("Sample.java"), "package sample; public class Sample { }\n");
         Files.writeString(sources.resolve("manifest.mf"),
                 "Manifest-Version: 1.0\r\nMulti-Release: true\r\nMain-Class: sample.Sample\r\n");
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -338,7 +339,7 @@ public class JavacTest {
         Files.writeString(versioned.resolve("Sample.java"), "package sample; public class Sample { }\n");
         Files.writeString(sources.resolve("manifest.mf"),
                 "Manifest-Version: 1.0\r\nMain-Class: sample.Sample\r\n");
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -354,7 +355,7 @@ public class JavacTest {
     public void plain_compilation_does_not_emit_manifest(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(folder.resolve("Sample.java"), "package sample; public class Sample { }\n");
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -386,7 +387,7 @@ public class JavacTest {
         arguments.put("sources", new BuildStepArgument(
                 sources,
                 Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED)));
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 arguments).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
@@ -413,7 +414,7 @@ public class JavacTest {
         }
         Files.writeString(folder.resolve("foo"), "bar");
         Files.createDirectory(sources.resolve(BuildStep.SOURCES + "folder"));
-        BuildStepResult result = (process ? Javac.process() : Javac.tool()).apply(Runnable::run,
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
@@ -431,7 +432,7 @@ public class JavacTest {
         Files.writeString(folder.resolve("Sample.java"), "package sample; public class Sample { }\n");
         Files.writeString(folder.resolve("app.properties"), "key=value");
         Files.writeString(folder.resolve("Other.kt"), "package sample\nclass Other\n");
-        BuildStepResult result = (process ? Javac.process() : Javac.tool())
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
                 .includeResources(false)
                 .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),

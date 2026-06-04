@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 
@@ -38,7 +39,7 @@ public class JavadocTest {
                 */
                 public class Sample { }
                 """);
-        BuildStepResult result = (process ? Javadoc.process() : Javadoc.tool()).apply(
+        BuildStepResult result = new Javadoc(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(

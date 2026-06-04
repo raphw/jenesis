@@ -13,6 +13,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Javac;
+import build.jenesis.step.ProcessHandler;
 
 public class InferredCompilerChainModule implements BuildExecutorModule {
 
@@ -23,36 +24,29 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final boolean process;
     private final Pinning pinning;
     private final PathPlacement modulePath;
 
     public InferredCompilerChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, null, PathPlacement.INFERRED);
+        this(repositories, resolvers, null, PathPlacement.INFERRED);
     }
 
     private InferredCompilerChainModule(Map<String, Repository> repositories,
                                         Map<String, Resolver> resolvers,
-                                        boolean process,
                                         Pinning pinning,
                                         PathPlacement modulePath) {
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.process = process;
         this.pinning = pinning;
         this.modulePath = modulePath;
     }
 
-    public InferredCompilerChainModule process(boolean process) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, pinning, modulePath);
-    }
-
     public InferredCompilerChainModule pinning(Pinning pinning) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, pinning, modulePath);
+        return new InferredCompilerChainModule(repositories, resolvers, pinning, modulePath);
     }
 
     public InferredCompilerChainModule modulePath(PathPlacement modulePath) {
-        return new InferredCompilerChainModule(repositories, resolvers, process, pinning, modulePath);
+        return new InferredCompilerChainModule(repositories, resolvers, pinning, modulePath);
     }
 
     @Override
@@ -61,7 +55,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         SequencedSet<String> compileInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
         compileInputs.add(SCAN);
         buildExecutor.addModule(COMPILE,
-                new Compile(repositories, resolvers, process, pinning, modulePath),
+                new Compile(repositories, resolvers, pinning, modulePath),
                 compileInputs);
     }
 
@@ -120,7 +114,6 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
 
     private record Compile(Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
-                           boolean process,
                            Pinning pinning,
                            PathPlacement modulePath) implements BuildExecutorModule {
 
@@ -163,7 +156,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             }
             if (hasJava) {
                 buildExecutor.addStep(JAVAC,
-                        (process ? Javac.process() : Javac.tool())
+                        new Javac(ProcessHandler.Factory.of())
                                 .includeResources(!hasKotlin && !hasScala && !hasGroovy)
                                 .modulePath(modulePath),
                         dependencies);

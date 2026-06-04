@@ -12,22 +12,14 @@ public class Javadoc extends JdkProcessBuildStep {
     private final String within;
     private final boolean classpath;
 
-    protected Javadoc(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, null, false);
+    public Javadoc(ProcessHandler.Factory factory) {
+        this(factory.apply("javadoc", "bin/javadoc"), null, false);
     }
 
     private Javadoc(Function<List<String>, ? extends ProcessHandler> factory, String within, boolean classpath) {
         super("javadoc", factory);
         this.within = within;
         this.classpath = classpath;
-    }
-
-    public static Javadoc tool() {
-        return new Javadoc(ProcessHandler.OfTool.of("javadoc"));
-    }
-
-    public static Javadoc process() {
-        return new Javadoc(ProcessHandler.OfProcess.ofJavaHome("bin/javadoc"));
     }
 
     public Javadoc within(String within) {

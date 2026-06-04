@@ -11,25 +11,13 @@ public class JPackage extends JdkProcessBuildStep {
 
     private final String type;
 
-    protected JPackage(Function<List<String>, ? extends ProcessHandler> factory, String type) {
-        super("jpackage", factory);
+    public JPackage(ProcessHandler.Factory factory) {
+        this(factory, null);
+    }
+
+    public JPackage(ProcessHandler.Factory factory, String type) {
+        super("jpackage", factory.apply("jpackage", "bin/jpackage"));
         this.type = type;
-    }
-
-    public static JPackage tool() {
-        return tool(null);
-    }
-
-    public static JPackage tool(String type) {
-        return new JPackage(ProcessHandler.OfTool.of("jpackage"), type);
-    }
-
-    public static JPackage process() {
-        return process(null);
-    }
-
-    public static JPackage process(String type) {
-        return new JPackage(ProcessHandler.OfProcess.ofJavaHome("bin/jpackage"), type);
     }
 
     @Override

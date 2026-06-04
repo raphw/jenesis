@@ -12,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Javadoc;
+import build.jenesis.step.ProcessHandler;
 
 public class InferredDocumentationChainModule implements BuildExecutorModule {
 
@@ -22,29 +23,22 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final boolean process;
     private final Pinning pinning;
 
     public InferredDocumentationChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, false, null);
+        this(repositories, resolvers, null);
     }
 
     private InferredDocumentationChainModule(Map<String, Repository> repositories,
                                              Map<String, Resolver> resolvers,
-                                             boolean process,
                                              Pinning pinning) {
         this.repositories = repositories;
         this.resolvers = resolvers;
-        this.process = process;
         this.pinning = pinning;
     }
 
-    public InferredDocumentationChainModule process(boolean process) {
-        return new InferredDocumentationChainModule(repositories, resolvers, process, pinning);
-    }
-
     public InferredDocumentationChainModule pinning(Pinning pinning) {
-        return new InferredDocumentationChainModule(repositories, resolvers, process, pinning);
+        return new InferredDocumentationChainModule(repositories, resolvers, pinning);
     }
 
     @Override
@@ -53,7 +47,7 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
         SequencedSet<String> documentInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
         documentInputs.add(SCAN);
         buildExecutor.addModule(DOCUMENT,
-                new Document(repositories, resolvers, process, pinning),
+                new Document(repositories, resolvers, pinning),
                 documentInputs);
     }
 
@@ -109,7 +103,6 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
 
     private record Document(Map<String, Repository> repositories,
                             Map<String, Resolver> resolvers,
-                            boolean process,
                             Pinning pinning) implements BuildExecutorModule {
 
         @Override
@@ -145,13 +138,13 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
                 outputs.add(SCALADOC);
             } else if (hasJava && !hasKotlin && !hasScala && !hasGroovy) {
                 buildExecutor.addStep(JAVADOC,
-                        (process ? Javadoc.process() : Javadoc.tool()).classpath(),
+                        new Javadoc(ProcessHandler.Factory.of()).classpath(),
                         sourceInputs);
                 outputs.add(JAVADOC);
             } else {
                 if (hasJava) {
                     buildExecutor.addStep(JAVADOC,
-                            (process ? Javadoc.process() : Javadoc.tool()).classpath(),
+                            new Javadoc(ProcessHandler.Factory.of()).classpath(),
                             sourceInputs);
                     outputs.add(JAVADOC);
                 }

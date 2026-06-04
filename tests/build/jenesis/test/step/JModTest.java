@@ -8,6 +8,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.JMod;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +40,7 @@ public class JModTest {
                 sources.resolve("module-info.java").toString(),
                 sources.resolve("sample/Sample.java").toString());
         assertThat(code).isZero();
-        BuildStepResult result = (process ? JMod.process() : JMod.tool()).apply(
+        BuildStepResult result = new JMod(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
@@ -63,7 +64,7 @@ public class JModTest {
         assertThat(code).isZero();
         Files.writeString(Files.createDirectory(bundle.resolve(JMod.CONFIG)).resolve("app.properties"), "greeting=configured");
 
-        BuildStepResult result = JMod.tool().apply(
+        BuildStepResult result = new JMod(ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
@@ -87,7 +88,7 @@ public class JModTest {
     @ValueSource(booleans = {true, false})
     public void skips_when_no_module_is_present(boolean process) throws IOException {
         Files.createDirectory(bundle.resolve(BuildStep.CLASSES));
-        BuildStepResult result = (process ? JMod.process() : JMod.tool()).apply(
+        BuildStepResult result = new JMod(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(

@@ -202,9 +202,9 @@ that recompile. Precompile once with `javac` and run from the classes:
 Or ahead-of-time compile that launcher with GraalVM `native-image` for near-instant startup. Two things
 matter for the native build:
 
-- A native image has no in-process JDK tools, so Jenesis detects the native-image runtime (via the
-  `org.graalvm.nativeimage.imagecode` system property) and defaults `jenesis.java.process` to `true`, forking
-  the JDK `javac`/`jar` instead. Keep a JDK on `JAVA_HOME`/`PATH` at runtime.
+- A native image has no in-process JDK tools, so `ProcessHandler.Factory.of()` detects the native-image
+  runtime (via the `org.graalvm.nativeimage.imagecode` system property) and defaults to the `FORK` factory,
+  forking the JDK `javac`/`jar` instead. Keep a JDK on `JAVA_HOME`/`PATH` at runtime.
 - The incremental cache serializes every `BuildStep` to key it, so that a changed step configuration (for
   example the `jenesis.test.filter` filter) invalidates that step. That serialization needs native-image
   reachability metadata, which is captured from a real build with the native-image agent.
@@ -212,7 +212,7 @@ matter for the native build:
 Putting it together (after the `javac` precompile above):
 
     # capture metadata from a representative build (process mode, so the forked-tool steps are recorded)
-    java -Djenesis.java.process=true \
+    java -Djenesis.process.factory=fork \
         -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \
         -cp .jenesis/launcher build.jenesis.Project build
 
@@ -865,10 +865,10 @@ record carries four `BuildExecutorModule` components: a `compiler`, an optional 
 `validator`, and an `archiver`. Compilation runs first (`compiled`), then a `Versions` step (`classes`) consults
 the compile-scope `requires.properties` and rewrites every `module-info.class` to embed the resolved versions on
 each `requires` directive, so the produced jar carries the same versions that were used to assemble its module
-path. Whether the compiler and archiver run in-process (`Javac.tool()` / `Jar.tool(...)`) or out-of-process
-(`Javac.process()` / `Jar.process(...)`) is decided by which implementations the caller supplies;
-`JavaMultiProjectAssembler` supplies the forking variants when `-Djenesis.java.process=true` is set so the build
-can run under a stricter sandbox. A two-argument constructor `JavaToolchainModule(compiler, archiver)` leaves
+path. Whether the compiler and archiver run in-process or out-of-process is decided by the
+`ProcessHandler.Factory` passed to each step constructor (`new Javac(factory)`, `new Jar(factory, ...)`);
+`JavaMultiProjectAssembler` resolves it once via `ProcessHandler.Factory.of()`, which supplies the forking
+variants when `-Djenesis.process.factory=fork` is set so the build can run under a stricter sandbox. A two-argument constructor `JavaToolchainModule(compiler, archiver)` leaves
 both optional hooks null.
 
 When a `transformer` is supplied, it runs as a `transform` module between `classes` and the archiver: it consumes
@@ -1405,6 +1405,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.print.docker`          | system property | When `true`, `Project` (build-in-container) and `Execute` (run-in-container) print the Docker image they wrap the JVM in. Default `true` (set `false` to suppress), the same default as `jenesis.print.progress`. |
 | `jenesis.executor.timeout` | system property | ISO-8601 duration (e.g. `PT5M`, `PT30S`) applied to every `BuildStep` by `BuildExecutor.of(Path)`. Each step's returned `CompletionStage` is wrapped with `orTimeout`, so the build fails fast with a `TimeoutException` (surfaced as a `BuildExecutorException`) when a step exceeds the limit. Note that the future is only completed exceptionally; the underlying virtual thread is not interrupted and only winds down when the surrounding `ExecutorService` closes at the end of the build. Default `PT0S` disables the timeout. |
 | `jenesis.executor.rebuild` | system property | When `true`, `BuildExecutor.of(Path)` recursively deletes the target folder before constructing the executor, forcing a full rebuild from a clean tree. Equivalent to `rm -rf target/` ahead of the build. The `of(target, timeout, hash, stepHash, callback, rebuild)` overload accepts the flag directly; the convenience `of(Path)` overload reads this property. Default `false`. |
+| `jenesis.process.factory` | system property | Selects how the JDK tool steps (`Javac`, `Javadoc`, `Jar`, `JMod`, `JLink`, `JPackage`) launch: `tool` runs them in-process via `ToolProvider` (the default), `fork` runs them as separate `java`-home processes (`bin/javac`, …) - use it under stricter sandboxes that disallow in-process tool runs. Read once by `ProcessHandler.Factory.of()` wherever a step is constructed. Unset defaults to `tool`, except in a GraalVM native image (which has no in-process JDK tools), where it defaults to `fork`. An unknown value fails fast. |
 | `jenesis.test.filter`     | system property     | Read by `TestModule` as an implicit default for the test filter: a comma-separated list of `<classRegex>[#<method>]` entries. When set, `TestModule.executed` only emits selectors for classes (and optionally methods) matching those patterns, and the value becomes part of the step's serialized state, forcing a re-run. `TestModule` applies it **unless** the `filter(String)` wither was set explicitly (an explicit wither always wins); the assembler wires a bare `TestModule` and no longer reads the property itself. |
 | `jenesis.test.group`     | system property     | Read by `TestModule` as an implicit default for the test group selector (overridable by the `group(String)` wither): a comma-separated list of groups mapped per framework (JUnit Platform tags, TestNG groups). Like the filter it becomes part of the step's serialized state and forces a re-run when set; `JUnit4` rejects it, since its console runner cannot select `@Category` by name. |
 | `jenesis.test.parallel` | system property     | Read by `TestModule` as an implicit default (overridable by the `parallel(boolean)` wither); enables parallel test execution where the framework supports it (JUnit Platform parallel config parameters, TestNG `-parallel methods`; ignored by `JUnit4`). It is transient on the test step, so toggling it neither invalidates the cache nor forces a re-run. |

@@ -9,6 +9,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.JLink;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,7 +49,7 @@ public class JLinkTest {
         SequencedProperties configuration = new SequencedProperties();
         configuration.setProperty("--add-modules", "sample");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jlink.properties"));
-        BuildStepResult result = (process ? JLink.process() : JLink.tool()).apply(
+        BuildStepResult result = new JLink(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -63,7 +64,7 @@ public class JLinkTest {
     @ValueSource(booleans = {true, false})
     public void skips_when_no_add_modules_is_configured(boolean process) throws IOException {
         Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("sample.jar"), "jar");
-        BuildStepResult result = (process ? JLink.process() : JLink.tool()).apply(
+        BuildStepResult result = new JLink(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
@@ -76,7 +77,7 @@ public class JLinkTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     public void skips_when_no_modules_are_present(boolean process) throws IOException {
-        BuildStepResult result = (process ? JLink.process() : JLink.tool()).apply(
+        BuildStepResult result = new JLink(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(

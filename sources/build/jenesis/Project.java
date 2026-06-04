@@ -465,7 +465,7 @@ public record Project(
                         `javac`/`jar` tools (keep a JDK on `JAVA_HOME`/`PATH`); the
                         incremental cache serializes build steps, so the image
                         needs reachability metadata captured from a real build:
-                          java -Djenesis.java.process=true \\
+                          java -Djenesis.process.factory=fork \\
                               -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \\
                               -cp .jenesis/launcher build.jenesis.Project build
                           native-image --no-fallback \\
@@ -716,7 +716,7 @@ public record Project(
                                                         value invalidates the test
                                                         step's cache and forces a
                                                         re-run.
-                      -Djenesis.java.process=true       Fork JDK tools (jar,
+                      -Djenesis.process.factory=fork       Fork JDK tools (jar,
                                                         javadoc, ...) into
                                                         separate processes instead
                                                         of invoking them

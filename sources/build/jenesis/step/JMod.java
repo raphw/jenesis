@@ -10,16 +10,8 @@ public class JMod extends JdkProcessBuildStep {
     public static final String JMODS = "jmods/";
     public static final String CONFIG = "jmodconfig/", LIBRARIES = "jmodlibs/", COMMANDS = "jmodcmds/";
 
-    protected JMod(Function<List<String>, ? extends ProcessHandler> factory) {
-        super("jmod", factory);
-    }
-
-    public static JMod tool() {
-        return new JMod(ProcessHandler.OfTool.of("jmod"));
-    }
-
-    public static JMod process() {
-        return new JMod(ProcessHandler.OfProcess.ofJavaHome("bin/jmod"));
+    public JMod(ProcessHandler.Factory factory) {
+        super("jmod", factory.apply("jmod", "bin/jmod"));
     }
 
     @Override

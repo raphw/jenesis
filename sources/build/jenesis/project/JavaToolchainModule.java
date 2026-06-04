@@ -5,6 +5,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
+import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Versions;
 
 public record JavaToolchainModule(BuildExecutorModule compiler,
@@ -16,7 +17,7 @@ public record JavaToolchainModule(BuildExecutorModule compiler,
     private static final String COMPILED = "compiled";
 
     public JavaToolchainModule() {
-        this(Javac.tool().asModule("javac"), null, null, Jar.tool(Jar.Sort.CLASSES).asModule("jar"));
+        this(new Javac(ProcessHandler.Factory.of()).asModule("javac"), null, null, new Jar(ProcessHandler.Factory.of(), Jar.Sort.CLASSES).asModule("jar"));
     }
 
     public JavaToolchainModule compiler(BuildExecutorModule compiler) {
