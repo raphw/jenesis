@@ -9,6 +9,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
+import build.jenesis.step.ProcessHandler;
 
 /**
  * A build wired entirely by hand: no {@code Project}, no layout, no
@@ -45,8 +46,8 @@ public class Demo {
 
         // Compile the hand-written and generated sources together, then package.
         // Javac reads the "sources/" folder of every predecessor, so it sees both.
-        root.addStep("compile", Javac.tool(), "sources", "generate");
-        root.addStep("jar", Jar.tool(Jar.Sort.CLASSES), "compile");
+        root.addStep("compile", new Javac(ProcessHandler.Factory.of()), "sources", "generate");
+        root.addStep("jar", new Jar(ProcessHandler.Factory.of(), Jar.Sort.CLASSES), "compile");
 
         root.execute(args);
     }

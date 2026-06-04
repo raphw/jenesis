@@ -167,14 +167,15 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
+import build.jenesis.step.ProcessHandler;
 
 public class Hand {
 
     static void main(String[] args) throws IOException {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addSource("sources", Bind.asSources(), Path.of("sources"));
-        root.addStep("classes", Javac.tool(), "sources");
-        root.addStep("artifacts", Jar.tool(Jar.Sort.CLASSES), "classes");
+        root.addStep("classes", new Javac(ProcessHandler.Factory.of()), "sources");
+        root.addStep("artifacts", new Jar(ProcessHandler.Factory.of(), Jar.Sort.CLASSES), "classes");
         root.execute(args);
     }
 }
@@ -735,13 +736,13 @@ others are declared next to the step that emits them.
 
 | Path                       | Constant                         | Purpose                                                                                         |
 | -------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `sources/`                 | `BuildStep.SOURCES`              | A directory tree of `.java` source files (mirroring their package structure) consumed by compilation and documentation tooling. The same folder name is also the conventional output location for the packaged source jar produced by `Jar.tool(Jar.Sort.SOURCES)`, which writes a single `sources.jar` file alongside the tree at `sources/sources.jar`. A sources jar is not a deployable artifact, so it lives next to the source tree rather than in `artifacts/`. |
+| `sources/`                 | `BuildStep.SOURCES`              | A directory tree of `.java` source files (mirroring their package structure) consumed by compilation and documentation tooling. The same folder name is also the conventional output location for the packaged source jar produced by a `Jar` step with `Jar.Sort.SOURCES`, which writes a single `sources.jar` file alongside the tree at `sources/sources.jar`. A sources jar is not a deployable artifact, so it lives next to the source tree rather than in `artifacts/`. |
 | `resources/`               | `BuildStep.RESOURCES`            | A directory tree of non-source files (configuration, message bundles, static assets) that should appear on the classpath alongside compiled classes and be embedded into produced jars.                                                              |
 | `classes/`                 | `BuildStep.CLASSES`              | A directory tree of compiled `.class` files in their package layout, plus any non-source companion files copied verbatim from `sources/`. Forms a class- or module-path entry for downstream compilation, packaging and execution.                  |
-| `artifacts/`               | `BuildStep.ARTIFACTS`            | A flat directory holding **the module's own produced binary jars** (typically just `classes.jar`, emitted here by `Jar.tool(Jar.Sort.CLASSES)`). Downloaded dependency jars deliberately do not live here, see `dependencies/`. Source jars and documentation jars do not live here either, since they are not deployable binaries, see `sources/` and `documentation/`. Path consumers (`Javac`, `Java`, `Javadoc`, `TestEngine`) walk this folder without filtering by extension, so every file placed here is treated as a class-/module-path entry; only runtime-usable jars belong here, which is why link-time-only `.jmod` files get their own `jmods/` folder. |
+| `artifacts/`               | `BuildStep.ARTIFACTS`            | A flat directory holding **the module's own produced binary jars** (typically just `classes.jar`, emitted here by a `Jar` step with `Jar.Sort.CLASSES`). Downloaded dependency jars deliberately do not live here, see `dependencies/`. Source jars and documentation jars do not live here either, since they are not deployable binaries, see `sources/` and `documentation/`. Path consumers (`Javac`, `Java`, `Javadoc`, `TestEngine`) walk this folder without filtering by extension, so every file placed here is treated as a class-/module-path entry; only runtime-usable jars belong here, which is why link-time-only `.jmod` files get their own `jmods/` folder. |
 | `dependencies/`            | `BuildStep.DEPENDENCIES`         | A flat directory holding **downloaded dependency jars** that `Download` placed for this step (every transitive jar pulled in for the configured scope, whether external Maven or a sibling module's binary that was resolved by coordinate). Downstream classpath/module-path consumers (`Javac`, `Java`, `Javadoc`, `TestEngine`) walk both `artifacts/` and `dependencies/` to assemble the full set of jars. |
 | `javadoc/`                 | `Javadoc.JAVADOC`                | A generated Javadoc tree (HTML, CSS and supporting resources), ready to be archived into a documentation jar or served as static content.                                                                                                            |
-| `documentation/`           | `BuildStep.DOCUMENTATION`        | Conventional output location for packaged documentation. `Jar.tool(Jar.Sort.JAVADOC)` writes `documentation/javadoc.jar` here, distinct from both the generated tree under `javadoc/` and from `artifacts/` (a javadoc jar is documentation, not a deployable binary).                                                                  |
+| `documentation/`           | `BuildStep.DOCUMENTATION`        | Conventional output location for packaged documentation. A `Jar` step with `Jar.Sort.JAVADOC` writes `documentation/javadoc.jar` here, distinct from both the generated tree under `javadoc/` and from `artifacts/` (a javadoc jar is documentation, not a deployable binary).                                                                  |
 | `packages/`                | `JPackage.PACKAGES`              | Conventional output location for native application images and installers produced by the `jpackage` tool via the `JPackage` step (e.g. an `app-image` directory tree or a platform installer named after the configured `--name`).                  |
 | `runtime/`                 | `JLink.RUNTIME`                  | Conventional output location for a custom runtime image produced by the `jlink` tool via the `JLink` step (a self-contained JDK image tree with `bin/`, `lib/`, `release`, and so on). When the assembler wires it (`-Djenesis.java.jlink=true`), `Inventory` records it as `prefix.image` and the `STAGE` module's `runtime` step (`ImageStaging`) collects it into `stage/runtime`.                                                                |
 | `jmods/`                   | `JMod.JMODS`                     | Conventional output location for `.jmod` module files produced by the `jmod` tool via the `JMod` step, named `<module>.jmod`. A `.jmod` is the module's own produced binary but, unlike a modular jar, is valid only on a compile- or link-time module path and never at runtime, so it lives apart from `artifacts/` (whose contents are walked onto the runtime path unfiltered) and is consumed by the `JLink` step as `--module-path` entries. When the assembler wires it (`-Djenesis.java.jmod=true`), `Inventory` records it as `prefix.jmod` and `ModularStaging` hardlinks it alongside the jar in `stage/modular`. Because it is staged next to the jar, the `JenesisModuleRepository` resolves a `<module>:jmod` coordinate qualifier to the published `.jmod` (analogous to `:pom`), falling back to the jar when no `.jmod` was published - so a consumer (e.g. a custom assembler wiring cross-module link-time propagation) can request the link-time form unconditionally. |
@@ -1807,9 +1808,10 @@ Java-specific classes are a thin layer of `BuildStep`/`BuildExecutorModule` impl
   into its config hash so a JDK upgrade invalidates every cached `javac`/`java`/`javadoc` output without any
   per-step opt-in.
 - **`ProcessHandler`** wraps the actual invocation (forked `Process` or in-process `ToolProvider` call). The
-  factory function passed to a step's constructor decides which: `Javac.tool()` runs `javac` in-process via
-  `java.util.spi.ToolProvider`; `Javac.process()` forks. The same split exists for `Jar` (as `Jar.tool(Sort)` /
-  `Jar.process(Sort)`) and `Javadoc`.
+  `ProcessHandler.Factory` passed to a step's constructor decides which: `ProcessHandler.Factory.TOOL` runs
+  `javac` in-process via `java.util.spi.ToolProvider`; `ProcessHandler.Factory.FORK` forks. `ProcessHandler.Factory.of()`
+  selects between them from `jenesis.process.factory` (defaulting to `FORK` only under a native image). The same
+  factory drives `Jar`, `Javadoc`, `JMod`, `JLink` and `JPackage`.
 - **`Javac`, `Jar`, `Javadoc`, `Java`** are the concrete tool drivers. They consume the conventional folders
   (`sources/`, `classes/`, `resources/`, `artifacts/`) and produce the conventional outputs documented in the
   *Conventional folders and files* section.

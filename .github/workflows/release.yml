@@ -55,7 +55,7 @@ jobs:
           java -Djenesis.project.version=${VERSION} \
                -Djenesis.project.sources=true \
                -Djenesis.project.documentation=true \
-               -Djenesis.project.strictPinning=true \
+               -Djenesis.dependency.pin=strict \
                -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
 

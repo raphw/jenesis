@@ -161,7 +161,7 @@ The entry point is declared the same way the launcher already reads it: an
 module's `module.properties`, and that single field is what marks the module as
 packageable - modules without it are skipped.
 
-Packaging is opt-in through one property, `-Djenesis.java.package` (its value is the
+Packaging is opt-in through one property, `-Djenesis.java.jpackage` (its value is the
 `jpackage --type`; a bare flag means `app-image`). When set, the assembler wires a
 per-module `package` step that runs `jpackage` over the produced jar plus its runtime
 dependency jars, so the image bundles the whole closure - `commons-lang3` in the Maven
@@ -449,7 +449,7 @@ descriptors to record resolved versions and checksums; `stage` lays artifacts ou
 as local Maven and module repositories; `export` publishes them. A module that
 declares an entry point (`@jenesis.main` in `module-info.java`, or `<mainClass>`
 in `pom.xml`) can also be launched from its built artifacts, or packaged into a
-native application image with `-Djenesis.java.package` (the value is the `jpackage
+native application image with `-Djenesis.java.jpackage` (the value is the `jpackage
 --type`); the image is collected under `stage/packages/` next to `stage/maven` and
 `stage/modular`. See demo 4.
 
@@ -457,7 +457,7 @@ native application image with `-Djenesis.java.package` (the value is the `jpacka
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
 `module-info.java`'s `@jenesis.pin <module> <version> [<algorithm>/<hex>]`
 Javadoc tags. `Download` verifies every fetch against a pinned checksum, and
-strict pinning (`-Dbuild.jenesis.pinning=strict`) fails the build on any
+strict pinning (`-Djenesis.dependency.pin=strict`) fails the build on any
 unpinned coordinate. A *resolved compiler* pins on an independent qualified trail
 (`@kotlin`, `@scala`, `@groovy`, or an explicit `"tool"` qualifier) so it never
 mixes with the project's own dependencies.

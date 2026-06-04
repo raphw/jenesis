@@ -361,9 +361,7 @@ public record Project(
                       values, or sets fields after resolveProperties(), may ignore them.
                       %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
-                      %{name}tests.skip%{reset}                       Skip executing tests
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
-                      %{name}tests.stage%{reset}                      Stage test artifacts alongside main artifacts
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
@@ -387,10 +385,12 @@ public record Project(
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
                       but tolerates missing ones.
 
-                    %{header}Test filter (-Djenesis.test.filter=<patterns>):%{reset}
-                      Comma-separated %{name}<classRegex>[#<method>]%{reset} entries restricting which
-                      tests the default JavaMultiProjectAssembler executes. Changing
-                      the value invalidates the test step's cache and forces a re-run.
+                    %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
+                      %{name}skip%{reset}                             Skip executing tests
+                      %{name}stage%{reset}                            Stage test artifacts alongside main artifacts
+                      %{name}filter%{reset} <patterns>                Comma-separated %{name}<classRegex>[#<method>]%{reset} entries
+                                                      restricting which tests run; changing the value
+                                                      invalidates the test step's cache and forces a re-run
 
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
@@ -652,9 +652,7 @@ public record Project(
                       root, target, cache         Override input/output locations.
                       layout                      auto, maven, modular,
                                                   modular_to_maven.
-                      tests.skip                  Skip wiring test execution.
                       sources, documentation      Assemble sources / javadoc jars.
-                      tests.stage                 Stage test artifacts.
                       metadata                    Path-separated list of extra
                                                   metadata files.
                       version                     Stamp version onto every
@@ -706,7 +704,11 @@ public record Project(
                                                         dependency tree as it
                                                         resolves.
 
-                    Test execution:
+                    Test execution (-Djenesis.test.<key>=<value>):
+                      -Djenesis.test.skip=true            Skip wiring test
+                                                        execution.
+                      -Djenesis.test.stage=true           Stage test artifacts
+                                                        alongside main artifacts.
                       -Djenesis.test.filter=<patterns>    Comma-separated
                                                         <classRegex>[#<method>]
                                                         entries restricting which
@@ -716,7 +718,9 @@ public record Project(
                                                         value invalidates the test
                                                         step's cache and forces a
                                                         re-run.
-                      -Djenesis.process.factory=fork       Fork JDK tools (jar,
+
+                    Tool execution:
+                      -Djenesis.process.factory=fork      Fork JDK tools (jar,
                                                         javadoc, ...) into
                                                         separate processes instead
                                                         of invoking them

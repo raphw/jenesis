@@ -139,7 +139,7 @@ jobs:
         run: |
           java -Djenesis.project.version=0.0.0-TEST \
                -Djenesis.project.sources=true \
-               -Djenesis.project.skipTests=true \
+               -Djenesis.test.skip=true \
                -Djenesis.project.metadata=project.properties \
                build/jenesis/Project.java stage
 
