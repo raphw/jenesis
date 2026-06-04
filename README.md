@@ -301,7 +301,8 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `JavaToolchainModule` is wired against the descriptor's reference-key sets (`sources`, `manifests`, and the
   compile/runtime `resolved` and `artifacts` keys) and the module's resources, and when `descriptor.test()`
   is set and the module's `module.properties` flags it as a test variant a `TestModule` sub-module is wired
-  alongside the `JavaToolchainModule`, with optional `sources` and `javadoc` steps appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
+  alongside the `JavaToolchainModule`, with an optional `sources` archive and an optional `documentation` sub-module
+  (the inferred documentation chain, see below) appended when the matching flag is set. The `MAVEN` and `MODULAR_TO_MAVEN` layouts wrap the
   user's assembler with a `PomAwareAssembler` that emits a per-project `pom` step seeded with project-wide
   metadata read once from `metadata.properties` (when configured); `MODULAR` does not. Each layout adds a
   top-level `pin` module (sibling of `build`) that walks the BUILD outputs' per-module `inventory.properties`
@@ -342,6 +343,23 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   process is launched against only its own qualified artifacts, so a project that pins a different version of a
   library the compiler also uses (for example `kotlin-stdlib`) can no longer downgrade the running compiler -
   that library still reaches the compilation classpath, but not the compiler's own runtime.
+- The **inferred documentation chain** (`InferredDocumentationChainModule`) mirrors the compiler chain for API
+  documentation. A `scan` step walks the module's `sources/` and records which languages are present
+  (`.java`, `.kt`, `.scala`, `.groovy`); a `document` sub-module then wires one documentation tool per language
+  and an `aggregate` step that merges their output into a single `javadoc/` tree (archived into the module's
+  `-javadoc.jar`). Java is the baseline: `javadoc` always renders at the tree root in class-path mode (it skips
+  `module-info.java` and documents the sources against the resolved dependencies, so a mixed-language module whose
+  `module-info` exports a package implemented only in another language still produces valid Java docs). Each other
+  language renders through its native tool, resolved on its own qualified trail like the compilers: Kotlin through
+  Dokka (`@dokka`, `dokka-cli` plus `dokka-base` and `analysis-kotlin-descriptors` on the plugins class-path),
+  Scala through `scaladoc` (`@scaladoc`, fed the compiled `.tasty` classes since scaladoc reads tasty rather than
+  source), and Groovy through `groovydoc` (`@groovydoc`). When a single language is present its tool renders at the
+  root and the others are dropped; when more than one is present the native tools render into per-language
+  subfolders (`dokka/`, `scaladoc/`, `groovydoc/`) alongside the Java baseline. Scala and Kotlin tools are version
+  coordinated to the project's resolved compiler version (read from the upstream dependency jars). The chain is
+  best-effort: every tool tolerates a non-zero exit so a documentation tool that fails never fails the build, and
+  `aggregate` always guarantees a root `index.html` (linking to any per-language subfolders that rendered) so the
+  produced `-javadoc.jar`, a Maven Central prerequisite, is never empty.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, a chained
 Jenesis module repository for `MODULAR`) with any user-provided ones. The merged map then has each sub-module's `assign`
