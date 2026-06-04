@@ -2,6 +2,7 @@ package build.jenesis.maven;
 
 import module java.base;
 import build.jenesis.Repository;
+import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public interface MavenResolver extends Resolver {
@@ -12,7 +13,9 @@ public interface MavenResolver extends Resolver {
                                                                         MavenRepository repository,
                                                                         List<RootPom> rootPoms,
                                                                         List<RootPom> managedPoms,
-                                                                        MavenDependencyScope scope) throws IOException;
+                                                                        MavenDependencyScope scope,
+                                                                        String prefix,
+                                                                        ResolutionListener listener) throws IOException;
 
     static MavenResolver of(Resolver resolver) {
         if (resolver instanceof MavenResolver mavenResolver) {

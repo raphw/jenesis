@@ -104,7 +104,9 @@ public class MavenPomResolver implements MavenResolver {
             MavenRepository repository,
             List<RootPom> rootPoms,
             List<RootPom> managedPoms,
-            MavenDependencyScope scope) throws IOException {
+            MavenDependencyScope scope,
+            String prefix,
+            ResolutionListener listener) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
@@ -147,7 +149,7 @@ public class MavenPomResolver implements MavenResolver {
         }
         return dependencies(executor, repository,
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of(), null),
-                unresolved, resolved, null, (p, par, c, v, s, f, ctx) -> {});
+                unresolved, resolved, prefix, listener);
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,

@@ -56,7 +56,7 @@ public class MavenModuleResolver implements Resolver {
         }
         MavenRepository mavenRepo = MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty()));
         SequencedMap<String, String> result = new LinkedHashMap<>();
-        delegate.dependencies(executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE)
+        delegate.dependencies(executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE, mavenPrefix, listener)
                 .forEach((key, value) -> {
                     String checksum = value.checksum();
                     if (checksum == null) {
