@@ -14,7 +14,7 @@ public class Download implements DependencyProcessingBuildStep {
 
     private final transient Map<String, Repository> repositories;
     private final Pinning pinning;
-    private final String scope;
+    private final String tag;
 
     public Download(Map<String, Repository> repositories) {
         this(repositories, null, null);
@@ -24,10 +24,10 @@ public class Download implements DependencyProcessingBuildStep {
         this(repositories, pinning, null);
     }
 
-    public Download(Map<String, Repository> repositories, Pinning pinning, String scope) {
+    public Download(Map<String, Repository> repositories, Pinning pinning, String tag) {
         this.repositories = repositories;
         this.pinning = pinning;
-        this.scope = scope;
+        this.tag = tag;
     }
 
     @Override
@@ -135,10 +135,10 @@ public class Download implements DependencyProcessingBuildStep {
             }
         }
         locations.store(context.next().resolve(LOCATIONS));
-        if (scope != null) {
+        if (tag != null) {
             SequencedProperties scopes = new SequencedProperties();
             for (String coordinate : locations.stringPropertyNames()) {
-                scopes.setProperty(coordinate, scope);
+                scopes.setProperty(coordinate, tag);
             }
             scopes.store(context.next().resolve(SCOPES));
         }

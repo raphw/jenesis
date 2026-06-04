@@ -18,7 +18,7 @@ import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Inventory;
@@ -94,7 +94,7 @@ public class ModularProject implements BuildExecutorModule {
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope == DependencyScope.COMPILE, pinning)
+                                    new DependenciesModule(mergedRepositories, resolvers, scope, pinning)
                                             .listener(listener),
                                     PREPARE);
                         }, inherited.sequencedKeySet());

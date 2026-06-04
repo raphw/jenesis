@@ -1,4 +1,4 @@
-package build.jenesis.project;
+package build.jenesis;
 
 import module java.base;
 

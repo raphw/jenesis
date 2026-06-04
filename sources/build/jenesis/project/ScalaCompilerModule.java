@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -80,7 +81,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
+        buildExecutor.addStep(RESOLVED, new Resolve(repositories, resolvers, DependencyScope.RUNTIME).pinned(pinning != Pinning.IGNORE), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning, "compiler:" + qualifier), RESOLVED);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(ARTIFACTS);

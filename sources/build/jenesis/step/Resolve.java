@@ -3,6 +3,7 @@ package build.jenesis.step;
 import module java.base;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
+import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
@@ -14,32 +15,32 @@ public class Resolve implements DependencyProcessingBuildStep {
 
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final boolean compile;
+    private final DependencyScope scope;
     private final boolean pinned;
     private final transient Supplier<ResolutionListener> listener;
 
-    public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers, boolean compile) {
-        this(repositories, resolvers, compile, true, null);
+    public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers, DependencyScope scope) {
+        this(repositories, resolvers, scope, true, null);
     }
 
     private Resolve(Map<String, Repository> repositories,
                     Map<String, Resolver> resolvers,
-                    boolean compile,
+                    DependencyScope scope,
                     boolean pinned,
                     Supplier<ResolutionListener> listener) {
         this.repositories = repositories;
         this.resolvers = new LinkedHashMap<>(resolvers);
-        this.compile = compile;
+        this.scope = scope;
         this.pinned = pinned;
         this.listener = listener;
     }
 
     public Resolve pinned(boolean pinned) {
-        return new Resolve(repositories, resolvers, compile, pinned, listener);
+        return new Resolve(repositories, resolvers, scope, pinned, listener);
     }
 
     public Resolve listening(Supplier<ResolutionListener> listener) {
-        return new Resolve(repositories, resolvers, compile, pinned, listener);
+        return new Resolve(repositories, resolvers, scope, pinned, listener);
     }
 
     @Override
@@ -101,10 +102,10 @@ public class Resolve implements DependencyProcessingBuildStep {
             }
             SequencedMap<String, String> resolved;
             if (listener == null) {
-                resolved = resolver.dependencies(executor, group.getKey(), repositories, coordinates, groupVersions, compile);
+                resolved = resolver.dependencies(executor, group.getKey(), repositories, coordinates, groupVersions, scope);
             } else {
                 ResolutionListener current = listener.get();
-                resolved = resolver.dependencies(executor, group.getKey(), repositories, coordinates, groupVersions, compile, current);
+                resolved = resolver.dependencies(executor, group.getKey(), repositories, coordinates, groupVersions, scope, current);
                 current.onResolved();
             }
             for (Map.Entry<String, String> entry : resolved.entrySet()) {

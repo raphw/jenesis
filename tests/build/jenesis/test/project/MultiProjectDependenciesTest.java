@@ -10,7 +10,7 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.MultiProjectDependencies;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

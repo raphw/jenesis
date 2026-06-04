@@ -2,6 +2,7 @@ package build.jenesis.maven;
 
 import module java.base;
 import module java.xml;
+import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.ResolutionContext;
@@ -32,7 +33,7 @@ public class MavenPomResolver implements MavenResolver {
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
-                                                     boolean compile,
+                                                     DependencyScope scope,
                                                      ResolutionListener listener) throws IOException {
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         versions.forEach((coordinate, value) -> {

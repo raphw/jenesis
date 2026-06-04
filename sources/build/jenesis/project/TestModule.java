@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -311,7 +312,7 @@ public class TestModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, false).pinned(pinning != Pinning.IGNORE), resolveInputs);
+        buildExecutor.addStep(REQUIRED, new Resolve(repositories, resolvers, DependencyScope.RUNTIME).pinned(pinning != Pinning.IGNORE), resolveInputs);
         buildExecutor.addStep(ARTIFACTS, new Download(repositories, pinning), REQUIRED);
         buildExecutor.addStep(EXECUTED, new Run(
                         factory,

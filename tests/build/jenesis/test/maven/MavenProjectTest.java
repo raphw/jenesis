@@ -14,7 +14,7 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
 import build.jenesis.project.JavaToolchainModule;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;

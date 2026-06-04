@@ -4,7 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.PathPlacement;
 import build.jenesis.maven.MavenProject.MavenModuleDescriptor;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 

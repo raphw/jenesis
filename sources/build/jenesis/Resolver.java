@@ -10,7 +10,7 @@ public interface Resolver extends Serializable {
                                               Map<String, Repository> repositories,
                                               SequencedMap<String, SequencedSet<String>> coordinates,
                                               SequencedMap<String, String> versions,
-                                              boolean compile,
+                                              DependencyScope scope,
                                               ResolutionListener listener) throws IOException;
 
     default SequencedMap<String, String> dependencies(Executor executor,
@@ -18,8 +18,8 @@ public interface Resolver extends Serializable {
                                                       Map<String, Repository> repositories,
                                                       SequencedMap<String, SequencedSet<String>> coordinates,
                                                       SequencedMap<String, String> versions,
-                                                      boolean compile) throws IOException {
-        return dependencies(executor, prefix, repositories, coordinates, versions, compile, null);
+                                                      DependencyScope scope) throws IOException {
+        return dependencies(executor, prefix, repositories, coordinates, versions, scope, null);
     }
 
     default SequencedSet<String> managedPrefixes() {
@@ -27,7 +27,7 @@ public interface Resolver extends Serializable {
     }
 
     default <F extends BiFunction<String, String, String> & Serializable> Resolver translated(String translated, F translator) {
-        return (executor, prefix, repositories, coordinates, versions, compile, listener) -> {
+        return (executor, prefix, repositories, coordinates, versions, scope, listener) -> {
             SequencedMap<String, String> translatedVersions = new LinkedHashMap<>();
             versions.forEach((coordinate, version) -> translatedVersions.put(
                     pinVersion(translator.apply(prefix, coordinate), version),
@@ -41,7 +41,7 @@ public interface Resolver extends Serializable {
                     repositories,
                     translatedCoordinates,
                     translatedVersions,
-                    compile,
+                    scope,
                     listener);
         };
     }

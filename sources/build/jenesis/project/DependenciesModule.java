@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -12,43 +13,43 @@ import build.jenesis.step.Resolve;
 
 public record DependenciesModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
-                                 boolean compile,
+                                 DependencyScope scope,
                                  Pinning pinning,
-                                 String scope,
+                                 String tag,
                                  Supplier<ResolutionListener> listener) implements BuildExecutorModule {
 
     public static final String RESOLVED = "resolved", ARTIFACTS = "artifacts";
 
-    public DependenciesModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, boolean compile) {
-        this(repositories, resolvers, compile, null, null, null);
+    public DependenciesModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers, DependencyScope scope) {
+        this(repositories, resolvers, scope, null, null, null);
     }
 
     public DependenciesModule(Map<String, Repository> repositories,
                               Map<String, Resolver> resolvers,
-                              boolean compile,
+                              DependencyScope scope,
                               Pinning pinning) {
-        this(repositories, resolvers, compile, pinning, null, null);
+        this(repositories, resolvers, scope, pinning, null, null);
     }
 
     public DependenciesModule(Map<String, Repository> repositories,
                               Map<String, Resolver> resolvers,
-                              boolean compile,
+                              DependencyScope scope,
                               Pinning pinning,
-                              String scope) {
-        this(repositories, resolvers, compile, pinning, scope, null);
+                              String tag) {
+        this(repositories, resolvers, scope, pinning, tag, null);
     }
 
     public DependenciesModule listener(Supplier<ResolutionListener> listener) {
-        return new DependenciesModule(repositories, resolvers, compile, pinning, scope, listener);
+        return new DependenciesModule(repositories, resolvers, scope, pinning, tag, listener);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addStep(RESOLVED,
-                new Resolve(repositories, resolvers, compile).pinned(pinning != Pinning.IGNORE).listening(listener),
+                new Resolve(repositories, resolvers, scope).pinned(pinning != Pinning.IGNORE).listening(listener),
                 inherited.sequencedKeySet());
         buildExecutor.addStep(ARTIFACTS,
-                new Download(repositories, pinning, scope),
+                new Download(repositories, pinning, tag),
                 RESOLVED);
     }
 }

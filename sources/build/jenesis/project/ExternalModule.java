@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -110,7 +111,7 @@ public class ExternalModule implements BuildExecutorModule {
                 new WriteCoordinates(coordinates, qualifier == null ? base : base + "@" + qualifier),
                 inherited.sequencedKeySet().stream());
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, false, pinning,
+                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME, pinning,
                         qualifier == null ? null : "module:" + qualifier),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {

@@ -6,7 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 
 public class Pom implements BuildStep {
 

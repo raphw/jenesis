@@ -2,6 +2,7 @@ package build.jenesis.test.maven;
 
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.DependencyScope;
 import build.jenesis.ResolutionContext;
 import build.jenesis.ResolutionListener;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -3816,7 +3817,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                true);
+                DependencyScope.COMPILE);
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/other/artifact/1",
@@ -3858,7 +3859,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                true);
+                DependencyScope.COMPILE);
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/pinned/artifact/5");
@@ -3900,7 +3901,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                true);
+                DependencyScope.COMPILE);
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/pinned/artifact/jar/sources/3");
@@ -3933,7 +3934,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                true);
+                DependencyScope.COMPILE);
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/other/artifact/1");
@@ -3987,7 +3988,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                true);
+                DependencyScope.COMPILE);
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/middle/artifact/1",

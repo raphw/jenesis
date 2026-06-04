@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -150,7 +151,7 @@ public class InternalModule implements BuildExecutorModule {
                     new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier),
                     Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
             buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, compile, pinning,
+                    new DependenciesModule(repositories, resolvers, scope, pinning,
                             qualifier == null ? null : "module:" + qualifier),
                     requiresId);
         }

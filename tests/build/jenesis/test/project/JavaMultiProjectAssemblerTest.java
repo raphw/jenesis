@@ -10,7 +10,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;

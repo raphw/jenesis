@@ -1,6 +1,7 @@
 package build.jenesis.test.maven;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
@@ -40,7 +41,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(resolved).containsExactly(Map.entry("maven/org.example/example-core/1.2.3", ""));
         assertThat(fetched).containsOnlyKeys("foo.bar:pom");
@@ -62,7 +63,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("foo.bar", "9.9")),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(resolved).containsExactly(Map.entry("maven/org.example/example-core/9.9", ""));
         assertThat(fetched).containsOnlyKeys("foo.bar/9.9:pom");
@@ -83,7 +84,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("foo.bar", "1.0 SHA-256/deadbeef")),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(resolved).containsExactly(Map.entry("maven/org.example/example-core/1.0", "SHA-256/deadbeef"));
     }
@@ -116,7 +117,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(resolved).containsExactly(
                 Map.entry("maven/org.example/example-core/1.0", ""),
@@ -139,7 +140,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(Files.exists(mavenRepoFolder.resolve("org.example/example-core/1.0/example-core-1.0.pom"))).isFalse();
     }
@@ -154,7 +155,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                true))
+                DependencyScope.COMPILE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No POM found for foo.bar");
     }
@@ -169,7 +170,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", new LinkedHashSet<>(List.of("org.x/y")))),
                 new LinkedHashMap<>(),
-                true))
+                DependencyScope.COMPILE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("exclusions");
     }
@@ -224,7 +225,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(resolved).containsExactly(
                 Map.entry("maven/org.example/example-core/1.0", ""),
@@ -281,7 +282,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("lib.module", "2.0")),
-                true);
+                DependencyScope.COMPILE);
 
         assertThat(resolved).containsExactly(
                 Map.entry("maven/org.example/example-core/1.0", ""),

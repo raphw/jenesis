@@ -9,7 +9,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.Pom;
-import build.jenesis.project.DependencyScope;
+import build.jenesis.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

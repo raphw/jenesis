@@ -1,6 +1,7 @@
 package build.jenesis.maven;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.ResolutionListener;
@@ -29,7 +30,7 @@ public class MavenModuleResolver implements Resolver {
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
-                                                     boolean compile,
+                                                     DependencyScope scope,
                                                      ResolutionListener listener) throws IOException {
         coordinates.forEach((coordinate, exclusions) -> {
             if (!exclusions.isEmpty()) {

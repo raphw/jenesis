@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
@@ -38,7 +39,7 @@ public class DependenciesModuleTest {
                 Map.of("foo", (_, coordinate) -> Optional.of(() -> new ByteArrayInputStream(
                         coordinate.getBytes(StandardCharsets.UTF_8)))),
                 Map.of("foo", Resolver.identity()),
-                true), "input");
+                DependencyScope.COMPILE), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/resolved", "output/artifacts");
         SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/resolved").resolve(BuildStep.REQUIRES));

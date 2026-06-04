@@ -1,6 +1,7 @@
 package build.jenesis.module;
 
 import module java.base;
+import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.ResolutionListener;
@@ -28,7 +29,7 @@ public class ModularJarResolver implements Resolver {
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
                                                      SequencedMap<String, String> versions,
-                                                     boolean compile,
+                                                     DependencyScope scope,
                                                      ResolutionListener listener) throws IOException {
         coordinates.forEach((coordinate, exclusions) -> {
             if (!exclusions.isEmpty()) {
@@ -159,7 +160,7 @@ public class ModularJarResolver implements Resolver {
                 }
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
-                                || compile && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
+                                || scope == DependencyScope.COMPILE && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
                         .filter(requires -> !requires.name().startsWith("java.") && !requires.name().startsWith("jdk."))
                         .sorted(Comparator.comparing(ModuleDescriptor.Requires::name))
                         .forEach(requires -> {
@@ -187,7 +188,7 @@ public class ModularJarResolver implements Resolver {
             for (String coordinate : unresolved) {
                 unresolvedCoordinates.put(coordinate, Collections.emptyNavigableSet());
             }
-            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, compile, listener)
+            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, scope, listener)
                     .forEach(dependencies::putIfAbsent);
         }
         return dependencies;
