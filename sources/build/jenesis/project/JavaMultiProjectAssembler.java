@@ -138,12 +138,14 @@ public record JavaMultiProjectAssembler(boolean process,
             }
             if (descriptor.documentation()) {
                 sub.addModule("documentation", (module, inherited) -> {
-                    module.addStep("javadoc",
-                            process ? Javadoc.process() : Javadoc.tool(),
+                    module.addModule("generate",
+                            new InferredDocumentationChainModule(repositories, resolvers)
+                                    .process(process)
+                                    .pinning(descriptor.pinning()),
                             inherited.sequencedKeySet());
                     module.addStep("archive",
                             process ? Jar.process(Jar.Sort.JAVADOC) : Jar.tool(Jar.Sort.JAVADOC),
-                            "javadoc");
+                            "generate");
                 }, inputs(descriptor));
             }
             if (jmod) {

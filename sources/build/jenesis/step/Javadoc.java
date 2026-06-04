@@ -9,8 +9,15 @@ public class Javadoc extends JdkProcessBuildStep {
 
     public static final String JAVADOC = "javadoc/";
 
+    private final String within;
+
     protected Javadoc(Function<List<String>, ? extends ProcessHandler> factory) {
+        this(factory, null);
+    }
+
+    private Javadoc(Function<List<String>, ? extends ProcessHandler> factory, String within) {
         super("javadoc", factory);
+        this.within = within;
     }
 
     public static Javadoc tool() {
@@ -21,14 +28,21 @@ public class Javadoc extends JdkProcessBuildStep {
         return new Javadoc(ProcessHandler.OfProcess.ofJavaHome("bin/javadoc"));
     }
 
+    public Javadoc within(String within) {
+        return new Javadoc(factory, within);
+    }
+
     @Override
     protected CompletionStage<List<String>> process(Executor executor,
                                                     BuildStepContext context,
                                                     SequencedMap<String, BuildStepArgument> arguments,
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
+        Path documentation = within == null
+                ? Files.createDirectory(context.next().resolve(JAVADOC))
+                : Files.createDirectories(context.next().resolve(JAVADOC).resolve(within));
         List<String> files = new ArrayList<>(), path = new ArrayList<>(), commands = new ArrayList<>(List.of(
-                "-d", Files.createDirectory(context.next().resolve(JAVADOC)).toString(),
+                "-d", documentation.toString(),
                 "-notimestamp",
                 "-tag", "jenesis.release:a:Release:",
                 "-tag", "jenesis.main:a:Main class:",
