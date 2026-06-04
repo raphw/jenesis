@@ -449,8 +449,8 @@ public class TestModule implements BuildExecutorModule {
             } else {
                 commands.add(resolved.mainClass());
             }
-            SequencedSet<String> matchedClasses = new LinkedHashSet<>();
-            SequencedMap<String, SequencedSet<String>> matchedMethods = new LinkedHashMap<>();
+            SequencedSet<String> matchedClasses = new TreeSet<>();
+            SequencedMap<String, SequencedSet<String>> matchedMethods = new TreeMap<>();
             ClassFile classFile = ClassFile.of();
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(CLASSES);
@@ -475,7 +475,7 @@ public class TestModule implements BuildExecutorModule {
                                                 matchedClasses.add(className);
                                             } else {
                                                 matchedMethods
-                                                        .computeIfAbsent(className, _ -> new LinkedHashSet<>())
+                                                        .computeIfAbsent(className, _ -> new TreeSet<>())
                                                         .add(spec.method);
                                             }
                                             break;

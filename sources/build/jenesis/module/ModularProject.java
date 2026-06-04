@@ -217,22 +217,12 @@ public class ModularProject implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        List<Path> moduleInfos = new ArrayList<>();
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                 if (file.getFileName().toString().equals("module-info.java")) {
-                    Path parent = file.getParent(), location = root.relativize(parent);
-                    if (filter.test(location)) {
-                        String relative = location.toString().replace(File.separatorChar, '/');
-                        buildExecutor.addModule(SIBLING_MODULE_PREFIX + BuildExecutorModule.encode(relative), (module, modInherited) -> {
-                            module.addSource("sources", Bind.asSources(), parent);
-                            SequencedSet<String> manifestDeps = new LinkedHashSet<>();
-                            manifestDeps.add("sources");
-                            manifestDeps.addAll(modInherited.sequencedKeySet());
-                            module.addStep(MANIFESTS, new Manifests(prefix, relative, modular), manifestDeps);
-                            module.addStep(COORDINATES, new Coordinates(prefix), MANIFESTS);
-                        }, inherited.sequencedKeySet().stream());
-                    }
+                    moduleInfos.add(file);
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -245,6 +235,21 @@ public class ModularProject implements BuildExecutorModule {
                 return FileVisitResult.CONTINUE;
             }
         });
+        moduleInfos.sort(null);
+        for (Path file : moduleInfos) {
+            Path parent = file.getParent(), location = root.relativize(parent);
+            if (filter.test(location)) {
+                String relative = location.toString().replace(File.separatorChar, '/');
+                buildExecutor.addModule(SIBLING_MODULE_PREFIX + BuildExecutorModule.encode(relative), (module, modInherited) -> {
+                    module.addSource("sources", Bind.asSources(), parent);
+                    SequencedSet<String> manifestDeps = new LinkedHashSet<>();
+                    manifestDeps.add("sources");
+                    manifestDeps.addAll(modInherited.sequencedKeySet());
+                    module.addStep(MANIFESTS, new Manifests(prefix, relative, modular), manifestDeps);
+                    module.addStep(COORDINATES, new Coordinates(prefix), MANIFESTS);
+                }, inherited.sequencedKeySet().stream());
+            }
+        }
     }
 
     public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies) implements ProjectModule {

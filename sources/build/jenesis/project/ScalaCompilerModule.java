@@ -216,6 +216,8 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                     });
                 }
             }
+            files.sort(null);
+            jars.sort(null);
             if (files.stream().noneMatch(name -> name.endsWith(".scala"))) {
                 return CompletableFuture.completedStage(null);
             }

@@ -161,7 +161,10 @@ public class MavenProject implements BuildExecutorModule {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(
                     paths.get(PREVIOUS + PREPARE).resolve(MAVEN),
                     "*.properties")) {
-                for (Path file : files) {
+                List<Path> descriptors = new ArrayList<>();
+                files.forEach(descriptors::add);
+                descriptors.sort(null);
+                for (Path file : descriptors) {
                     String name = file.getFileName().toString();
                     modules.addModule(name.substring(0, name.length() - 11), (module, modInherited) -> {
                         SequencedProperties properties = SequencedProperties.ofFiles(file);

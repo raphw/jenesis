@@ -169,6 +169,7 @@ public class InternalModule implements BuildExecutorModule {
                     artifacts.add(file);
                 }
             }
+            artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
             try {

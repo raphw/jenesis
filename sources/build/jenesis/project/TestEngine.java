@@ -83,6 +83,7 @@ public interface TestEngine extends Serializable {
                 }
             }
         }
+        modules.sort(Comparator.comparing(ModuleDescriptor::name));
         return modules;
     }
 

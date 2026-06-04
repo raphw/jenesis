@@ -138,7 +138,7 @@ public class MavenRepositoryExport implements BuildStep {
     private static void writeSnapshotMetadata(Path versionDir,
                                               Coordinates coordinates,
                                               String timestamp) throws IOException {
-        SequencedSet<String> snapshotKeys = new LinkedHashSet<>();
+        SequencedSet<String> snapshotKeys = new TreeSet<>();
         String prefix = coordinates.artifactId() + "-" + coordinates.version();
         try (DirectoryStream<Path> files = Files.newDirectoryStream(versionDir)) {
             for (Path file : files) {

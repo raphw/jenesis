@@ -204,6 +204,8 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                     });
                 }
             }
+            files.sort(null);
+            jars.sort(null);
             if (files.stream().noneMatch(name -> name.endsWith(".groovy"))) {
                 return CompletableFuture.completedStage(null);
             }

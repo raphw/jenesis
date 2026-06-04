@@ -169,6 +169,8 @@ public class Javac extends JdkProcessBuildStep {
                 });
             }
         }
+        files.sort(null);
+        path.sort(null);
         if (files.isEmpty()) {
             return CompletableFuture.completedStage(null);
         }
@@ -268,6 +270,9 @@ public class Javac extends JdkProcessBuildStep {
                 });
             }
         }
+        dependencyPath.sort(null);
+        versionedFiles.values().forEach(versioned -> versioned.sort(null));
+        versionedRoots.values().forEach(roots -> roots.sort(null));
         if (versionedFiles.isEmpty()) {
             return CompletableFuture.completedStage(null);
         }

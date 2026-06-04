@@ -36,8 +36,8 @@ public class Assign implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         SequencedProperties assignments = new SequencedProperties();
-        SequencedSet<Path> files = new LinkedHashSet<>();
-        SequencedSet<Path> jmods = new LinkedHashSet<>();
+        SequencedSet<Path> files = new TreeSet<>();
+        SequencedSet<Path> jmods = new TreeSet<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path artifacts = argument.folder().resolve(ARTIFACTS);
             if (Files.exists(artifacts)) {

@@ -214,6 +214,8 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                     });
                 }
             }
+            files.sort(null);
+            jars.sort(null);
             if (files.stream().noneMatch(name -> name.endsWith(".kt"))) {
                 return CompletableFuture.completedStage(null);
             }
