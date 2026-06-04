@@ -46,7 +46,7 @@ How the convenience make is wired
     BuildExecutor root = BuildExecutor.of(Path.of("target"));
     root.addModule("modules", ModularProject.make(Path.of("."),
             (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
-                    new ProjectModuleDescriptor(descriptor, true, false, false, false, PathPlacement.MODULE_PATH),
+                    new ProjectModuleDescriptor(descriptor, true, false, false, null, PathPlacement.MODULE_PATH),
                     repositories,
                     resolvers)));
     root.execute(args);
