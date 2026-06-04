@@ -41,8 +41,9 @@ public class ModularJarResolver implements Resolver {
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
         SequencedMap<String, String> hints = new LinkedHashMap<>(versions);
-        Map<String, String> parents = new HashMap<>();
-        Map<String, String> moduleCoordinates = new HashMap<>();
+        boolean observes = listener != null;
+        Map<String, String> parents = observes ? new HashMap<>() : null;
+        Map<String, String> moduleCoordinates = observes ? new HashMap<>() : null;
         Queue<String> queue = new ArrayDeque<>(coordinates.sequencedKeySet());
         int runtime = Runtime.version().feature();
         while (!queue.isEmpty()) {
@@ -145,15 +146,17 @@ public class ModularJarResolver implements Resolver {
                 String currentCoordinate = prefix + "/" + current + (version == null ? "" : "/" + version);
                 dependencies.put(currentCoordinate, checksum == null ? "" : checksum);
                 resolved.add(current);
-                moduleCoordinates.put(current, currentCoordinate);
-                String parent = parents.get(current);
-                listener.onDependency(prefix,
-                        parent == null ? null : moduleCoordinates.get(parent),
-                        currentCoordinate,
-                        version,
-                        null,
-                        true,
-                        () -> null);
+                if (observes) {
+                    moduleCoordinates.put(current, currentCoordinate);
+                    String parent = parents.get(current);
+                    listener.onDependency(prefix,
+                            parent == null ? null : moduleCoordinates.get(parent),
+                            currentCoordinate,
+                            version,
+                            null,
+                            true,
+                            () -> null);
+                }
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
                                 || compile && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
@@ -162,10 +165,12 @@ public class ModularJarResolver implements Resolver {
                         .forEach(requires -> {
                             String name = requires.name();
                             requires.rawCompiledVersion().ifPresent(v -> propagated.putIfAbsent(name, v));
-                            parents.putIfAbsent(name, current);
+                            if (observes) {
+                                parents.putIfAbsent(name, current);
+                            }
                             if (!unresolved.contains(name) && !resolved.contains(name)) {
                                 queue.add(name);
-                            } else if (resolved.contains(name)) {
+                            } else if (observes && resolved.contains(name)) {
                                 listener.onDependency(prefix,
                                         currentCoordinate,
                                         moduleCoordinates.get(name),

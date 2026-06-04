@@ -19,8 +19,7 @@ public interface Resolver extends Serializable {
                                                       SequencedMap<String, SequencedSet<String>> coordinates,
                                                       SequencedMap<String, String> versions,
                                                       boolean compile) throws IOException {
-        return dependencies(executor, prefix, repositories, coordinates, versions, compile,
-                (_, _, _, _, _, _, _) -> {});
+        return dependencies(executor, prefix, repositories, coordinates, versions, compile, null);
     }
 
     default SequencedSet<String> managedPrefixes() {

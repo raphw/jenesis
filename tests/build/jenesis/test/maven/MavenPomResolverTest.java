@@ -2,6 +2,8 @@ package build.jenesis.test.maven;
 
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.ResolutionContext;
+import build.jenesis.ResolutionListener;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenDependencyKey;
@@ -1615,6 +1617,68 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void listener_reports_discovered_range_and_negotiated_version() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>transitive</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[1,2]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("transitive", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("transitive/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>1</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        List<String> nodes = new ArrayList<>();
+        List<String> negotiated = new ArrayList<>();
+        mavenPomResolver.dependencies(Runnable::run, mavenRepository, "group", "artifact", "1", null,
+                new ResolutionListener() {
+                    @Override
+                    public void onDependency(String prefix,
+                                             String parent,
+                                             String coordinate,
+                                             String version,
+                                             String scope,
+                                             boolean followed,
+                                             Supplier<ResolutionContext> context) {
+                        if (followed) {
+                            nodes.add(coordinate);
+                        }
+                    }
+
+                    @Override
+                    public void onResolution(String prefix, String coordinate, String version) {
+                        negotiated.add(coordinate + " -> " + version);
+                    }
+                });
+        assertThat(nodes).containsExactly("transitive/artifact/[1,2]");
+        assertThat(negotiated).containsExactly("transitive/artifact -> 2");
+    }
+
+    @Test
     public void can_resolve_open_range_version() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -2380,6 +2444,125 @@ public class MavenPomResolverTest {
                 Map.entry(
                         new MavenDependencyKey("transitive", "artifact", "jar", null),
                         new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void listener_only_observes_the_converged_graph() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>mid</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>forcer</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("mid", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>conflict</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("forcer", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>conflict</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>[2]</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("conflict", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>childone</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("conflict", "artifact", "2", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>childtwo</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("childone", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        addToRepository("childtwo", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        Files.writeString(Files
+                .createDirectories(repository.resolve("conflict/artifact/"))
+                .resolve("maven-metadata.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <metadata modelVersion="1.1.0">
+                  <versioning>
+                    <latest>2</latest>
+                    <release>2</release>
+                    <versions>
+                      <version>1</version>
+                      <version>2</version>
+                    </versions>
+                  </versioning>
+                </metadata>
+                """);
+        List<String> followedCoordinates = new ArrayList<>();
+        mavenPomResolver.dependencies(Runnable::run, mavenRepository, "group", "artifact", "1", null,
+                new ResolutionListener() {
+                    @Override
+                    public void onDependency(String prefix,
+                                             String parent,
+                                             String coordinate,
+                                             String version,
+                                             String scope,
+                                             boolean followed,
+                                             Supplier<ResolutionContext> context) {
+                        if (followed) {
+                            followedCoordinates.add(coordinate);
+                        }
+                    }
+                });
+        assertThat(followedCoordinates).contains("childtwo/artifact/1");
+        assertThat(followedCoordinates).doesNotContain("childone/artifact/1");
     }
 
     @Test

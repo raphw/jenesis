@@ -13,6 +13,11 @@ public interface ResolutionListener {
                       boolean followed,
                       Supplier<ResolutionContext> context);
 
+    default void onResolution(String prefix,
+                              String coordinate,
+                              String version) {
+    }
+
     default void onResolved() {
     }
 }
