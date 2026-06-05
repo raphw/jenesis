@@ -417,7 +417,6 @@ public class JavacTest {
         arguments.put("processors/artifacts", new BuildStepArgument(processorRoot,
                 Map.of(Path.of(BuildStep.DEPENDENCIES + "processor.jar"), ChecksumStatus.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
-                .processorPath("processors/artifacts")
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
@@ -454,7 +453,6 @@ public class JavacTest {
                 Path.of(BuildStep.DEPENDENCIES + "plain.jar"), ChecksumStatus.ADDED,
                 Path.of(BuildStep.DEPENDENCIES + "modular.jar"), ChecksumStatus.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
-                .processorPath("processors/artifacts")
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
