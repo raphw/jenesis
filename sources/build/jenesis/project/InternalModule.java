@@ -146,9 +146,8 @@ public class InternalModule implements BuildExecutorModule {
                     new ParseModuleInfo(prefix, scope, additionalDependencies, qualifier),
                     Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
             buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, scope.resolution())
-                            .pinning(pinning)
-                            .tag(qualifier == null ? null : "module:" + qualifier),
+                    new DependenciesModule(repositories, resolvers)
+                            .pinning(pinning),
                     requiresId);
         }
         buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, COMPILE_ARTIFACTS);
@@ -215,7 +214,7 @@ public class InternalModule implements BuildExecutorModule {
             ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
             if (scope == DependencyScope.PLUGIN) {
-                for (String plugin : info.plugins()) {
+                for (String plugin : info.plugins().sequencedKeySet()) {
                     properties.setProperty(plugin, "");
                 }
             } else {

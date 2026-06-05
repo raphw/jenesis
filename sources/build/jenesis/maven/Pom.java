@@ -6,7 +6,6 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.SequencedProperties;
-import build.jenesis.DependencyScope;
 
 public class Pom implements BuildStep {
 
@@ -37,7 +36,6 @@ public class Pom implements BuildStep {
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
-                Path.of(SCOPES),
                 Path.of(EXCLUSIONS),
                 Path.of(METADATA)));
     }
@@ -49,25 +47,17 @@ public class Pom implements BuildStep {
             throws IOException {
         List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
         SequencedProperties requires = SequencedProperties.ofFolders(folders, REQUIRES);
-        SequencedProperties scopes = SequencedProperties.ofFolders(folders, SCOPES);
         SequencedProperties exclusions = SequencedProperties.ofFolders(folders, EXCLUSIONS);
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
-        boolean scoped = !scopes.isEmpty();
-        SequencedProperties compileRequires = new SequencedProperties();
-        SequencedSet<String> runtimeRequires = new LinkedHashSet<>();
-        for (String name : requires.stringPropertyNames()) {
-            String scope = scopes.getProperty(name);
-            if (scope == null) {
-                compileRequires.setProperty(name, requires.getProperty(name));
-            } else {
-                List<String> parts = List.of(scope.split(","));
-                if (parts.contains(DependencyScope.COMPILE.label())) {
-                    compileRequires.setProperty(name, requires.getProperty(name));
-                }
-                if (parts.contains(DependencyScope.RUNTIME.label())) {
-                    runtimeRequires.add(name);
-                }
-            }
+        SequencedMap<String, SequencedSet<String>> coordinateScopes = new LinkedHashMap<>();
+        for (String key : requires.stringPropertyNames()) {
+            int slash = key.indexOf('/');
+            coordinateScopes.computeIfAbsent(key.substring(slash + 1), _ -> new LinkedHashSet<>())
+                    .add(key.substring(0, slash));
+        }
+        SequencedMap<String, String> coordinateExclusions = new LinkedHashMap<>();
+        for (String key : exclusions.stringPropertyNames()) {
+            coordinateExclusions.putIfAbsent(key.substring(key.indexOf('/') + 1), exclusions.getProperty(key));
         }
         shared.forEach(metadata::setProperty);
         String groupId = metadata.getProperty("project");
@@ -85,32 +75,20 @@ public class Pom implements BuildStep {
                     "Missing 'version' in metadata.properties for " + groupId + ":" + artifactId);
         }
         SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = new LinkedHashMap<>();
-        SequencedSet<String> allRequires = new LinkedHashSet<>(compileRequires.stringPropertyNames());
-        if (scoped) {
-            allRequires.addAll(runtimeRequires);
-        }
-        for (String name : allRequires) {
+        for (Map.Entry<String, SequencedSet<String>> scopedEntry : coordinateScopes.entrySet()) {
+            String name = scopedEntry.getKey();
             int separator = name.indexOf('/');
             if (separator == -1 || !prefixes.contains(name.substring(0, separator))) {
                 continue;
             }
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(name.substring(separator + 1));
-            MavenDependencyScope scope;
-            if (!scoped) {
-                scope = MavenDependencyScope.COMPILE;
-            } else {
-                boolean inCompile = compileRequires.containsKey(name);
-                boolean inRuntime = runtimeRequires.contains(name);
-                if (inCompile && inRuntime) {
-                    scope = MavenDependencyScope.COMPILE;
-                } else if (inCompile) {
-                    scope = MavenDependencyScope.PROVIDED;
-                } else {
-                    scope = MavenDependencyScope.RUNTIME;
-                }
-            }
+            boolean inCompile = scopedEntry.getValue().contains("compile");
+            boolean inRuntime = scopedEntry.getValue().contains("runtime");
+            MavenDependencyScope scope = inCompile && inRuntime
+                    ? MavenDependencyScope.COMPILE
+                    : inCompile ? MavenDependencyScope.PROVIDED : MavenDependencyScope.RUNTIME;
             List<MavenDependencyName> excludes = null;
-            String exclusionList = exclusions.getProperty(name);
+            String exclusionList = coordinateExclusions.get(name);
             if (exclusionList != null && !exclusionList.isEmpty()) {
                 excludes = new ArrayList<>();
                 for (String entry : exclusionList.split(",")) {

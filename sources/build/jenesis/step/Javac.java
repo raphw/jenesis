@@ -16,20 +16,17 @@ public class Javac extends JdkProcessBuildStep {
 
     private final boolean includeResources;
     private final PathPlacement placement;
-    private final String processorKey;
 
     public Javac(ProcessHandler.Factory factory) {
-        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED, null);
+        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED);
     }
 
     private Javac(Function<List<String>, ? extends ProcessHandler> factory,
                   boolean includeResources,
-                  PathPlacement placement,
-                  String processorKey) {
+                  PathPlacement placement) {
         super("javac", factory);
         this.includeResources = includeResources;
         this.placement = placement;
-        this.processorKey = processorKey;
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
@@ -43,15 +40,11 @@ public class Javac extends JdkProcessBuildStep {
     }
 
     public Javac includeResources(boolean includeResources) {
-        return new Javac(factory, includeResources, placement, processorKey);
+        return new Javac(factory, includeResources, placement);
     }
 
     public Javac modulePath(PathPlacement placement) {
-        return new Javac(factory, includeResources, placement, processorKey);
-    }
-
-    public Javac processorPath(String processorKey) {
-        return new Javac(factory, includeResources, placement, processorKey);
+        return new Javac(factory, includeResources, placement);
     }
 
     @Override
@@ -131,41 +124,17 @@ public class Javac extends JdkProcessBuildStep {
                 processorPath = new ArrayList<>(),
                 siblingClasses = new ArrayList<>(),
                 commands = new ArrayList<>(List.of("-d", target.toString()));
-        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            BuildStepArgument argument = entry.getValue();
-            if (entry.getKey().equals(processorKey)) {
-                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                    Path jars = argument.folder().resolve(jarFolder);
-                    if (Files.exists(jars)) {
-                        Files.walkFileTree(jars, new SimpleFileVisitor<>() {
-                            @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                if (file.getFileName().toString().indexOf('@') == -1) {
-                                    processorPath.add(file.toString());
-                                }
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    }
-                }
-                continue;
+        for (BuildStepArgument argument : arguments.values()) {
+            for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                path.add(jar.toString());
+            }
+            for (Path jar : Dependencies.select(argument.folder(), "plugin")) {
+                processorPath.add(jar.toString());
             }
             Path sources = argument.folder().resolve(Bind.SOURCES),
                     classes = argument.folder().resolve(CLASSES);
             if (Files.exists(classes)) {
                 siblingClasses.add(classes.toString());
-            }
-            for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                Path jars = argument.folder().resolve(jarFolder);
-                if (Files.exists(jars)) {
-                    Files.walkFileTree(jars, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            path.add(file.toString());
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new SimpleFileVisitor<>() {
@@ -192,8 +161,6 @@ public class Javac extends JdkProcessBuildStep {
             }
         }
         files.sort(null);
-        path.sort(null);
-        processorPath.sort(null);
         if (files.isEmpty()) {
             return CompletableFuture.completedStage(null);
         }
@@ -264,26 +231,13 @@ public class Javac extends JdkProcessBuildStep {
         SequencedMap<Integer, List<String>> versionedFiles = new TreeMap<>();
         SequencedMap<Integer, List<String>> versionedRoots = new TreeMap<>();
         List<String> dependencyPath = new ArrayList<>();
-        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-            if (entry.getKey().equals(processorKey)) {
-                continue;
-            }
-            BuildStepArgument argument = entry.getValue();
+        for (BuildStepArgument argument : arguments.values()) {
             Path classes = argument.folder().resolve(CLASSES);
             if (Files.exists(classes)) {
                 dependencyPath.add(classes.toString());
             }
-            for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                Path jars = argument.folder().resolve(jarFolder);
-                if (Files.exists(jars)) {
-                    Files.walkFileTree(jars, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            dependencyPath.add(file.toString());
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
+            for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                dependencyPath.add(jar.toString());
             }
             Path sources = argument.folder().resolve(Bind.SOURCES);
             if (Files.exists(sources)) {

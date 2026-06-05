@@ -19,11 +19,12 @@ import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Download;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
+import build.jenesis.step.Resolve;
 
 import static build.jenesis.BuildStep.IDENTITY;
 import static build.jenesis.project.MultiProjectModule.ASSIGN;
@@ -91,21 +92,19 @@ public class MavenProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
-                    for (DependencyScope scope : DependencyScope.values()) {
-                        buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
-                            scopeExec.addStep(PREPARE,
-                                    new MultiProjectDependencies(
-                                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            scope.label(),
-                                            digest),
-                                    scopeInherited.sequencedKeySet());
-                            scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope.resolution()).pinning(pinning)
-                                            .listener(listener)
-                                            .tag(scope == DependencyScope.PLUGIN ? "plugin:tool" : null),
-                                    PREPARE);
-                        }, inherited.sequencedKeySet());
-                    }
+                    buildExecutor.addModule(DEPENDENCIES, (depExec, depInherited) -> {
+                        depExec.addStep(PREPARE,
+                                new MultiProjectDependencies(
+                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
+                                        digest),
+                                depInherited.sequencedKeySet());
+                        depExec.addStep(DependenciesModule.RESOLVED,
+                                new Resolve(mergedRepositories, resolvers).pinned(pinning != Pinning.IGNORE).listening(listener),
+                                PREPARE);
+                        depExec.addStep(DependenciesModule.ARTIFACTS,
+                                new Download(mergedRepositories).pinning(pinning),
+                                DependenciesModule.RESOLVED);
+                    }, inherited.sequencedKeySet());
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
@@ -119,12 +118,8 @@ public class MavenProject implements BuildExecutorModule {
                             resources.add(BuildExecutorModule.PREVIOUS + synonym);
                         }
                     }
-                    for (DependencyScope scope : DependencyScope.values()) {
-                        String resolved = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
-                        String artifacts = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-                        produceDeps.put(resolved, resolved);
-                        produceDeps.put(artifacts, artifacts);
-                    }
+                    produceDeps.put(DEPENDENCIES + "/" + DependenciesModule.RESOLVED, DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
+                    produceDeps.put(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS, DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
                     }
@@ -142,8 +137,7 @@ public class MavenProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
-                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                            DependencyScope.PLUGIN.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+                            DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }
 
@@ -217,7 +211,6 @@ public class MavenProject implements BuildExecutorModule {
                                         ? coordinateParts[2]
                                         : null;
                                 SequencedProperties requires = new SequencedProperties();
-                                SequencedProperties scopes = new SequencedProperties();
                                 String compile = properties.getProperty("dependencies.compile", "");
                                 String provided = properties.getProperty("dependencies.provided", "");
                                 String runtime = properties.getProperty("dependencies.runtime", "");
@@ -230,32 +223,28 @@ public class MavenProject implements BuildExecutorModule {
                                         checksumByCoordinate.put(entry.substring(0, split), entry.substring(split + 1));
                                     }
                                 }
-                                String compileAndRuntime = DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label();
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
-                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, compileAndRuntime);
+                                    String value = checksumByCoordinate.getOrDefault(dependency, "");
+                                    requires.setProperty("compile/" + dependency, value);
+                                    requires.setProperty("runtime/" + dependency, value);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
-                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, DependencyScope.COMPILE.label());
+                                    requires.setProperty("compile/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
-                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, DependencyScope.RUNTIME.label());
+                                    requires.setProperty("runtime/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
-                                    requires.setProperty(dependency, checksumByCoordinate.getOrDefault(dependency, ""));
-                                    scopes.setProperty(dependency, compileAndRuntime);
+                                    String value = checksumByCoordinate.getOrDefault(dependency, "");
+                                    requires.setProperty("compile/" + dependency, value);
+                                    requires.setProperty("runtime/" + dependency, value);
                                 }
                                 requires.store(context.next().resolve(BuildStep.REQUIRES));
-                                scopes.store(context.next().resolve(BuildStep.SCOPES));
                                 SequencedProperties exclusionsProperties = new SequencedProperties();
-                                for (String key : properties.stringPropertyNames()) {
-                                    if (key.startsWith("exclusions.")) {
-                                        String coord = key.substring("exclusions.".length());
-                                        if (requires.containsKey(coord)) {
-                                            exclusionsProperties.setProperty(coord, properties.getProperty(key));
-                                        }
+                                for (String key : requires.stringPropertyNames()) {
+                                    String exclusion = properties.getProperty("exclusions." + key.substring(key.indexOf('/') + 1));
+                                    if (exclusion != null) {
+                                        exclusionsProperties.setProperty(key, exclusion);
                                     }
                                 }
                                 if (!exclusionsProperties.isEmpty()) {
@@ -266,7 +255,9 @@ public class MavenProject implements BuildExecutorModule {
                                 if (!managed.isEmpty()) {
                                     for (String entry : managed.split(",")) {
                                         int split = entry.indexOf('=');
-                                        versions.setProperty(entry.substring(0, split), entry.substring(split + 1));
+                                        String coord = entry.substring(0, split), version = entry.substring(split + 1);
+                                        versions.setProperty("compile/" + coord, version);
+                                        versions.setProperty("runtime/" + coord, version);
                                     }
                                 }
                                 if (!versions.isEmpty()) {
@@ -608,13 +599,13 @@ public class MavenProject implements BuildExecutorModule {
         }
 
         @Override
-        public SequencedSet<String> artifacts(DependencyScope scope) {
-            return of(BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+        public SequencedSet<String> artifacts() {
+            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         }
 
         @Override
-        public SequencedSet<String> resolved(DependencyScope scope) {
-            return of(BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
+        public SequencedSet<String> resolved() {
+            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
         }
 
         private static SequencedSet<String> of(String value) {

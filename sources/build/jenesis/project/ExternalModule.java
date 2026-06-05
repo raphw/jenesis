@@ -111,9 +111,8 @@ public class ExternalModule implements BuildExecutorModule {
                 new WriteCoordinates(coordinates, qualifier == null ? base : base + "@" + qualifier),
                 inherited.sequencedKeySet().stream());
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME)
-                        .pinning(pinning)
-                        .tag(qualifier == null ? null : "module:" + qualifier),
+                new DependenciesModule(repositories, resolvers)
+                        .pinning(pinning),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path depArtifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);

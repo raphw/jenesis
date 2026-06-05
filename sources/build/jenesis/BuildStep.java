@@ -20,7 +20,8 @@ public interface BuildStep extends Serializable {
             METADATA = "metadata.properties",
             SCOPES = "scopes.properties",
             EXCLUSIONS = "exclusions.properties",
-            LOCATIONS = "locations.properties";
+            LOCATIONS = "locations.properties",
+            DEPENDENCY_INDEX = "dependencies.properties";
 
     default BuildExecutorModule asModule(String name) {
         return new BuildExecutorModule() {
