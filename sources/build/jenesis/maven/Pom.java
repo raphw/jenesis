@@ -81,9 +81,12 @@ public class Pom implements BuildStep {
             if (separator == -1 || !prefixes.contains(name.substring(0, separator))) {
                 continue;
             }
-            MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(name.substring(separator + 1));
             boolean inCompile = scopedEntry.getValue().contains("compile");
             boolean inRuntime = scopedEntry.getValue().contains("runtime");
+            if (!inCompile && !inRuntime) {
+                continue;
+            }
+            MavenDependencyKey.Versioned parsed = MavenDependencyKey.parse(name.substring(separator + 1));
             MavenDependencyScope scope = inCompile && inRuntime
                     ? MavenDependencyScope.COMPILE
                     : inCompile ? MavenDependencyScope.PROVIDED : MavenDependencyScope.RUNTIME;
