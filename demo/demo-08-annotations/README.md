@@ -26,14 +26,15 @@ How the processor is wired
 
 A single Javadoc tag on the module declaration turns the processor on:
 
-    @jenesis.annotations maven/org.immutables/value
+    @jenesis.annotations org.immutables.value
 
-The named coordinate is resolved on its own independent `@annotations`
-resolution trail (separate from the module's own dependencies, so a processor
-can pin different versions than the rest of the build), downloaded into a
-dedicated set, and passed to `javac` as `--processor-module-path`. The version
-is pinned the usual way - the `pin` step writes back a
-`@jenesis.pin maven@annotations/org.immutables/value ...` line automatically.
+The processor is named the same way `requires` names a dependency - by module
+name. Jenesis resolves it onto the processor path, downloads it into a dedicated
+set, and passes it to `javac` as `--processor-module-path`. The version is pinned
+the usual way - the `pin` step writes back a `@jenesis.pin org.immutables.value
+...` line automatically. (A processor that is not also a regular dependency can
+instead be named by Maven coordinate, `@jenesis.annotations maven/group/artifact`,
+which resolves it on its own independent trail.)
 
 No implicit discovery
 ---------------------
