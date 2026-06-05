@@ -24,7 +24,7 @@ public class JLink extends JdkProcessBuildStep {
         }
         List<String> path = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String moduleFolder : List.of(JMod.JMODS, BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
+            for (String moduleFolder : List.of(JMod.JMODS, BuildStep.ARTIFACTS)) {
                 Path modules = argument.folder().resolve(moduleFolder);
                 if (Files.exists(modules)) {
                     Files.walkFileTree(modules, new SimpleFileVisitor<>() {
@@ -38,6 +38,9 @@ public class JLink extends JdkProcessBuildStep {
                         }
                     });
                 }
+            }
+            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+                path.add(file.toString());
             }
         }
         if (path.isEmpty()) {

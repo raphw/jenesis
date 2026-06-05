@@ -43,11 +43,8 @@ public class Bundle implements BuildStep {
         }
         SequencedMap<String, Path> jars = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String folderName : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
-                Path folder = argument.folder().resolve(folderName);
-                if (!Files.exists(folder)) {
-                    continue;
-                }
+            Path folder = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.exists(folder)) {
                 Files.walkFileTree(folder, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
@@ -58,6 +55,9 @@ public class Bundle implements BuildStep {
                         return FileVisitResult.CONTINUE;
                     }
                 });
+            }
+            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+                jars.putIfAbsent(file.getFileName().toString(), file);
             }
         }
         if (jars.isEmpty()) {

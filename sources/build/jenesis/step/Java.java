@@ -108,17 +108,18 @@ public abstract class Java extends JdkProcessBuildStep {
                     }
                 }
             }
-            for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                Path candidate = argument.folder().resolve(jarFolder);
-                if (Files.exists(candidate)) {
-                    Files.walkFileTree(candidate, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                            (Java.this.modulePath.test(file) ? modulePath : classPath).add(file.toString());
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
+            Path artifactsFolder = argument.folder().resolve(ARTIFACTS);
+            if (Files.exists(artifactsFolder)) {
+                Files.walkFileTree(artifactsFolder, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        (Java.this.modulePath.test(file) ? modulePath : classPath).add(file.toString());
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+                (this.modulePath.test(file) ? modulePath : classPath).add(file.toString());
             }
             SequencedMap<String, String> folders = properties.get(entry.getKey());
             if (folders != null) {
