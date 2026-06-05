@@ -26,7 +26,7 @@ public class GroovyCompilerModuleTest {
     @Test
     public void compiles_a_groovy_source_against_a_downloaded_compiler() throws IOException, ReflectiveOperationException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven@groovy/org.apache.groovy/groovy", GROOVY_VERSION);
+        properties.setProperty("groovy/maven/org.apache.groovy/groovy", GROOVY_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.groovy"), """
@@ -76,7 +76,7 @@ public class GroovyCompilerModuleTest {
     @Test
     public void includeResources_false_excludes_non_groovy_non_java_files_from_output() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven@groovy/org.apache.groovy/groovy", GROOVY_VERSION);
+        properties.setProperty("groovy/maven/org.apache.groovy/groovy", GROOVY_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.groovy"), """
@@ -110,7 +110,7 @@ public class GroovyCompilerModuleTest {
     @Test
     public void groovy_resolves_java_types_from_the_compiled_class_path() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven@groovy/org.apache.groovy/groovy", GROOVY_VERSION);
+        properties.setProperty("groovy/maven/org.apache.groovy/groovy", GROOVY_VERSION);
         properties.store(project.resolve(BuildStep.VERSIONS));
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(sampleDir.resolve("Sample.groovy"), """
@@ -178,7 +178,7 @@ public class GroovyCompilerModuleTest {
         Path requiredOutput = root.resolve("groovy").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("module@groovy/org.apache.groovy");
+                .containsExactly("groovy/module/org.apache.groovy");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -197,7 +197,7 @@ public class GroovyCompilerModuleTest {
         Path requiredOutput = root.resolve("groovy").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("maven@groovy/org.apache.groovy/groovy/RELEASE");
+                .containsExactly("groovy/maven/org.apache.groovy/groovy/RELEASE");
         assertThat(requiredOutput.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 

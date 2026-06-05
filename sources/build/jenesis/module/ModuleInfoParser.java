@@ -77,7 +77,8 @@ public class ModuleInfoParser {
                                 }
                                 String token = content.substring(0, split).trim();
                                 String version = content.substring(split + 1).trim().replaceAll("\\s+", " ");
-                                if (token.isEmpty() || version.isEmpty()) {
+                                if (token.isEmpty() || version.isEmpty()
+                                        || token.startsWith("java.") || token.startsWith("jdk.")) {
                                     continue;
                                 }
                                 versions.put(token, version);

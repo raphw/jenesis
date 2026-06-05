@@ -13,12 +13,12 @@ public class ModuleInfoParserTest {
     private Path folder;
 
     @Test
-    public void jenesis_pin_normalizes_all_three_forms() throws IOException {
+    public void jenesis_pin_stores_scope_first_tokens_verbatim() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @jenesis.pin org.junit.jupiter 5.11.3
-                 * @jenesis.pin @kotlin/some.module 1.2.3 SHA256/ABCD
-                 * @jenesis.pin maven@scala/org.scala-lang/scala3-library_3 3.5.2
+                 * @jenesis.pin compile/module/org.junit.jupiter 5.11.3
+                 * @jenesis.pin kotlin/module/some.module 1.2.3 SHA256/ABCD
+                 * @jenesis.pin plugin:scala/maven/org.scala-lang/scala3-library_3 3.5.2
                  */
                 module foo {
                     requires bar;
@@ -26,16 +26,16 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.versions())
-                .containsEntry("module/org.junit.jupiter", "5.11.3")
-                .containsEntry("module@kotlin/some.module", "1.2.3 SHA256/ABCD")
-                .containsEntry("maven@scala/org.scala-lang/scala3-library_3", "3.5.2");
+                .containsEntry("compile/module/org.junit.jupiter", "5.11.3")
+                .containsEntry("kotlin/module/some.module", "1.2.3 SHA256/ABCD")
+                .containsEntry("plugin:scala/maven/org.scala-lang/scala3-library_3", "3.5.2");
     }
 
     @Test
-    public void jenesis_pin_explicit_prefix_for_token_with_slash() throws IOException {
+    public void jenesis_pin_keeps_scope_first_token_verbatim() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @jenesis.pin maven/org.jetbrains/annotations 13.0 SHA256/cafebabe
+                 * @jenesis.pin compile/maven/org.jetbrains/annotations 13.0 SHA256/cafebabe
                  */
                 module foo {
                     requires bar;
@@ -43,14 +43,14 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.versions())
-                .containsEntry("maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
+                .containsEntry("compile/maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
     }
 
     @Test
     public void jenesis_pin_tolerates_surrounding_whitespace() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 *   @jenesis.pin   maven/org.jetbrains/annotations   13.0   SHA256/cafebabe  \s
+                 *   @jenesis.pin   compile/maven/org.jetbrains/annotations   13.0   SHA256/cafebabe  \s
                  */
                 module foo {
                     requires bar;
@@ -58,7 +58,7 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.versions())
-                .containsEntry("maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
+                .containsEntry("compile/maven/org.jetbrains/annotations", "13.0 SHA256/cafebabe");
     }
 
     @Test
@@ -145,7 +145,7 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.2.3"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.2.3"));
     }
 
     @Test
@@ -159,7 +159,7 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.2.3 SHA256/cafebabe"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.2.3 SHA256/cafebabe"));
     }
 
     @Test
@@ -176,9 +176,9 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.versions()).containsExactly(
-                Map.entry("module/bar", "1.0"),
-                Map.entry("module/qux", "2.0"),
-                Map.entry("module/baz", "3.0"));
+                Map.entry("bar", "1.0"),
+                Map.entry("qux", "2.0"),
+                Map.entry("baz", "3.0"));
     }
 
     @Test
@@ -193,7 +193,7 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.requires()).containsExactly("bar");
-        assertThat(info.versions()).containsExactly(Map.entry("module/transitive.pin", "9.9.9"));
+        assertThat(info.versions()).containsExactly(Map.entry("transitive.pin", "9.9.9"));
     }
 
     @Test
@@ -209,7 +209,7 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("module/qux", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("qux", "1.0"));
     }
 
     @Test
@@ -225,7 +225,7 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
     }
 
     @Test
@@ -243,7 +243,7 @@ public class ModuleInfoParserTest {
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
     }
 
     @Test
@@ -259,7 +259,7 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.release()).isEqualTo("25");
-        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
     }
 
     @Test
@@ -302,7 +302,7 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.coordinate()).isEqualTo("foo");
-        assertThat(info.versions()).containsExactly(Map.entry("module/bar", "1.0"));
+        assertThat(info.versions()).containsExactly(Map.entry("bar", "1.0"));
     }
 
     @Test
