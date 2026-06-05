@@ -1193,10 +1193,12 @@ module sample {
 }
 ```
 
-Only the Java compiler consumes its `plugin:java` scope today; `plugin:kotlin`/`plugin:scala` parse and resolve the
-same way, with the per-compiler routing to be wired into those compiler steps. `demo/demo-08-annotations` runs the
-Immutables processor this way, and shows that the same jar sitting on the module path through `requires` is not run
-as a processor until it is declared.
+Each compiler consumes its own `plugin:<compiler>` scope and routes it to that compiler's plugin flag: `javac` to
+the processor path, the Kotlin compiler to `-Xplugin=<jar>`, the Scala compiler to `-Xplugin:<jar>`. Each compile
+step matches only its own module's `plugin-<compiler>` artifacts (never a sibling module's), so a processor or
+plugin is loaded only by the compiler it was declared for. `demo/demo-08-annotations` runs a Java annotation
+processor (Immutables) and `demo/demo-24-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way -
+each showing that the jar is not run until it is declared; the Scala path is wired identically.
 
 An optional space-separated `<algorithm>/<hex>` after the version on a `@jenesis.pin` Javadoc tag
 (e.g. `@jenesis.pin org.junit.jupiter 5.11.3 SHA256/abcdef0123...`) is captured into the same
