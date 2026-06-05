@@ -12,16 +12,14 @@ import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
-import build.jenesis.module.ModuleInfoParser;
 import build.jenesis.step.Javac;
 import build.jenesis.step.ProcessHandler;
 
 public class InferredCompilerChainModule implements BuildExecutorModule {
 
     public static final String JAVAC = "javac", KOTLINC = "kotlinc", SCALAC = "scalac", GROOVYC = "groovyc", RESOURCE = "resource";
-    public static final String COMPILE = "compile", PROCESSORS = "processors";
+    public static final String COMPILE = "compile";
     private static final String SCAN = "scan";
-    private static final String PROCESSOR = "processor";
     private static final String SCAN_FILE = "scan.properties";
 
     private final Map<String, Repository> repositories;
@@ -103,21 +101,12 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                     break;
                 }
             }
-            boolean processor = false;
-            for (BuildStepArgument argument : arguments.values()) {
-                Path moduleInfo = argument.folder().resolve(BuildStep.SOURCES).resolve("module-info.java");
-                if (Files.isRegularFile(moduleInfo)) {
-                    processor = !new ModuleInfoParser().identify(moduleInfo).processors().isEmpty();
-                    break;
-                }
-            }
             SequencedProperties properties = new SequencedProperties();
             properties.setProperty(JAVAC, Boolean.toString(flags[0]));
             properties.setProperty(KOTLINC, Boolean.toString(flags[1]));
             properties.setProperty(SCALAC, Boolean.toString(flags[2]));
             properties.setProperty(GROOVYC, Boolean.toString(flags[3]));
             properties.setProperty(RESOURCE, Boolean.toString(flags[4]));
-            properties.setProperty(PROCESSOR, Boolean.toString(processor));
             properties.store(context.next().resolve(SCAN_FILE));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -140,10 +129,16 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             boolean hasScala = Boolean.parseBoolean(scan.getProperty(SCALAC));
             boolean hasGroovy = Boolean.parseBoolean(scan.getProperty(GROOVYC));
             boolean hasResource = Boolean.parseBoolean(scan.getProperty(RESOURCE));
-            boolean hasProcessor = Boolean.parseBoolean(scan.getProperty(PROCESSOR));
 
             SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
             sourceInputs.remove(PREVIOUS + SCAN);
+            String pluginKey = sourceInputs.stream()
+                    .filter(key -> key.replaceAll("^(\\.\\./)+", "").equals("plugin-java/dependencies/artifacts"))
+                    .findFirst()
+                    .orElse(null);
+            if (pluginKey != null) {
+                sourceInputs.remove(pluginKey);
+            }
 
             SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
             if (hasKotlin) {
@@ -168,19 +163,14 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
             }
             if (hasJava) {
                 SequencedSet<String> javacInputs = new LinkedHashSet<>(dependencies);
-                String processorArtifacts = null;
-                if (hasProcessor) {
-                    buildExecutor.addModule(PROCESSORS,
-                            new AnnotationProcessorModule(repositories, resolvers).pinning(pinning),
-                            sourceInputs);
-                    processorArtifacts = PROCESSORS + "/" + AnnotationProcessorModule.ARTIFACTS;
-                    javacInputs.add(processorArtifacts);
+                if (pluginKey != null) {
+                    javacInputs.add(pluginKey);
                 }
                 buildExecutor.addStep(JAVAC,
                         new Javac(ProcessHandler.Factory.of())
                                 .includeResources(!hasKotlin && !hasScala && !hasGroovy)
                                 .modulePath(modulePath)
-                                .processorPath(processorArtifacts),
+                                .processorPath(pluginKey),
                         javacInputs);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(JAVAC);

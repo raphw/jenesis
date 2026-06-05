@@ -96,7 +96,7 @@ public class MavenProject implements BuildExecutorModule {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            scope,
+                                            scope.label(),
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,

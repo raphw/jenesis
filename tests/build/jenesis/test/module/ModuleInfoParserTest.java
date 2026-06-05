@@ -92,31 +92,36 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void jenesis_annotations_extracts_module_and_coordinate_tokens() throws IOException {
+    public void jenesis_plugin_extracts_tokens_defaulting_to_the_java_compiler() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @jenesis.annotations maven/com.example/proc
-                 * @jenesis.annotations bar
+                 * @jenesis.plugin maven/com.example/proc
+                 * @jenesis.plugin bar
                  */
                 module foo {
                     requires bar;
                 }
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
-        assertThat(info.processors()).containsExactly("maven/com.example/proc", "module/bar");
+        assertThat(info.plugins()).containsExactly(
+                Map.entry("maven/com.example/proc", "java"),
+                Map.entry("module/bar", "java"));
     }
 
     @Test
-    public void jenesis_annotations_rejects_pre_qualified_token() throws IOException {
+    public void jenesis_plugin_qualifier_names_the_target_compiler() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @jenesis.annotations maven@annotations/com.example/proc
+                 * @jenesis.plugin @kotlin/some.processor
+                 * @jenesis.plugin maven@scala/com.example/plugin
                  */
                 module foo {
                     requires bar;
                 }
                 """);
-        assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java")).processors()).isEmpty();
+        assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java")).plugins()).containsExactly(
+                Map.entry("module@kotlin/some.processor", "kotlin"),
+                Map.entry("maven@scala/com.example/plugin", "scala"));
     }
 
     @Test

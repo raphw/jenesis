@@ -39,7 +39,7 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
-            SequencedSet<String> processors = new LinkedHashSet<>();
+            SequencedMap<String, String> plugins = new LinkedHashMap<>();
             String release = null;
             String name = null;
             String description = null;
@@ -110,24 +110,45 @@ public class ModuleInfoParser {
                                 }
                                 versions.put(key, version);
                             }
-                            case "jenesis.annotations" -> {
+                            case "jenesis.plugin" -> {
                                 int space = content.indexOf(' ');
                                 String token = (space < 0 ? content : content.substring(0, space)).trim();
-                                if (token.isEmpty() || token.indexOf('@') != -1) {
+                                if (token.isEmpty()) {
                                     continue;
                                 }
-                                int slash = token.indexOf('/');
-                                if (slash < 0) {
-                                    if (token.startsWith("java.") || token.startsWith("jdk.")) {
+                                int at = token.indexOf('@');
+                                String key;
+                                String compiler;
+                                if (at < 0) {
+                                    int slash = token.indexOf('/');
+                                    if (slash < 0) {
+                                        if (token.startsWith("java.") || token.startsWith("jdk.")) {
+                                            continue;
+                                        }
+                                        key = "module/" + token;
+                                    } else {
+                                        if (slash == 0 || slash == token.length() - 1) {
+                                            continue;
+                                        }
+                                        key = token;
+                                    }
+                                    compiler = "java";
+                                } else if (at == 0) {
+                                    int slash = token.indexOf('/');
+                                    if (slash < 2 || slash == token.length() - 1) {
                                         continue;
                                     }
-                                    processors.add("module/" + token);
+                                    compiler = token.substring(1, slash);
+                                    key = "module" + token;
                                 } else {
-                                    if (slash == 0 || slash == token.length() - 1) {
+                                    int slash = token.indexOf('/', at);
+                                    if (slash <= at + 1 || slash == token.length() - 1) {
                                         continue;
                                     }
-                                    processors.add(token);
+                                    compiler = token.substring(at + 1, slash);
+                                    key = token;
                                 }
+                                plugins.put(key, compiler);
                             }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
@@ -152,7 +173,7 @@ public class ModuleInfoParser {
                     main,
                     dependencies,
                     runtimeDependencies,
-                    processors,
+                    plugins,
                     versions);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");

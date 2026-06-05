@@ -90,7 +90,7 @@ public class ModularProject implements BuildExecutorModule {
                             scopeExec.addStep(PREPARE,
                                     new MultiProjectDependencies(
                                             identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            scope,
+                                            scope.label(),
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
@@ -99,6 +99,19 @@ public class ModularProject implements BuildExecutorModule {
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
+                    buildExecutor.addModule("plugin-java", (scopeExec, scopeInherited) -> {
+                        scopeExec.addStep(PREPARE,
+                                new MultiProjectDependencies(
+                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
+                                        "plugin:java",
+                                        digest),
+                                scopeInherited.sequencedKeySet());
+                        scopeExec.addModule(DEPENDENCIES,
+                                new DependenciesModule(mergedRepositories, resolvers, DependencyScope.RUNTIME).pinning(pinning)
+                                        .listener(listener)
+                                        .tag("plugin:java"),
+                                PREPARE);
+                    }, inherited.sequencedKeySet());
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
@@ -109,6 +122,10 @@ public class ModularProject implements BuildExecutorModule {
                         produceDeps.put(resolved, resolved);
                         produceDeps.put(artifacts, artifacts);
                     }
+                    String pluginResolved = "plugin-java/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
+                    String pluginArtifacts = "plugin-java/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+                    produceDeps.put(pluginResolved, pluginResolved);
+                    produceDeps.put(pluginArtifacts, pluginArtifacts);
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
                     }
@@ -126,7 +143,8 @@ public class ModularProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
-                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
+                            "plugin-java/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }
 
@@ -176,6 +194,13 @@ public class ModularProject implements BuildExecutorModule {
                 scopes.setProperty(key, info.runtimeRequires().contains(dependency)
                         ? DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label()
                         : DependencyScope.COMPILE.label());
+            }
+            for (Map.Entry<String, String> plugin : info.plugins().entrySet()) {
+                String key = plugin.getKey();
+                requires.setProperty(key, "");
+                String label = "plugin:" + plugin.getValue();
+                String prior = scopes.getProperty(key);
+                scopes.setProperty(key, prior == null ? label : prior + "," + label);
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             scopes.store(context.next().resolve(BuildStep.SCOPES));
