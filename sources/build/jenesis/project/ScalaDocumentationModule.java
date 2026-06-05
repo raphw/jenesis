@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -13,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
@@ -85,7 +85,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within) : new Document(within, factory),
+                factory == null ? new Document(within, qualifier) : new Document(within, qualifier, factory),
                 documentInputs);
     }
 
@@ -123,16 +123,15 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
             String version = resolvedVersion(arguments);
-            String namespace = qualifier == null ? selectedPrefix : selectedPrefix + "@" + qualifier;
             String coordinate = switch (selectedPrefix) {
-                case "module" -> namespace + "/" + MODULE_NAME;
-                case "maven" -> namespace + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
+                case "module" -> selectedPrefix + "/" + MODULE_NAME;
+                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(coordinate, "");
+            requires.setProperty(qualifier + "/" + coordinate, "");
             if (selectedPrefix.equals("maven")) {
-                requires.setProperty(namespace + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
+                requires.setProperty(qualifier + "/" + selectedPrefix + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -170,14 +169,16 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     private static class Document extends JdkProcessBuildStep {
 
         private final String within;
+        private final String qualifier;
 
-        private Document(String within) {
-            this(within, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String qualifier) {
+            this(within, qualifier, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, String qualifier, Function<List<String>, ? extends ProcessHandler> factory) {
             super("scaladoc", factory);
             this.within = within;
+            this.qualifier = qualifier;
         }
 
         @Override
@@ -209,17 +210,11 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (Files.exists(jarRoot)) {
-                        Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                            @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                jars.add(file.toString());
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    }
+                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                    jars.add(jar.toString());
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                    classpath.add(jar.toString());
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(sources)) {
@@ -236,7 +231,6 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 }
             }
             files.sort(null);
-            jars.sort(null);
             if (files.isEmpty()) {
                 return CompletableFuture.completedStage(null);
             }
@@ -244,20 +238,11 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 throw new IllegalStateException(
                         "No scaladoc jars resolved upstream of the Scala documentation step");
             }
-            List<String> launch = new ArrayList<>();
-            for (String jar : jars) {
-                if (new File(jar).getName().indexOf('@') != -1) {
-                    launch.add(jar);
-                }
-            }
-            if (launch.isEmpty()) {
-                launch = jars;
-            }
             if (classpath.isEmpty()) {
                 return CompletableFuture.completedStage(null);
             }
             List<String> commands = new ArrayList<>(List.of(
-                    "-cp", String.join(File.pathSeparator, launch),
+                    "-cp", String.join(File.pathSeparator, jars),
                     "dotty.tools.scaladoc.Main",
                     "-d", output.toString(),
                     "-classpath", String.join(File.pathSeparator, jars),

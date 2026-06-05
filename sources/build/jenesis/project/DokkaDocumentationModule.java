@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -13,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
@@ -110,9 +110,8 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
                 throws IOException {
             SequencedProperties requires = new SequencedProperties();
             if (maven) {
-                String namespace = qualifier == null ? "maven" : "maven@" + qualifier;
                 for (String artifact : CLI_ARTIFACTS) {
-                    requires.setProperty(namespace + "/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
+                    requires.setProperty(qualifier + "/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
                 }
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
@@ -165,17 +164,11 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (Files.exists(jarRoot)) {
-                        Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                            @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                jars.add(file.toString());
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    }
+                for (Path jar : Dependencies.select(argument.folder(), qualifierTrail)) {
+                    jars.add(jar.toString());
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                    classpath.add(jar.toString());
                 }
                 Path source = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(source)) {
@@ -199,24 +192,19 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
             if (!kotlin[0]) {
                 return CompletableFuture.completedStage(null);
             }
-            jars.sort(null);
             String cli = null;
-            List<String> plugins = new ArrayList<>(), dependencies = new ArrayList<>();
+            List<String> plugins = new ArrayList<>();
             for (String jar : jars) {
-                String name = new File(jar).getName();
-                if (name.contains("dokka-cli")) {
+                if (new File(jar).getName().contains("dokka-cli")) {
                     cli = jar;
-                } else if (name.contains("@" + qualifierTrail)) {
+                } else {
                     plugins.add(jar);
-                } else if (name.indexOf('@') == -1) {
-                    dependencies.add(jar);
                 }
             }
             if (cli == null || plugins.isEmpty()) {
                 return CompletableFuture.completedStage(null);
             }
-            List<String> moduleClasspath = new ArrayList<>(dependencies);
-            moduleClasspath.addAll(classpath);
+            List<String> moduleClasspath = new ArrayList<>(classpath);
             StringBuilder sourceSet = new StringBuilder("-src ").append(String.join(";", sources));
             if (!moduleClasspath.isEmpty()) {
                 sourceSet.append(" -classpath ").append(String.join(";", moduleClasspath));
