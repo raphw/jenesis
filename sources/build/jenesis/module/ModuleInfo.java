@@ -14,6 +14,7 @@ public record ModuleInfo(String coordinate,
                          SequencedMap<String, String> versions) {
 
     public ModuleInfo(String coordinate, SequencedSet<String> requires, SequencedSet<String> runtimeRequires) {
-        this(coordinate, null, null, null, null, null, requires, runtimeRequires, new LinkedHashSet<>(), new LinkedHashMap<>());
+        this(coordinate, null, null, null, null, null, requires, runtimeRequires,
+                Collections.emptyNavigableSet(), Collections.emptyNavigableMap());
     }
 }
