@@ -99,19 +99,21 @@ public class ModularProject implements BuildExecutorModule {
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
-                    buildExecutor.addModule("plugin-java", (scopeExec, scopeInherited) -> {
-                        scopeExec.addStep(PREPARE,
-                                new MultiProjectDependencies(
-                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                        "plugin:java",
-                                        digest),
-                                scopeInherited.sequencedKeySet());
-                        scopeExec.addModule(DEPENDENCIES,
-                                new DependenciesModule(mergedRepositories, resolvers, DependencyScope.RUNTIME).pinning(pinning)
-                                        .listener(listener)
-                                        .tag("plugin:java"),
-                                PREPARE);
-                    }, inherited.sequencedKeySet());
+                    for (String compiler : List.of("java", "kotlin", "scala")) {
+                        buildExecutor.addModule("plugin-" + compiler, (scopeExec, scopeInherited) -> {
+                            scopeExec.addStep(PREPARE,
+                                    new MultiProjectDependencies(
+                                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
+                                            "plugin:" + compiler,
+                                            digest),
+                                    scopeInherited.sequencedKeySet());
+                            scopeExec.addModule(DEPENDENCIES,
+                                    new DependenciesModule(mergedRepositories, resolvers, DependencyScope.RUNTIME).pinning(pinning)
+                                            .listener(listener)
+                                            .tag("plugin:" + compiler),
+                                    PREPARE);
+                        }, inherited.sequencedKeySet());
+                    }
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
@@ -122,10 +124,12 @@ public class ModularProject implements BuildExecutorModule {
                         produceDeps.put(resolved, resolved);
                         produceDeps.put(artifacts, artifacts);
                     }
-                    String pluginResolved = "plugin-java/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
-                    String pluginArtifacts = "plugin-java/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-                    produceDeps.put(pluginResolved, pluginResolved);
-                    produceDeps.put(pluginArtifacts, pluginArtifacts);
+                    for (String compiler : List.of("java", "kotlin", "scala")) {
+                        String resolved = "plugin-" + compiler + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
+                        String artifacts = "plugin-" + compiler + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+                        produceDeps.put(resolved, resolved);
+                        produceDeps.put(artifacts, artifacts);
+                    }
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
                     }
@@ -140,11 +144,14 @@ public class ModularProject implements BuildExecutorModule {
                             PRODUCE);
                     buildExecutor.addStep(MultiProjectModule.INVENTORY,
                             new Inventory(),
-                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
-                            ASSIGN,
-                            PRODUCE,
-                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                            "plugin-java/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+                            Stream.concat(
+                                    Stream.of(
+                                            MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
+                                            ASSIGN,
+                                            PRODUCE,
+                                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS),
+                                    Stream.of("java", "kotlin", "scala").map(compiler ->
+                                            "plugin-" + compiler + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)));
                 });
     }
 

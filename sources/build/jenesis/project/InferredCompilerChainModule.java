@@ -64,6 +64,13 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         return path.equals(SCAN) ? Optional.empty() : Optional.of(path);
     }
 
+    private static String pluginInput(SequencedSet<String> inputs, String compiler) {
+        return inputs.stream()
+                .filter(key -> key.replaceAll("^(\\.\\./)+", "").equals("plugin-" + compiler + "/dependencies/artifacts"))
+                .findFirst()
+                .orElse(null);
+    }
+
     private static class Scan implements BuildStep {
 
         @Override
@@ -132,45 +139,52 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
 
             SequencedSet<String> sourceInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
             sourceInputs.remove(PREVIOUS + SCAN);
-            String pluginKey = sourceInputs.stream()
-                    .filter(key -> key.replaceAll("^(\\.\\./)+", "").equals("plugin-java/dependencies/artifacts"))
-                    .findFirst()
-                    .orElse(null);
-            if (pluginKey != null) {
-                sourceInputs.remove(pluginKey);
-            }
+            String javaPlugin = pluginInput(sourceInputs, "java");
+            String kotlinPlugin = pluginInput(sourceInputs, "kotlin");
+            String scalaPlugin = pluginInput(sourceInputs, "scala");
+            sourceInputs.remove(javaPlugin);
+            sourceInputs.remove(kotlinPlugin);
+            sourceInputs.remove(scalaPlugin);
 
             SequencedSet<String> dependencies = new LinkedHashSet<>(sourceInputs);
             if (hasKotlin) {
+                SequencedSet<String> kotlinInputs = new LinkedHashSet<>(dependencies);
+                if (kotlinPlugin != null) {
+                    kotlinInputs.add(kotlinPlugin);
+                }
                 buildExecutor.addModule(KOTLINC,
                         new KotlinCompilerModule(repositories, resolvers)
                                 .pinning(pinning)
                                 .includeResources(!hasJava && !hasScala && !hasGroovy),
-                        dependencies);
+                        kotlinInputs);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(KOTLINC + "/" + KotlinCompilerModule.CLASSES);
                 dependencies = updated;
             }
             if (hasScala) {
+                SequencedSet<String> scalaInputs = new LinkedHashSet<>(dependencies);
+                if (scalaPlugin != null) {
+                    scalaInputs.add(scalaPlugin);
+                }
                 buildExecutor.addModule(SCALAC,
                         new ScalaCompilerModule(repositories, resolvers)
                                 .pinning(pinning)
                                 .includeResources(!hasJava && !hasKotlin && !hasGroovy),
-                        dependencies);
+                        scalaInputs);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(SCALAC + "/" + ScalaCompilerModule.CLASSES);
                 dependencies = updated;
             }
             if (hasJava) {
                 SequencedSet<String> javacInputs = new LinkedHashSet<>(dependencies);
-                if (pluginKey != null) {
-                    javacInputs.add(pluginKey);
+                if (javaPlugin != null) {
+                    javacInputs.add(javaPlugin);
                 }
                 buildExecutor.addStep(JAVAC,
                         new Javac(ProcessHandler.Factory.of())
                                 .includeResources(!hasKotlin && !hasScala && !hasGroovy)
                                 .modulePath(modulePath)
-                                .processorPath(pluginKey),
+                                .processorPath(javaPlugin),
                         javacInputs);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(JAVAC);
