@@ -56,6 +56,7 @@ public class GroovyCompilerModuleTest {
 
         Path artifacts = root
                 .resolve("groovy")
+                .resolve("dependencies")
                 .resolve(GroovyCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);

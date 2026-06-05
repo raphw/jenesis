@@ -55,6 +55,7 @@ public class ScalaCompilerModuleTest {
 
         Path artifacts = root
                 .resolve("scala")
+                .resolve("dependencies")
                 .resolve(ScalaCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
@@ -242,6 +243,7 @@ public class ScalaCompilerModuleTest {
 
         Path artifacts = root
                 .resolve("scala")
+                .resolve("dependencies")
                 .resolve(ScalaCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
