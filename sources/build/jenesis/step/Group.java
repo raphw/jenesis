@@ -48,9 +48,10 @@ public class Group implements BuildStep {
             toProperties(entry.getValue().folder().resolve(IDENTITY)).forEach(dependency -> from.computeIfAbsent(
                     dependency,
                     _ -> new LinkedHashSet<>()).add(name));
-            to.computeIfAbsent(name, _ -> new LinkedHashSet<>()).addAll(toProperties(entry.getValue()
-                    .folder()
-                    .resolve(requiresPath)));
+            Set<String> requires = to.computeIfAbsent(name, _ -> new LinkedHashSet<>());
+            for (String coordinate : toProperties(entry.getValue().folder().resolve(requiresPath))) {
+                requires.add(coordinate.substring(coordinate.indexOf('/') + 1));
+            }
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));
         for (Map.Entry<String, Set<String>> entry : to.entrySet()) {

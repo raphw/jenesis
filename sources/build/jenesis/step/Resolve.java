@@ -109,13 +109,6 @@ public class Resolve implements BuildStep {
                 }
             }
         }
-        requires.forEach((scope, repos) -> repos.forEach((repo, coordinates) -> coordinates.forEach((coordinate, value) -> {
-            if (!value.isEmpty()) {
-                versions.computeIfAbsent(scope, _ -> new LinkedHashMap<>())
-                        .computeIfAbsent(repo, _ -> new LinkedHashMap<>())
-                        .putIfAbsent(coordinate, value);
-            }
-        })));
         SequencedProperties resolved = new SequencedProperties();
         SequencedMap<String, SequencedMap<String, String>> compileVersions = new LinkedHashMap<>();
         List<String> order = new ArrayList<>(requires.sequencedKeySet());
