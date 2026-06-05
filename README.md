@@ -1160,37 +1160,43 @@ The same `@jenesis.pin` tag also pins a coordinate on an independent resolution 
 under their canonical `<prefix>[@<qualifier>]/<coordinate>` key and resolve separately from the module's own
 dependencies.
 
-A `@jenesis.annotations <token>` tag declares a Java annotation processor (JSR-269) dependency. The token uses
-the same grammar as a `@jenesis.pin` token but without a version (`@jenesis.annotations foo` for a module,
-`@jenesis.annotations maven/com.example/proc` for a coordinate); a pre-qualified `@` token is rejected, since the
-qualifier is supplied by the build. Each declared token is resolved on its own independent `@annotations`
-resolution trail (`AnnotationProcessorModule`, tagged `processor:annotations` so the jars are build-time-only and
-never become a runtime dependency of the produced module), and the resolved set is handed to `javac` as an
-explicit processor path. The whole set goes on a single flag chosen by the module's own `PathPlacement`:
-`--processor-module-path` when the module compiles to the module path (the common case, and the only one that can
-run a modular processor whose service is declared via `module-info`'s `provides`), or `--processor-path` for a
-class-path compile. The two flags are mutually exclusive in `javac`, so processors are never split across both;
-`--processor-module-path` accepts non-modular processor jars too (loaded as automatic modules). Because the path
-is explicit, `javac` runs only those processors and never scans the compilation class or module path for
-processors - a dependency that happens to bundle a processor stays dormant unless it is declared. Versions are
-pinned the usual way, with a `@jenesis.pin maven@annotations/com.example/proc <version> <algorithm>/<hex>` tag the
-`pin` step writes back automatically, exactly like the compiler trails:
+A `@jenesis.plugin <token>` tag declares a compile-time processor dependency: a Java annotation processor
+(JSR-269), or - in time - a Kotlin or Scala compiler plugin. The token uses the same grammar as a `@jenesis.pin`
+token but without a version (`@jenesis.plugin foo` for a module, `@jenesis.plugin maven/com.example/proc` for a
+coordinate). A leading qualifier names the **target compiler** (`@jenesis.plugin @kotlin/com.example.proc`,
+`@jenesis.plugin maven@scala/com.example/plugin`); absent, the compiler is the Java compiler. No entry point is
+named - annotation processors (`META-INF/services`), Kotlin compiler plugins (`CompilerPluginRegistrar`) and Scala
+plugins (`scalac-plugin.xml`) all self-describe, so the dependency alone suffices.
+
+The declaration is resolved where the module's own dependencies are - in `ModularProject.Manifests`, which records
+it in `scopes.properties` as a `plugin:<compiler>` scope (`plugin:java`, `plugin:kotlin`, ...). This reuses the
+existing colon-namespaced tool-scope convention (`compiler:kotlin` is the Kotlin compiler's *own* dependencies;
+`plugin:kotlin` is a plugin *for* it): a coordinate that is also a `requires static` becomes `compile,plugin:java`,
+a pure plugin is just `plugin:java`. The `plugin:<compiler>` scope resolves and downloads like any other scope,
+tagged so its jars are build-time-only (never a runtime dependency of the produced module), and the compiler chain
+consumes the resolved set and hands it to `javac` as an explicit processor path - `--processor-module-path` when
+the module compiles to the module path (the common case, and the only flag that can run a modular processor whose
+service is declared via `module-info`'s `provides`), or `--processor-path` for a class-path compile. The two flags
+are mutually exclusive in `javac`, so the whole set goes on one, chosen by the module's own `PathPlacement`. Because
+the path is explicit, `javac` runs only the declared processors and never scans the compilation class or module
+path - a dependency that happens to bundle a processor stays dormant unless it is declared. Versions are pinned the
+usual way, with the `pin` step writing back the `@jenesis.pin` line automatically:
 
 ```java
 /**
  * @jenesis.release 25
- * @jenesis.annotations maven/com.example/proc
- * @jenesis.pin maven@annotations/com.example/proc 1.2.3 SHA-256/abcdef0123...
+ * @jenesis.plugin org.immutables.value
+ * @jenesis.pin org.immutables.value 2.12.2 SHA-256/abcdef0123...
  */
 module sample {
-    requires com.example.api;
+    requires static org.immutables.value;
 }
 ```
 
-Annotation processors are a `javac` mechanism. Kotlin (KAPT/KSP), Scala (macros, compiler plugins) and Groovy
-(AST transformations) each use a different mechanism, so `@jenesis.annotations` only feeds the Java compiler.
-`demo/demo-08-annotations` runs the Immutables processor this way, and shows that the same jar sitting on the
-module path through `requires` is not run as a processor until it is declared.
+Only the Java compiler consumes its `plugin:java` scope today; `plugin:kotlin`/`plugin:scala` parse and resolve the
+same way, with the per-compiler routing to be wired into those compiler steps. `demo/demo-08-annotations` runs the
+Immutables processor this way, and shows that the same jar sitting on the module path through `requires` is not run
+as a processor until it is declared.
 
 An optional space-separated `<algorithm>/<hex>` after the version on a `@jenesis.pin` Javadoc tag
 (e.g. `@jenesis.pin org.junit.jupiter 5.11.3 SHA256/abcdef0123...`) is captured into the same

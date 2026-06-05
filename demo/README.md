@@ -57,7 +57,7 @@ Quick index
 | 5  | [`java-pom-executable`](demo-05-java-pom-executable/README.md)       | A runnable Maven project: a `<mainClass>` entry point + dependency, packaged into a native app image with `jpackage` | `java build/Demo.java`              |
 | 6  | [`java-modular-executable`](demo-06-java-modular-executable/README.md) | The same as a Java module: entry point via `@jenesis.main` + dependency, packaged with `jpackage`        | `java build/Demo.java`              |
 | 7  | [`java-multi-release`](demo-07-java-multi-release/README.md) | A modular multi-release JAR: Java 21 baseline plus a Java 25 override of one utility, selected by the runtime | `java build/jenesis/Execute.java`  |
-| 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.annotations`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
+| 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 9  | [`kotlin`](demo-09-kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
 | 10 | [`scala`](demo-10-scala/README.md)                           | Java + Scala 3 in one module; exports a pure-Scala package            | `java build/jenesis/Project.java`  |
 | 11 | [`groovy`](demo-11-groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
@@ -214,20 +214,24 @@ packaging - so unlike `java-modular` it has nothing to pin.
 `annotations` runs a Java annotation processor (JSR-269) over a modular project.
 The processor is named with a single Javadoc tag on the module declaration:
 
-    @jenesis.annotations org.immutables.value
+    @jenesis.plugin org.immutables.value
 
 The processor is named by module name, just as `requires` names a dependency.
-Jenesis resolves it onto the processor path, downloads it into a dedicated set,
-and hands it to `javac` as an explicit `--processor-module-path`. The Immutables
-processor then turns the abstract `@Value.Immutable` `Animal` into a generated
-`ImmutableAnimal` builder, which `Zoo` uses.
+The tag is generic - a leading qualifier names the target compiler
+(`@jenesis.plugin @kotlin/...`), defaulting to the Java compiler. Jenesis records
+it as a `plugin:java` scope (the same colon-namespaced convention as the
+compiler's own `compiler:kotlin` dependencies), resolves it alongside the module's
+other dependencies, and hands it to `javac` as an explicit
+`--processor-module-path`. The Immutables processor then turns the abstract
+`@Value.Immutable` `Animal` into a generated `ImmutableAnimal` builder, which `Zoo`
+uses.
 
 The new idea is that **processors are declared, never discovered**. `javac` only
 runs processors found on the processor path, never the class or module path, so a
 dependency that happens to bundle a processor stays inert until you name it. The
 demo shows this directly: `org.immutables.value` is also a regular module
 dependency (`requires static`), so the very same jar sits on the compile module
-path - yet delete the `@jenesis.annotations` line and the processor no longer
+path - yet delete the `@jenesis.plugin` line and the processor no longer
 runs, `ImmutableAnimal` is never generated, and the build fails to compile `Zoo`.
 The version is pinned the usual way, with the `pin` step writing back a
 `@jenesis.pin org.immutables.value ...` line.

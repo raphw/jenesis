@@ -889,7 +889,7 @@ public record Project(
                                 describe.addStep("identity", new MavenIdentity(prefix, manifests), "pom", manifests);
                             }
                         },
-                        inherited.sequencedKeySet().stream());
+                        inherited.sequencedKeySet().stream().filter(key -> !key.contains("plugin-java/")));
             };
         }
     }

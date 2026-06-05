@@ -71,13 +71,16 @@ public record JavaMultiProjectAssembler(String packaging,
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
+            List<String> pluginInputs = outerInherited.sequencedKeySet().stream()
+                    .filter(key -> key.replaceAll("^(\\.\\./)+", "").equals("plugin-java/dependencies/artifacts"))
+                    .toList();
             sub.addModule("binary", new JavaToolchainModule()
                     .compiler(new InferredCompilerChainModule(repositories, resolvers)
                             .pinning(descriptor.pinning())
                             .modulePath(descriptor.modulePath()))
                     .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
                     Stream.concat(
-                            Stream.of("prepare"),
+                            Stream.concat(Stream.of("prepare"), pluginInputs.stream()),
                             Stream.concat(inputs(descriptor), descriptor.resources().stream())));
             if (descriptor.test()) {
                 Path module = null;

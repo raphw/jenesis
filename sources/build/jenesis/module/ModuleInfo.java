@@ -10,10 +10,10 @@ public record ModuleInfo(String coordinate,
                          String main,
                          SequencedSet<String> requires,
                          SequencedSet<String> runtimeRequires,
-                         SequencedSet<String> processors,
+                         SequencedMap<String, String> plugins,
                          SequencedMap<String, String> versions) {
 
     public ModuleInfo(String coordinate, SequencedSet<String> requires, SequencedSet<String> runtimeRequires) {
-        this(coordinate, null, null, null, null, null, requires, runtimeRequires, new LinkedHashSet<>(), new LinkedHashMap<>());
+        this(coordinate, null, null, null, null, null, requires, runtimeRequires, new LinkedHashMap<>(), new LinkedHashMap<>());
     }
 }

@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -12,14 +11,14 @@ import build.jenesis.SequencedProperties;
 public class MultiProjectDependencies implements BuildStep {
 
     private final Predicate<String> isModule;
-    private final DependencyScope scope;
+    private final String filterLabel;
     private final HashDigestFunction digest;
 
     public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule,
-                                                                                 DependencyScope scope,
+                                                                                 String filterLabel,
                                                                                  HashDigestFunction digest) {
         this.isModule = isModule;
-        this.scope = scope;
+        this.filterLabel = filterLabel;
         this.digest = digest;
     }
 
@@ -46,11 +45,12 @@ public class MultiProjectDependencies implements BuildStep {
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             if (isModule.test(entry.getKey())) {
                 Path scopesFile = entry.getValue().folder().resolve(SCOPES);
+                boolean scoped = Files.exists(scopesFile);
                 Set<String> filtered = new LinkedHashSet<>();
-                if (Files.exists(scopesFile)) {
+                if (scoped) {
                     SequencedProperties scopesProperties = SequencedProperties.ofFiles(scopesFile);
                     for (String property : scopesProperties.stringPropertyNames()) {
-                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(scope.label())) {
+                        if (List.of(scopesProperties.getProperty(property).split(",")).contains(filterLabel)) {
                             filtered.add(property);
                         }
                     }
@@ -59,7 +59,7 @@ public class MultiProjectDependencies implements BuildStep {
                 if (Files.exists(requiresPath)) {
                     SequencedProperties properties = SequencedProperties.ofFiles(requiresPath);
                     properties.stringPropertyNames().forEach(property -> {
-                        if (filtered.isEmpty() || filtered.contains(property)) {
+                        if (!scoped || filtered.contains(property)) {
                             dependencies.put(property, properties.getProperty(property));
                         }
                     });
@@ -75,7 +75,7 @@ public class MultiProjectDependencies implements BuildStep {
                 if (Files.exists(exclusionsPath)) {
                     SequencedProperties properties = SequencedProperties.ofFiles(exclusionsPath);
                     properties.stringPropertyNames().forEach(property -> {
-                        if (filtered.isEmpty() || filtered.contains(property)) {
+                        if (!scoped || filtered.contains(property)) {
                             exclusions.putIfAbsent(property, properties.getProperty(property));
                         }
                     });

@@ -200,7 +200,9 @@ public class ModularProjectTest {
                                     "../compile/dependencies/resolved",
                                     "../compile/dependencies/artifacts",
                                     "../runtime/dependencies/resolved",
-                                    "../runtime/dependencies/artifacts");
+                                    "../runtime/dependencies/artifacts",
+                                    "../plugin-java/dependencies/resolved",
+                                    "../plugin-java/dependencies/artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../coordinates",
@@ -209,12 +211,17 @@ public class ModularProjectTest {
                                     "../compile/dependencies/artifacts",
                                     "../runtime/dependencies/resolved",
                                     "../runtime/dependencies/artifacts",
+                                    "../plugin-java/dependencies/resolved",
+                                    "../plugin-java/dependencies/artifacts",
                                     "../../module-foo/compile/prepare",
                                     "../../module-foo/compile/dependencies/resolved",
                                     "../../module-foo/compile/dependencies/artifacts",
                                     "../../module-foo/runtime/prepare",
                                     "../../module-foo/runtime/dependencies/resolved",
                                     "../../module-foo/runtime/dependencies/artifacts",
+                                    "../../module-foo/plugin-java/prepare",
+                                    "../../module-foo/plugin-java/dependencies/resolved",
+                                    "../../module-foo/plugin-java/dependencies/artifacts",
                                     "../../module-foo/produce/java/classes",
                                     "../../module-foo/produce/java/artifacts",
                                     "../../module-foo/assign",
