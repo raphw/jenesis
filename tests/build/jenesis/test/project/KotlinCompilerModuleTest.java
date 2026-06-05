@@ -300,9 +300,9 @@ public class KotlinCompilerModuleTest {
                 new KotlinCompilerModule(Map.of(), Map.of("maven", Resolver.identity()))
                         .qualifier("kotlin"),
                 "project");
-        executor.execute("kotlin/" + "resolved");
+        executor.execute("kotlin/dependencies/resolved");
 
-        Path resolvedOutput = root.resolve("kotlin").resolve("resolved").resolve("output");
+        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("resolved").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("maven@kotlin/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
