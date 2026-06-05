@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -364,7 +363,7 @@ public class TestModule implements BuildExecutorModule {
                         selectedPrefix = prefix;
                     }
                     if (prefix.equals(selectedPrefix)) {
-                        properties.setProperty(coordinate, "");
+                        properties.setProperty("runtime/" + coordinate, "");
                     }
                 }
                 if (selectedPrefix != null) {
@@ -375,8 +374,7 @@ public class TestModule implements BuildExecutorModule {
                         }
                         SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
                         for (String key : upstream.stringPropertyNames()) {
-                            int index = key.indexOf('/');
-                            if (index > 0 && selectedPrefix.equals(key.substring(0, index))) {
+                            if (key.startsWith("runtime/" + selectedPrefix + "/")) {
                                 versions.putIfAbsent(key, upstream.getProperty(key));
                             }
                         }
@@ -385,7 +383,7 @@ public class TestModule implements BuildExecutorModule {
                         String coordinate = entry.getKey(), version = entry.getValue();
                         int index = coordinate.indexOf('/');
                         if (version != null && index > 0 && selectedPrefix.equals(coordinate.substring(0, index))) {
-                            versions.putIfAbsent(coordinate, version);
+                            versions.putIfAbsent("runtime/" + coordinate, version);
                         }
                     }
                 }

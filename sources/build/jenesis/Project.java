@@ -889,8 +889,7 @@ public record Project(
                                 describe.addStep("identity", new MavenIdentity(prefix, manifests), "pom", manifests);
                             }
                         },
-                        inherited.sequencedKeySet().stream().filter(key ->
-                                !key.replaceAll("^(\\.\\./)+", "").startsWith(DependencyScope.PLUGIN.label() + "/")));
+                        inherited.sequencedKeySet().stream());
             };
         }
     }
