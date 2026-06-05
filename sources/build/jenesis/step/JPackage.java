@@ -53,25 +53,28 @@ public class JPackage extends JdkProcessBuildStep {
         Path input = Files.createDirectory(context.supplement().resolve("input"));
         SequencedMap<String, Path> staged = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String candidate : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
-                Path folder = argument.folder().resolve(candidate);
-                if (Files.exists(folder)) {
-                    Files.walkFileTree(folder, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                            if (file.toString().endsWith(".jar")) {
-                                String name = file.getFileName().toString();
-                                Path previous = staged.putIfAbsent(name, file);
-                                if (previous != null) {
-                                    throw new IllegalStateException("Cannot stage two jars with the same file name '"
-                                            + name + "' into a single jpackage input: " + previous + " and " + file);
-                                }
-                                BuildStep.linkOrCopy(input.resolve(name), file);
-                            }
-                            return FileVisitResult.CONTINUE;
+            List<Path> jars = new ArrayList<>();
+            Path artifactsFolder = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.exists(artifactsFolder)) {
+                Files.walkFileTree(artifactsFolder, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (file.toString().endsWith(".jar")) {
+                            jars.add(file);
                         }
-                    });
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+            jars.addAll(Dependencies.select(argument.folder(), "runtime"));
+            for (Path file : jars) {
+                String name = file.getFileName().toString();
+                Path previous = staged.putIfAbsent(name, file);
+                if (previous != null) {
+                    throw new IllegalStateException("Cannot stage two jars with the same file name '"
+                            + name + "' into a single jpackage input: " + previous + " and " + file);
                 }
+                BuildStep.linkOrCopy(input.resolve(name), file);
             }
         }
         if (staged.isEmpty()) {
