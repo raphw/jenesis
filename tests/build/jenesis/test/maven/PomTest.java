@@ -9,7 +9,6 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.Pom;
-import build.jenesis.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,10 +34,14 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/pom/1.0.0", "/somewhere/pom.xml");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("maven/org.example/lib/1.2.3", "");
-        dependencies.setProperty("maven/org.example/other/jar/4.5.6", "");
-        dependencies.setProperty("maven/org.example/zip/zip/7.8.9", "");
-        dependencies.setProperty("module/com.example.foo", "");
+        dependencies.setProperty("compile/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("runtime/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("compile/maven/org.example/other/jar/4.5.6", "");
+        dependencies.setProperty("runtime/maven/org.example/other/jar/4.5.6", "");
+        dependencies.setProperty("compile/maven/org.example/zip/zip/7.8.9", "");
+        dependencies.setProperty("runtime/maven/org.example/zip/zip/7.8.9", "");
+        dependencies.setProperty("compile/module/com.example.foo", "");
+        dependencies.setProperty("runtime/module/com.example.foo", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
@@ -91,13 +94,10 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties requires = new SequencedProperties();
-        requires.setProperty("maven/org.example/lib/1.2.3", "");
-        requires.setProperty("maven/org.example/static-lib/4.5.6", "");
+        requires.setProperty("compile/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("runtime/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("compile/maven/org.example/static-lib/4.5.6", "");
         requires.store(argument.resolve(BuildStep.REQUIRES));
-        SequencedProperties scopes = new SequencedProperties();
-        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label());
-        scopes.setProperty("maven/org.example/static-lib/4.5.6", DependencyScope.COMPILE.label());
-        scopes.store(argument.resolve(BuildStep.SCOPES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
         metadata.setProperty("artifact", "jenesis");
@@ -109,7 +109,6 @@ public class PomTest {
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
@@ -132,13 +131,10 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties requires = new SequencedProperties();
-        requires.setProperty("maven/org.example/lib/1.2.3", "");
-        requires.setProperty("maven/org.example/runtime-only/4.5.6", "");
+        requires.setProperty("compile/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("runtime/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("runtime/maven/org.example/runtime-only/4.5.6", "");
         requires.store(argument.resolve(BuildStep.REQUIRES));
-        SequencedProperties scopes = new SequencedProperties();
-        scopes.setProperty("maven/org.example/lib/1.2.3", DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label());
-        scopes.setProperty("maven/org.example/runtime-only/4.5.6", DependencyScope.RUNTIME.label());
-        scopes.store(argument.resolve(BuildStep.SCOPES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
         metadata.setProperty("artifact", "jenesis");
@@ -150,7 +146,6 @@ public class PomTest {
                                 argument,
                                 Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.SCOPES), ChecksumStatus.ADDED,
                                         Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
                 .toCompletableFuture()
                 .join();
@@ -169,7 +164,8 @@ public class PomTest {
     @Test
     public void metadata_version_is_emitted_in_pom() throws IOException {
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("compile/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("runtime/maven/org.example/lib/1.2.3", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");

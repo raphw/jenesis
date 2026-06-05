@@ -30,6 +30,9 @@ public class BundleTest {
     public void bundles_a_non_modular_main_onto_the_class_path() throws IOException {
         writePlainJar(Files.createDirectory(input.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"));
         writePlainJar(Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES)).resolve("lib.jar"));
+        SequencedProperties index = new SequencedProperties();
+        index.setProperty("runtime/maven/lib", "dependencies/lib.jar");
+        index.store(input.resolve(BuildStep.DEPENDENCY_INDEX));
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("--main-jar", "app.jar");
         launcher.setProperty("--main-class", "sample.Sample");

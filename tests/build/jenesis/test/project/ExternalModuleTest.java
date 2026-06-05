@@ -347,12 +347,12 @@ public class ExternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "module@tool/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
+                    "compile/module/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                "tool",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),
@@ -388,12 +388,12 @@ public class ExternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "module@tool/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
+                    "compile/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("external", new ExternalModule(
                 "module/test.plugin",
-                "tool",
+                null,
                 Map.of("module", versionInsensitive(Map.of(
                         "test.plugin", pluginJar,
                         "build.jenesis", jenesisJar))),

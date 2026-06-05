@@ -148,7 +148,10 @@ public class Resolve implements BuildStep {
                     current.onResolved();
                 }
                 for (Map.Entry<String, String> entry : result.entrySet()) {
-                    resolved.setProperty(scope + "/" + entry.getKey(), entry.getValue());
+                    String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
+                    String declared = repoEntry.getValue().get(coordinate);
+                    resolved.setProperty(scope + "/" + entry.getKey(),
+                            declared != null && !declared.isEmpty() ? declared : entry.getValue());
                     if (scope.equals("compile")) {
                         String key = entry.getKey();
                         int first = key.indexOf('/'), last = key.lastIndexOf('/');

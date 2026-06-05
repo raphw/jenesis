@@ -159,6 +159,9 @@ public class JPackageTest {
     public void fails_on_duplicate_jar_file_names() throws IOException {
         Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"), "one");
         Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.DEPENDENCIES)).resolve("app.jar"), "two");
+        SequencedProperties index = new SequencedProperties();
+        index.setProperty("runtime/maven/app", "dependencies/app.jar");
+        index.store(bundle.resolve(BuildStep.DEPENDENCY_INDEX));
         SequencedProperties configuration = new SequencedProperties();
         configuration.setProperty("--main-jar", "app.jar");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
