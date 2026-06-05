@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 
 public interface ProjectModule {
 
@@ -17,7 +16,7 @@ public interface ProjectModule {
 
     SequencedSet<String> coordinates();
 
-    SequencedSet<String> artifacts(DependencyScope scope);
+    SequencedSet<String> artifacts();
 
-    SequencedSet<String> resolved(DependencyScope scope);
+    SequencedSet<String> resolved();
 }

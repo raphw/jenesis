@@ -78,7 +78,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning).tag("compiler:" + qualifier),
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);

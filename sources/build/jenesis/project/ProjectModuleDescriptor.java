@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.PathPlacement;
@@ -14,8 +13,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final SequencedSet<String> resources;
     private final SequencedSet<String> manifests;
     private final SequencedSet<String> coordinates;
-    private final Map<DependencyScope, SequencedSet<String>> artifacts;
-    private final Map<DependencyScope, SequencedSet<String>> resolved;
+    private final SequencedSet<String> artifacts;
+    private final SequencedSet<String> resolved;
     private final SequencedSet<String> content;
     private final boolean test;
     private final boolean source;
@@ -35,8 +34,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(base.resources()),
                 immutable(base.manifests()),
                 immutable(base.coordinates()),
-                scopes(base::artifacts),
-                scopes(base::resolved),
+                immutable(base.artifacts()),
+                immutable(base.resolved()),
                 Collections.emptyNavigableSet(),
                 test,
                 source,
@@ -50,8 +49,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                                     SequencedSet<String> resources,
                                     SequencedSet<String> manifests,
                                     SequencedSet<String> coordinates,
-                                    Map<DependencyScope, SequencedSet<String>> artifacts,
-                                    Map<DependencyScope, SequencedSet<String>> resolved,
+                                    SequencedSet<String> artifacts,
+                                    SequencedSet<String> resolved,
                                     SequencedSet<String> content,
                                     boolean test,
                                     boolean source,
@@ -243,20 +242,18 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     @Override
-    public SequencedSet<String> artifacts(DependencyScope scope) {
-        return artifacts.getOrDefault(scope, Collections.emptyNavigableSet());
+    public SequencedSet<String> artifacts() {
+        return artifacts;
     }
 
-    public ProjectModuleDescriptor artifacts(DependencyScope scope, SequencedSet<String> artifacts) {
-        Map<DependencyScope, SequencedSet<String>> replaced = new LinkedHashMap<>(this.artifacts);
-        replaced.put(scope, immutable(artifacts));
+    public ProjectModuleDescriptor artifacts(SequencedSet<String> artifacts) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
                 resources,
                 manifests,
                 coordinates,
-                Collections.unmodifiableMap(replaced),
+                immutable(artifacts),
                 resolved,
                 content,
                 test,
@@ -266,18 +263,16 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor artifacts(DependencyScope scope, String... artifacts) {
-        return artifacts(scope, new LinkedHashSet<>(List.of(artifacts)));
+    public ProjectModuleDescriptor artifacts(String... artifacts) {
+        return artifacts(new LinkedHashSet<>(List.of(artifacts)));
     }
 
     @Override
-    public SequencedSet<String> resolved(DependencyScope scope) {
-        return resolved.getOrDefault(scope, Collections.emptyNavigableSet());
+    public SequencedSet<String> resolved() {
+        return resolved;
     }
 
-    public ProjectModuleDescriptor resolved(DependencyScope scope, SequencedSet<String> resolved) {
-        Map<DependencyScope, SequencedSet<String>> replaced = new LinkedHashMap<>(this.resolved);
-        replaced.put(scope, immutable(resolved));
+    public ProjectModuleDescriptor resolved(SequencedSet<String> resolved) {
         return new ProjectModuleDescriptor(name,
                 dependencies,
                 sources,
@@ -285,7 +280,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                Collections.unmodifiableMap(replaced),
+                immutable(resolved),
                 content,
                 test,
                 source,
@@ -294,8 +289,8 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 modulePath);
     }
 
-    public ProjectModuleDescriptor resolved(DependencyScope scope, String... resolved) {
-        return resolved(scope, new LinkedHashSet<>(List.of(resolved)));
+    public ProjectModuleDescriptor resolved(String... resolved) {
+        return resolved(new LinkedHashSet<>(List.of(resolved)));
     }
 
     public SequencedSet<String> content() {
@@ -432,26 +427,11 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return Collections.unmodifiableSequencedSet(new LinkedHashSet<>(values));
     }
 
-    private static Map<DependencyScope, SequencedSet<String>> scopes(
-            Function<DependencyScope, SequencedSet<String>> accessor) {
-        Map<DependencyScope, SequencedSet<String>> values = new LinkedHashMap<>();
-        for (DependencyScope scope : DependencyScope.values()) {
-            values.put(scope, immutable(accessor.apply(scope)));
-        }
-        return Collections.unmodifiableMap(values);
-    }
-
     private static SequencedSet<String> prefix(SequencedSet<String> values) {
         LinkedHashSet<String> prefixed = new LinkedHashSet<>();
         for (String value : values) {
             prefixed.add(BuildExecutorModule.PREVIOUS + value);
         }
         return Collections.unmodifiableSequencedSet(prefixed);
-    }
-
-    private static Map<DependencyScope, SequencedSet<String>> prefix(Map<DependencyScope, SequencedSet<String>> values) {
-        Map<DependencyScope, SequencedSet<String>> prefixed = new LinkedHashMap<>();
-        values.forEach((scope, set) -> prefixed.put(scope, prefix(set)));
-        return Collections.unmodifiableMap(prefixed);
     }
 }

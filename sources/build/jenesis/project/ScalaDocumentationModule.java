@@ -79,7 +79,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning).tag("compiler:" + qualifier),
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> documentInputs = new LinkedHashSet<>();
         documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);

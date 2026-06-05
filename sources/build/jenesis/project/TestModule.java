@@ -311,7 +311,7 @@ public class TestModule implements BuildExecutorModule {
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning),
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         buildExecutor.addStep(EXECUTED, new Run(
                         factory,
