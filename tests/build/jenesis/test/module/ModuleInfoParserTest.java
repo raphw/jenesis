@@ -92,7 +92,7 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void jenesis_plugin_extracts_tokens_defaulting_to_the_java_compiler() throws IOException {
+    public void jenesis_plugin_normalizes_unqualified_tokens() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @jenesis.plugin maven/com.example/proc
@@ -104,12 +104,12 @@ public class ModuleInfoParserTest {
                 """);
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.plugins()).containsExactly(
-                Map.entry("maven/com.example/proc", "java"),
-                Map.entry("module/bar", "java"));
+                "maven/com.example/proc",
+                "module/bar");
     }
 
     @Test
-    public void jenesis_plugin_qualifier_names_the_target_compiler() throws IOException {
+    public void jenesis_plugin_preserves_qualifier() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @jenesis.plugin @kotlin/some.processor
@@ -120,8 +120,8 @@ public class ModuleInfoParserTest {
                 }
                 """);
         assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java")).plugins()).containsExactly(
-                Map.entry("module@kotlin/some.processor", "kotlin"),
-                Map.entry("maven@scala/com.example/plugin", "scala"));
+                "module@kotlin/some.processor",
+                "maven@scala/com.example/plugin");
     }
 
     @Test

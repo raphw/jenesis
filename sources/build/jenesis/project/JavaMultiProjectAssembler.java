@@ -71,16 +71,13 @@ public record JavaMultiProjectAssembler(String packaging,
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
-            List<String> pluginInputs = outerInherited.sequencedKeySet().stream()
-                    .filter(key -> key.replaceAll("^(\\.\\./)+", "").matches("plugin-[a-z]+/dependencies/artifacts"))
-                    .toList();
             sub.addModule("binary", new JavaToolchainModule()
                     .compiler(new InferredCompilerChainModule(repositories, resolvers)
                             .pinning(descriptor.pinning())
                             .modulePath(descriptor.modulePath()))
                     .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
                     Stream.concat(
-                            Stream.concat(Stream.of("prepare"), pluginInputs.stream()),
+                            Stream.of("prepare"),
                             Stream.concat(inputs(descriptor), descriptor.resources().stream())));
             if (descriptor.test()) {
                 Path module = null;
@@ -157,8 +154,10 @@ public record JavaMultiProjectAssembler(String packaging,
                         descriptor.manifests(),
                         descriptor.resolved(DependencyScope.COMPILE),
                         descriptor.resolved(DependencyScope.RUNTIME),
+                        descriptor.resolved(DependencyScope.PLUGIN),
                         descriptor.artifacts(DependencyScope.COMPILE),
-                        descriptor.artifacts(DependencyScope.RUNTIME))
+                        descriptor.artifacts(DependencyScope.RUNTIME),
+                        descriptor.artifacts(DependencyScope.PLUGIN))
                 .flatMap(SequencedSet::stream);
     }
 

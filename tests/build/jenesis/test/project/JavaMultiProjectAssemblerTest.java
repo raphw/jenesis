@@ -239,8 +239,10 @@ public class JavaMultiProjectAssemblerTest {
         Path sources = Files.createDirectory(root.resolve("sources"));
         Path compileResolved = Files.createDirectory(root.resolve("compile-resolved"));
         Path runtimeResolved = Files.createDirectory(root.resolve("runtime-resolved"));
+        Path pluginResolved = Files.createDirectory(root.resolve("plugin-resolved"));
         Path compileArtifacts = Files.createDirectory(root.resolve("compile-artifacts"));
         Path runtimeArtifacts = Files.createDirectory(root.resolve("runtime-artifacts"));
+        Path pluginArtifacts = Files.createDirectory(root.resolve("plugin-artifacts"));
         Path build = Files.createDirectory(root.resolve("build"));
         ProjectModule base = new ProjectModule() {
             @Override
@@ -294,12 +296,14 @@ public class JavaMultiProjectAssemblerTest {
         executor.addSource("sources", sources);
         executor.addSource("compile-resolved", compileResolved);
         executor.addSource("runtime-resolved", runtimeResolved);
+        executor.addSource("plugin-resolved", pluginResolved);
         executor.addSource("compile-artifacts", compileArtifacts);
         executor.addSource("runtime-artifacts", runtimeArtifacts);
+        executor.addSource("plugin-artifacts", pluginArtifacts);
         executor.addModule("sub", assembled,
                 "manifests", "sources",
-                "compile-resolved", "runtime-resolved",
-                "compile-artifacts", "runtime-artifacts");
+                "compile-resolved", "runtime-resolved", "plugin-resolved",
+                "compile-artifacts", "runtime-artifacts", "plugin-artifacts");
         return new Fixture(executor, manifests, sources);
     }
 

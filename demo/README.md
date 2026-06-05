@@ -218,12 +218,11 @@ The processor is named with a single Javadoc tag on the module declaration:
     @jenesis.plugin org.immutables.value
 
 The processor is named by module name, just as `requires` names a dependency.
-The tag is generic - a leading qualifier names the target compiler
-(`@jenesis.plugin @kotlin/...`), defaulting to the Java compiler. Jenesis records
-it as a `plugin:java` scope (the same colon-namespaced convention as the
-compiler's own `compiler:kotlin` dependencies), resolves it alongside the module's
-other dependencies, and hands it to `javac` as an explicit
-`--processor-module-path`. The Immutables processor then turns the abstract
+The tag is generic - a leading qualifier routes the plugin to a specific compiler
+(`@jenesis.plugin @kotlin/...`); an unqualified token routes to the Java compiler.
+Jenesis records it under the single `plugin` scope, resolves it alongside the
+module's other dependencies, and the Java compiler picks the unqualified plugin
+jars and hands them to `javac` as an explicit `--processor-module-path`. The Immutables processor then turns the abstract
 `@Value.Immutable` `Animal` into a generated `ImmutableAnimal` builder, which `Zoo`
 uses.
 
@@ -464,18 +463,19 @@ release would carry.
 
 The same `@jenesis.plugin` tag that wires a Java annotation processor (demo 6)
 also wires compiler plugins for the other languages - the qualifier on the token
-names the target compiler. `kotlin-plugin` declares the kotlinx.serialization
-compiler plugin on the Kotlin trail:
+routes the plugin to a specific compiler. `kotlin-plugin` declares the
+kotlinx.serialization compiler plugin on the Kotlin trail:
 
     @jenesis.plugin maven@kotlin/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
 
-Jenesis records it as a `plugin:kotlin` scope, resolves it on the same `@kotlin`
-trail as the compiler (so the plugin version stays matched to it), and passes the
-jar to the Kotlin compiler as `-Xplugin=<jar>`. The plugin then generates
-`Point.serializer()` for the `@Serializable` data class, which `Use` references -
-delete the `@jenesis.plugin` line and the build fails, exactly like the annotation
-processor demo. The resolution path is identical for every language (a
-`plugin:<compiler>` scope); only the compiler flag differs (`--processor-path` for
+Jenesis records it under the single `plugin` scope, resolves it on the same
+`@kotlin` trail as the compiler (so the plugin version stays matched to it), and
+the Kotlin compiler picks the `@kotlin`-qualified jar and passes it as
+`-Xplugin=<jar>`. The plugin then generates `Point.serializer()` for the
+`@Serializable` data class, which `Use` references - delete the `@jenesis.plugin`
+line and the build fails, exactly like the annotation processor demo. The
+resolution path is identical for every language (one `plugin` scope, each compiler
+picking its own qualifier); only the compiler flag differs (`--processor-path` for
 `javac`, `-Xplugin=` for Kotlin, `-Xplugin:` for Scala).
 
 Cross-cutting concepts

@@ -28,9 +28,10 @@ The plugin is named by Maven coordinate on the Kotlin resolution trail, with the
 
     @jenesis.plugin maven@kotlin/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
 
-Jenesis records it as a `plugin:kotlin` scope, resolves it on the same `@kotlin`
-trail as the compiler (so the plugin version is pinned to match), and hands the
-plugin jar to the Kotlin compiler as `-Xplugin=<jar>`. The compiler self-loads it
+Jenesis records it under the single `plugin` scope, resolves it on the same
+`@kotlin` trail as the compiler (so the plugin version is pinned to match), and
+the Kotlin compiler picks the `@kotlin`-qualified plugin jar and hands it over as
+`-Xplugin=<jar>`. The compiler self-loads it
 through its `CompilerPluginRegistrar` service - no entry point is named. The
 `requires kotlinx.serialization.core` directive provides the `@Serializable`
 annotation and the runtime types the generated serializer references.

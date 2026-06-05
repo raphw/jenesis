@@ -140,7 +140,9 @@ public class Javac extends JdkProcessBuildStep {
                         Files.walkFileTree(jars, new SimpleFileVisitor<>() {
                             @Override
                             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                processorPath.add(file.toString());
+                                if (file.getFileName().toString().indexOf('@') == -1) {
+                                    processorPath.add(file.toString());
+                                }
                                 return FileVisitResult.CONTINUE;
                             }
                         });

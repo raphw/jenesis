@@ -1161,26 +1161,30 @@ under their canonical `<prefix>[@<qualifier>]/<coordinate>` key and resolve sepa
 dependencies.
 
 A `@jenesis.plugin <token>` tag declares a compile-time processor dependency: a Java annotation processor
-(JSR-269), or - in time - a Kotlin or Scala compiler plugin. The token uses the same grammar as a `@jenesis.pin`
+(JSR-269), a Kotlin compiler plugin, or a Scala compiler plugin. The token uses the same grammar as a `@jenesis.pin`
 token but without a version (`@jenesis.plugin foo` for a module, `@jenesis.plugin maven/com.example/proc` for a
-coordinate). A leading qualifier names the **target compiler** (`@jenesis.plugin @kotlin/com.example.proc`,
-`@jenesis.plugin maven@scala/com.example/plugin`); absent, the compiler is the Java compiler. No entry point is
-named - annotation processors (`META-INF/services`), Kotlin compiler plugins (`CompilerPluginRegistrar`) and Scala
-plugins (`scalac-plugin.xml`) all self-describe, so the dependency alone suffices.
+coordinate). A leading qualifier (`@kotlin/com.example.proc`, `maven@scala/com.example/plugin`) is preserved
+verbatim in the coordinate and, by the convention below, routes the plugin to a specific compiler; an unqualified
+token routes to the Java compiler. No entry point is named - annotation processors (`META-INF/services`), Kotlin
+compiler plugins (`CompilerPluginRegistrar`) and Scala plugins (`scalac-plugin.xml`) all self-describe, so the
+dependency alone suffices.
 
 The declaration is resolved where the module's own dependencies are - in `ModularProject.Manifests`, which records
-it in `scopes.properties` as a `plugin:<compiler>` scope (`plugin:java`, `plugin:kotlin`, ...). This reuses the
-existing colon-namespaced tool-scope convention (`compiler:kotlin` is the Kotlin compiler's *own* dependencies;
-`plugin:kotlin` is a plugin *for* it): a coordinate that is also a `requires static` becomes `compile,plugin:java`,
-a pure plugin is just `plugin:java`. The `plugin:<compiler>` scope resolves and downloads like any other scope,
-tagged so its jars are build-time-only (never a runtime dependency of the produced module), and the compiler chain
-consumes the resolved set and hands it to `javac` as an explicit processor path - `--processor-module-path` when
-the module compiles to the module path (the common case, and the only flag that can run a modular processor whose
-service is declared via `module-info`'s `provides`), or `--processor-path` for a class-path compile. The two flags
-are mutually exclusive in `javac`, so the whole set goes on one, chosen by the module's own `PathPlacement`. Because
-the path is explicit, `javac` runs only the declared processors and never scans the compilation class or module
-path - a dependency that happens to bundle a processor stays dormant unless it is declared. Versions are pinned the
-usual way, with the `pin` step writing back the `@jenesis.pin` line automatically:
+it in `scopes.properties` under the single `plugin` scope (`DependencyScope.PLUGIN`): a coordinate that is also a
+`requires static` becomes `compile,plugin`, a pure plugin is just `plugin`. The `plugin` scope resolves and
+downloads like any other scope (with runtime semantics, since a processor is *executed* by the compiler and needs
+its full closure), tagged `plugin:tool` so the colon marks its jars build-time-only (pinned, but never a runtime
+dependency of the produced module). The compiler chain consumes the one resolved plugin set and each compiler picks
+its own plugins **by convention from the resolution qualifier carried in the jar filename**: the Java compiler takes
+the unqualified jars (no `@` in the name) and hands them to `javac` as an explicit processor path; the Kotlin
+compiler takes jars whose name carries `@kotlin`; the Scala compiler takes `@scala`. This is what lets one scope
+serve every language and auto-scale to future ones. The Java path is `--processor-module-path` when the module
+compiles to the module path (the common case, and the only flag that can run a modular processor whose service is
+declared via `module-info`'s `provides`), or `--processor-path` for a class-path compile; the two flags are
+mutually exclusive in `javac`, so the whole set goes on one, chosen by the module's own `PathPlacement`. Because the
+path is explicit, `javac` runs only the declared processors and never scans the compilation class or module path - a
+dependency that happens to bundle a processor stays dormant unless it is declared. Versions are pinned the usual
+way, with the `pin` step writing back the `@jenesis.pin` line automatically:
 
 ```java
 /**
@@ -1193,12 +1197,12 @@ module sample {
 }
 ```
 
-Each compiler consumes its own `plugin:<compiler>` scope and routes it to that compiler's plugin flag: `javac` to
-the processor path, the Kotlin compiler to `-Xplugin=<jar>`, the Scala compiler to `-Xplugin:<jar>`. Each compile
-step matches only its own module's `plugin-<compiler>` artifacts (never a sibling module's), so a processor or
-plugin is loaded only by the compiler it was declared for. `demo/demo-08-annotations` runs a Java annotation
-processor (Immutables) and `demo/demo-24-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way -
-each showing that the jar is not run until it is declared; the Scala path is wired identically.
+Each compiler routes its share of the `plugin` scope to that compiler's plugin flag: `javac` to the processor
+path, the Kotlin compiler to `-Xplugin=<jar>`, the Scala compiler to `-Xplugin:<jar>`. Each compile step matches
+only its own module's plugin artifacts (never a sibling module's), so a processor or plugin is loaded only by the
+compiler it was declared for. `demo/demo-08-annotations` runs a Java annotation processor (Immutables) and
+`demo/demo-24-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
+is not run until it is declared; the Scala path is wired identically.
 
 An optional space-separated `<algorithm>/<hex>` after the version on a `@jenesis.pin` Javadoc tag
 (e.g. `@jenesis.pin org.junit.jupiter 5.11.3 SHA256/abcdef0123...`) is captured into the same
