@@ -39,6 +39,7 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
+            SequencedSet<String> processors = new LinkedHashSet<>();
             String release = null;
             String name = null;
             String description = null;
@@ -109,6 +110,25 @@ public class ModuleInfoParser {
                                 }
                                 versions.put(key, version);
                             }
+                            case "jenesis.annotations" -> {
+                                int space = content.indexOf(' ');
+                                String token = (space < 0 ? content : content.substring(0, space)).trim();
+                                if (token.isEmpty() || token.indexOf('@') != -1) {
+                                    continue;
+                                }
+                                int slash = token.indexOf('/');
+                                if (slash < 0) {
+                                    if (token.startsWith("java.") || token.startsWith("jdk.")) {
+                                        continue;
+                                    }
+                                    processors.add("module/" + token);
+                                } else {
+                                    if (slash == 0 || slash == token.length() - 1) {
+                                        continue;
+                                    }
+                                    processors.add(token);
+                                }
+                            }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
                                     release = content;
@@ -132,6 +152,7 @@ public class ModuleInfoParser {
                     main,
                     dependencies,
                     runtimeDependencies,
+                    processors,
                     versions);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");

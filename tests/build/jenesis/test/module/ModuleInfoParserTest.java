@@ -92,6 +92,34 @@ public class ModuleInfoParserTest {
     }
 
     @Test
+    public void jenesis_annotations_extracts_module_and_coordinate_tokens() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.annotations maven/com.example/proc
+                 * @jenesis.annotations bar
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.processors()).containsExactly("maven/com.example/proc", "module/bar");
+    }
+
+    @Test
+    public void jenesis_annotations_rejects_pre_qualified_token() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.annotations maven@annotations/com.example/proc
+                 */
+                module foo {
+                    requires bar;
+                }
+                """);
+        assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java")).processors()).isEmpty();
+    }
+
+    @Test
     public void no_javadoc_yields_empty_versions() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 module foo {
