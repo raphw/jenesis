@@ -214,13 +214,13 @@ packaging - so unlike `java-modular` it has nothing to pin.
 `annotations` runs a Java annotation processor (JSR-269) over a modular project.
 The processor is named with a single Javadoc tag on the module declaration:
 
-    @jenesis.annotations maven/org.immutables/value
+    @jenesis.annotations org.immutables.value
 
-Jenesis resolves that coordinate on its own independent `@annotations` resolution
-trail, downloads it into a dedicated set, and hands it to `javac` as an explicit
-`--processor-module-path`. The Immutables processor then turns the abstract
-`@Value.Immutable` `Animal` into a generated `ImmutableAnimal` builder, which
-`Zoo` uses.
+The processor is named by module name, just as `requires` names a dependency.
+Jenesis resolves it onto the processor path, downloads it into a dedicated set,
+and hands it to `javac` as an explicit `--processor-module-path`. The Immutables
+processor then turns the abstract `@Value.Immutable` `Animal` into a generated
+`ImmutableAnimal` builder, which `Zoo` uses.
 
 The new idea is that **processors are declared, never discovered**. `javac` only
 runs processors found on the processor path, never the class or module path, so a
@@ -230,8 +230,7 @@ dependency (`requires static`), so the very same jar sits on the compile module
 path - yet delete the `@jenesis.annotations` line and the processor no longer
 runs, `ImmutableAnimal` is never generated, and the build fails to compile `Zoo`.
 The version is pinned the usual way, with the `pin` step writing back a
-`@jenesis.pin maven@annotations/org.immutables/value ...` line on the processor
-trail.
+`@jenesis.pin org.immutables.value ...` line.
 
 ## 7. Other JVM languages - [`kotlin`](demo-09-kotlin/README.md), [`scala`](demo-10-scala/README.md), [`groovy`](demo-11-groovy/README.md)
 
