@@ -30,8 +30,8 @@ public class ResolveTest {
     @Test
     public void can_resolve_dependencies() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/qux", "");
-        properties.setProperty("foo/baz", "");
+        properties.setProperty("compile/foo/qux", "");
+        properties.setProperty("compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -50,19 +50,19 @@ public class ResolveTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
-                "foo/transitive/qux",
-                "foo/baz",
-                "foo/transitive/baz");
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
+                "compile/foo/transitive/qux",
+                "compile/foo/baz",
+                "compile/foo/transitive/baz");
         for (String property : dependencies.stringPropertyNames()) {
             assertThat(dependencies.getProperty(property)).isEmpty();
         }
     }
 
     @Test
-    public void resolves_a_qualified_trail_through_the_base_resolver() throws IOException {
+    public void resolves_a_non_main_scope_through_its_base_resolver() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("maven@kotlin/org.jetbrains/something", "");
+        properties.setProperty("plugin:kotlin/maven/org.jetbrains/something", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("maven", Repository.empty()), Map.of("maven", (_, prefix, _, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -78,14 +78,14 @@ public class ResolveTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
-        assertThat(resolved.stringPropertyNames()).containsExactly("maven@kotlin/org.jetbrains/something");
+        assertThat(resolved.stringPropertyNames()).containsExactly("plugin:kotlin/maven/org.jetbrains/something");
     }
 
     @Test
     public void can_resolve_dependencies_with_predefined_checksum() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/qux", "bar");
-        properties.setProperty("foo/baz", "");
+        properties.setProperty("compile/foo/qux", "bar");
+        properties.setProperty("compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -104,21 +104,21 @@ public class ResolveTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
-                "foo/transitive/qux",
-                "foo/baz",
-                "foo/transitive/baz");
-        assertThat(dependencies.getProperty("foo/qux")).isEqualTo("bar");
-        assertThat(dependencies.getProperty("foo/transitive/qux")).isEmpty();
-        assertThat(dependencies.getProperty("foo/baz")).isEmpty();
-        assertThat(dependencies.getProperty("foo/transitive/baz")).isEmpty();
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
+                "compile/foo/transitive/qux",
+                "compile/foo/baz",
+                "compile/foo/transitive/baz");
+        assertThat(dependencies.getProperty("compile/foo/qux")).isEqualTo("bar");
+        assertThat(dependencies.getProperty("compile/foo/transitive/qux")).isEmpty();
+        assertThat(dependencies.getProperty("compile/foo/baz")).isEmpty();
+        assertThat(dependencies.getProperty("compile/foo/transitive/baz")).isEmpty();
     }
 
     @Test
     public void can_resolve_dependencies_with_resolved_checksum() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/qux", "bar");
-        properties.setProperty("foo/baz", "");
+        properties.setProperty("compile/foo/qux", "bar");
+        properties.setProperty("compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -137,13 +137,13 @@ public class ResolveTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("foo/qux",
-                "foo/transitive/qux",
-                "foo/baz",
-                "foo/transitive/baz");
-        assertThat(dependencies.getProperty("foo/qux")).isEqualTo("bar");
-        assertThat(dependencies.getProperty("foo/transitive/qux")).isEqualTo("baz/qux");
-        assertThat(dependencies.getProperty("foo/baz")).isEqualTo("qux/baz");
-        assertThat(dependencies.getProperty("foo/transitive/baz")).isEqualTo("baz/baz");
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
+                "compile/foo/transitive/qux",
+                "compile/foo/baz",
+                "compile/foo/transitive/baz");
+        assertThat(dependencies.getProperty("compile/foo/qux")).isEqualTo("bar");
+        assertThat(dependencies.getProperty("compile/foo/transitive/qux")).isEqualTo("baz/qux");
+        assertThat(dependencies.getProperty("compile/foo/baz")).isEqualTo("qux/baz");
+        assertThat(dependencies.getProperty("compile/foo/transitive/baz")).isEqualTo("baz/baz");
     }
 }

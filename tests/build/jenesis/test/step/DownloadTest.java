@@ -32,7 +32,7 @@ public class DownloadTest {
     @Test
     public void can_resolve_dependencies() throws IOException, NoSuchAlgorithmException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
+        properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
@@ -50,7 +50,7 @@ public class DownloadTest {
     @Test
     public void can_resolve_dependencies_from_file() throws IOException, NoSuchAlgorithmException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
+        properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
@@ -79,7 +79,7 @@ public class DownloadTest {
     @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
+        properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         assertThatThrownBy(() -> new Download(Map.of(
@@ -101,7 +101,7 @@ public class DownloadTest {
     @Test
     public void ignore_pinning_skips_a_mismatched_digest() throws IOException, NoSuchAlgorithmException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
+        properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
@@ -123,7 +123,7 @@ public class DownloadTest {
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "SHA256/" + HexFormat.of().formatHex(
+        properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
@@ -145,7 +145,7 @@ public class DownloadTest {
     @Test
     public void can_resolve_dependencies_without_hash() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "");
+        properties.setProperty("compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
@@ -163,7 +163,7 @@ public class DownloadTest {
     @Test
     public void can_resolve_dependencies_from_file_without_hash() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "");
+        properties.setProperty("compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
@@ -194,7 +194,7 @@ public class DownloadTest {
                 .createDirectory(Files.createDirectory(previous).resolve(BuildStep.DEPENDENCIES))
                 .resolve("foo-bar.jar"), "other");
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "");
+        properties.setProperty("compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
@@ -215,7 +215,7 @@ public class DownloadTest {
     @Test
     public void fails_when_requireChecksums_is_true_and_hash_is_missing() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "");
+        properties.setProperty("compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
@@ -235,7 +235,7 @@ public class DownloadTest {
     @Test
     public void permits_missing_hash_when_requireChecksums_is_false() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("foo/bar", "");
+        properties.setProperty("compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
