@@ -142,12 +142,11 @@ public class InternalModule implements BuildExecutorModule {
         buildExecutor.addSource(SOURCE, Bind.asSources(), source);
         for (DependencyScope scope : DependencyScope.values()) {
             String requiresId = scope.label() + "-requires";
-            boolean compile = scope == DependencyScope.COMPILE;
             buildExecutor.addStep(requiresId,
-                    new ParseModuleInfo(prefix, compile, additionalDependencies, qualifier),
+                    new ParseModuleInfo(prefix, scope, additionalDependencies, qualifier),
                     Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
             buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, scope)
+                    new DependenciesModule(repositories, resolvers, scope.resolution())
                             .pinning(pinning)
                             .tag(qualifier == null ? null : "module:" + qualifier),
                     requiresId);
@@ -184,7 +183,7 @@ public class InternalModule implements BuildExecutorModule {
     }
 
     private record ParseModuleInfo(String prefix,
-                                   boolean compile,
+                                   DependencyScope scope,
                                    SequencedSet<String> additionalDependencies,
                                    String qualifier) implements BuildStep {
 
@@ -215,11 +214,17 @@ public class InternalModule implements BuildExecutorModule {
             }
             ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
-            for (String dependency : compile ? info.requires() : info.runtimeRequires()) {
-                properties.setProperty(Resolver.qualify(prefix + "/" + dependency, qualifier), "");
-            }
-            for (String dependency : additionalDependencies) {
-                properties.setProperty(Resolver.qualify(dependency, qualifier), "");
+            if (scope == DependencyScope.PLUGIN) {
+                for (String plugin : info.plugins()) {
+                    properties.setProperty(plugin, "");
+                }
+            } else {
+                for (String dependency : scope == DependencyScope.COMPILE ? info.requires() : info.runtimeRequires()) {
+                    properties.setProperty(Resolver.qualify(prefix + "/" + dependency, qualifier), "");
+                }
+                for (String dependency : additionalDependencies) {
+                    properties.setProperty(Resolver.qualify(dependency, qualifier), "");
+                }
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedProperties versions = pinnedVersions(arguments, qualifier == null

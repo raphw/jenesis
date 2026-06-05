@@ -39,7 +39,7 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
-            SequencedMap<String, String> plugins = new LinkedHashMap<>();
+            SequencedSet<String> plugins = new LinkedHashSet<>();
             String release = null;
             String name = null;
             String description = null;
@@ -118,7 +118,6 @@ public class ModuleInfoParser {
                                 }
                                 int at = token.indexOf('@');
                                 String key;
-                                String compiler;
                                 if (at < 0) {
                                     int slash = token.indexOf('/');
                                     if (slash < 0) {
@@ -132,23 +131,20 @@ public class ModuleInfoParser {
                                         }
                                         key = token;
                                     }
-                                    compiler = "java";
                                 } else if (at == 0) {
                                     int slash = token.indexOf('/');
                                     if (slash < 2 || slash == token.length() - 1) {
                                         continue;
                                     }
-                                    compiler = token.substring(1, slash);
                                     key = "module" + token;
                                 } else {
                                     int slash = token.indexOf('/', at);
                                     if (slash <= at + 1 || slash == token.length() - 1) {
                                         continue;
                                     }
-                                    compiler = token.substring(at + 1, slash);
                                     key = token;
                                 }
-                                plugins.put(key, compiler);
+                                plugins.add(key);
                             }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {

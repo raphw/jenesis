@@ -100,8 +100,9 @@ public class MavenProject implements BuildExecutorModule {
                                             digest),
                                     scopeInherited.sequencedKeySet());
                             scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope).pinning(pinning)
-                                            .listener(listener),
+                                    new DependenciesModule(mergedRepositories, resolvers, scope.resolution()).pinning(pinning)
+                                            .listener(listener)
+                                            .tag(scope == DependencyScope.PLUGIN ? "plugin:tool" : null),
                                     PREPARE);
                         }, inherited.sequencedKeySet());
                     }
@@ -118,7 +119,7 @@ public class MavenProject implements BuildExecutorModule {
                             resources.add(BuildExecutorModule.PREVIOUS + synonym);
                         }
                     }
-                    for (DependencyScope scope : List.of(DependencyScope.COMPILE, DependencyScope.RUNTIME)) {
+                    for (DependencyScope scope : DependencyScope.values()) {
                         String resolved = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
                         String artifacts = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
                         produceDeps.put(resolved, resolved);
@@ -141,7 +142,8 @@ public class MavenProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
-                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
+                            DependencyScope.PLUGIN.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }
 

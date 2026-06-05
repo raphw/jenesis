@@ -175,14 +175,17 @@ public class KotlinCompilerModule implements BuildExecutorModule {
             String release = null;
             for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
                 BuildStepArgument argument = entry.getValue();
-                if (entry.getKey().replaceAll("^(\\.\\./)+", "").equals("plugin-kotlin/dependencies/artifacts")) {
+                if (entry.getKey().replaceAll("^(\\.\\./)+", "")
+                        .equals(DependencyScope.PLUGIN.label() + "/dependencies/artifacts")) {
                     for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
                         Path jarRoot = argument.folder().resolve(jarFolder);
                         if (Files.exists(jarRoot)) {
                             Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
                                 @Override
                                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                    plugins.add(file.toString());
+                                    if (file.getFileName().toString().contains("@kotlin")) {
+                                        plugins.add(file.toString());
+                                    }
                                     return FileVisitResult.CONTINUE;
                                 }
                             });
