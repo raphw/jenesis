@@ -57,6 +57,7 @@ public class KotlinCompilerModuleTest {
 
         Path artifacts = root
                 .resolve("kotlin")
+                .resolve("dependencies")
                 .resolve(KotlinCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
@@ -205,6 +206,7 @@ public class KotlinCompilerModuleTest {
 
         Path artifacts = root
                 .resolve("kotlin")
+                .resolve("dependencies")
                 .resolve(KotlinCompilerModule.ARTIFACTS)
                 .resolve("output")
                 .resolve(BuildStep.DEPENDENCIES);
