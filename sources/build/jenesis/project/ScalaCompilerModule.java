@@ -170,9 +170,26 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                                                      SequencedMap<String, SequencedMap<String, String>> properties)
                 throws IOException {
             Path target = Files.createDirectory(context.next().resolve(CLASSES));
-            List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>(),
+                    plugins = new ArrayList<>();
             String release = null;
-            for (BuildStepArgument argument : arguments.values()) {
+            for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+                BuildStepArgument argument = entry.getValue();
+                if (entry.getKey().replaceAll("^(\\.\\./)+", "").equals("plugin-scala/dependencies/artifacts")) {
+                    for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
+                        Path jarRoot = argument.folder().resolve(jarFolder);
+                        if (Files.exists(jarRoot)) {
+                            Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
+                                @Override
+                                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                                    plugins.add(file.toString());
+                                    return FileVisitResult.CONTINUE;
+                                }
+                            });
+                        }
+                    }
+                    continue;
+                }
                 Path javacProperties = argument.folder().resolve(ProcessBuildStep.PROCESS + "javac.properties");
                 if (Files.exists(javacProperties)) {
                     SequencedProperties loaded = SequencedProperties.ofFiles(javacProperties);
@@ -223,6 +240,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
             }
             files.sort(null);
             jars.sort(null);
+            plugins.sort(null);
             if (files.stream().noneMatch(name -> name.endsWith(".scala"))) {
                 return CompletableFuture.completedStage(null);
             }
@@ -230,7 +248,7 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                 throw new IllegalStateException(
                         "No compiler jars resolved upstream of the Scala compile step");
             }
-            for (List<String> entries : List.of(jars, classpath)) {
+            for (List<String> entries : List.of(jars, classpath, plugins)) {
                 for (String entry : entries) {
                     if (entry.indexOf(File.pathSeparatorChar) != -1) {
                         throw new IllegalArgumentException(
@@ -257,6 +275,9 @@ public class ScalaCompilerModule implements BuildExecutorModule {
             if (release != null) {
                 commands.add("-release");
                 commands.add(release);
+            }
+            for (String plugin : plugins) {
+                commands.add("-Xplugin:" + plugin);
             }
             commands.addAll(files);
             return CompletableFuture.completedStage(commands);

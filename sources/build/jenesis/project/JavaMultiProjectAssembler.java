@@ -72,7 +72,7 @@ public record JavaMultiProjectAssembler(String packaging,
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
             List<String> pluginInputs = outerInherited.sequencedKeySet().stream()
-                    .filter(key -> key.replaceAll("^(\\.\\./)+", "").equals("plugin-java/dependencies/artifacts"))
+                    .filter(key -> key.replaceAll("^(\\.\\./)+", "").matches("plugin-[a-z]+/dependencies/artifacts"))
                     .toList();
             sub.addModule("binary", new JavaToolchainModule()
                     .compiler(new InferredCompilerChainModule(repositories, resolvers)

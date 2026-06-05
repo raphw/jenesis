@@ -73,6 +73,7 @@ Quick index
 | 21 | [`docker-isolation`](demo-21-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
 | 22 | [`supply-chain-security`](demo-22-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 23 | [`publishing`](demo-23-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
+| 24 | [`kotlin-plugin`](demo-24-kotlin-plugin/README.md)           | Run a Kotlin compiler plugin (kotlinx.serialization) declared with `@jenesis.plugin @kotlin/...`, passed to the compiler as `-Xplugin=` | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -458,6 +459,24 @@ and GPG signing are deferred to a dedicated release tool - the README recommends
 (exactly how Jenesis itself releases). So the demo never needs credentials, a
 signing key, or the network, yet shows the complete, validated artifact set a
 release would carry.
+
+## 17. Compiler plugins for other languages - [`kotlin-plugin`](demo-24-kotlin-plugin/README.md)
+
+The same `@jenesis.plugin` tag that wires a Java annotation processor (demo 6)
+also wires compiler plugins for the other languages - the qualifier on the token
+names the target compiler. `kotlin-plugin` declares the kotlinx.serialization
+compiler plugin on the Kotlin trail:
+
+    @jenesis.plugin maven@kotlin/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
+
+Jenesis records it as a `plugin:kotlin` scope, resolves it on the same `@kotlin`
+trail as the compiler (so the plugin version stays matched to it), and passes the
+jar to the Kotlin compiler as `-Xplugin=<jar>`. The plugin then generates
+`Point.serializer()` for the `@Serializable` data class, which `Use` references -
+delete the `@jenesis.plugin` line and the build fails, exactly like the annotation
+processor demo. The resolution path is identical for every language (a
+`plugin:<compiler>` scope); only the compiler flag differs (`--processor-path` for
+`javac`, `-Xplugin=` for Kotlin, `-Xplugin:` for Scala).
 
 Cross-cutting concepts
 ----------------------
