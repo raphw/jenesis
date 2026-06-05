@@ -10,7 +10,6 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
-import build.jenesis.DependencyScope;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -237,12 +236,8 @@ public class JavaMultiProjectAssemblerTest {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
-        Path compileResolved = Files.createDirectory(root.resolve("compile-resolved"));
-        Path runtimeResolved = Files.createDirectory(root.resolve("runtime-resolved"));
-        Path pluginResolved = Files.createDirectory(root.resolve("plugin-resolved"));
-        Path compileArtifacts = Files.createDirectory(root.resolve("compile-artifacts"));
-        Path runtimeArtifacts = Files.createDirectory(root.resolve("runtime-artifacts"));
-        Path pluginArtifacts = Files.createDirectory(root.resolve("plugin-artifacts"));
+        Path resolved = Files.createDirectory(root.resolve("resolved"));
+        Path artifacts = Files.createDirectory(root.resolve("artifacts"));
         Path build = Files.createDirectory(root.resolve("build"));
         ProjectModule base = new ProjectModule() {
             @Override
@@ -276,13 +271,13 @@ public class JavaMultiProjectAssemblerTest {
             }
 
             @Override
-            public SequencedSet<String> resolved(DependencyScope scope) {
-                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + scope.label() + "-resolved"));
+            public SequencedSet<String> resolved() {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "resolved"));
             }
 
             @Override
-            public SequencedSet<String> artifacts(DependencyScope scope) {
-                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + scope.label() + "-artifacts"));
+            public SequencedSet<String> artifacts() {
+                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "artifacts"));
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, tests, source, documentation, null, PathPlacement.INFERRED);
@@ -294,16 +289,10 @@ public class JavaMultiProjectAssemblerTest {
                 BuildExecutorCallback.nop(), false);
         executor.addSource("manifests", manifests);
         executor.addSource("sources", sources);
-        executor.addSource("compile-resolved", compileResolved);
-        executor.addSource("runtime-resolved", runtimeResolved);
-        executor.addSource("plugin-resolved", pluginResolved);
-        executor.addSource("compile-artifacts", compileArtifacts);
-        executor.addSource("runtime-artifacts", runtimeArtifacts);
-        executor.addSource("plugin-artifacts", pluginArtifacts);
+        executor.addSource("resolved", resolved);
+        executor.addSource("artifacts", artifacts);
         executor.addModule("sub", assembled,
-                "manifests", "sources",
-                "compile-resolved", "runtime-resolved", "plugin-resolved",
-                "compile-artifacts", "runtime-artifacts", "plugin-artifacts");
+                "manifests", "sources", "resolved", "artifacts");
         return new Fixture(executor, manifests, sources);
     }
 

@@ -1,7 +1,6 @@
 package build.jenesis.test.step;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
@@ -41,7 +40,7 @@ public class ResolveTest {
                         resolved.put(prefix + "/transitive/" + descriptor, "");
                     });
                     return resolved;
-                }), DependencyScope.COMPILE).apply(
+                })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -69,7 +68,7 @@ public class ResolveTest {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
                     return resolved;
-                }), DependencyScope.COMPILE).apply(
+                })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -95,7 +94,7 @@ public class ResolveTest {
                 resolved.put(prefix + "/transitive/" + descriptor, "");
             });
             return resolved;
-        }), DependencyScope.COMPILE).apply(
+        })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -128,7 +127,7 @@ public class ResolveTest {
                 resolved.put(prefix + "/" + "transitive/" + descriptor, "baz/" + descriptor);
             });
             return resolved;
-        }), DependencyScope.COMPILE).apply(
+        })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(

@@ -10,7 +10,6 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.MultiProjectDependencies;
-import build.jenesis.DependencyScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,7 +38,7 @@ public class MultiProjectDependenciesTest {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("baz", file.toString());
         coordinates.store(dependency.resolve(BuildStep.IDENTITY));
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE.label(), new HashDigestFunction("MD5")).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, new HashDigestFunction("MD5")).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -61,7 +60,7 @@ public class MultiProjectDependenciesTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "SHA256/cafebabe");
         dependencies.store(module.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, DependencyScope.COMPILE.label(), new HashDigestFunction("MD5")).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals, new HashDigestFunction("MD5")).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
