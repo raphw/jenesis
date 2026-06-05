@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class JavacTest {
 
-    @TempDir
+    @TempDir(cleanup = CleanupMode.NEVER)
     private Path root;
     private Path previous, next, supplement, sources;
 
