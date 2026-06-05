@@ -404,6 +404,144 @@ public class JavacTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    public void runs_annotation_processor_from_processor_path(boolean process) throws IOException {
+        Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(folder.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Path processorRoot = Files.createDirectories(root.resolve("processor"));
+        Path jar = buildProcessorJar(Files.createDirectories(root.resolve("procbuild")), "one", "One", null);
+        Files.copy(jar, Files.createDirectories(processorRoot.resolve(BuildStep.DEPENDENCIES)).resolve("processor.jar"));
+
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("sources", new BuildStepArgument(sources,
+                Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)));
+        arguments.put("processors/artifacts", new BuildStepArgument(processorRoot,
+                Map.of(Path.of(BuildStep.DEPENDENCIES + "processor.jar"), ChecksumStatus.ADDED)));
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
+                .processorPath("processors/artifacts")
+                .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "gen/GeneratedOne.class"))
+                .as("annotation processor discovered on the processor path generated and compiled a class")
+                .isNotEmptyFile();
+        String args = Files.readString(supplement.resolve("javac.args"));
+        assertThat(args)
+                .as("a non-modular compilation passes processors via --processor-path, not the compilation class path")
+                .contains("--processor-path")
+                .doesNotContain("--class-path");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void runs_modular_and_plain_processors_via_one_processor_module_path(boolean process) throws IOException {
+        Files.createDirectories(sources.resolve(BuildStep.SOURCES));
+        Files.writeString(sources.resolve(BuildStep.SOURCES).resolve("module-info.java"),
+                "module sample { exports sample; }\n");
+        Files.writeString(Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample")).resolve("Sample.java"),
+                "package sample; public class Sample { }\n");
+        Path processorRoot = Files.createDirectories(root.resolve("processor").resolve(BuildStep.DEPENDENCIES));
+        Files.copy(buildProcessorJar(Files.createDirectories(root.resolve("plain")), "plain", "Plain", null),
+                processorRoot.resolve("plain.jar"));
+        Files.copy(buildProcessorJar(Files.createDirectories(root.resolve("modular")), "modular", "Modular", "proc.modular"),
+                processorRoot.resolve("modular.jar"));
+
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("sources", new BuildStepArgument(sources, Map.of(
+                Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
+                Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)));
+        arguments.put("processors/artifacts", new BuildStepArgument(root.resolve("processor"), Map.of(
+                Path.of(BuildStep.DEPENDENCIES + "plain.jar"), ChecksumStatus.ADDED,
+                Path.of(BuildStep.DEPENDENCIES + "modular.jar"), ChecksumStatus.ADDED)));
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
+                .processorPath("processors/artifacts")
+                .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "gen/GeneratedPlain.class"))
+                .as("a plain (META-INF/services) processor runs from the processor module path as an automatic module")
+                .isNotEmptyFile();
+        assertThat(next.resolve(Javac.CLASSES + "gen/GeneratedModular.class"))
+                .as("a modular (module-info provides) processor runs from the processor module path")
+                .isNotEmptyFile();
+        String args = Files.readString(supplement.resolve("javac.args"));
+        assertThat(args)
+                .as("a modular compilation passes every processor via a single --processor-module-path")
+                .contains("--processor-module-path")
+                .doesNotContain("--processor-path\n");
+    }
+
+    private Path buildProcessorJar(Path dir, String pkg, String suffix, String moduleName) throws IOException {
+        Path classes = Files.createDirectories(dir.resolve("proc-classes"));
+        List<String> files = new ArrayList<>();
+        Path src = dir.resolve("Gen" + suffix + ".java");
+        Files.writeString(src, """
+                package %1$s;
+                import javax.annotation.processing.AbstractProcessor;
+                import javax.annotation.processing.RoundEnvironment;
+                import javax.annotation.processing.SupportedAnnotationTypes;
+                import javax.lang.model.SourceVersion;
+                import javax.lang.model.element.TypeElement;
+                import javax.tools.JavaFileObject;
+                import java.io.Writer;
+                import java.util.Set;
+                @SupportedAnnotationTypes("*")
+                public class Gen%2$s extends AbstractProcessor {
+                    private boolean done;
+                    public SourceVersion getSupportedSourceVersion() { return SourceVersion.latestSupported(); }
+                    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+                        if (!done && !roundEnv.getRootElements().isEmpty()) {
+                            done = true;
+                            try {
+                                JavaFileObject file = processingEnv.getFiler().createSourceFile("gen.Generated%2$s");
+                                try (Writer writer = file.openWriter()) {
+                                    writer.write("package gen; public class Generated%2$s { }");
+                                }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        return false;
+                    }
+                }
+                """.formatted(pkg, suffix));
+        files.add(src.toString());
+        if (moduleName != null) {
+            Path moduleInfo = dir.resolve("module-info.java");
+            Files.writeString(moduleInfo, """
+                    module %s {
+                        requires java.compiler;
+                        provides javax.annotation.processing.Processor with %s.Gen%s;
+                    }
+                    """.formatted(moduleName, pkg, suffix));
+            files.add(moduleInfo.toString());
+        }
+        ToolProvider javac = ToolProvider.findFirst("javac").orElseThrow();
+        List<String> command = new ArrayList<>(List.of("-d", classes.toString()));
+        command.addAll(files);
+        assertThat(javac.run(System.out, System.err, command.toArray(String[]::new))).isZero();
+        if (moduleName == null) {
+            Files.writeString(
+                    Files.createDirectories(classes.resolve("META-INF/services")).resolve("javax.annotation.processing.Processor"),
+                    pkg + ".Gen" + suffix + "\n");
+        }
+        Path jar = dir.resolve("processor.jar");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            List<Path> entries;
+            try (Stream<Path> walk = Files.walk(classes)) {
+                entries = walk.filter(Files::isRegularFile).sorted().toList();
+            }
+            for (Path file : entries) {
+                out.putNextEntry(new JarEntry(classes.relativize(file).toString().replace(File.separatorChar, '/')));
+                Files.copy(file, out);
+                out.closeEntry();
+            }
+        }
+        return jar;
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     public void can_execute_javac_with_resources(boolean process) throws IOException {
         Path folder = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
         try (BufferedWriter writer = Files.newBufferedWriter(folder.resolve("Sample.java"))) {

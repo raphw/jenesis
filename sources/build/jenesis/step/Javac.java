@@ -16,17 +16,20 @@ public class Javac extends JdkProcessBuildStep {
 
     private final boolean includeResources;
     private final PathPlacement placement;
+    private final String processorKey;
 
     public Javac(ProcessHandler.Factory factory) {
-        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED);
+        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED, null);
     }
 
     private Javac(Function<List<String>, ? extends ProcessHandler> factory,
                   boolean includeResources,
-                  PathPlacement placement) {
+                  PathPlacement placement,
+                  String processorKey) {
         super("javac", factory);
         this.includeResources = includeResources;
         this.placement = placement;
+        this.processorKey = processorKey;
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
@@ -40,11 +43,15 @@ public class Javac extends JdkProcessBuildStep {
     }
 
     public Javac includeResources(boolean includeResources) {
-        return new Javac(factory, includeResources, placement);
+        return new Javac(factory, includeResources, placement, processorKey);
     }
 
     public Javac modulePath(PathPlacement placement) {
-        return new Javac(factory, includeResources, placement);
+        return new Javac(factory, includeResources, placement, processorKey);
+    }
+
+    public Javac processorPath(String processorKey) {
+        return new Javac(factory, includeResources, placement, processorKey);
     }
 
     @Override
@@ -121,9 +128,26 @@ public class Javac extends JdkProcessBuildStep {
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
         List<String> files = new ArrayList<>(),
                 path = new ArrayList<>(),
+                processorPath = new ArrayList<>(),
                 siblingClasses = new ArrayList<>(),
                 commands = new ArrayList<>(List.of("-d", target.toString()));
-        for (BuildStepArgument argument : arguments.values()) {
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+            BuildStepArgument argument = entry.getValue();
+            if (entry.getKey().equals(processorKey)) {
+                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
+                    Path jars = argument.folder().resolve(jarFolder);
+                    if (Files.exists(jars)) {
+                        Files.walkFileTree(jars, new SimpleFileVisitor<>() {
+                            @Override
+                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                                processorPath.add(file.toString());
+                                return FileVisitResult.CONTINUE;
+                            }
+                        });
+                    }
+                }
+                continue;
+            }
             Path sources = argument.folder().resolve(Bind.SOURCES),
                     classes = argument.folder().resolve(CLASSES);
             if (Files.exists(classes)) {
@@ -167,6 +191,7 @@ public class Javac extends JdkProcessBuildStep {
         }
         files.sort(null);
         path.sort(null);
+        processorPath.sort(null);
         if (files.isEmpty()) {
             return CompletableFuture.completedStage(null);
         }
@@ -182,8 +207,14 @@ public class Javac extends JdkProcessBuildStep {
         } else {
             path.addAll(siblingClasses);
         }
-        if (!path.isEmpty() || patchModule != null) {
+        if (!path.isEmpty() || patchModule != null || !processorPath.isEmpty()) {
             for (String entry : path) {
+                if (entry.indexOf(File.pathSeparatorChar) != -1) {
+                    throw new IllegalArgumentException(
+                            "Path entry contains separator '" + File.pathSeparator + "': " + entry);
+                }
+            }
+            for (String entry : processorPath) {
                 if (entry.indexOf(File.pathSeparatorChar) != -1) {
                     throw new IllegalArgumentException(
                             "Path entry contains separator '" + File.pathSeparator + "': " + entry);
@@ -211,6 +242,11 @@ public class Javac extends JdkProcessBuildStep {
                         .append(String.join(File.pathSeparator, siblingClasses).replace("\\", "\\\\").replace("\"", "\\\""))
                         .append("\"\n");
             }
+            if (!processorPath.isEmpty()) {
+                args.append(placement.modular() ? "--processor-module-path\n\"" : "--processor-path\n\"")
+                        .append(String.join(File.pathSeparator, processorPath).replace("\\", "\\\\").replace("\"", "\\\""))
+                        .append("\"\n");
+            }
             Path file = context.supplement().resolve("javac.args");
             Files.writeString(file, args.toString());
             commands.add("@" + file);
@@ -226,7 +262,11 @@ public class Javac extends JdkProcessBuildStep {
         SequencedMap<Integer, List<String>> versionedFiles = new TreeMap<>();
         SequencedMap<Integer, List<String>> versionedRoots = new TreeMap<>();
         List<String> dependencyPath = new ArrayList<>();
-        for (BuildStepArgument argument : arguments.values()) {
+        for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
+            if (entry.getKey().equals(processorKey)) {
+                continue;
+            }
+            BuildStepArgument argument = entry.getValue();
             Path classes = argument.folder().resolve(CLASSES);
             if (Files.exists(classes)) {
                 dependencyPath.add(classes.toString());
