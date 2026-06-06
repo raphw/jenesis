@@ -63,6 +63,6 @@ records the resolved dependency (with its content checksum) in the POM's
     </dependencyManagement>
 
 A POM-based pure-Java project is compiled by the JDK's `javac` - there is no
-*resolved* compiler, hence no qualified resolution trail. So its pins are
+*resolved* compiler, hence no separate compiler scope. So its pins are
 ordinary project dependencies in `<dependencyManagement>`, unlike the
-Kotlin/Scala demos whose compilers pin under a `@kotlin` / `@scala` qualifier.
+Kotlin/Scala demos whose compilers pin under the `kotlin` / `scala` scope.

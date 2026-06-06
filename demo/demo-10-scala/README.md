@@ -73,9 +73,10 @@ Pinning
 -------
 
 The module's closure is pinned with `@jenesis.pin` tags on the module
-declaration: `scala.library` (the module's own dependency, by module name) and
-the Scala compiler toolchain on its independent `@scala` trail (each
-`maven@scala/...` coordinate with a version and SHA-256 checksum). The latest
+declaration: the module's own dependency in the `compile` scope
+(`compile/module/scala.library`) and
+the Scala compiler toolchain in its own `scala` scope (each
+`scala/maven/...` coordinate with a version and SHA-256 checksum). The latest
 Scala `<release>` on Maven Central is often a release candidate, so pinning is
 what keeps an otherwise floating build from drifting onto a fresh `-RC`. Run
 `java build/jenesis/Project.java pin` to record or refresh the tags; re-running

@@ -62,9 +62,10 @@ Pinning
 -------
 
 The module's closure is pinned with `@jenesis.pin` tags on the module
-declaration: `kotlin.stdlib` (the module's own dependency, by module name) and
-the Kotlin compiler toolchain on its independent `@kotlin` trail (each
-`maven@kotlin/...` coordinate with a version and SHA-256 checksum). Because the
-two trails are separate, the running compiler is locked independently of the
+declaration: the module's own dependencies in the `compile` scope
+(`compile/module/kotlin.stdlib`, plus the non-modular transitives as
+`compile/maven/...`) and the Kotlin compiler toolchain in its own `kotlin` scope
+(each `kotlin/maven/...` coordinate with a version and SHA-256 checksum). Because
+the scopes are separate, the running compiler is locked independently of the
 `kotlin.stdlib` the module ships against. Run `java build/jenesis/Project.java
 pin` to record or refresh the tags; re-running leaves the declaration unchanged.

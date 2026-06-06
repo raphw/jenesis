@@ -2,8 +2,8 @@ Kotlin compiler plugin demo
 ===========================
 
 Run a Kotlin compiler plugin over a modular Kotlin project, declared the same way
-as a Java annotation processor - with `@jenesis.plugin`, but qualified for the
-Kotlin compiler.
+as a Java annotation processor - with `@jenesis.plugin`, but naming the Kotlin
+compiler so it routes to the `plugin:kotlin` scope.
 
 This module uses [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization):
 `Point` is a `@Serializable` data class, and the serialization compiler plugin
@@ -23,14 +23,17 @@ resolves the plugin, and compiles the module - emitting the generated
 How the plugin is wired
 -----------------------
 
-The plugin is named by Maven coordinate on the Kotlin resolution trail, with the
-`@kotlin` qualifier selecting the Kotlin compiler:
+The plugin is declared with the Kotlin compiler named first, then the plugin's
+`<repository>/<coordinate>`:
 
-    @jenesis.plugin maven@kotlin/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
+    @jenesis.plugin kotlin maven/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
 
-Jenesis records it under the single `plugin` scope, resolves it on the same
-`@kotlin` trail as the compiler (so the plugin version is pinned to match), and
-the Kotlin compiler picks the `@kotlin`-qualified plugin jar and hands it over as
+Naming a compiler routes the plugin to the `plugin:<compiler>` scope - here
+`plugin:kotlin`. Jenesis resolves it in that scope, version coordinated to the
+compiler (the `pin` step writes back a
+`plugin:kotlin/maven/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin ...`
+line), and
+the Kotlin compiler picks the `plugin:kotlin`-scope jar and hands it over as
 `-Xplugin=<jar>`. The compiler self-loads it
 through its `CompilerPluginRegistrar` service - no entry point is named. The
 `requires kotlinx.serialization.core` directive provides the `@Serializable`
