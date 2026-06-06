@@ -47,7 +47,8 @@ project; its `.jenesis.skip` marker keeps the host project's module discovery
 from mistaking it for a second project module.
 
 The plugin's `build.jenesis` dependency resolves from the default Jenesis
-repository as the published `0.3.0` artifact (pinned via the `@tool/build.jenesis`
+repository as the published `0.3.0` artifact (pinned via the
+`@jenesis.pin compile/module/build.jenesis 0.3.0 ...`
 tag in `sources/module-info.java`), whose API matches the local sources the host
 runs against, so the class-loader bridge loads it without complaint.
 
@@ -91,7 +92,7 @@ Isolating the build module's Jenesis
 ------------------------------------
 
 A build module brings its own `build.jenesis` (here the pinned
-`@tool/build.jenesis` `0.3.0`), which is generally a *different* copy from the
+`compile/module/build.jenesis` `0.3.0`), which is generally a *different* copy from the
 Jenesis running the build. To let the two coexist, `InternalModule` loads the
 module into its **own `ModuleLayer` with its own class loader**, so the module's
 `build.jenesis` never clashes with the host's on a single class path. A

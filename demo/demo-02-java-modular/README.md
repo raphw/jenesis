@@ -63,10 +63,11 @@ Pinned dependency
 -----------------
 
 This demo ships **already pinned**. In a module-info layout a dependency is pinned
-with an `@jenesis.pin <module> <version>` Javadoc tag on the module declaration:
+with an `@jenesis.pin <scope>/<repository>/<coordinate> <version>` Javadoc tag on
+the module declaration:
 
     /**
-     * @jenesis.pin org.slf4j 2.0.16
+     * @jenesis.pin compile/module/org.slf4j 2.0.16
      */
     module demo.modular {
         requires org.slf4j;
@@ -76,12 +77,16 @@ with an `@jenesis.pin <module> <version>` Javadoc tag on the module declaration:
 The version is required to resolve the module (the overlay serves
 `org.slf4j/<version>/org.slf4j.jar`). Running `java build/jenesis/Project.java
 pin` rewrites the resolved version back into the tag and is idempotent. The tag
-may also carry a content checksum (`@jenesis.pin org.slf4j 2.0.16
+may also carry a content checksum (`@jenesis.pin compile/module/org.slf4j 2.0.16
 SHA-256/<hex>`), which `Download` then verifies on every fetch.
 
-A modular dependency pins under the plain `module/` prefix (no qualifier) - the
-`@<qualifier>` form is reserved for independent tool trails, as shown in the
-`kotlin` / `scala` and `internal-module` / `external-module` demos.
+A scope-first key is always `<scope>/<repository>/<coordinate>`. An ordinary
+application dependency lives in the `compile` scope and the `module` repository,
+so it pins as `compile/module/org.slf4j`; runtime inherits the compile pin, so a
+dependency that is both compile and runtime is pinned once under `compile/...`.
+The compiler-specific scopes (`kotlin`, `scala`, `groovy`) are reserved for the
+language toolchains, as shown in the `kotlin` / `scala` and
+`internal-module` / `external-module` demos.
 
 Printing the dependency tree
 ----------------------------

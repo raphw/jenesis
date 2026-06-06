@@ -61,7 +61,7 @@ The `greeter-test/` directory is a separate module marked as the test variant of
 
     /**
      * @jenesis.test demo.greeter
-     * @jenesis.pin org.junit.jupiter 5.11.3 SHA-256/...
+     * @jenesis.pin runtime/module/org.junit.jupiter 5.11.3 SHA-256/...
      * ... (the rest of the JUnit closure)
      */
     open module demo.greeter.test {
@@ -74,11 +74,12 @@ compiled and run but never staged as a published artifact. It is `open` so JUnit
 can reflect over the test classes, and its test lives in its own package
 (`greetertest`) rather than `sample.greeter`: a test module cannot share a package
 with the module it tests, since the Java module system forbids two modules from
-exporting the same package. The JUnit closure is pinned on the plain `module`
-trail, and the JUnit Platform console launcher that runs the tests is added
+exporting the same package. The JUnit closure is a test-only dependency, so it is
+pinned in the `runtime` scope (`runtime/module/...`), and the JUnit Platform
+console launcher that runs the tests is added
 automatically, with its version defaulting to the one derived from the discovered
 `org.junit.platform.engine` module (`1.11.3`) so it matches the JUnit Platform
-line the tests compile against - though the `@jenesis.pin org.junit.platform.console`
+line the tests compile against - though the `@jenesis.pin runtime/module/org.junit.platform.console`
 tag overrides that default, so the pinned version always wins. Unlike the `pin` runs of the other demos, the JUnit closure is kept on
 the test module alone rather than propagated project-wide, to keep `greeter` and
 `app` focused on their own dependencies.
@@ -146,12 +147,13 @@ MODULAR_TO_MAVEN when you also want Maven-publishable coordinates.
 Pinned dependency
 -----------------
 
-`app` pins its external `org.slf4j` dependency with an `@jenesis.pin <module>
-<version> [<algorithm>/<hex>]` Javadoc tag on the module declaration, exactly as
+`app` pins its external `org.slf4j` dependency with an `@jenesis.pin
+<scope>/<repository>/<coordinate> <version> [<algorithm>/<hex>]` Javadoc tag on
+the module declaration, exactly as
 the single-module `../demo-02-java-modular` demo does:
 
     /**
-     * @jenesis.pin org.slf4j 2.0.16 SHA-256/...
+     * @jenesis.pin compile/module/org.slf4j 2.0.16 SHA-256/...
      */
     module demo.app {
         requires demo.greeter;
