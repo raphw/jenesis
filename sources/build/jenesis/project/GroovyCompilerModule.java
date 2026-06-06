@@ -135,7 +135,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(qualifier + "/" + coordinate, "");
+            requires.setProperty(qualifier + "/" + qualifier + "/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }

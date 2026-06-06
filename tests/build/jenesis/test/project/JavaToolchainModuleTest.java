@@ -187,7 +187,7 @@ public class JavaToolchainModuleTest {
         }
         dependencies.store(input.resolve(BuildStep.DEPENDENCY_INDEX));
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("maven/org.junit.platform/junit-platform-console",
+        versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-console",
                 "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
         versions.store(input.resolve(BuildStep.VERSIONS));
         buildExecutor.addSource("input", input);

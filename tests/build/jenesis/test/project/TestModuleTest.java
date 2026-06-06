@@ -55,19 +55,19 @@ public class TestModuleTest {
                 }
                 """, bootModuleJars());
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("runtime/maven/org.junit.platform/junit-platform-console",
+        versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-console",
                 "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");
-        versions.setProperty("runtime/maven/org.junit.platform/junit-platform-reporting",
+        versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-reporting",
                 "1.11.4 SHA-256/df6896109bfaef4de8d2fa9e3371a6176936d1a45a6c0e7fd8f7e6dd6f4c5597");
-        versions.setProperty("runtime/maven/org.junit.platform/junit-platform-launcher",
+        versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-launcher",
                 "1.11.4 SHA-256/d7430bd029e7fcced53ee445e4d2d1a8a1e043ea4c4df43b6335a857f79761ae");
-        versions.setProperty("runtime/maven/org.junit.platform/junit-platform-engine",
+        versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-engine",
                 "1.11.3 SHA-256/0043f72f611664735da8dc9a308bf12ecd2236b05339351c4741edb4d8fab0da");
-        versions.setProperty("runtime/maven/org.junit.platform/junit-platform-commons",
+        versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-commons",
                 "1.11.3 SHA-256/be262964b0b6b48de977c61d4f931df8cf61e80e750cc3f3a0a39cdd21c1008c");
-        versions.setProperty("runtime/maven/org.opentest4j/opentest4j",
+        versions.setProperty("main/runtime/maven/org.opentest4j/opentest4j",
                 "1.3.0 SHA-256/48e2df636cab6563ced64dcdff8abb2355627cb236ef0bf37598682ddf742f1b");
-        versions.setProperty("runtime/maven/org.apiguardian/apiguardian-api",
+        versions.setProperty("main/runtime/maven/org.apiguardian/apiguardian-api",
                 "1.1.2 SHA-256/b509448ac506d607319f182537f0b35d71007582ec741832a1f111e5b5b70b38");
         versions.store(dependencies.resolve(BuildStep.VERSIONS));
     }
@@ -140,13 +140,13 @@ public class TestModuleTest {
                 }
                 """, List.of(junitJar));
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("runtime/maven/junit/junit",
+        versions.setProperty("main/runtime/maven/junit/junit",
                 "4.13.2 SHA-256/8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3");
-        versions.setProperty("runtime/maven/org.hamcrest/hamcrest-core",
+        versions.setProperty("main/runtime/maven/org.hamcrest/hamcrest-core",
                 "1.3 SHA-256/66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9");
         versions.store(junit4Dependencies.resolve(BuildStep.VERSIONS));
         SequencedProperties requires = new SequencedProperties();
-        requires.setProperty("runtime/maven/junit/junit", "");
+        requires.setProperty("main/runtime/maven/junit/junit", "");
         requires.store(junit4Dependencies.resolve(BuildStep.REQUIRES));
 
         BuildExecutor executor = newExecutor();
@@ -195,17 +195,17 @@ public class TestModuleTest {
                 }
                 """, List.of(testngJar));
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("runtime/maven/org.testng/testng",
+        versions.setProperty("main/runtime/maven/org.testng/testng",
                 "7.10.2 SHA-256/225fd56447f2e5e439db3b483a79cd9f294fad9f357f8352b12ee6a3411ebb15");
-        versions.setProperty("runtime/maven/com.beust/jcommander",
+        versions.setProperty("main/runtime/maven/com.beust/jcommander",
                 "1.82 SHA-256/deeac157c8de6822878d85d0c7bc8467a19cc8484d37788f7804f039dde280b1");
-        versions.setProperty("runtime/maven/org.slf4j/slf4j-api",
+        versions.setProperty("main/runtime/maven/org.slf4j/slf4j-api",
                 "1.7.36 SHA-256/d3ef575e3e4979678dc01bf1dcce51021493b4d11fb7f1be8ad982877c16a1c0");
-        versions.setProperty("runtime/maven/org.webjars/jquery",
+        versions.setProperty("main/runtime/maven/org.webjars/jquery",
                 "3.7.1 SHA-256/262016dd3a559df87aefbe392804e9bf620787c9204c0ab8522d4c231ea65097");
         versions.store(testngDependencies.resolve(BuildStep.VERSIONS));
         SequencedProperties requires = new SequencedProperties();
-        requires.setProperty("runtime/maven/org.testng/testng", "");
+        requires.setProperty("main/runtime/maven/org.testng/testng", "");
         requires.store(testngDependencies.resolve(BuildStep.REQUIRES));
 
         BuildExecutor executor = newExecutor();
@@ -413,8 +413,8 @@ public class TestModuleTest {
 
         Path stepFolder = root.resolve("test").resolve("resolved");
         assertThat(readRequires(stepFolder).stringPropertyNames())
-                .containsExactly("runtime/maven/org.junit.platform/junit-platform-console");
-        assertThat(readVersions(stepFolder).getProperty("runtime/maven/org.junit.platform/junit-platform-console"))
+                .containsExactly("main/runtime/maven/org.junit.platform/junit-platform-console");
+        assertThat(readVersions(stepFolder).getProperty("main/runtime/maven/org.junit.platform/junit-platform-console"))
                 .isEqualTo("RELEASE");
     }
 
@@ -434,7 +434,7 @@ public class TestModuleTest {
 
         SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
-                .containsExactly("runtime/module/org.junit.platform.console");
+                .containsExactly("main/runtime/module/org.junit.platform.console");
     }
 
     @Test
@@ -538,8 +538,8 @@ public class TestModuleTest {
 
         Path stepFolder = root.resolve("test").resolve("resolved");
         assertThat(readRequires(stepFolder).stringPropertyNames())
-                .containsExactly("runtime/module/org.junit.platform.console");
-        assertThat(readVersions(stepFolder).getProperty("runtime/module/org.junit.platform.console"))
+                .containsExactly("main/runtime/module/org.junit.platform.console");
+        assertThat(readVersions(stepFolder).getProperty("main/runtime/module/org.junit.platform.console"))
                 .isEqualTo("1.11.3");
     }
 
@@ -548,7 +548,7 @@ public class TestModuleTest {
         writeModuleJar(emptyDependencies.resolve(BuildStep.ARTIFACTS),
                 "engine.jar", "org.junit.platform.engine", "1.11.3");
         SequencedProperties pinned = new SequencedProperties();
-        pinned.setProperty("runtime/module/org.junit.platform.console", "1.12.0 SHA-256/abc");
+        pinned.setProperty("main/runtime/module/org.junit.platform.console", "1.12.0 SHA-256/abc");
         pinned.store(emptyDependencies.resolve(BuildStep.VERSIONS));
         BuildExecutor executor = newExecutor();
         executor.addSource("dependencies", emptyDependencies);
@@ -562,7 +562,7 @@ public class TestModuleTest {
         executor.execute("test/" + "resolved");
 
         assertThat(readVersions(root.resolve("test").resolve("resolved"))
-                .getProperty("runtime/module/org.junit.platform.console"))
+                .getProperty("main/runtime/module/org.junit.platform.console"))
                 .isEqualTo("1.12.0 SHA-256/abc");
     }
 
@@ -581,7 +581,7 @@ public class TestModuleTest {
 
         SequencedProperties properties = readRequires(root.resolve("test").resolve("resolved"));
         assertThat(properties.stringPropertyNames())
-                .containsExactly("runtime/maven/com.example/runner-core", "runtime/maven/com.example/runner-cli");
+                .containsExactly("main/runtime/maven/com.example/runner-core", "main/runtime/maven/com.example/runner-cli");
     }
 
     private BuildExecutor newExecutor() throws IOException {

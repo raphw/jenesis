@@ -50,7 +50,8 @@ public class Group implements BuildStep {
                     _ -> new LinkedHashSet<>()).add(name));
             Set<String> requires = to.computeIfAbsent(name, _ -> new LinkedHashSet<>());
             for (String coordinate : toProperties(entry.getValue().folder().resolve(requiresPath))) {
-                requires.add(coordinate.substring(coordinate.indexOf('/') + 1));
+                int second = coordinate.indexOf('/', coordinate.indexOf('/') + 1);
+                requires.add(coordinate.substring(second + 1));
             }
         }
         Path folder = Files.createDirectory(context.next().resolve(GROUPS));

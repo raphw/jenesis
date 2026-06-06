@@ -71,9 +71,9 @@ public class ModularProjectTest {
         Path moduleRequires = module.resolve(BuildStep.REQUIRES);
         assertThat(moduleRequires).exists();
         SequencedProperties dependencies = SequencedProperties.ofFiles(moduleRequires);
-        assertThat(dependencies).containsOnlyKeys("compile/module/bar", "runtime/module/bar");
-        assertThat(dependencies.getProperty("compile/module/bar")).isEmpty();
-        assertThat(dependencies.getProperty("runtime/module/bar")).isEmpty();
+        assertThat(dependencies).containsOnlyKeys("main/compile/module/bar", "main/runtime/module/bar");
+        assertThat(dependencies.getProperty("main/compile/module/bar")).isEmpty();
+        assertThat(dependencies.getProperty("main/runtime/module/bar")).isEmpty();
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -118,14 +118,14 @@ public class ModularProjectTest {
         assertThat(compileVersionsFile).exists();
         SequencedProperties compileVersions = SequencedProperties.ofFiles(compileVersionsFile);
         assertThat(compileVersions).containsOnly(
-                Map.entry("compile/module/bar", "1.2.3"),
-                Map.entry("compile/module/transitive.pin", "9.9.9"));
+                Map.entry("main/compile/module/bar", "1.2.3"),
+                Map.entry("main/compile/module/transitive.pin", "9.9.9"));
         Path runtimeVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(runtimeVersionsFile).exists();
         SequencedProperties runtimeVersions = SequencedProperties.ofFiles(runtimeVersionsFile);
         assertThat(runtimeVersions).containsOnly(
-                Map.entry("compile/module/bar", "1.2.3"),
-                Map.entry("compile/module/transitive.pin", "9.9.9"));
+                Map.entry("main/compile/module/bar", "1.2.3"),
+                Map.entry("main/compile/module/transitive.pin", "9.9.9"));
     }
 
     @Test

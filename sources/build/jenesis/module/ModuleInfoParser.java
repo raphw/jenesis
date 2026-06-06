@@ -88,7 +88,9 @@ public class ModuleInfoParser {
                                             + token
                                             + "': expected <scope>/<repository>/<coordinate>");
                                 }
-                                versions.put(token, version);
+                                String scope = token.substring(0, repo);
+                                String group = scope.equals("compile") || scope.equals("runtime") ? "main" : scope;
+                                versions.put(group + "/" + token, version);
                             }
                             case "jenesis.plugin" -> {
                                 String trimmed = content.trim();

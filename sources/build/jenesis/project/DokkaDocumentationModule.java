@@ -111,7 +111,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
             SequencedProperties requires = new SequencedProperties();
             if (maven) {
                 for (String artifact : CLI_ARTIFACTS) {
-                    requires.setProperty(qualifier + "/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
+                    requires.setProperty(qualifier + "/" + qualifier + "/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
                 }
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));

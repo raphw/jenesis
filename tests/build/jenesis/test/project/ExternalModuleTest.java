@@ -347,7 +347,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "compile/module/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
+                    "main/compile/module/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("external", new ExternalModule(
@@ -388,7 +388,7 @@ public class ExternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "compile/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
+                    "main/compile/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("external", new ExternalModule(

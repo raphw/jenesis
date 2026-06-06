@@ -76,9 +76,9 @@ public class InferredDocumentationModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(root
                 .resolve("dokka").resolve("required").resolve("output").resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames()).containsExactlyInAnyOrder(
-                "dokka/maven/org.jetbrains.dokka/dokka-cli/RELEASE",
-                "dokka/maven/org.jetbrains.dokka/dokka-base/RELEASE",
-                "dokka/maven/org.jetbrains.dokka/analysis-kotlin-descriptors/RELEASE");
+                "dokka/dokka/maven/org.jetbrains.dokka/dokka-cli/RELEASE",
+                "dokka/dokka/maven/org.jetbrains.dokka/dokka-base/RELEASE",
+                "dokka/dokka/maven/org.jetbrains.dokka/analysis-kotlin-descriptors/RELEASE");
     }
 
     @Test
@@ -107,8 +107,8 @@ public class InferredDocumentationModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(root
                 .resolve("scaladoc").resolve("required").resolve("output").resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames()).contains(
-                "scaladoc/maven/org.scala-lang/scaladoc_3/RELEASE",
-                "scaladoc/maven/com.fasterxml.jackson.core/jackson-annotations/2.21");
+                "scaladoc/scaladoc/maven/org.scala-lang/scaladoc_3/RELEASE",
+                "scaladoc/scaladoc/maven/com.fasterxml.jackson.core/jackson-annotations/2.21");
     }
 
     @Test
@@ -123,7 +123,7 @@ public class InferredDocumentationModuleTest {
         SequencedProperties requires = SequencedProperties.ofFiles(root
                 .resolve("groovydoc").resolve("required").resolve("output").resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("groovydoc/maven/org.apache.groovy/groovy-groovydoc/RELEASE");
+                .containsExactly("groovydoc/groovydoc/maven/org.apache.groovy/groovy-groovydoc/RELEASE");
     }
 
     private BuildExecutor newExecutor() throws IOException {
