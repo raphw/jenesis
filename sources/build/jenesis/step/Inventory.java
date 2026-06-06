@@ -116,9 +116,14 @@ public class Inventory implements BuildStep {
         int dependencyIndex = 0;
         for (Map.Entry<String, Path> entry : closureJars.entrySet()) {
             String checksum = closureChecksums.get(entry.getKey());
-            inventory.setProperty(prefix + "dependency." + dependencyIndex++,
+            inventory.setProperty(prefix + "dependency." + dependencyIndex,
                     entry.getKey() + " " + relativize(context, entry.getValue())
                             + (checksum == null || checksum.isEmpty() ? "" : " " + checksum));
+            String scope = closureScopes.get(entry.getKey());
+            if (scope != null) {
+                inventory.setProperty(prefix + "dependency." + dependencyIndex + ".scope", scope);
+            }
+            dependencyIndex++;
         }
         writePaths(inventory, context, prefix + "artifacts", artifacts);
         writePaths(inventory, context, prefix + "sources", sources);
@@ -171,7 +176,7 @@ public class Inventory implements BuildStep {
         return ((path == null || path.isEmpty()) ? "module" : "module-" + path) + ".";
     }
 
-    public record Dependency(Path jar, String checksum) {
+    public record Dependency(Path jar, String checksum, String scope) {
     }
 
     public static SequencedMap<String, Dependency> closure(Iterable<BuildStepArgument> arguments, String path) throws IOException {
@@ -191,7 +196,8 @@ public class Inventory implements BuildStep {
                 String[] parts = value.split(" ", 3);
                 closure.putIfAbsent(parts[0], new Dependency(
                         argument.folder().resolve(parts[1]).normalize(),
-                        parts.length > 2 ? parts[2] : ""));
+                        parts.length > 2 ? parts[2] : "",
+                        inventory.getProperty(key + index + ".scope")));
             }
         }
         return closure;
