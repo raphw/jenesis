@@ -47,15 +47,25 @@ public class PinPom implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = collectEntries(closure, internal, prefix, hashFunction);
-        SequencedMap<String, String> qualified = collectQualified(closure, internal, hashFunction);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
         for (Path pomFile : pomFiles) {
-            updatePom(pomFile, entries, qualified);
+            updatePom(pomFile, entries);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private void updatePom(Path pomFile, SequencedMap<String, String> entries, SequencedMap<String, String> qualified) throws IOException {
+    private static SequencedSet<String> scopesOf(String scope) {
+        SequencedSet<String> scopes = new LinkedHashSet<>();
+        if (scope != null) {
+            scopes.addAll(List.of(scope.split(",")));
+        }
+        if (scopes.contains("compile") && scopes.contains("runtime")) {
+            scopes.remove("runtime");
+        }
+        return scopes;
+    }
+
+    private void updatePom(Path pomFile, SequencedMap<String, String> entries) throws IOException {
         String existing = Files.readString(pomFile);
         Matcher dependencyManagementMatcher = DEPENDENCY_MANAGEMENT.matcher(existing);
         String indent;
@@ -65,7 +75,21 @@ public class PinPom implements BuildStep {
             Matcher indentMatcher = INDENT.matcher(existing);
             indent = indentMatcher.find() ? indentMatcher.group(1) : "    ";
         }
-        String block = entries.isEmpty() ? "" : renderBlock(entries, indent);
+        SequencedMap<String, String> managed = new TreeMap<>();
+        SequencedMap<String, String> qualified = new TreeMap<>();
+        for (Map.Entry<String, String> entry : entries.entrySet()) {
+            String key = entry.getKey();
+            int first = key.indexOf('/');
+            int second = key.indexOf('/', first + 1);
+            String scope = key.substring(0, first);
+            String repository = second < 0 ? "" : key.substring(first + 1, second);
+            if (repository.equals("maven") && isStandardScope(scope)) {
+                managed.putIfAbsent(key.substring(second + 1), entry.getValue());
+            } else {
+                qualified.put(key, entry.getValue());
+            }
+        }
+        String block = managed.isEmpty() ? "" : renderBlock(managed, indent);
         String updated;
         if (dependencyManagementMatcher.find(0)) {
             updated = dependencyManagementMatcher.replaceFirst(Matcher.quoteReplacement(block));
@@ -102,7 +126,6 @@ public class PinPom implements BuildStep {
 
     static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
                                                        Set<String> internal,
-                                                       String prefix,
                                                        HashDigestFunction hashFunction) throws IOException {
         SequencedMap<String, String> entries = new TreeMap<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
@@ -110,53 +133,28 @@ public class PinPom implements BuildStep {
             if (internal.contains(key)) {
                 continue;
             }
-            int slash = key.indexOf('/');
-            if (slash < 0 || !prefix.equals(key.substring(0, slash))) {
+            int lastSlash = key.lastIndexOf('/');
+            int firstSlash = key.indexOf('/');
+            if (lastSlash <= 0 || lastSlash == firstSlash) {
                 continue;
             }
-            String suffix = key.substring(slash + 1);
-            int lastSlash = suffix.lastIndexOf('/');
-            if (lastSlash <= 0) {
-                continue;
-            }
-            String bomKey = suffix.substring(0, lastSlash);
-            String version = suffix.substring(lastSlash + 1);
+            String coordinate = key.substring(0, lastSlash);
+            String version = key.substring(lastSlash + 1);
             String checksum = computeChecksum(dependency.getValue(), hashFunction);
-            entries.putIfAbsent(bomKey, checksum == null ? version : version + " " + checksum);
+            String value = checksum == null ? version : version + " " + checksum;
+            for (String scope : scopesOf(dependency.getValue().scope())) {
+                entries.putIfAbsent(scope + "/" + coordinate, value);
+            }
         }
         return entries;
     }
 
-    static SequencedMap<String, String> collectQualified(SequencedMap<String, Inventory.Dependency> closure,
-                                                         Set<String> internal,
-                                                         HashDigestFunction hashFunction) throws IOException {
-        SequencedMap<String, String> entries = new TreeMap<>();
-        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
-            String key = dependency.getKey();
-            if (internal.contains(key)) {
-                continue;
-            }
-            int slash = key.indexOf('/');
-            if (slash < 0) {
-                continue;
-            }
-            int at = key.substring(0, slash).indexOf('@');
-            if (at < 1) {
-                continue;
-            }
-            String suffix = key.substring(slash + 1);
-            int lastSlash = suffix.lastIndexOf('/');
-            if (lastSlash <= 0) {
-                continue;
-            }
-            String prefix = key.substring(0, at);
-            String token = (prefix.equals("maven") ? "@" : prefix + "@")
-                    + key.substring(at + 1, slash) + "/" + suffix.substring(0, lastSlash);
-            String version = suffix.substring(lastSlash + 1);
-            String checksum = computeChecksum(dependency.getValue(), hashFunction);
-            entries.putIfAbsent(token, checksum == null ? version : version + " " + checksum);
-        }
-        return entries;
+    private static boolean isStandardScope(String scope) {
+        return scope.equals("compile")
+                || scope.equals("runtime")
+                || scope.equals("provided")
+                || scope.equals("test")
+                || scope.equals("system");
     }
 
     private static String renderRequires(SequencedMap<String, String> qualified, String indent) {

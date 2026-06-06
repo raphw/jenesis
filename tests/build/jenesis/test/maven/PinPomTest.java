@@ -33,10 +33,17 @@ public class PinPomTest {
     }
 
     private static int count(SequencedProperties properties, String prefix) {
-        return (int) properties.stringPropertyNames().stream().filter(name -> name.startsWith(prefix)).count();
+        return (int) properties.stringPropertyNames().stream()
+                .filter(name -> name.startsWith(prefix))
+                .filter(name -> name.indexOf('.', prefix.length()) < 0)
+                .count();
     }
 
     private void writeResolved(Map<String, String> entries) throws IOException {
+        writeResolved("compile", entries);
+    }
+
+    private void writeResolved(String scope, Map<String, String> entries) throws IOException {
         SequencedProperties properties = loadInventory();
         int index = count(properties, "module.dependency.");
         for (Map.Entry<String, String> entry : entries.entrySet()) {
@@ -46,8 +53,10 @@ public class PinPomTest {
             String checksum = space < 0 ? "" : value.substring(space + 1).trim();
             String coordinate = entry.getKey() + "/" + version;
             String jar = BuildStep.DEPENDENCIES + coordinate.replace('/', '-') + ".jar";
-            properties.setProperty("module.dependency." + index++,
+            properties.setProperty("module.dependency." + index,
                     coordinate + " " + jar + (checksum.isEmpty() ? "" : " " + checksum));
+            properties.setProperty("module.dependency." + index + ".scope", scope);
+            index++;
         }
         properties.store(input.resolve(Inventory.INVENTORY));
     }
@@ -84,13 +93,12 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeResolved(Map.of(
-                "maven@kotlin/org.jetbrains/something", "1.2.3",
-                "maven2@kotlin/org.example/other", "4.5.6"));
+        writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3"));
+        writeResolved("plugin", Map.of("maven/org.example/other", "4.5.6"));
         String result = run(pom);
         assertThat(result).contains("<!--jenesis.pin");
-        assertThat(result).contains("@kotlin/org.jetbrains/something 1.2.3");
-        assertThat(result).contains("maven2@kotlin/org.example/other 4.5.6");
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2.3");
+        assertThat(result).contains("plugin/maven/org.example/other 4.5.6");
         assertThat(result).doesNotContain("<dependencyManagement>");
     }
 
@@ -106,9 +114,9 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2--3"));
+        writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2--3"));
         String result = run(pom);
-        assertThat(result).contains("@kotlin/org.jetbrains/something 1.2&#45;&#45;3");
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2&#45;&#45;3");
         int blockStart = result.indexOf("<!--jenesis.pin");
         int blockEnd = result.indexOf("-->", blockStart);
         assertThat(result.substring(blockStart + "<!--".length(), blockEnd)).doesNotContain("--");
@@ -235,7 +243,8 @@ public class PinPomTest {
                 "maven/org.example/picked", "2.0"));
         String result = run(pom);
         assertThat(result).contains("<artifactId>picked</artifactId>");
-        assertThat(result).doesNotContain("module");
+        assertThat(result).doesNotContain("<artifactId>org.example.module</artifactId>");
+        assertThat(result).contains("compile/module/org.example.module 1.0");
     }
 
     @Test
@@ -354,10 +363,10 @@ public class PinPomTest {
                 </project>
                 """);
         Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
-        Path jar = artifacts.resolve("maven@kotlin-org.jetbrains-something-1.2.3.jar");
+        Path jar = artifacts.resolve("maven-org.jetbrains-something-1.2.3.jar");
         byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
-        writeResolved(Map.of("maven@kotlin/org.jetbrains/something", "1.2.3"));
+        writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3"));
         String result = run(pom);
         MessageDigest digest;
         try {
@@ -366,7 +375,7 @@ public class PinPomTest {
             throw new AssertionError(e);
         }
         String expected = HexFormat.of().formatHex(digest.digest(payload));
-        assertThat(result).contains("@kotlin/org.jetbrains/something 1.2.3 SHA-256/" + expected);
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/" + expected);
     }
 
     @Test

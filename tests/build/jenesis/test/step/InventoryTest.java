@@ -64,6 +64,8 @@ public class InventoryTest {
         assertThat(inventory.getProperty("module-foo.pom")).isEqualTo(relativize(pom));
         assertThat(inventory.getProperty("module-foo.runtime.0")).isEqualTo(relativize(classes));
         assertThat(inventory.getProperty("module-foo.runtime.1")).isEqualTo(relativize(lib));
+        assertThat(inventory.getProperty("module-foo.dependency.0")).startsWith("maven/org.example/lib/1.0 ");
+        assertThat(inventory.getProperty("module-foo.dependency.0.scope")).isEqualTo("runtime");
     }
 
     @Test
