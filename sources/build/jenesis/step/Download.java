@@ -53,7 +53,7 @@ public class Download implements BuildStep {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
         SequencedProperties index = new SequencedProperties();
-        Set<String> fetched = new HashSet<>();
+        SequencedMap<String, String[]> coalesced = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : merged.entrySet()) {
             String[] parts = split(entry.getKey());
             if (parts == null) {
@@ -62,12 +62,23 @@ public class Download implements BuildStep {
             String repo = parts[1], coordinate = parts[2];
             String dependency = repo + "/" + coordinate, name = dependency.replace('/', '-') + ".jar";
             index.setProperty(entry.getKey(), DEPENDENCIES + name);
-            if (!fetched.add(name)) {
-                continue;
+            String[] existing = coalesced.get(name);
+            if (existing == null) {
+                coalesced.put(name, new String[] {repo, coordinate, dependency, entry.getValue()});
+            } else if (!entry.getValue().isEmpty()) {
+                if (existing[3].isEmpty()) {
+                    existing[3] = entry.getValue();
+                } else if (!existing[3].equals(entry.getValue())) {
+                    throw new IllegalStateException("Conflicting checksums pinned for " + dependency
+                            + ": " + existing[3] + " and " + entry.getValue());
+                }
             }
+        }
+        for (String[] parts : coalesced.values()) {
+            String repo = parts[0], coordinate = parts[1], dependency = parts[2], name = dependency.replace('/', '-') + ".jar";
             Repository repository = repositories.getOrDefault(Resolver.base(repo), Repository.empty());
             Path previous = context.previous() == null ? null : context.previous().resolve(DEPENDENCIES + name);
-            String value = pinning == Pinning.IGNORE ? "" : entry.getValue();
+            String value = pinning == Pinning.IGNORE ? "" : parts[3];
             if (value.isEmpty()) {
                 if (previous != null && Files.exists(previous) && pinning != Pinning.STRICT) {
                     BuildStep.linkOrCopy(libs.resolve(name), previous);

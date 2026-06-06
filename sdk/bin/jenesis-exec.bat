@@ -24,7 +24,13 @@ if not defined JAVA_VERSION (
     exit /b 1
 )
 
+set "JAVA_MAJOR="
 for /f "tokens=1 delims=." %%m in ("!JAVA_VERSION!") do set "JAVA_MAJOR=%%m"
+echo !JAVA_MAJOR!| findstr /r "^[0-9][0-9]*$" >nul
+if errorlevel 1 (
+    echo jenesis-exec: Java 25 or newer required, but '!JAVA!' reports version '!JAVA_VERSION!' 1>&2
+    exit /b 1
+)
 if !JAVA_MAJOR! LSS 25 (
     echo jenesis-exec: Java 25 or newer required, but '!JAVA!' reports version '!JAVA_VERSION!' 1>&2
     exit /b 1

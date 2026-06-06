@@ -536,6 +536,25 @@ public class ModularJarResolverTest {
     }
 
     @Test
+    public void rejects_propagated_compiled_version_with_path_traversal() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> () -> toJar("root", "1.0", require("dep", 0, "../../secret"));
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("../../secret");
+    }
+
+    @Test
     public void picks_highest_versioned_module_info_under_runtime() throws IOException {
         int runtime = Runtime.version().feature();
         LinkedHashMap<Integer, String> versions = new LinkedHashMap<>();

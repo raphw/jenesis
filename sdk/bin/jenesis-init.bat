@@ -41,7 +41,11 @@ if !EXTRACT_EXIT! NEQ 0 (
     rmdir /s /q "!TMPDIR!"
     exit /b !EXTRACT_EXIT!
 )
-if exist "!TMPDIR!\module-info.java" del /q "!TMPDIR!\module-info.java"
+if not exist "!TMPDIR!\build\jenesis\" (
+    echo jenesis-init: extracted jar does not contain build/jenesis - artifact layout unexpected 1>&2
+    rmdir /s /q "!TMPDIR!"
+    exit /b 1
+)
 
 set "LABELED=0"
 if not "%~1"=="" set "LABELED=1"
@@ -84,7 +88,8 @@ if exist "!TARGET!\build\jenesis" (
     )
     rmdir /s /q "!TARGET!\build\jenesis"
 )
-xcopy /s /e /y /i /q "!TMPDIR!\*" "!TARGET!\" >nul
+if not exist "!TARGET!\build\" mkdir "!TARGET!\build"
+xcopy /s /e /y /i /q "!TMPDIR!\build\jenesis\*" "!TARGET!\build\jenesis\" >nul
 if errorlevel 1 exit /b !ERRORLEVEL!
 <nul set /p =!VERSION!>"!TARGET!\build\jenesis\jenesis.version"
 exit /b 0

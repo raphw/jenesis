@@ -7,6 +7,7 @@ import build.jenesis.RepositoryItem;
 import build.jenesis.SequencedProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class RepositoryTest {
 
@@ -101,5 +102,22 @@ public class RepositoryTest {
         assertThat(item.get().file()).isPresent();
         assertThat(item.get().file().get().getParent()).isEqualTo(cache);
         assertThat(cache.toFile().list()).isNotEmpty();
+    }
+
+    @Test
+    public void cached_failed_stream_copy_leaves_no_file_at_the_target() throws IOException {
+        Path cache = Files.createDirectory(folder.resolve("cache"));
+        RepositoryItem failing = () -> new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("interrupted");
+            }
+        };
+        Repository underlying = (_, _) -> Optional.of(failing);
+
+        assertThatThrownBy(() -> underlying.cached(cache).fetch(Runnable::run, "module/foo/1.0"))
+                .isInstanceOf(IOException.class);
+
+        assertThat(cache.toFile().list()).isEmpty();
     }
 }

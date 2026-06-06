@@ -204,11 +204,12 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 throws IOException {
             Path documentation = context.next().resolve(Javadoc.JAVADOC);
             Path output = Files.createDirectories(within == null ? documentation : documentation.resolve(within));
-            List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>();
+            List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classRoots = new ArrayList<>(),
+                    classpath = new ArrayList<>();
             for (BuildStepArgument argument : arguments.values()) {
                 Path classes = argument.folder().resolve(BuildStep.CLASSES);
                 if (Files.exists(classes)) {
-                    classpath.add(classes.toString());
+                    classRoots.add(classes.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
                     jars.add(jar.toString());
@@ -238,16 +239,18 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 throw new IllegalStateException(
                         "No scaladoc jars resolved upstream of the Scala documentation step");
             }
-            if (classpath.isEmpty()) {
+            if (classRoots.isEmpty()) {
                 return CompletableFuture.completedStage(null);
             }
+            List<String> userClasspath = new ArrayList<>(classRoots);
+            userClasspath.addAll(classpath);
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "dotty.tools.scaladoc.Main",
                     "-d", output.toString(),
-                    "-classpath", String.join(File.pathSeparator, jars),
+                    "-classpath", String.join(File.pathSeparator, userClasspath),
                     "-project", "documentation"));
-            commands.addAll(classpath);
+            commands.addAll(classRoots);
             return CompletableFuture.completedStage(commands);
         }
     }

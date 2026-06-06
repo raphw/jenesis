@@ -81,6 +81,13 @@ public class ModuleInfoParser {
                                         || token.startsWith("java.") || token.startsWith("jdk.")) {
                                     continue;
                                 }
+                                int repo = token.indexOf('/');
+                                int coordinate = repo < 1 ? -1 : token.indexOf('/', repo + 1);
+                                if (repo < 1 || coordinate <= repo || coordinate == token.length() - 1) {
+                                    throw new IllegalArgumentException("Malformed @jenesis.pin token '"
+                                            + token
+                                            + "': expected <scope>/<repository>/<coordinate>");
+                                }
                                 versions.put(token, version);
                             }
                             case "jenesis.plugin" -> {

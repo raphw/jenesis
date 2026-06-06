@@ -60,7 +60,8 @@ public abstract class ProcessBuildStep implements BuildStep {
             }
             properties.put(entry.getKey(), folderMap);
         }
-        return process(executor, context, arguments, properties).thenComposeAsync(processed -> {
+        AtomicReference<Thread> worker = new AtomicReference<>();
+        CompletableFuture<BuildStepResult> result = process(executor, context, arguments, properties).thenComposeAsync(processed -> {
             if (processed == null) {
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             }
@@ -88,6 +89,7 @@ public abstract class ProcessBuildStep implements BuildStep {
                         String.join(" ", handler.commands()));
                 }
                 executor.execute(() -> {
+                    worker.set(Thread.currentThread());
                     try {
                         int exitCode = handler.execute(output, error);
                         if (acceptableExitCode(exitCode, executor, context, arguments)) {
@@ -104,6 +106,8 @@ public abstract class ProcessBuildStep implements BuildStep {
                         }
                     } catch (Throwable t) {
                         future.completeExceptionally(t);
+                    } finally {
+                        worker.set(null);
                     }
                 });
                 return future;
@@ -111,6 +115,15 @@ public abstract class ProcessBuildStep implements BuildStep {
                 future.completeExceptionally(t);
             }
             return future;
+        }).toCompletableFuture();
+        result.whenComplete((processed, throwable) -> {
+            if (throwable != null) {
+                Thread running = worker.get();
+                if (running != null && running != Thread.currentThread()) {
+                    running.interrupt();
+                }
+            }
         });
+        return result;
     }
 }

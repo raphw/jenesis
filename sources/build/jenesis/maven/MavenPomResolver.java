@@ -259,7 +259,7 @@ public class MavenPomResolver implements MavenResolver {
                     resolution.systemPath,
                     resolution.exclusions,
                     resolution.optional,
-                    resolution.checksum));
+                    selectChecksum(resolution)));
         });
         if (listener != null) {
             dependencies.clear();
@@ -334,6 +334,7 @@ public class MavenPomResolver implements MavenResolver {
                     continue;
                 }
                 String version;
+                bindChecksum(entry.getKey(), resolution, value.version(), value.checksum());
                 if (resolution.currentVersion == null) {
                     version = resolution.currentVersion = negotiator.resolve(executor,
                             repository,
@@ -347,7 +348,6 @@ public class MavenPomResolver implements MavenResolver {
                     resolution.systemPath = entry.getValue().systemPath();
                     resolution.exclusions = entry.getValue().exclusions();
                     resolution.optional = entry.getValue().optional();
-                    resolution.checksum = value.checksum();
                 } else {
                     version = resolution.currentVersion;
                     if (resolution.observedVersions.add(value.version()) || resolution.widestScope.reduces(scope)) {
@@ -385,6 +385,32 @@ public class MavenPomResolver implements MavenResolver {
             }
         } while ((current = queue.poll()) != null);
         return conflicting;
+    }
+
+    private static void bindChecksum(MavenDependencyKey key,
+                                     DependencyResolution resolution,
+                                     String version,
+                                     String checksum) {
+        if (checksum == null) {
+            return;
+        }
+        String existing = resolution.checksums.putIfAbsent(version, checksum);
+        if (existing != null && !existing.equals(checksum)) {
+            throw new IllegalStateException("Conflicting checksums for "
+                    + key.groupId() + ":" + key.artifactId() + ":" + version
+                    + " (" + existing + " and " + checksum + ")");
+        }
+    }
+
+    private static String selectChecksum(DependencyResolution resolution) {
+        String checksum = resolution.checksums.get(resolution.currentVersion);
+        if (checksum != null) {
+            return checksum;
+        }
+        if (resolution.checksums.size() == 1) {
+            return resolution.checksums.values().iterator().next();
+        }
+        return null;
     }
 
     public SequencedMap<Path, MavenLocalPom> local(Executor executor,
@@ -547,14 +573,15 @@ public class MavenPomResolver implements MavenResolver {
                 IMPLICITS.forEach(property -> toChildren400(document.getDocumentElement(), property)
                         .findFirst()
                         .ifPresent(node -> {
-                            properties.put(property, node.getTextContent());
-                            properties.put("project." + property, node.getTextContent());
+                            String value = node.getTextContent().trim();
+                            properties.put(property, value);
+                            properties.put("project." + property, value);
                         }));
                 toChildren400(document.getDocumentElement(), "properties")
                         .limit(1)
                         .flatMap(MavenPomResolver::toChildren)
                         .filter(node -> node.getNodeType() == Node.ELEMENT_NODE)
-                        .forEach(node -> properties.put(node.getLocalName(), node.getTextContent()));
+                        .forEach(node -> properties.put(node.getLocalName(), node.getTextContent().trim()));
                 toChildren400(document.getDocumentElement(), "dependencyManagement")
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependencies"))
@@ -702,20 +729,15 @@ public class MavenPomResolver implements MavenResolver {
             MavenDependencyKey key = entry.getKey().resolve(pom.properties());
             MavenDependencyValue value = entry.getValue().resolveManaged(pom.properties());
             if (value.scope() == MavenDependencyScope.IMPORT) {
-                UnresolvedPom imported = assembleOrCached(executor,
+                flattenImport(executor,
                         repository,
                         key.groupId(),
                         key.artifactId(),
                         value.version(),
                         value.checksum(),
+                        managedDependencies,
                         new HashSet<>(),
                         unresolved);
-                imported.managedDependencies().forEach((importKey, importValue) -> {
-                    MavenDependencyValue resolved = importValue.resolveManaged(imported.properties());
-                    if (resolved.scope() != MavenDependencyScope.IMPORT) {
-                        managedDependencies.putIfAbsent(importKey.resolve(imported.properties()), resolved);
-                    }
-                });
             } else {
                 managedDependencies.put(key, value);
             }
@@ -724,6 +746,46 @@ public class MavenPomResolver implements MavenResolver {
                 key.resolve(pom.properties()),
                 value.resolve(pom.properties())));
         return new ResolvedPom(managedDependencies, dependencies);
+    }
+
+    private void flattenImport(Executor executor,
+                               MavenRepository repository,
+                               String groupId,
+                               String artifactId,
+                               String version,
+                               String checksum,
+                               Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
+                               Set<DependencyCoordinate> imports,
+                               Map<DependencyCoordinate, UnresolvedPom> unresolved) throws IOException {
+        if (!imports.add(new DependencyCoordinate(groupId, artifactId, version))) {
+            throw new IllegalStateException("Circular BOM import to "
+                    + groupId + ":" + artifactId + ":" + version);
+        }
+        UnresolvedPom imported = assembleOrCached(executor,
+                repository,
+                groupId,
+                artifactId,
+                version,
+                checksum,
+                new HashSet<>(),
+                unresolved);
+        for (Map.Entry<DependencyKey, DependencyValue> entry : imported.managedDependencies().entrySet()) {
+            MavenDependencyKey importKey = entry.getKey().resolve(imported.properties());
+            MavenDependencyValue importValue = entry.getValue().resolveManaged(imported.properties());
+            if (importValue.scope() == MavenDependencyScope.IMPORT) {
+                flattenImport(executor,
+                        repository,
+                        importKey.groupId(),
+                        importKey.artifactId(),
+                        importValue.version(),
+                        importValue.checksum(),
+                        managedDependencies,
+                        imports,
+                        unresolved);
+            } else {
+                managedDependencies.putIfAbsent(importKey, importValue);
+            }
+        }
     }
 
     private ResolvedPom resolveOrCached(Executor executor,
@@ -767,7 +829,7 @@ public class MavenPomResolver implements MavenResolver {
     }
 
     private static Optional<String> toTextChild400(Node node, String localName) {
-        return toChildren400(node, localName).map(Node::getTextContent).findFirst();
+        return toChildren400(node, localName).map(child -> child.getTextContent().trim()).findFirst();
     }
 
     private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node) {
@@ -951,7 +1013,9 @@ public class MavenPomResolver implements MavenResolver {
 
         private MavenDependencyValue resolve(Map<String, String> properties, boolean defaultScope) {
             String resolvedScope = property(scope, properties);
-            return new MavenDependencyValue(property(version, properties),
+            String resolvedVersion = property(version, properties);
+            MavenDependencyKey.validate("version", resolvedVersion);
+            return new MavenDependencyValue(resolvedVersion,
                     resolvedScope == null && !defaultScope ? null : MavenDependencyScope.of(resolvedScope),
                     systemPath == null ? null : Path.of(property(systemPath, properties)),
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new MavenDependencyName(
@@ -998,11 +1062,11 @@ public class MavenPomResolver implements MavenResolver {
 
     private static class DependencyResolution {
         private final SequencedSet<String> observedVersions = new LinkedHashSet<>();
+        private final Map<String, String> checksums = new HashMap<>();
         private String currentVersion;
         private MavenDependencyScope currentScope, widestScope;
         private Path systemPath;
         private List<MavenDependencyName> exclusions;
         private Boolean optional;
-        private String checksum;
     }
 }

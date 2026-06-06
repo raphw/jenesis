@@ -41,7 +41,11 @@ fi
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 (cd "$TMPDIR" && "$JAR" xf "$SOURCES_JAR")
-rm -f "$TMPDIR/module-info.java"
+JAR_BUILD="$TMPDIR/build/jenesis"
+if [ ! -d "$JAR_BUILD" ]; then
+    echo "jenesis-init: extracted jar does not contain build/jenesis - artifact layout unexpected" >&2
+    exit 1
+fi
 
 for target in "${TARGETS[@]}"; do
     if [ ! -d "$target" ]; then
@@ -60,6 +64,7 @@ for target in "${TARGETS[@]}"; do
         fi
         rm -rf "$target/build/jenesis"
     fi
-    cp -R "$TMPDIR"/. "$target/"
+    mkdir -p "$target/build"
+    cp -R "$JAR_BUILD" "$target/build/jenesis"
     printf '%s' "$VERSION" > "$target/build/jenesis/jenesis.version"
 done

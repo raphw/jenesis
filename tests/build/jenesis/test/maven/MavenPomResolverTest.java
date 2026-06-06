@@ -788,6 +788,64 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void scope_with_surrounding_whitespace_is_normalized() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>
+                                runtime
+                            </scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.RUNTIME, null, null, null)));
+    }
+
+    @Test
+    public void unknown_scope_is_reported_with_offending_value() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <scope>bogus</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .hasStackTraceContaining("Unknown Maven dependency scope")
+                .hasStackTraceContaining("bogus");
+    }
+
+    @Test
     public void can_resolve_dependency_configuration() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -1143,6 +1201,159 @@ public class MavenPomResolverTest {
                 null);
         assertThat(dependencies).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_dependency_bom_configuration_flattens_nested_import() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>leaf</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>aggregator</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("aggregator", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>nested</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("nested", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>leaf</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("leaf", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("leaf", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
+    public void can_resolve_dependency_bom_configuration_flattens_nested_import_with_own_properties() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>leaf</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>aggregator</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("aggregator", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>nested</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("nested", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <properties>
+                        <leaf.version>1</leaf.version>
+                    </properties>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>leaf</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>${leaf.version}</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("leaf", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("leaf", "artifact", "jar", null),
                 new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
     }
 
@@ -3993,5 +4204,106 @@ public class MavenPomResolverTest {
                 "maven/group/artifact/1",
                 "maven/middle/artifact/1",
                 "maven/deep/artifact/7");
+    }
+
+    @Test
+    public void coordinate_key_rejects_traversal_component() {
+        assertThatThrownBy(() -> new MavenDependencyKey("..", "artifact", "jar", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("..");
+        assertThatThrownBy(() -> new MavenDependencyKey("group", "a/b", "jar", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("a/b");
+        assertThatThrownBy(() -> new MavenDependencyKey("group", "artifact", "ja\\r", null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void parsed_coordinate_rejects_traversal_component() {
+        assertThatThrownBy(() -> MavenDependencyKey.parseKey("group/.."))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("..");
+        assertThatThrownBy(() -> MavenDependencyKey.tryParse("group/artifact/.."))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("..");
+    }
+
+    @Test
+    public void transitive_traversal_coordinate_is_rejected() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>..</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .hasStackTraceContaining("Illegal Maven coordinate groupId");
+    }
+
+    @Test
+    public void conflicting_checksums_for_same_version_fail_resolution() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>left</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>right</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("left", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>shared</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <!--Checksum/SHA256/aaaa-->
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("right", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>shared</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                            <!--Checksum/SHA256/bbbb-->
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("shared", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .hasStackTraceContaining("Conflicting checksums for shared:artifact:1");
     }
 }

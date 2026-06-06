@@ -77,6 +77,49 @@ public class DownloadTest {
     }
 
     @Test
+    public void enforces_pin_shared_across_scopes() throws IOException, NoSuchAlgorithmException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("compile/foo/bar", "");
+        properties.setProperty("runtime/foo/bar", "SHA256/" + HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        assertThatThrownBy(() -> new Download(Map.of(
+                "foo",
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        )).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                .cause()
+                .isInstanceOf(RuntimeException.class)
+                .cause()
+                .hasMessageContaining("Mismatched digest for foo/bar");
+    }
+
+    @Test
+    public void rejects_conflicting_pins_across_scopes() throws IOException, NoSuchAlgorithmException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
+        properties.setProperty("runtime/foo/bar", "SHA256/" + HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        assertThatThrownBy(() -> new Download(Map.of(
+                "foo",
+                (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
+        )).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Conflicting checksums pinned for foo/bar");
+    }
+
+    @Test
     public void rejects_dependency_with_mismatched_digest() throws IOException, NoSuchAlgorithmException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(

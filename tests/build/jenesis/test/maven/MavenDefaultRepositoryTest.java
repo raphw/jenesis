@@ -347,6 +347,90 @@ public class MavenDefaultRepositoryTest {
     }
 
     @Test
+    public void rejects_coordinate_escaping_local_root() {
+        MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(), local, Map.of(), _ -> {});
+        assertThatThrownBy(() -> repository.fetch(Runnable::run,
+                "..",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("escapes the local repository root");
+    }
+
+    @Test
+    public void fails_closed_when_validation_requested_but_sidecar_missing() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar"), "foo");
+        MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
+                local,
+                Map.of("MD5", this.repository.toUri()), _ -> {});
+        assertThatThrownBy(() -> repository.fetch(Runnable::run,
+                "group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No checksum sidecar available");
+        assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
+    }
+
+    @Test
+    public void fails_closed_when_cached_artifact_has_no_sidecar() throws IOException {
+        Files.writeString(Files
+                .createDirectories(local.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar"), "foo");
+        MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
+                local,
+                Map.of("MD5", this.repository.toUri()), _ -> {});
+        assertThatThrownBy(() -> repository.fetch(Runnable::run,
+                "group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No checksum sidecar available");
+    }
+
+    @Test
+    public void validates_with_weaker_sidecar_when_stronger_absent() throws IOException, NoSuchAlgorithmException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar"), "foo");
+        byte[] hash = MessageDigest.getInstance("SHA-1").digest("foo".getBytes(StandardCharsets.UTF_8));
+        try (Writer writer = Files.newBufferedWriter(repository
+                .resolve("group/artifact/1")
+                .resolve("artifact-1.jar.sha1"))) {
+            writer.write(HexFormat.of().formatHex(hash));
+        }
+        Map<String, URI> validations = new LinkedHashMap<>();
+        validations.put("SHA256", repository.toUri());
+        validations.put("SHA1", repository.toUri());
+        Path dependency = result.resolve("dependency.jar");
+        try (InputStream inputStream = new MavenDefaultRepository(repository.toUri(),
+                local,
+                validations, _ -> {}).fetch(Runnable::run,
+                "group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
+        }
+        assertThat(dependency).content().isEqualTo("foo");
+        assertThat(local.resolve("group/artifact/1/artifact-1.jar.sha1"))
+                .content().isEqualTo(HexFormat.of().formatHex(hash));
+    }
+
+    @Test
     public void can_fetch_metadata() throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact"))

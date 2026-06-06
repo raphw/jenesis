@@ -2,6 +2,22 @@ package build.jenesis.maven;
 
 public record MavenDependencyKey(String groupId, String artifactId, String type, String classifier) {
 
+    public MavenDependencyKey {
+        validate("groupId", groupId);
+        validate("artifactId", artifactId);
+        validate("type", type);
+        validate("classifier", classifier);
+    }
+
+    static void validate(String role, String component) {
+        if (component != null && (component.contains("/")
+                || component.contains("\\")
+                || component.equals(".")
+                || component.equals(".."))) {
+            throw new IllegalArgumentException("Illegal Maven coordinate " + role + ": " + component);
+        }
+    }
+
     public String coordinate(String prefix, String version) {
         StringBuilder sb = new StringBuilder();
         if (prefix != null) {
@@ -53,5 +69,8 @@ public record MavenDependencyKey(String groupId, String artifactId, String type,
     }
 
     public record Versioned(MavenDependencyKey key, String version) {
+        public Versioned {
+            validate("version", version);
+        }
     }
 }

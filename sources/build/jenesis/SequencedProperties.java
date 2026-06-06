@@ -214,7 +214,7 @@ public class SequencedProperties extends Properties {
 
     private static class CommentSuppressingWriter extends BufferedWriter {
 
-        private boolean skipNextNewLine;
+        private boolean suppressLine;
 
         private CommentSuppressingWriter(Writer out) {
             super(out);
@@ -222,8 +222,11 @@ public class SequencedProperties extends Properties {
 
         @Override
         public void write(String str) throws IOException {
+            if (suppressLine) {
+                return;
+            }
             if (str.startsWith("#")) {
-                skipNextNewLine = true;
+                suppressLine = true;
             } else {
                 super.write(str);
             }
@@ -231,8 +234,8 @@ public class SequencedProperties extends Properties {
 
         @Override
         public void newLine() throws IOException {
-            if (skipNextNewLine) {
-                skipNextNewLine = false;
+            if (suppressLine) {
+                suppressLine = false;
             } else {
                 super.write('\n');
             }

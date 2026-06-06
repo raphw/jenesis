@@ -16,6 +16,7 @@ import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class GroovyDocumentationModule implements BuildExecutorModule {
@@ -225,6 +226,14 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {
                     jars.add(jar.toString());
                 }
+                Path javacProperties = argument.folder().resolve(ProcessBuildStep.PROCESS + "javac.properties");
+                if (Files.exists(javacProperties)) {
+                    SequencedProperties loaded = SequencedProperties.ofFiles(javacProperties);
+                    String value = loaded.getProperty("--release");
+                    if (value != null && !value.isEmpty()) {
+                        release = value;
+                    }
+                }
                 Path sources = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(sources)) {
                     roots.add(sources.toString());
@@ -246,12 +255,6 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                             return FileVisitResult.CONTINUE;
                         }
                     });
-                }
-            }
-            for (SequencedMap<String, String> values : properties.values()) {
-                String candidate = values.get("maven.compiler.release");
-                if (candidate != null) {
-                    release = candidate;
                 }
             }
             if (!anyGroovy[0]) {

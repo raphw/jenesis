@@ -30,6 +30,11 @@ jobs:
           HEADER="$(printf '%s\n' "$MESSAGE" | head -n1)"
           VERSION="$(echo "$HEADER" | sed -nE 's/^\[release[[:space:]]+v?([0-9]+\.[0-9]+\.[0-9]+)\].*$/\1/p')"
           if [ -z "$VERSION" ]; then
+            STRAY="$(echo "$HEADER" | sed -nE 's/^\[release\][[:space:]]+v?([0-9]+\.[0-9]+\.[0-9]+).*$/\1/p')"
+            if [ -n "$STRAY" ]; then
+              echo "Version '$STRAY' must be inside the marker: use '[release $STRAY]', not '[release] $STRAY'." >&2
+              exit 1
+            fi
             LATEST="$(git tag --list --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 | sed 's/^v//')"
             if [ -z "$LATEST" ]; then
               VERSION="0.0.1"

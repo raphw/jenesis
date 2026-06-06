@@ -120,6 +120,12 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             try {
                 return process.waitFor();
             } catch (InterruptedException e) {
+                process.destroyForcibly();
+                try {
+                    process.waitFor(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ignored) {
+                }
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
         }

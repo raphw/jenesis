@@ -165,7 +165,13 @@ public class ModularJarResolver implements Resolver {
                         .sorted(Comparator.comparing(ModuleDescriptor.Requires::name))
                         .forEach(requires -> {
                             String name = requires.name();
-                            requires.rawCompiledVersion().ifPresent(v -> propagated.putIfAbsent(name, v));
+                            requires.rawCompiledVersion().ifPresent(v -> {
+                                if (v.isEmpty() || v.equals("..") || v.indexOf('/') >= 0 || v.indexOf('\\') >= 0) {
+                                    throw new IllegalArgumentException("Module " + current
+                                            + " declares an unsafe compiled version '" + v + "' for " + name);
+                                }
+                                propagated.putIfAbsent(name, v);
+                            });
                             if (observes) {
                                 parents.putIfAbsent(name, current);
                             }

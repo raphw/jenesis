@@ -25,4 +25,13 @@ public class SequencedPropertiesTest {
         copy.load(new StringReader(writer.toString()));
         assertThat(copy.stringPropertyNames()).containsExactlyElementsOf(original.stringPropertyNames());
     }
+
+    @Test
+    public void can_suppress_header_comment() throws IOException {
+        SequencedProperties original = new SequencedProperties();
+        original.setProperty("k1", "v1");
+        StringWriter writer = new StringWriter();
+        original.store(writer, "header");
+        assertThat(writer.toString()).isEqualTo("k1=v1\n");
+    }
 }

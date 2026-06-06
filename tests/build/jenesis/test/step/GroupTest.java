@@ -93,4 +93,26 @@ public class GroupTest {
         assertThat(rightGroup.stringPropertyNames()).isEmpty();
         assertThat(result.next()).isTrue();
     }
+
+    @Test
+    public void does_not_link_self_referencing_group() throws IOException {
+        SequencedProperties leftCoordinates = new SequencedProperties();
+        leftCoordinates.setProperty("foo", "");
+        leftCoordinates.store(left.resolve(BuildStep.IDENTITY));
+        SequencedProperties leftDependencies = new SequencedProperties();
+        leftDependencies.setProperty("foo", "");
+        leftDependencies.store(left.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Group(Optional::of).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of(
+                        "left", new BuildStepArgument(
+                                left,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        SequencedProperties leftGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "left.properties"));
+        assertThat(leftGroup.stringPropertyNames()).isEmpty();
+        assertThat(result.next()).isTrue();
+    }
 }

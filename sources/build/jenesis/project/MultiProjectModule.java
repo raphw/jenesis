@@ -76,6 +76,7 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                 MultiProject project = factory.apply(projects);
                 SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>(projects);
                 while (!pending.isEmpty()) {
+                    boolean progressed = false;
                     Iterator<Map.Entry<String, SequencedSet<String>>> it = pending.entrySet().iterator();
                     while (it.hasNext()) {
                         Map.Entry<String, SequencedSet<String>> entry = it.next();
@@ -103,7 +104,11 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                                                     .map(identifier -> PREVIOUS.repeat(2) + identifier))
                                     .flatMap(Function.identity()));
                             it.remove();
+                            progressed = true;
                         }
+                    }
+                    if (!progressed) {
+                        throw new IllegalStateException("Cyclic module dependencies: " + pending.keySet());
                     }
                 }
             }, Stream.concat(Stream.of(GROUP), identified.sequencedKeySet().stream()));

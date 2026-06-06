@@ -12,6 +12,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.project.MultiProjectModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MultiProjectModuleTest {
 
@@ -344,6 +345,35 @@ public class MultiProjectModuleTest {
         }));
         buildExecutor.execute("project/compose/module/1", "project/compose/module/5");
         assertThat(built).contains("1", "2", "3", "5").doesNotContain("4");
+    }
+
+    @Test
+    public void rejects_cyclic_modules() {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/bar", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies1 = new SequencedProperties();
+            dependencies1.put("compile/foo/qux", "");
+            dependencies1.store(module1.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("1-module", module1);
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/qux", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("compile/foo/bar", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("2-module", module2);
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
+                modules -> (name, dependencies, identifiers) -> (module, inherited) -> {
+            throw new AssertionError("Unexpected module: " + name);
+        }));
+        assertThatThrownBy(buildExecutor::execute)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
+                .hasMessageContaining("Cyclic module dependencies")
+                .hasMessageContaining("1")
+                .hasMessageContaining("2");
     }
 
 }

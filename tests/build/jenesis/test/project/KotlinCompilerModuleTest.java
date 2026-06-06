@@ -109,6 +109,45 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
+    public void skips_module_info_so_kotlinc_does_not_parse_it() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);
+        properties.store(project.resolve(BuildStep.VERSIONS));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Sample.kt"), """
+                package sample
+                class Sample
+                """);
+        Files.writeString(project.resolve(BuildStep.SOURCES + "module-info.java"), """
+                module sample {
+                    exports sample;
+                }
+                """);
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "kotlin",
+                new KotlinCompilerModule(
+                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+
+        Path classes = root
+                .resolve("kotlin")
+                .resolve(KotlinCompilerModule.CLASSES)
+                .resolve("output")
+                .resolve(BuildStep.CLASSES);
+        assertThat(classes.resolve("sample/Sample.class"))
+                .as("kotlinc compiled the Kotlin source while ignoring module-info.java")
+                .isNotEmptyFile();
+        assertThat(classes.resolve("module-info.class"))
+                .as("kotlinc must not parse or emit module-info.java; javac owns it")
+                .doesNotExist();
+    }
+
+    @Test
     public void picks_up_release_from_upstream_javac_properties() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable", KOTLIN_VERSION);

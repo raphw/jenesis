@@ -67,7 +67,7 @@ A single `requires scala.library` pulls in the whole Scala standard library as o
 module: the library lives entirely in `scala-library`, and `scala3-library_3` is an
 empty aggregator, so nothing splits `package scala` across two modules and the
 Java module system accepts it on the module path. That is why this demo builds as a
-plain module with no `pom.xml`.
+plain module on the module path with no hand-written build script.
 
 Pinning
 -------

@@ -59,6 +59,7 @@ public class Group implements BuildStep {
             entry.getValue().stream()
                     .flatMap(dependency -> from.getOrDefault(dependency, Set.of()).stream())
                     .distinct()
+                    .filter(name -> !name.equals(entry.getKey()))
                     .forEach(name -> properties.setProperty(name, ""));
             properties.store(folder.resolve(BuildExecutorModule.encode(entry.getKey()) + ".properties"));
         }

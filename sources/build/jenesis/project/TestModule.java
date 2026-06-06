@@ -495,6 +495,13 @@ public class TestModule implements BuildExecutorModule {
                     });
                 }
             }
+            if (matchedClasses.isEmpty() && matchedMethods.isEmpty() && groups.isEmpty()) {
+                throw new IllegalStateException("No tests matched the requested selection"
+                        + (filter != null ? ", filter: " + filter : "")
+                        + (group != null ? ", group: " + group : "")
+                        + ". Adjust jenesis.test.filter / jenesis.test.group or the isTest predicate,"
+                        + " or set jenesis.test.skip to skip testing.");
+            }
             commands.addAll(resolved.commands(
                     context.supplement(),
                     context.next(),

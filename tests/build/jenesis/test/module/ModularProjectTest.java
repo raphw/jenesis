@@ -99,8 +99,8 @@ public class ModularProjectTest {
     public void emits_versions_properties_from_javadoc_pins() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**
-                 * @jenesis.pin bar 1.2.3
-                 * @jenesis.pin transitive.pin 9.9.9
+                 * @jenesis.pin compile/module/bar 1.2.3
+                 * @jenesis.pin compile/module/transitive.pin 9.9.9
                  */
                 module foo {
                   requires bar;
@@ -118,14 +118,14 @@ public class ModularProjectTest {
         assertThat(compileVersionsFile).exists();
         SequencedProperties compileVersions = SequencedProperties.ofFiles(compileVersionsFile);
         assertThat(compileVersions).containsOnly(
-                Map.entry("bar", "1.2.3"),
-                Map.entry("transitive.pin", "9.9.9"));
+                Map.entry("compile/module/bar", "1.2.3"),
+                Map.entry("compile/module/transitive.pin", "9.9.9"));
         Path runtimeVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(runtimeVersionsFile).exists();
         SequencedProperties runtimeVersions = SequencedProperties.ofFiles(runtimeVersionsFile);
         assertThat(runtimeVersions).containsOnly(
-                Map.entry("bar", "1.2.3"),
-                Map.entry("transitive.pin", "9.9.9"));
+                Map.entry("compile/module/bar", "1.2.3"),
+                Map.entry("compile/module/transitive.pin", "9.9.9"));
     }
 
     @Test

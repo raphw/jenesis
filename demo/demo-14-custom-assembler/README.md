@@ -25,7 +25,7 @@ To confirm the substituted value is what ended up compiled into the jar, run the
 produced modular jar yourself:
 
     java --module-path \
-        target/build/modules/compose/module/module-sources/produce/assemble/java/artifacts/jar/output/artifacts/classes.jar \
+        target/build/modules/compose/module/module-sources/produce/assemble/binary/artifacts/jar/output/artifacts/classes.jar \
         --module demo.custom
 
 which prints:

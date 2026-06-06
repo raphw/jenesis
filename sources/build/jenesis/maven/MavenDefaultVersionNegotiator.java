@@ -213,12 +213,12 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
                                     .filter(node -> Objects.equals(node.getLocalName(), "latest"))
                                     .findFirst()
                                     .map(Node::getTextContent)
-                                    .orElseThrow(missing("latest")),
+                                    .orElse(null),
                             toChildren(versioning)
                                     .filter(node -> Objects.equals(node.getLocalName(), "release"))
                                     .findFirst()
                                     .map(Node::getTextContent)
-                                    .orElseThrow(missing("release")),
+                                    .orElse(null),
                             toChildren(versioning)
                                     .filter(node -> Objects.equals(node.getLocalName(), "versions"))
                                     .findFirst()
@@ -418,5 +418,20 @@ public class MavenDefaultVersionNegotiator implements MavenVersionNegotiator {
     }
 
     private record Metadata(String latest, String release, List<String> versions) {
+        @Override
+        public String latest() {
+            if (latest == null) {
+                throw new IllegalStateException("Property not defined: latest");
+            }
+            return latest;
+        }
+
+        @Override
+        public String release() {
+            if (release == null) {
+                throw new IllegalStateException("Property not defined: release");
+            }
+            return release;
+        }
     }
 }
