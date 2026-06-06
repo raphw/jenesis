@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Resolve;
@@ -145,5 +146,32 @@ public class ResolveTest {
         assertThat(dependencies.getProperty("compile/foo/transitive/qux")).isEqualTo("baz/qux");
         assertThat(dependencies.getProperty("compile/foo/baz")).isEqualTo("qux/baz");
         assertThat(dependencies.getProperty("compile/foo/transitive/baz")).isEqualTo("baz/baz");
+    }
+
+    @Test
+    public void runtime_inherits_the_compile_mediated_version() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("compile/foo/lib", "");
+        properties.setProperty("runtime/foo/lib", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, bom, intent, _) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.sequencedKeySet().forEach(descriptor -> {
+                String version = intent == DependencyScope.COMPILE ? "1.0" : bom.getOrDefault(descriptor, "FLOAT");
+                resolved.put(prefix + "/" + descriptor + "/" + version, "");
+            });
+            return resolved;
+        })).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        assertThat(dependencies.stringPropertyNames())
+                .containsExactlyInAnyOrder("compile/foo/lib/1.0", "runtime/foo/lib/1.0");
     }
 }
