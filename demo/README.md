@@ -436,7 +436,7 @@ checksum, and a **`tampered`** module whose dependency is pinned to a wrong
 `SHA-256`. The unpinned one builds by default but is rejected under
 `pinning(Pinning.STRICT)` (a hardened environment can refuse any unverified
 dependency); the tampered one fails **regardless** of strict pinning, because
-`Download` checks every fetched artifact against its pin and rejects a mismatch -
+`Resolve` checks every fetched artifact against its pin and rejects a mismatch -
 exactly what would catch a swapped or compromised artifact.
 
 The new idea is **strict pinning vs. checksum verification**: the former decides
@@ -512,7 +512,7 @@ native application image with `-Djenesis.java.jpackage` (the value is the `jpack
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
 `module-info.java`'s
 `@jenesis.pin <scope>/<repository>/<coordinate> <version> [<algorithm>/<hex>]`
-Javadoc tags. `Download` verifies every fetch against a pinned checksum, and
+Javadoc tags. `Resolve` verifies every fetch against a pinned checksum, and
 strict pinning (`-Djenesis.dependency.pin=strict`) fails the build on any
 unpinned coordinate. The scope is the single isolation axis: an application
 dependency lives in `compile` (runtime inherits it), a test-only dependency in
