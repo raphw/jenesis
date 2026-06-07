@@ -2,7 +2,6 @@ package build.jenesis.test.module;
 
 import module java.base;
 import module org.junit.jupiter.api;
-import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.ChecksumStatus;

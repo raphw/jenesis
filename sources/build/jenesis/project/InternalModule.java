@@ -26,7 +26,6 @@ public class InternalModule implements BuildExecutorModule {
 
     private static final String DEPENDENCIES = "dependencies", REQUIRES = "requires";
     private static final String MAIN_ARTIFACTS = JAVA + "/" + JavaToolchainModule.ARTIFACTS;
-    private static final String DEPENDENCY_ARTIFACTS = DEPENDENCIES;
 
     private final String prefix;
     private final Path source;
@@ -143,7 +142,7 @@ public class InternalModule implements BuildExecutorModule {
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
                 REQUIRES);
-        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, DEPENDENCY_ARTIFACTS);
+        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, DEPENDENCIES);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
             List<Path> artifacts = new ArrayList<>();
@@ -152,7 +151,7 @@ public class InternalModule implements BuildExecutorModule {
                     artifacts.add(file);
                 }
             }
-            artifacts.addAll(Dependencies.select(delegated.get(PREVIOUS + DEPENDENCY_ARTIFACTS), "runtime"));
+            artifacts.addAll(Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
@@ -164,9 +163,9 @@ public class InternalModule implements BuildExecutorModule {
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
             forwarded.remove(PREVIOUS + MAIN_ARTIFACTS);
-            forwarded.remove(PREVIOUS + DEPENDENCY_ARTIFACTS);
+            forwarded.remove(PREVIOUS + DEPENDENCIES);
             bridge.accept(foreignModule, delegateExecutor, forwarded);
-        }, Stream.concat(Stream.of(MAIN_ARTIFACTS, DEPENDENCY_ARTIFACTS), inherited.sequencedKeySet().stream()));
+        }, Stream.concat(Stream.of(MAIN_ARTIFACTS, DEPENDENCIES), inherited.sequencedKeySet().stream()));
     }
 
     private record ParseModuleInfo(String prefix,

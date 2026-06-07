@@ -16,7 +16,6 @@ import build.jenesis.step.Dependencies;
 public class ExternalModule implements BuildExecutorModule {
 
     public static final String COORDINATE = "coordinate", DEPENDENCIES = "dependencies", DELEGATE = "delegate";
-    private static final String EXTERNAL_ARTIFACTS = DEPENDENCIES;
 
     private final String coordinate;
     private final Map<String, Repository> repositories;
@@ -111,7 +110,7 @@ public class ExternalModule implements BuildExecutorModule {
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             List<Path> artifacts = new ArrayList<>(
-                    Dependencies.select(delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS), "runtime"));
+                    Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
@@ -122,9 +121,9 @@ public class ExternalModule implements BuildExecutorModule {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
-            forwarded.remove(PREVIOUS + EXTERNAL_ARTIFACTS);
+            forwarded.remove(PREVIOUS + DEPENDENCIES);
             bridge.accept(foreignModule, delegateExecutor, forwarded);
-        }, Stream.concat(Stream.of(EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
+        }, Stream.concat(Stream.of(DEPENDENCIES), inherited.sequencedKeySet().stream()));
     }
 
     private record WriteCoordinates(List<String> coordinates) implements BuildStep {
