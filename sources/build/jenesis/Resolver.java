@@ -58,8 +58,12 @@ public interface Resolver extends Serializable {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-        try (FileChannel channel = FileChannel.open(file)) {
-            digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+        try (InputStream inputStream = Files.newInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = inputStream.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
         }
         if (!Arrays.equals(digest.digest(), HexFormat.of().parseHex(checksum.substring(slash + 1)))) {
             throw new IllegalStateException("Mismatched digest for " + coordinate);
