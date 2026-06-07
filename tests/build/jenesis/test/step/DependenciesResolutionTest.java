@@ -17,7 +17,7 @@ import build.jenesis.step.Dependencies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class ResolveTest {
+public class DependenciesResolutionTest {
 
     @TempDir
     private Path root, artifacts;

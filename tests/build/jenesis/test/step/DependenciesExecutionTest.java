@@ -1,4 +1,4 @@
-package build.jenesis.test.project;
+package build.jenesis.test.step;
 
 import module java.base;
 import module org.junit.jupiter.api;
@@ -13,7 +13,7 @@ import build.jenesis.step.Dependencies;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class DependenciesModuleTest {
+public class DependenciesExecutionTest {
 
     @TempDir
     private Path input, root;
