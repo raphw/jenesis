@@ -345,7 +345,7 @@ public class ScalaCompilerModuleTest {
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 
-        assertThat(outputs).containsKeys("scala/classes", "scala/resolved");
+        assertThat(outputs).containsKeys("scala/classes", "scala/artifacts");
     }
 
     private BuildExecutor newExecutor() throws IOException {

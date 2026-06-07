@@ -22,7 +22,7 @@ import build.jenesis.step.Versions;
 public class KotlinCompilerModule implements BuildExecutorModule {
 
     public static final String ARTIFACTS = "artifacts", CLASSES = "classes";
-    private static final String REQUIRED = "required", RESOLVED = "resolved", COMPILED = "compiled",
+    private static final String REQUIRED = "required", COMPILED = "compiled",
             DEPENDENCIES = "dependencies";
 
     private static final List<String> PREFERRED_PREFIXES = List.of("maven", "module");
@@ -96,9 +96,6 @@ public class KotlinCompilerModule implements BuildExecutorModule {
     public Optional<String> resolve(String path) {
         if (path.equals(CLASSES)) {
             return Optional.of(CLASSES);
-        }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)) {
-            return Optional.of(RESOLVED);
         }
         if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
             return Optional.of(ARTIFACTS);

@@ -5,6 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.DependencyScope;
 import build.jenesis.ResolutionContext;
 import build.jenesis.ResolutionListener;
+import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenDependencyKey;
@@ -29,7 +30,7 @@ public class MavenPomResolverTest {
 
     @BeforeEach
     public void setUp() throws Exception {
-        mavenRepository = new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {});
+        mavenRepository = new MavenDefaultRepository(repository.toUri(), repository, Map.of(), _ -> {});
         mavenPomResolver = new MavenPomResolver(MavenDefaultVersionNegotiator.maven());
     }
 
@@ -3781,6 +3782,17 @@ public class MavenPomResolverTest {
                 .resolve(artifactId + "-" + version + ".pom"), pom);
     }
 
+    private void addJarToRepository(String groupId, String artifactId, String version) throws IOException {
+        addJarToRepository(groupId, artifactId, version, null);
+    }
+
+    private void addJarToRepository(String groupId, String artifactId, String version, String classifier) throws IOException {
+        Files.write(Files
+                        .createDirectories(repository.resolve(groupId + "/" + artifactId + "/" + version))
+                        .resolve(artifactId + "-" + version + (classifier == null ? "" : "-" + classifier) + ".jar"),
+                (groupId + ":" + artifactId + ":" + version).getBytes(StandardCharsets.UTF_8));
+    }
+
     private static String sha256Hex(String text) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
     }
@@ -4020,9 +4032,12 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("other", "artifact", "1");
+        addJarToRepository("pinned", "artifact", "2");
         SequencedMap<String, String> versions = new LinkedHashMap<>();
         versions.put("pinned/artifact/jar", "2");
-        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = mavenPomResolver.dependencies(
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
@@ -4062,9 +4077,11 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("pinned", "artifact", "5");
         SequencedMap<String, String> versions = new LinkedHashMap<>();
         versions.put("pinned/artifact", "5");
-        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = mavenPomResolver.dependencies(
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
@@ -4104,9 +4121,11 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("pinned", "artifact", "3", "sources");
         SequencedMap<String, String> versions = new LinkedHashMap<>();
         versions.put("pinned/artifact/jar/sources", "3");
-        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = mavenPomResolver.dependencies(
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
@@ -4139,7 +4158,9 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("other", "artifact", "1");
+        SequencedMap<String, Resolver.Resolved> resolved = mavenPomResolver.dependencies(
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),
@@ -4191,9 +4212,12 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("middle", "artifact", "1");
+        addJarToRepository("deep", "artifact", "7");
         SequencedMap<String, String> versions = new LinkedHashMap<>();
         versions.put("deep/artifact/jar", "7");
-        SequencedMap<String, String> resolved = mavenPomResolver.dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = mavenPomResolver.dependencies(
                 Runnable::run,
                 "maven",
                 Map.of("maven", mavenRepository),

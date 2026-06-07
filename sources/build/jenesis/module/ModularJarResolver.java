@@ -24,7 +24,7 @@ public class ModularJarResolver implements Resolver {
     }
 
     @Override
-    public SequencedMap<String, String> dependencies(Executor executor,
+    public SequencedMap<String, Resolver.Resolved> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
@@ -37,7 +37,7 @@ public class ModularJarResolver implements Resolver {
                         "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
             }
         });
-        SequencedMap<String, String> dependencies = new LinkedHashMap<>();
+        SequencedMap<String, Resolver.Resolved> dependencies = new LinkedHashMap<>();
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
@@ -145,7 +145,12 @@ public class ModularJarResolver implements Resolver {
                 }
                 String version = requested != null ? requested : declared;
                 String currentCoordinate = prefix + "/" + current + (version == null ? "" : "/" + version);
-                dependencies.put(currentCoordinate, checksum == null ? "" : checksum);
+                Path jar = item.file().orElseThrow(() -> new IllegalStateException(
+                        "Repository did not materialize a file for " + current));
+                if (checksum != null && !checksum.isEmpty()) {
+                    Resolver.validate(jar, checksum, currentCoordinate);
+                }
+                dependencies.put(currentCoordinate, new Resolver.Resolved(jar, checksum == null ? "" : checksum, item.internal()));
                 resolved.add(current);
                 if (observes) {
                     moduleCoordinates.put(current, currentCoordinate);

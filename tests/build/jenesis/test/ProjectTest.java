@@ -235,8 +235,8 @@ public class ProjectTest {
                         BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler(), null);
-        assertThat(resolver.apply("sources/compile/dependencies/resolved"))
-                .isEqualTo("build/maven/compose/module/module-sources/compile/dependencies/resolved");
+        assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
+                .isEqualTo("build/maven/compose/module/module-sources/compile/dependencies/artifacts");
         assertThat(resolver.apply("/compile"))
                 .isEqualTo("build/maven/compose/module/module-/compile");
     }
@@ -253,8 +253,8 @@ public class ProjectTest {
                         BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler(), null);
-        assertThat(resolver.apply("sources/compile/dependencies/resolved"))
-                .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/resolved");
+        assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
+                .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/artifacts");
         assertThat(resolver.apply("/compile"))
                 .isEqualTo("build/modules/compose/module/module-/compile");
     }
@@ -271,8 +271,8 @@ public class ProjectTest {
                         BuildExecutorCallback.nop(), false),
                 project,
                 new JavaMultiProjectAssembler(), null);
-        assertThat(resolver.apply("sources/compile/dependencies/resolved"))
-                .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/resolved");
+        assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
+                .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/artifacts");
         assertThat(resolver.apply("/compile"))
                 .isEqualTo("build/modules/compose/module/module-/compile");
     }

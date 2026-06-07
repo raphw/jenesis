@@ -39,8 +39,8 @@ public class DependenciesModuleTest {
                         coordinate.getBytes(StandardCharsets.UTF_8)))),
                 Map.of("foo", Resolver.identity())), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps).containsKeys("output/resolved", "output/artifacts");
-        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/resolved").resolve(BuildStep.TRANSITIVES));
+        assertThat(steps).containsKey("output/artifacts");
+        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/artifacts").resolve(BuildStep.TRANSITIVES));
         assertThat(resolved.stringPropertyNames()).containsExactly("compile/foo/bar");
         assertThat(resolved.getProperty("compile/foo/bar")).isEqualTo("");
         assertThat(steps.get("output/artifacts")

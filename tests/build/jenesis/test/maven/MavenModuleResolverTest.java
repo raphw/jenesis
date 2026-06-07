@@ -5,6 +5,7 @@ import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenModuleResolver;
@@ -27,6 +28,7 @@ public class MavenModuleResolverTest {
 
     @Test
     public void resolves_from_unpinned_discovery_pom() throws IOException {
+        addJarToMavenRepository("org.example", "example-core", "1.2.3");
         Map<String, String> fetched = new LinkedHashMap<>();
         Repository discovery = stubRepository(fetched, Map.of("foo.bar:pom", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -35,20 +37,22 @@ public class MavenModuleResolverTest {
                     <version>1.2.3</version>
                 </project>"""));
 
-        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsExactly(Map.entry("maven/org.example/example-core/1.2.3", ""));
+        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.2.3");
+        assertThat(resolved.get("maven/org.example/example-core/1.2.3").checksum()).isEmpty();
         assertThat(fetched).containsOnlyKeys("foo.bar:pom");
     }
 
     @Test
     public void pinned_version_forces_versioned_fetch() throws IOException {
+        addJarToMavenRepository("org.example", "example-core", "9.9");
         Map<String, String> fetched = new LinkedHashMap<>();
         Repository discovery = stubRepository(fetched, Map.of("foo.bar/9.9:pom", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -57,20 +61,21 @@ public class MavenModuleResolverTest {
                     <version>9.9</version>
                 </project>"""));
 
-        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("foo.bar", "9.9")),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsExactly(Map.entry("maven/org.example/example-core/9.9", ""));
+        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/9.9");
         assertThat(fetched).containsOnlyKeys("foo.bar/9.9:pom");
     }
 
     @Test
-    public void threads_pinned_checksum_into_resolved_root() throws IOException {
+    public void threads_pinned_checksum_into_resolved_root() throws IOException, NoSuchAlgorithmException {
+        String checksum = "SHA-256/" + addJarToMavenRepository("org.example", "example-core", "1.0");
         Repository discovery = stubRepository(new LinkedHashMap<>(), Map.of("foo.bar/1.0:pom", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                     <groupId>org.example</groupId>
@@ -78,15 +83,16 @@ public class MavenModuleResolverTest {
                     <version>1.0</version>
                 </project>"""));
 
-        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of("foo.bar", "1.0 SHA-256/deadbeef")),
+                new LinkedHashMap<>(Map.of("foo.bar", "1.0 " + checksum)),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsExactly(Map.entry("maven/org.example/example-core/1.0", "SHA-256/deadbeef"));
+        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.0");
+        assertThat(resolved.get("maven/org.example/example-core/1.0").checksum()).isEqualTo(checksum);
     }
 
     @Test
@@ -97,6 +103,8 @@ public class MavenModuleResolverTest {
                     <artifactId>lib</artifactId>
                     <version>2.0</version>
                 </project>""");
+        addJarToMavenRepository("org.example", "example-core", "1.0");
+        addJarToMavenRepository("org.transitive", "lib", "2.0");
         Repository discovery = stubRepository(new LinkedHashMap<>(), Map.of("foo.bar:pom", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                     <groupId>org.example</groupId>
@@ -111,21 +119,22 @@ public class MavenModuleResolverTest {
                     </dependencies>
                 </project>"""));
 
-        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsExactly(
-                Map.entry("maven/org.example/example-core/1.0", ""),
-                Map.entry("maven/org.transitive/lib/2.0", ""));
+        assertThat(resolved).containsOnlyKeys(
+                "maven/org.example/example-core/1.0",
+                "maven/org.transitive/lib/2.0");
     }
 
     @Test
     public void does_not_refetch_root_pom_from_maven_repository() throws IOException {
+        addJarToMavenRepository("org.example", "example-core", "1.0");
         Map<String, String> fetched = new LinkedHashMap<>();
         Repository discovery = stubRepository(fetched, Map.of("foo.bar:pom", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -137,7 +146,7 @@ public class MavenModuleResolverTest {
         new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE);
@@ -152,7 +161,7 @@ public class MavenModuleResolverTest {
         assertThatThrownBy(() -> new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE))
@@ -167,7 +176,7 @@ public class MavenModuleResolverTest {
         assertThatThrownBy(() -> new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", new LinkedHashSet<>(List.of("org.x/y")))),
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE))
@@ -196,6 +205,9 @@ public class MavenModuleResolverTest {
                     <artifactId>lib</artifactId>
                     <version>2.0</version>
                 </project>""");
+        addJarToMavenRepository("org.example", "example-core", "1.0");
+        addJarToMavenRepository("org.mid", "mid", "1.0");
+        addJarToMavenRepository("org.transitive", "lib", "2.0");
         Repository discovery = stubRepository(new LinkedHashMap<>(), Map.of("foo.bar:pom", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                     <groupId>org.example</groupId>
@@ -219,18 +231,18 @@ public class MavenModuleResolverTest {
                     </dependencies>
                 </project>"""));
 
-        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsExactly(
-                Map.entry("maven/org.example/example-core/1.0", ""),
-                Map.entry("maven/org.mid/mid/1.0", ""),
-                Map.entry("maven/org.transitive/lib/2.0", ""));
+        assertThat(resolved).containsOnlyKeys(
+                "maven/org.example/example-core/1.0",
+                "maven/org.mid/mid/1.0",
+                "maven/org.transitive/lib/2.0");
     }
 
     @Test
@@ -254,6 +266,9 @@ public class MavenModuleResolverTest {
                     <artifactId>lib</artifactId>
                     <version>2.0</version>
                 </project>""");
+        addJarToMavenRepository("org.example", "example-core", "1.0");
+        addJarToMavenRepository("org.mid", "mid", "1.0");
+        addJarToMavenRepository("org.transitive", "lib", "2.0");
         Map<String, String> fetched = new LinkedHashMap<>();
         Repository discovery = stubRepository(fetched, Map.of(
                 "foo.bar:pom", """
@@ -276,18 +291,18 @@ public class MavenModuleResolverTest {
                             <version>2.0</version>
                         </project>"""));
 
-        SequencedMap<String, String> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
+        SequencedMap<String, Resolver.Resolved> resolved = new MavenModuleResolver("maven", mavenPomResolver, discovery).dependencies(
                 Runnable::run,
                 "module",
-                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {})),
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("lib.module", "2.0")),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsExactly(
-                Map.entry("maven/org.example/example-core/1.0", ""),
-                Map.entry("maven/org.mid/mid/1.0", ""),
-                Map.entry("maven/org.transitive/lib/2.0", ""));
+        assertThat(resolved).containsOnlyKeys(
+                "maven/org.example/example-core/1.0",
+                "maven/org.mid/mid/1.0",
+                "maven/org.transitive/lib/2.0");
         assertThat(fetched).containsOnlyKeys("foo.bar:pom", "lib.module/2.0:pom");
     }
 
@@ -306,5 +321,17 @@ public class MavenModuleResolverTest {
         Files.writeString(Files
                 .createDirectories(mavenRepoFolder.resolve(groupId.replace('.', '/') + "/" + artifactId + "/" + version))
                 .resolve(artifactId + "-" + version + ".pom"), pom);
+    }
+
+    private String addJarToMavenRepository(String groupId, String artifactId, String version) throws IOException {
+        byte[] content = (groupId + ":" + artifactId + ":" + version).getBytes(StandardCharsets.UTF_8);
+        Files.write(Files
+                .createDirectories(mavenRepoFolder.resolve(groupId.replace('.', '/') + "/" + artifactId + "/" + version))
+                .resolve(artifactId + "-" + version + ".jar"), content);
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

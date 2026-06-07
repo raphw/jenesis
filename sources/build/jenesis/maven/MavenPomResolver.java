@@ -28,7 +28,7 @@ public class MavenPomResolver implements MavenResolver {
     }
 
     @Override
-    public SequencedMap<String, String> dependencies(Executor executor,
+    public SequencedMap<String, Resolver.Resolved> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
@@ -82,7 +82,7 @@ public class MavenPomResolver implements MavenResolver {
                 listener).forEach((key, value) -> resolved.put(
                         key.coordinate(prefix, value.version()),
                         value.checksum() == null ? "" : value.checksum()));
-        return resolved;
+        return Resolver.materializeAll(executor, repositories, prefix, resolved);
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(

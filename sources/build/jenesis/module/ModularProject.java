@@ -20,7 +20,6 @@ import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Download;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Resolve;
@@ -92,18 +91,14 @@ public class ModularProject implements BuildExecutorModule {
                                         identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
                                         digest),
                                 depInherited.sequencedKeySet());
-                        depExec.addStep(DependenciesModule.RESOLVED,
-                                new Resolve(mergedRepositories, resolvers).pinned(pinning != Pinning.IGNORE).listening(listener),
-                                PREPARE);
                         depExec.addStep(DependenciesModule.ARTIFACTS,
-                                new Download(mergedRepositories).pinning(pinning),
-                                DependenciesModule.RESOLVED);
+                                new Resolve(mergedRepositories, resolvers).pinning(pinning).listening(listener),
+                                PREPARE);
                     }, inherited.sequencedKeySet());
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES, COORDINATES);
-                    produceDeps.put(DEPENDENCIES + "/" + DependenciesModule.RESOLVED, DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
                     produceDeps.put(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS, DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
@@ -276,11 +271,6 @@ public class ModularProject implements BuildExecutorModule {
         @Override
         public SequencedSet<String> artifacts() {
             return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
-        }
-
-        @Override
-        public SequencedSet<String> resolved() {
-            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
         }
 
         private static SequencedSet<String> of(String value) {

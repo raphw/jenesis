@@ -70,8 +70,8 @@ For each module the wrapper does three things:
    redirected to the `preprocess` step instead of the original source folder.
    `ProjectModuleDescriptor` is immutable with a wither per property, so this is
    a one-liner: `descriptor.sources("preprocess")`. Every reference
-   accessor (`sources`, `resources`, `manifests`, `coordinates`, `artifacts`,
-   `resolved`) returns a `SequencedSet<String>`, so a customizer can add folders
+   accessor (`dependencies`, `sources`, `resources`, `manifests`, `coordinates`,
+   `artifacts`, `content`) returns a `SequencedSet<String>`, so a customizer can add folders
    as readily as replace them.
 3. Runs the stock assembler's module unchanged. Because its `sources()` now
    points at the preprocessed tree, `javac`, the jar step, and (when present)

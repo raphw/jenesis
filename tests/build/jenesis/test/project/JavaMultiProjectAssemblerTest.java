@@ -236,7 +236,6 @@ public class JavaMultiProjectAssemblerTest {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
-        Path resolved = Files.createDirectory(root.resolve("resolved"));
         Path artifacts = Files.createDirectory(root.resolve("artifacts"));
         Path build = Files.createDirectory(root.resolve("build"));
         ProjectModule base = new ProjectModule() {
@@ -271,11 +270,6 @@ public class JavaMultiProjectAssemblerTest {
             }
 
             @Override
-            public SequencedSet<String> resolved() {
-                return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "resolved"));
-            }
-
-            @Override
             public SequencedSet<String> artifacts() {
                 return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "artifacts"));
             }
@@ -289,10 +283,9 @@ public class JavaMultiProjectAssemblerTest {
                 BuildExecutorCallback.nop(), false);
         executor.addSource("manifests", manifests);
         executor.addSource("sources", sources);
-        executor.addSource("resolved", resolved);
         executor.addSource("artifacts", artifacts);
         executor.addModule("sub", assembled,
-                "manifests", "sources", "resolved", "artifacts");
+                "manifests", "sources", "artifacts");
         return new Fixture(executor, manifests, sources);
     }
 

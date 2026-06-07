@@ -8,6 +8,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
+import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -338,12 +339,12 @@ public class KotlinCompilerModuleTest {
         executor.addSource("project", project);
         executor.addModule(
                 "kotlin",
-                new KotlinCompilerModule(Map.of(), Map.of("maven", Resolver.identity()))
+                new KotlinCompilerModule(Map.of("maven", files()), Map.of("maven", Resolver.identity()))
                         .qualifier("kotlin"),
                 "project");
-        executor.execute("kotlin/dependencies/resolved");
+        executor.execute("kotlin/dependencies/artifacts");
 
-        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("resolved").resolve("output");
+        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("artifacts").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.TRANSITIVES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
@@ -361,7 +362,7 @@ public class KotlinCompilerModuleTest {
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 
-        assertThat(outputs).containsKeys("kotlin/classes", "kotlin/resolved");
+        assertThat(outputs).containsKeys("kotlin/classes", "kotlin/artifacts");
     }
 
     private BuildExecutor newExecutor() throws IOException {
@@ -370,6 +371,15 @@ public class KotlinCompilerModuleTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
+    }
+
+    private Repository files() {
+        return (_, coordinate) -> {
+            Path file = Files.write(
+                    Files.createDirectories(root.resolve("served")).resolve(coordinate.replace('/', '-') + ".jar"),
+                    coordinate.getBytes(StandardCharsets.UTF_8));
+            return Optional.of(RepositoryItem.ofFile(file));
+        };
     }
 
     private static Repository mavenCentral() {

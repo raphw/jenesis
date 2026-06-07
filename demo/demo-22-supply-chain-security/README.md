@@ -25,7 +25,7 @@ The first line shows the baseline: a version-only pin is accepted by default.
 Passing `pinning(Pinning.STRICT)` (the in-code form of
 `-Djenesis.dependency.pin=strict`) then turns any unpinned coordinate into a
 build failure - useful in a hardened environment that should never download an
-unverified artifact. The `tampered` module needs no such flag: `Download` hashes
+unverified artifact. The `tampered` module needs no such flag: `Resolve` hashes
 every fetched file and compares it to the pin, so a coordinate whose bytes do not
 match its recorded `SHA-256` is rejected outright - exactly what would happen if a
 repository served a swapped or compromised artifact.
