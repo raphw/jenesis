@@ -34,7 +34,7 @@ public class DownloadTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8))))).apply(
@@ -42,7 +42,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
@@ -52,7 +52,7 @@ public class DownloadTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
@@ -71,7 +71,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
@@ -82,7 +82,7 @@ public class DownloadTest {
         properties.setProperty("compile/foo/bar", "");
         properties.setProperty("runtime/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -91,7 +91,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
                 .cause()
                 .isInstanceOf(RuntimeException.class)
                 .cause()
@@ -105,7 +105,7 @@ public class DownloadTest {
                 MessageDigest.getInstance("SHA256").digest("bar".getBytes(StandardCharsets.UTF_8))));
         properties.setProperty("runtime/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -114,7 +114,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Conflicting checksums pinned for foo/bar");
     }
@@ -124,7 +124,7 @@ public class DownloadTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -133,7 +133,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
                 .cause()
                 .isInstanceOf(RuntimeException.class)
                 .cause()
@@ -146,7 +146,7 @@ public class DownloadTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -155,7 +155,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
@@ -168,7 +168,7 @@ public class DownloadTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "SHA256/" + HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA256").digest("other".getBytes(StandardCharsets.UTF_8))));
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, _) -> {
@@ -179,7 +179,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(previous.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
@@ -189,7 +189,7 @@ public class DownloadTest {
     public void can_resolve_dependencies_without_hash() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "");
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -198,7 +198,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
@@ -207,7 +207,7 @@ public class DownloadTest {
     public void can_resolve_dependencies_from_file_without_hash() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "");
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of("foo", (_, bar) -> {
             Path file = Files.writeString(files.resolve(bar), bar);
             return Optional.of(new RepositoryItem() {
@@ -226,7 +226,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }
@@ -238,7 +238,7 @@ public class DownloadTest {
                 .resolve("foo-bar.jar"), "other");
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "");
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, _) -> {
@@ -249,7 +249,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(previous.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("other");
@@ -259,7 +259,7 @@ public class DownloadTest {
     public void fails_when_requireChecksums_is_true_and_hash_is_missing() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "");
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         assertThatThrownBy(() -> new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -268,7 +268,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
                 .hasMessageContaining("No checksum pinned for foo/bar")
@@ -279,7 +279,7 @@ public class DownloadTest {
     public void permits_missing_hash_when_requireChecksums_is_false() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("compile/foo/bar", "");
-        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        properties.store(dependencies.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Download(Map.of(
                 "foo",
                 (_, bar) -> Optional.of(() -> new ByteArrayInputStream(bar.getBytes(StandardCharsets.UTF_8)))
@@ -288,7 +288,7 @@ public class DownloadTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.TRANSITIVES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DEPENDENCIES + "foo-bar.jar")).content().isEqualTo("bar");
     }

@@ -31,7 +31,7 @@ public class Download implements BuildStep {
 
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(Path.of(REQUIRES)));
+        return arguments.values().stream().anyMatch(argument -> argument.hasChanged(Path.of(TRANSITIVES)));
     }
 
     @Override
@@ -41,7 +41,7 @@ public class Download implements BuildStep {
             throws IOException {
         SequencedMap<String, String> merged = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path file = argument.folder().resolve(REQUIRES);
+            Path file = argument.folder().resolve(TRANSITIVES);
             if (!Files.exists(file)) {
                 continue;
             }

@@ -75,7 +75,9 @@ public class MultiProjectDependencies implements BuildStep {
         }
         SequencedProperties properties = new SequencedProperties();
         for (Map.Entry<String, String> entry : dependencies.entrySet()) {
-            String candidate = coordinates.get(entry.getKey().substring(entry.getKey().indexOf('/') + 1));
+            String key = entry.getKey();
+            int second = key.indexOf('/', key.indexOf('/') + 1);
+            String candidate = coordinates.get(key.substring(second + 1));
             properties.setProperty(entry.getKey(),
                     candidate != null && !candidate.isEmpty()
                             ? digest.encodedHash(Path.of(candidate))

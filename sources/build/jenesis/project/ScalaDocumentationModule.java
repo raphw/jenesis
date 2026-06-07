@@ -129,9 +129,9 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(qualifier + "/" + coordinate, "");
+            requires.setProperty(qualifier + "/" + qualifier + "/" + coordinate, "");
             if (selectedPrefix.equals("maven")) {
-                requires.setProperty(qualifier + "/" + selectedPrefix + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
+                requires.setProperty(qualifier + "/" + qualifier + "/" + selectedPrefix + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));

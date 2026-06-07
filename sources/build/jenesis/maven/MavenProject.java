@@ -225,24 +225,25 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
                                     String value = checksumByCoordinate.getOrDefault(dependency, "");
-                                    requires.setProperty("compile/" + dependency, value);
-                                    requires.setProperty("runtime/" + dependency, value);
+                                    requires.setProperty("main/compile/" + dependency, value);
+                                    requires.setProperty("main/runtime/" + dependency, value);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
-                                    requires.setProperty("compile/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
+                                    requires.setProperty("main/compile/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
-                                    requires.setProperty("runtime/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
+                                    requires.setProperty("main/runtime/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
                                     String value = checksumByCoordinate.getOrDefault(dependency, "");
-                                    requires.setProperty("compile/" + dependency, value);
-                                    requires.setProperty("runtime/" + dependency, value);
+                                    requires.setProperty("main/compile/" + dependency, value);
+                                    requires.setProperty("main/runtime/" + dependency, value);
                                 }
                                 requires.store(context.next().resolve(BuildStep.REQUIRES));
                                 SequencedProperties exclusionsProperties = new SequencedProperties();
                                 for (String key : requires.stringPropertyNames()) {
-                                    String exclusion = properties.getProperty("exclusions." + key.substring(key.indexOf('/') + 1));
+                                    int scopeSlash = key.indexOf('/', key.indexOf('/') + 1);
+                                    String exclusion = properties.getProperty("exclusions." + key.substring(scopeSlash + 1));
                                     if (exclusion != null) {
                                         exclusionsProperties.setProperty(key, exclusion);
                                     }
@@ -256,8 +257,8 @@ public class MavenProject implements BuildExecutorModule {
                                     for (String entry : managed.split(",")) {
                                         int split = entry.indexOf('=');
                                         String coord = entry.substring(0, split), version = entry.substring(split + 1);
-                                        versions.setProperty("compile/" + coord, version);
-                                        versions.setProperty("runtime/" + coord, version);
+                                        versions.setProperty("main/compile/" + coord, version);
+                                        versions.setProperty("main/runtime/" + coord, version);
                                     }
                                 }
                                 if (!versions.isEmpty()) {

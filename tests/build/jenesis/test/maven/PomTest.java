@@ -34,14 +34,14 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/pom/1.0.0", "/somewhere/pom.xml");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("compile/maven/org.example/lib/1.2.3", "");
-        dependencies.setProperty("runtime/maven/org.example/lib/1.2.3", "");
-        dependencies.setProperty("compile/maven/org.example/other/jar/4.5.6", "");
-        dependencies.setProperty("runtime/maven/org.example/other/jar/4.5.6", "");
-        dependencies.setProperty("compile/maven/org.example/zip/zip/7.8.9", "");
-        dependencies.setProperty("runtime/maven/org.example/zip/zip/7.8.9", "");
-        dependencies.setProperty("compile/module/com.example.foo", "");
-        dependencies.setProperty("runtime/module/com.example.foo", "");
+        dependencies.setProperty("main/compile/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("main/runtime/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("main/compile/maven/org.example/other/jar/4.5.6", "");
+        dependencies.setProperty("main/runtime/maven/org.example/other/jar/4.5.6", "");
+        dependencies.setProperty("main/compile/maven/org.example/zip/zip/7.8.9", "");
+        dependencies.setProperty("main/runtime/maven/org.example/zip/zip/7.8.9", "");
+        dependencies.setProperty("main/compile/module/com.example.foo", "");
+        dependencies.setProperty("main/runtime/module/com.example.foo", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
@@ -94,9 +94,9 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties requires = new SequencedProperties();
-        requires.setProperty("compile/maven/org.example/lib/1.2.3", "");
-        requires.setProperty("runtime/maven/org.example/lib/1.2.3", "");
-        requires.setProperty("compile/maven/org.example/static-lib/4.5.6", "");
+        requires.setProperty("main/compile/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("main/runtime/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("main/compile/maven/org.example/static-lib/4.5.6", "");
         requires.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
@@ -131,9 +131,9 @@ public class PomTest {
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
         coordinates.store(argument.resolve(BuildStep.IDENTITY));
         SequencedProperties requires = new SequencedProperties();
-        requires.setProperty("compile/maven/org.example/lib/1.2.3", "");
-        requires.setProperty("runtime/maven/org.example/lib/1.2.3", "");
-        requires.setProperty("runtime/maven/org.example/runtime-only/4.5.6", "");
+        requires.setProperty("main/compile/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("main/runtime/maven/org.example/lib/1.2.3", "");
+        requires.setProperty("main/runtime/maven/org.example/runtime-only/4.5.6", "");
         requires.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
@@ -164,8 +164,8 @@ public class PomTest {
     @Test
     public void metadata_version_is_emitted_in_pom() throws IOException {
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("compile/maven/org.example/lib/1.2.3", "");
-        dependencies.setProperty("runtime/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("main/compile/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("main/runtime/maven/org.example/lib/1.2.3", "");
         dependencies.store(argument.resolve(BuildStep.REQUIRES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");

@@ -32,8 +32,8 @@ public class ResolveTest {
     @Test
     public void can_resolve_dependencies() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("compile/foo/qux", "");
-        properties.setProperty("compile/foo/baz", "");
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.setProperty("main/compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -51,7 +51,7 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
                 "compile/foo/transitive/qux",
                 "compile/foo/baz",
@@ -64,7 +64,7 @@ public class ResolveTest {
     @Test
     public void resolves_a_non_main_scope_through_its_base_resolver() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("plugin:kotlin/maven/org.jetbrains/something", "");
+        properties.setProperty("plugin:kotlin/plugin:kotlin/maven/org.jetbrains/something", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("maven", Repository.empty()), Map.of("maven", (_, prefix, _, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -79,15 +79,15 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
         assertThat(resolved.stringPropertyNames()).containsExactly("plugin:kotlin/maven/org.jetbrains/something");
     }
 
     @Test
     public void can_resolve_dependencies_with_predefined_checksum() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("compile/foo/qux", "bar");
-        properties.setProperty("compile/foo/baz", "");
+        properties.setProperty("main/compile/foo/qux", "bar");
+        properties.setProperty("main/compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -105,7 +105,7 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
                 "compile/foo/transitive/qux",
                 "compile/foo/baz",
@@ -119,8 +119,8 @@ public class ResolveTest {
     @Test
     public void can_resolve_dependencies_with_resolved_checksum() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("compile/foo/qux", "bar");
-        properties.setProperty("compile/foo/baz", "");
+        properties.setProperty("main/compile/foo/qux", "bar");
+        properties.setProperty("main/compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -138,7 +138,7 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
                 "compile/foo/transitive/qux",
                 "compile/foo/baz",
@@ -152,8 +152,8 @@ public class ResolveTest {
     @Test
     public void runtime_inherits_the_compile_mediated_version() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("compile/foo/lib", "");
-        properties.setProperty("runtime/foo/lib", "");
+        properties.setProperty("main/compile/foo/lib", "");
+        properties.setProperty("main/runtime/foo/lib", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, bom, intent, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -171,9 +171,64 @@ public class ResolveTest {
                                 Path.of(BuildStep.REQUIRES),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
         assertThat(dependencies.stringPropertyNames())
                 .containsExactlyInAnyOrder("compile/foo/lib/1.0", "runtime/foo/lib/1.0");
+    }
+
+    @Test
+    public void secondary_scope_in_a_custom_group_inherits_the_compile_mediated_version() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("custom/compile/foo/lib", "");
+        properties.setProperty("custom/extra/foo/lib", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, bom, intent, _) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.sequencedKeySet().forEach(descriptor -> {
+                String version = intent == DependencyScope.COMPILE ? "1.0" : bom.getOrDefault(descriptor, "FLOAT");
+                resolved.put(prefix + "/" + descriptor + "/" + version, "");
+            });
+            return resolved;
+        })).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
+        assertThat(dependencies.stringPropertyNames())
+                .containsExactlyInAnyOrder("compile/foo/lib/1.0", "extra/foo/lib/1.0");
+    }
+
+    @Test
+    public void same_coordinate_in_distinct_groups_resolves_independently() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/lib", "");
+        properties.setProperty("main/extra/foo/lib", "");
+        properties.setProperty("other/extra/foo/lib", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Resolve(Map.of("foo", Repository.empty()), Map.of("foo", (_, prefix, _, descriptors, bom, intent, _) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.sequencedKeySet().forEach(descriptor -> {
+                String version = intent == DependencyScope.COMPILE ? "1.0" : bom.getOrDefault(descriptor, "FLOAT");
+                resolved.put(prefix + "/" + descriptor + "/" + version, "");
+            });
+            return resolved;
+        })).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
+        assertThat(dependencies.stringPropertyNames())
+                .containsExactlyInAnyOrder("compile/foo/lib/1.0", "extra/foo/lib/1.0", "extra/foo/lib/FLOAT");
     }
 
     @Test
@@ -193,6 +248,6 @@ public class ResolveTest {
                                 ChecksumStatus.ADDED))))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("bar")
-                .hasMessageContaining("<scope>/<repository>/<coordinate>");
+                .hasMessageContaining("<group>/<scope>/<repository>/<coordinate>");
     }
 }

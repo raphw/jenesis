@@ -201,16 +201,16 @@ public class InternalModule implements BuildExecutorModule {
             ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
             for (String dependency : info.requires()) {
-                properties.setProperty("compile/" + prefix + "/" + dependency, "");
+                properties.setProperty("main/compile/" + prefix + "/" + dependency, "");
                 if (info.runtimeRequires().contains(dependency)) {
-                    properties.setProperty("runtime/" + prefix + "/" + dependency, "");
+                    properties.setProperty("main/runtime/" + prefix + "/" + dependency, "");
                 }
             }
             for (String dependency : additionalDependencies) {
-                properties.setProperty("compile/" + dependency, "");
-                properties.setProperty("runtime/" + dependency, "");
+                properties.setProperty("main/compile/" + dependency, "");
+                properties.setProperty("main/runtime/" + dependency, "");
             }
-            info.plugins().forEach((coordinate, scope) -> properties.setProperty(scope + "/" + coordinate, ""));
+            info.plugins().forEach((coordinate, scope) -> properties.setProperty(scope + "/" + scope + "/" + coordinate, ""));
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedProperties versions = pinnedVersions(arguments);
             if (!versions.isEmpty()) {

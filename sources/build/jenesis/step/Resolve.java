@@ -58,9 +58,9 @@ public class Resolve implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> requires = new LinkedHashMap<>();
-        SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> versions = new LinkedHashMap<>();
-        SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>> exclusions = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> requires = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> versions = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>>> exclusions = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path requiresFile = argument.folder().resolve(REQUIRES);
             if (Files.exists(requiresFile)) {
@@ -72,7 +72,8 @@ public class Resolve implements BuildStep {
                     }
                     requires.computeIfAbsent(parts[0], _ -> new LinkedHashMap<>())
                             .computeIfAbsent(parts[1], _ -> new LinkedHashMap<>())
-                            .merge(parts[2], properties.getProperty(key), (left, right) -> left.isEmpty() ? right : left);
+                            .computeIfAbsent(parts[2], _ -> new LinkedHashMap<>())
+                            .merge(parts[3], properties.getProperty(key), (left, right) -> left.isEmpty() ? right : left);
                 }
             }
             Path versionsFile = argument.folder().resolve(VERSIONS);
@@ -85,11 +86,12 @@ public class Resolve implements BuildStep {
                                 + key
                                 + "' in "
                                 + versionsFile
-                                + ": expected <scope>/<repository>/<coordinate>");
+                                + ": expected <group>/<scope>/<repository>/<coordinate>");
                     }
                     versions.computeIfAbsent(parts[0], _ -> new LinkedHashMap<>())
                             .computeIfAbsent(parts[1], _ -> new LinkedHashMap<>())
-                            .putIfAbsent(parts[2], properties.getProperty(key));
+                            .computeIfAbsent(parts[2], _ -> new LinkedHashMap<>())
+                            .putIfAbsent(parts[3], properties.getProperty(key));
                 }
             }
             Path exclusionsFile = argument.folder().resolve(EXCLUSIONS);
@@ -109,65 +111,71 @@ public class Resolve implements BuildStep {
                     }
                     exclusions.computeIfAbsent(parts[0], _ -> new LinkedHashMap<>())
                             .computeIfAbsent(parts[1], _ -> new LinkedHashMap<>())
-                            .put(parts[2], excludes);
+                            .computeIfAbsent(parts[2], _ -> new LinkedHashMap<>())
+                            .put(parts[3], excludes);
                 }
             }
         }
         SequencedProperties resolved = new SequencedProperties();
-        SequencedMap<String, SequencedMap<String, String>> compileVersions = new LinkedHashMap<>();
-        List<String> order = new ArrayList<>(requires.sequencedKeySet());
-        order.sort((left, right) -> left.equals("compile") == right.equals("compile")
-                ? left.compareTo(right)
-                : (left.equals("compile") ? -1 : 1));
-        for (String scope : order) {
-            DependencyScope intent = scope.equals("compile") ? DependencyScope.COMPILE : DependencyScope.RUNTIME;
-            for (Map.Entry<String, SequencedMap<String, String>> repoEntry : requires.get(scope).entrySet()) {
-                String repo = repoEntry.getKey();
-                Resolver resolver = requireNonNull(resolvers.get(Resolver.base(repo)), "Unknown resolver: " + Resolver.base(repo));
-                SequencedMap<String, SequencedSet<String>> repoExclusions = exclusions
-                        .getOrDefault(scope, new LinkedHashMap<>())
-                        .getOrDefault(repo, new LinkedHashMap<>());
-                SequencedMap<String, SequencedSet<String>> coordinates = new LinkedHashMap<>();
-                for (String coordinate : repoEntry.getValue().sequencedKeySet()) {
-                    coordinates.put(coordinate, repoExclusions.getOrDefault(coordinate, Collections.emptyNavigableSet()));
-                }
-                SequencedMap<String, String> bom = new LinkedHashMap<>();
-                if (pinned) {
-                    bom.putAll(versions.getOrDefault(scope, new LinkedHashMap<>()).getOrDefault(repo, new LinkedHashMap<>()));
-                    for (String managed : resolver.managedPrefixes()) {
-                        versions.getOrDefault(scope, new LinkedHashMap<>())
-                                .getOrDefault(managed, new LinkedHashMap<>())
-                                .forEach(bom::putIfAbsent);
+        for (Map.Entry<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> groupEntry : requires.entrySet()) {
+            String group = groupEntry.getKey();
+            SequencedMap<String, SequencedMap<String, String>> compileVersions = new LinkedHashMap<>();
+            List<String> order = new ArrayList<>(groupEntry.getValue().sequencedKeySet());
+            order.sort((left, right) -> left.equals("compile") == right.equals("compile")
+                    ? left.compareTo(right)
+                    : (left.equals("compile") ? -1 : 1));
+            for (String scope : order) {
+                DependencyScope intent = scope.equals("compile") ? DependencyScope.COMPILE : DependencyScope.RUNTIME;
+                for (Map.Entry<String, SequencedMap<String, String>> repoEntry : groupEntry.getValue().get(scope).entrySet()) {
+                    String repo = repoEntry.getKey();
+                    Resolver resolver = requireNonNull(resolvers.get(Resolver.base(repo)), "Unknown resolver: " + Resolver.base(repo));
+                    SequencedMap<String, SequencedSet<String>> repoExclusions = exclusions
+                            .getOrDefault(group, new LinkedHashMap<>())
+                            .getOrDefault(scope, new LinkedHashMap<>())
+                            .getOrDefault(repo, new LinkedHashMap<>());
+                    SequencedMap<String, SequencedSet<String>> coordinates = new LinkedHashMap<>();
+                    for (String coordinate : repoEntry.getValue().sequencedKeySet()) {
+                        coordinates.put(coordinate, repoExclusions.getOrDefault(coordinate, Collections.emptyNavigableSet()));
                     }
-                    if (scope.equals("runtime")) {
-                        compileVersions.getOrDefault(repo, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
+                    SequencedMap<String, String> bom = new LinkedHashMap<>();
+                    if (pinned) {
+                        SequencedMap<String, SequencedMap<String, String>> scopeVersions = versions
+                                .getOrDefault(group, new LinkedHashMap<>())
+                                .getOrDefault(scope, new LinkedHashMap<>());
+                        bom.putAll(scopeVersions.getOrDefault(repo, new LinkedHashMap<>()));
+                        for (String managed : resolver.managedPrefixes()) {
+                            scopeVersions.getOrDefault(managed, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
+                        }
+                        if (!scope.equals("compile")) {
+                            compileVersions.getOrDefault(repo, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
+                        }
                     }
-                }
-                SequencedMap<String, String> result;
-                if (listener == null) {
-                    result = resolver.dependencies(executor, repo, repositories, coordinates, bom, intent);
-                } else {
-                    ResolutionListener current = listener.get();
-                    result = resolver.dependencies(executor, repo, repositories, coordinates, bom, intent, current);
-                    current.onResolved();
-                }
-                for (Map.Entry<String, String> entry : result.entrySet()) {
-                    String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
-                    String declared = repoEntry.getValue().get(coordinate);
-                    resolved.setProperty(scope + "/" + entry.getKey(),
-                            declared != null && !declared.isEmpty() ? declared : entry.getValue());
-                    if (scope.equals("compile")) {
-                        String key = entry.getKey();
-                        int first = key.indexOf('/'), last = key.lastIndexOf('/');
-                        if (last > first) {
-                            compileVersions.computeIfAbsent(repo, _ -> new LinkedHashMap<>())
-                                    .put(key.substring(first + 1, last), key.substring(last + 1));
+                    SequencedMap<String, String> result;
+                    if (listener == null) {
+                        result = resolver.dependencies(executor, repo, repositories, coordinates, bom, intent);
+                    } else {
+                        ResolutionListener current = listener.get();
+                        result = resolver.dependencies(executor, repo, repositories, coordinates, bom, intent, current);
+                        current.onResolved();
+                    }
+                    for (Map.Entry<String, String> entry : result.entrySet()) {
+                        String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
+                        String declared = repoEntry.getValue().get(coordinate);
+                        resolved.setProperty(scope + "/" + entry.getKey(),
+                                declared != null && !declared.isEmpty() ? declared : entry.getValue());
+                        if (scope.equals("compile")) {
+                            String key = entry.getKey();
+                            int first = key.indexOf('/'), last = key.lastIndexOf('/');
+                            if (last > first) {
+                                compileVersions.computeIfAbsent(repo, _ -> new LinkedHashMap<>())
+                                        .put(key.substring(first + 1, last), key.substring(last + 1));
+                            }
                         }
                     }
                 }
             }
         }
-        resolved.store(context.next().resolve(REQUIRES));
+        resolved.store(context.next().resolve(TRANSITIVES));
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
@@ -180,6 +188,14 @@ public class Resolve implements BuildStep {
         if (second < 0) {
             return null;
         }
-        return new String[] {key.substring(0, first), key.substring(first + 1, second), key.substring(second + 1)};
+        int third = key.indexOf('/', second + 1);
+        if (third < 0) {
+            return null;
+        }
+        return new String[] {
+                key.substring(0, first),
+                key.substring(first + 1, second),
+                key.substring(second + 1, third),
+                key.substring(third + 1)};
     }
 }

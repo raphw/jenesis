@@ -166,13 +166,13 @@ public class ModularProject implements BuildExecutorModule {
             }
             SequencedProperties requires = new SequencedProperties();
             for (String dependency : info.requires()) {
-                requires.setProperty("compile/" + prefix + "/" + dependency, "");
+                requires.setProperty("main/compile/" + prefix + "/" + dependency, "");
                 if (info.runtimeRequires().contains(dependency)) {
-                    requires.setProperty("runtime/" + prefix + "/" + dependency, "");
+                    requires.setProperty("main/runtime/" + prefix + "/" + dependency, "");
                 }
             }
             info.plugins().forEach((coordinate, scope) ->
-                    requires.setProperty(scope + "/" + coordinate, ""));
+                    requires.setProperty(scope + "/" + scope + "/" + coordinate, ""));
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             if (!info.versions().isEmpty()) {
                 SequencedProperties properties = new SequencedProperties();

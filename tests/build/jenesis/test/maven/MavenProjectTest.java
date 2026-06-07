@@ -76,8 +76,8 @@ public class MavenProjectTest {
         Path moduleRequires = module.resolve(BuildStep.REQUIRES);
         assertThat(moduleRequires).exists();
         SequencedProperties dependencies = SequencedProperties.ofFiles(moduleRequires);
-        assertThat(dependencies).containsOnlyKeys("compile/maven/other/artifact/1", "runtime/maven/other/artifact/1");
-        assertThat(dependencies.getProperty("compile/maven/other/artifact/1")).isEmpty();
+        assertThat(dependencies).containsOnlyKeys("main/compile/maven/other/artifact/1", "main/runtime/maven/other/artifact/1");
+        assertThat(dependencies.getProperty("main/compile/maven/other/artifact/1")).isEmpty();
         Path testModule = results.get("maven/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.IDENTITY)).doesNotExist();
         Path testModuleCoordinates = results.get("maven/test-module-/coordinates");
@@ -92,11 +92,11 @@ public class MavenProjectTest {
         assertThat(testModuleRequires).exists();
         SequencedProperties testDependencies = SequencedProperties.ofFiles(testModuleRequires);
         assertThat(testDependencies).containsOnlyKeys(
-                "compile/maven/other/artifact/1",
-                "runtime/maven/other/artifact/1",
-                "compile/maven/group/artifact/1",
-                "runtime/maven/group/artifact/1");
-        assertThat(testDependencies.getProperty("compile/maven/group/artifact/1")).isEmpty();
+                "main/compile/maven/other/artifact/1",
+                "main/runtime/maven/other/artifact/1",
+                "main/compile/maven/group/artifact/1",
+                "main/runtime/maven/group/artifact/1");
+        assertThat(testDependencies.getProperty("main/compile/maven/group/artifact/1")).isEmpty();
     }
 
     @Test
@@ -149,25 +149,25 @@ public class MavenProjectTest {
                 .resolve(BuildStep.REQUIRES);
         SequencedProperties mainRequiresProps = SequencedProperties.ofFiles(mainRequires);
         assertThat(mainRequiresProps.stringPropertyNames()).containsExactlyInAnyOrder(
-                "compile/maven/scope/compile-dep/1",
-                "runtime/maven/scope/compile-dep/1",
-                "compile/maven/scope/provided-dep/1",
-                "runtime/maven/scope/runtime-dep/1");
+                "main/compile/maven/scope/compile-dep/1",
+                "main/runtime/maven/scope/compile-dep/1",
+                "main/compile/maven/scope/provided-dep/1",
+                "main/runtime/maven/scope/runtime-dep/1");
 
         Path testRequires = results.get("maven/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES);
         SequencedProperties testRequiresProps = SequencedProperties.ofFiles(testRequires);
         assertThat(testRequiresProps.stringPropertyNames()).containsExactlyInAnyOrder(
-                "compile/maven/scope/compile-dep/1",
-                "runtime/maven/scope/compile-dep/1",
-                "compile/maven/scope/runtime-dep/1",
-                "runtime/maven/scope/runtime-dep/1",
-                "compile/maven/scope/provided-dep/1",
-                "runtime/maven/scope/provided-dep/1",
-                "compile/maven/scope/test-dep/1",
-                "runtime/maven/scope/test-dep/1",
-                "compile/maven/group/artifact/1",
-                "runtime/maven/group/artifact/1");
+                "main/compile/maven/scope/compile-dep/1",
+                "main/runtime/maven/scope/compile-dep/1",
+                "main/compile/maven/scope/runtime-dep/1",
+                "main/runtime/maven/scope/runtime-dep/1",
+                "main/compile/maven/scope/provided-dep/1",
+                "main/runtime/maven/scope/provided-dep/1",
+                "main/compile/maven/scope/test-dep/1",
+                "main/runtime/maven/scope/test-dep/1",
+                "main/compile/maven/group/artifact/1",
+                "main/runtime/maven/group/artifact/1");
     }
 
     @Test
@@ -205,17 +205,17 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties mainExclusions = SequencedProperties.ofFiles(
                 results.get("maven/module-/manifests").resolve(BuildStep.EXCLUSIONS));
-        assertThat(mainExclusions.getProperty("compile/maven/other/lib/1")).isEqualTo("excluded/transitive");
-        assertThat(mainExclusions.getProperty("runtime/maven/other/lib/1")).isEqualTo("excluded/transitive");
+        assertThat(mainExclusions.getProperty("main/compile/maven/other/lib/1")).isEqualTo("excluded/transitive");
+        assertThat(mainExclusions.getProperty("main/runtime/maven/other/lib/1")).isEqualTo("excluded/transitive");
         Path testExclusions = results.get("maven/test-module-/manifests").resolve(BuildStep.EXCLUSIONS);
         assertThat(testExclusions).exists();
         SequencedProperties testExclusionProps = SequencedProperties.ofFiles(testExclusions);
-        assertThat(testExclusionProps.getProperty("compile/maven/other/lib/1")).isEqualTo("excluded/transitive");
-        assertThat(testExclusionProps.getProperty("runtime/maven/other/lib/1")).isEqualTo("excluded/transitive");
+        assertThat(testExclusionProps.getProperty("main/compile/maven/other/lib/1")).isEqualTo("excluded/transitive");
+        assertThat(testExclusionProps.getProperty("main/runtime/maven/other/lib/1")).isEqualTo("excluded/transitive");
 
         SequencedProperties testRequires = SequencedProperties.ofFiles(
                 results.get("maven/test-module-/manifests").resolve(BuildStep.REQUIRES));
-        assertThat(testRequires.stringPropertyNames()).contains("compile/maven/other/lib/1", "runtime/maven/other/lib/1");
+        assertThat(testRequires.stringPropertyNames()).contains("main/compile/maven/other/lib/1", "main/runtime/maven/other/lib/1");
     }
 
     @Test
@@ -280,9 +280,9 @@ public class MavenProjectTest {
         assertThat(parentTestModule.getProperty("test")).isEqualTo("artifact");
         SequencedProperties parentTestDependencies = SequencedProperties.ofFiles(parentTests.resolve(BuildStep.REQUIRES));
         assertThat(parentTestDependencies).containsOnlyKeys(
-                "compile/maven/parent/artifact/1",
-                "runtime/maven/parent/artifact/1");
-        assertThat(parentTestDependencies.getProperty("compile/maven/parent/artifact/1")).isEmpty();
+                "main/compile/maven/parent/artifact/1",
+                "main/runtime/maven/parent/artifact/1");
+        assertThat(parentTestDependencies.getProperty("main/compile/maven/parent/artifact/1")).isEmpty();
         Path child = results.get("maven/module-subproject/manifests");
         assertThat(child.resolve(BuildStep.IDENTITY)).doesNotExist();
         Path childCoordinatesFolder = results.get("maven/module-subproject/coordinates");
@@ -304,9 +304,9 @@ public class MavenProjectTest {
         assertThat(childTestModule.getProperty("test")).isEqualTo("artifact");
         SequencedProperties childTestDependencies = SequencedProperties.ofFiles(childTests.resolve(BuildStep.REQUIRES));
         assertThat(childTestDependencies).containsOnlyKeys(
-                "compile/maven/group/artifact/1",
-                "runtime/maven/group/artifact/1");
-        assertThat(childTestDependencies.getProperty("compile/maven/group/artifact/1")).isEmpty();
+                "main/compile/maven/group/artifact/1",
+                "main/runtime/maven/group/artifact/1");
+        assertThat(childTestDependencies.getProperty("main/compile/maven/group/artifact/1")).isEmpty();
     }
 
     @Test
@@ -629,22 +629,22 @@ public class MavenProjectTest {
         assertThat(compileVersions).exists();
         SequencedProperties versions = SequencedProperties.ofFiles(compileVersions);
         assertThat(versions).containsOnly(
-                Map.entry("compile/maven/pinned/simple", "2.0"),
-                Map.entry("runtime/maven/pinned/simple", "2.0"),
-                Map.entry("compile/maven/pinned/typed/war", "3.0"),
-                Map.entry("runtime/maven/pinned/typed/war", "3.0"),
-                Map.entry("compile/maven/pinned/classified/jar/sources", "4.0"),
-                Map.entry("runtime/maven/pinned/classified/jar/sources", "4.0"));
+                Map.entry("main/compile/maven/pinned/simple", "2.0"),
+                Map.entry("main/runtime/maven/pinned/simple", "2.0"),
+                Map.entry("main/compile/maven/pinned/typed/war", "3.0"),
+                Map.entry("main/runtime/maven/pinned/typed/war", "3.0"),
+                Map.entry("main/compile/maven/pinned/classified/jar/sources", "4.0"),
+                Map.entry("main/runtime/maven/pinned/classified/jar/sources", "4.0"));
         Path runtimeVersions = module.resolve(BuildStep.VERSIONS);
         assertThat(runtimeVersions).exists();
         SequencedProperties runtime = SequencedProperties.ofFiles(runtimeVersions);
         assertThat(runtime).containsOnly(
-                Map.entry("compile/maven/pinned/simple", "2.0"),
-                Map.entry("runtime/maven/pinned/simple", "2.0"),
-                Map.entry("compile/maven/pinned/typed/war", "3.0"),
-                Map.entry("runtime/maven/pinned/typed/war", "3.0"),
-                Map.entry("compile/maven/pinned/classified/jar/sources", "4.0"),
-                Map.entry("runtime/maven/pinned/classified/jar/sources", "4.0"));
+                Map.entry("main/compile/maven/pinned/simple", "2.0"),
+                Map.entry("main/runtime/maven/pinned/simple", "2.0"),
+                Map.entry("main/compile/maven/pinned/typed/war", "3.0"),
+                Map.entry("main/runtime/maven/pinned/typed/war", "3.0"),
+                Map.entry("main/compile/maven/pinned/classified/jar/sources", "4.0"),
+                Map.entry("main/runtime/maven/pinned/classified/jar/sources", "4.0"));
         Path testModule = results.get("maven/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.VERSIONS)).exists();
         assertThat(testModule.resolve(BuildStep.VERSIONS)).exists();
@@ -783,8 +783,8 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(results.get("maven/module-/manifests")
                 .resolve(BuildStep.VERSIONS));
-        assertThat(versions.getProperty("compile/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
-        assertThat(versions.getProperty("runtime/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
+        assertThat(versions.getProperty("main/compile/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
+        assertThat(versions.getProperty("main/runtime/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
     }
 
     @Test
@@ -824,15 +824,15 @@ public class MavenProjectTest {
 
         SequencedProperties testRequires = SequencedProperties.ofFiles(results.get("maven/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES));
-        assertThat(testRequires.getProperty("compile/maven/org.junit.jupiter/junit-jupiter/5.11.3"))
+        assertThat(testRequires.getProperty("main/compile/maven/org.junit.jupiter/junit-jupiter/5.11.3"))
                 .isEqualTo("SHA256/cafebabe");
-        assertThat(testRequires.getProperty("runtime/maven/org.junit.jupiter/junit-jupiter/5.11.3"))
+        assertThat(testRequires.getProperty("main/runtime/maven/org.junit.jupiter/junit-jupiter/5.11.3"))
                 .isEqualTo("SHA256/cafebabe");
 
         SequencedProperties mainRequires = SequencedProperties.ofFiles(results.get("maven/module-/manifests")
                 .resolve(BuildStep.REQUIRES));
-        assertThat(mainRequires.getProperty("compile/maven/com.example/no-pin/1.0.0")).isEmpty();
-        assertThat(mainRequires.getProperty("runtime/maven/com.example/no-pin/1.0.0")).isEmpty();
+        assertThat(mainRequires.getProperty("main/compile/maven/com.example/no-pin/1.0.0")).isEmpty();
+        assertThat(mainRequires.getProperty("main/runtime/maven/com.example/no-pin/1.0.0")).isEmpty();
     }
 
     @Test

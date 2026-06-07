@@ -31,7 +31,7 @@ public class DependenciesModuleTest {
     @Test
     public void can_resolve_dependencies() throws IOException {
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("compile/foo/bar", "");
+        dependencies.setProperty("main/compile/foo/bar", "");
         dependencies.store(input.resolve(BuildStep.REQUIRES));
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new DependenciesModule(
@@ -40,7 +40,7 @@ public class DependenciesModuleTest {
                 Map.of("foo", Resolver.identity())), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKeys("output/resolved", "output/artifacts");
-        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/resolved").resolve(BuildStep.REQUIRES));
+        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/resolved").resolve(BuildStep.TRANSITIVES));
         assertThat(resolved.stringPropertyNames()).containsExactly("compile/foo/bar");
         assertThat(resolved.getProperty("compile/foo/bar")).isEqualTo("");
         assertThat(steps.get("output/artifacts")

@@ -51,13 +51,15 @@ public class Pom implements BuildStep {
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         SequencedMap<String, SequencedSet<String>> coordinateScopes = new LinkedHashMap<>();
         for (String key : requires.stringPropertyNames()) {
-            int slash = key.indexOf('/');
-            coordinateScopes.computeIfAbsent(key.substring(slash + 1), _ -> new LinkedHashSet<>())
-                    .add(key.substring(0, slash));
+            int first = key.indexOf('/');
+            int second = key.indexOf('/', first + 1);
+            coordinateScopes.computeIfAbsent(key.substring(second + 1), _ -> new LinkedHashSet<>())
+                    .add(key.substring(first + 1, second));
         }
         SequencedMap<String, String> coordinateExclusions = new LinkedHashMap<>();
         for (String key : exclusions.stringPropertyNames()) {
-            coordinateExclusions.putIfAbsent(key.substring(key.indexOf('/') + 1), exclusions.getProperty(key));
+            int second = key.indexOf('/', key.indexOf('/') + 1);
+            coordinateExclusions.putIfAbsent(key.substring(second + 1), exclusions.getProperty(key));
         }
         shared.forEach(metadata::setProperty);
         String groupId = metadata.getProperty("project");

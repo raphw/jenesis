@@ -162,10 +162,10 @@ public class VersionsTest {
         Path otherRequires = Files.createDirectory(root.resolve("other-requires"));
         SequencedProperties first = new SequencedProperties();
         first.setProperty("module/bar/1.0", "");
-        first.store(requiresInput.resolve(BuildStep.REQUIRES));
+        first.store(requiresInput.resolve(BuildStep.TRANSITIVES));
         SequencedProperties second = new SequencedProperties();
         second.setProperty("module/qux/2.0", "");
-        second.store(otherRequires.resolve(BuildStep.REQUIRES));
+        second.store(otherRequires.resolve(BuildStep.TRANSITIVES));
         BuildStepResult result = new Versions().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -327,7 +327,7 @@ public class VersionsTest {
     private void writeRequires(Map<String, String> entries) throws IOException {
         SequencedProperties properties = new SequencedProperties();
         entries.forEach(properties::setProperty);
-        properties.store(requiresInput.resolve(BuildStep.REQUIRES));
+        properties.store(requiresInput.resolve(BuildStep.TRANSITIVES));
     }
 
     private void runStep() throws IOException {

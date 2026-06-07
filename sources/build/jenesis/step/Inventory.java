@@ -268,7 +268,7 @@ public class Inventory implements BuildStep {
                                        SequencedMap<String, Path> jars,
                                        SequencedMap<String, String> scopes,
                                        SequencedMap<String, String> checksums) throws IOException {
-        Path requiresFile = folder.resolve(REQUIRES);
+        Path requiresFile = folder.resolve(TRANSITIVES);
         if (Files.isRegularFile(requiresFile)) {
             SequencedProperties required = SequencedProperties.ofFiles(requiresFile);
             for (String key : required.stringPropertyNames()) {
