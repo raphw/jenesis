@@ -271,16 +271,6 @@ public class Inventory implements BuildStep {
                                        SequencedMap<String, Path> jars,
                                        SequencedMap<String, String> scopes,
                                        SequencedMap<String, String> checksums) throws IOException {
-        Path requiresFile = folder.resolve(TRANSITIVES);
-        if (Files.isRegularFile(requiresFile)) {
-            SequencedProperties required = SequencedProperties.ofFiles(requiresFile);
-            for (String key : required.stringPropertyNames()) {
-                String value = required.getProperty(key);
-                if (!value.isEmpty()) {
-                    checksums.putIfAbsent(key.substring(key.indexOf('/') + 1), value);
-                }
-            }
-        }
         Path indexFile = folder.resolve(DEPENDENCY_INDEX);
         if (!Files.isRegularFile(indexFile)) {
             return;
@@ -289,9 +279,14 @@ public class Inventory implements BuildStep {
         for (String key : index.stringPropertyNames()) {
             int slash = key.indexOf('/');
             String scope = key.substring(0, slash), coordinate = key.substring(slash + 1);
-            Path file = folder.resolve(index.getProperty(key)).normalize();
+            String value = index.getProperty(key);
+            int space = value.indexOf(' ');
+            Path file = folder.resolve(space < 0 ? value : value.substring(0, space)).normalize();
             if (!Files.isRegularFile(file)) {
                 continue;
+            }
+            if (space >= 0) {
+                checksums.putIfAbsent(coordinate, value.substring(space + 1));
             }
             jars.putIfAbsent(coordinate, file);
             String prior = scopes.get(coordinate);

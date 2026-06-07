@@ -19,7 +19,9 @@ public final class Dependencies {
         for (String key : properties.stringPropertyNames()) {
             int slash = key.indexOf('/');
             if (slash > 0 && key.substring(0, slash).equals(scope)) {
-                Path jar = folder.resolve(properties.getProperty(key)).normalize();
+                String value = properties.getProperty(key);
+                int space = value.indexOf(' ');
+                Path jar = folder.resolve(space < 0 ? value : value.substring(0, space)).normalize();
                 if (Files.exists(jar)) {
                     selected.add(jar);
                 }

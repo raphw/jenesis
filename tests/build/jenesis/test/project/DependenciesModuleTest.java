@@ -40,9 +40,9 @@ public class DependenciesModuleTest {
                 Map.of("foo", Resolver.identity())), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKey("output/artifacts");
-        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/artifacts").resolve(BuildStep.TRANSITIVES));
+        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/artifacts").resolve(BuildStep.DEPENDENCY_INDEX));
         assertThat(resolved.stringPropertyNames()).containsExactly("compile/foo/bar");
-        assertThat(resolved.getProperty("compile/foo/bar")).isEqualTo("");
+        assertThat(resolved.getProperty("compile/foo/bar")).doesNotContain(" ");
         assertThat(steps.get("output/artifacts")
                 .resolve(BuildStep.DEPENDENCIES)
                 .resolve("foo-bar.jar")).content().isEqualTo("bar");

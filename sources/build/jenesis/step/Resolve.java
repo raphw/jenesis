@@ -178,7 +178,6 @@ public class Resolve implements BuildStep {
                 }
             }
         }
-        resolved.store(context.next().resolve(TRANSITIVES));
         Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
         SequencedProperties index = new SequencedProperties();
         SequencedMap<String, Resolver.Resolved> placements = new LinkedHashMap<>();
@@ -190,8 +189,8 @@ public class Resolve implements BuildStep {
                 continue;
             }
             String dependency = key.substring(first + 1), name = dependency.replace('/', '-') + ".jar";
-            index.setProperty(key, DEPENDENCIES + name);
             String value = resolved.getProperty(key);
+            index.setProperty(key, value.isEmpty() ? DEPENDENCIES + name : DEPENDENCIES + name + " " + value);
             placements.putIfAbsent(name, entry.getValue());
             checksums.merge(name, value, (left, right) -> {
                 if (right.isEmpty()) {
