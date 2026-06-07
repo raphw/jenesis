@@ -208,9 +208,11 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                             String name = file.toString();
-                            if (name.endsWith(".kt") || name.endsWith(".java")) {
+                            if (name.endsWith(".kt")
+                                    || (name.endsWith(".java")
+                                    && !file.getFileName().toString().equals("module-info.java"))) {
                                 files.add(name);
-                            } else if (includeResources) {
+                            } else if (includeResources && !name.endsWith(".java")) {
                                 BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                             }
                             return FileVisitResult.CONTINUE;

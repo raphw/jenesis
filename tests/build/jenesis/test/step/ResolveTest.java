@@ -13,6 +13,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.step.Resolve;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ResolveTest {
 
@@ -173,5 +174,25 @@ public class ResolveTest {
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(dependencies.stringPropertyNames())
                 .containsExactlyInAnyOrder("compile/foo/lib/1.0", "runtime/foo/lib/1.0");
+    }
+
+    @Test
+    public void malformed_version_pin_fails_loudly() throws IOException {
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("bar", "1.0");
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
+        Resolve resolve = new Resolve(Map.of("foo", Repository.empty()),
+                Map.of("foo", (_, prefix, _, descriptors, _, _, _) -> new LinkedHashMap<>()));
+        assertThatThrownBy(() -> resolve.apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.VERSIONS),
+                                ChecksumStatus.ADDED))))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bar")
+                .hasMessageContaining("<scope>/<repository>/<coordinate>");
     }
 }

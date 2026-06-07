@@ -2310,7 +2310,7 @@ target/stage/maven/output/build/jenesis/build.jenesis/<version>/build.jenesis-<v
 `.github/workflows/release.yml` runs after the "Test Jenesis Tool" workflow completes on `main`, gated on the
 head commit's first line beginning with `[release]`. The release version is resolved as follows:
 
-- `[release] 1.2.3` (explicit version after the marker) - use `1.2.3`.
+- `[release 1.2.3]` or `[release v1.2.3]` (explicit version inside the marker) - use `1.2.3`.
 - `[release]` (marker alone) - take the highest `v?X.Y.Z` git tag, bump its minor by one, reset patch. So
   `v0.1.0 -> 0.2.0`, `v0.9.0 -> 0.10.0`, `v1.4.0 -> 1.5.0`.
 - `[release]` with no semver tags in the repo - bootstrap at `0.0.1`.

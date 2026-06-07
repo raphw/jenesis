@@ -6,6 +6,7 @@ import build.jenesis.RepositoryItem;
 import build.jenesis.module.JenesisModuleRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class JenesisModuleRepositoryTest {
 
@@ -141,6 +142,32 @@ public class JenesisModuleRepositoryTest {
         try (InputStream stream = item.orElseThrow().toInputStream()) {
             assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("jmod-bytes");
         }
+    }
+
+    @Test
+    public void rejects_version_segment_containing_path_traversal() throws IOException {
+        Path outside = Files.writeString(root.resolve("secret.jar"), "secret");
+
+        assertThatThrownBy(() -> new JenesisModuleRepository(root.resolve("module").toUri())
+                .fetch(Runnable::run, "build.jenesis/../../secret"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("traversal");
+
+        assertThat(Files.exists(outside)).isTrue();
+    }
+
+    @Test
+    public void rejects_version_with_unsafe_character() {
+        assertThatThrownBy(() -> new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis/..%2f..%2fsecret"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void rejects_module_name_with_path_separator() {
+        assertThatThrownBy(() -> new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build\\jenesis"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

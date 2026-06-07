@@ -112,18 +112,31 @@ public class MavenRepositoryExport implements BuildStep {
                                               Coordinates sample,
                                               SequencedSet<String> versions,
                                               String timestamp) throws IOException {
-        List<String> sorted = versions.stream()
+        SequencedSet<String> merged = new LinkedHashSet<>(versions);
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(artifactDir)) {
+            for (Path entry : entries) {
+                if (Files.isDirectory(entry)) {
+                    merged.add(entry.getFileName().toString());
+                }
+            }
+        }
+        merged.addAll(readMetadataVersions(artifactDir.resolve("maven-metadata-local.xml")));
+        List<String> sorted = merged.stream()
                 .sorted(MavenDefaultVersionNegotiator::compareVersions)
                 .toList();
         String release = sorted.stream()
                 .filter(version -> !version.endsWith("-SNAPSHOT"))
                 .reduce((_, right) -> right)
                 .orElse(null);
+        String latest = sorted.isEmpty() ? null : sorted.getLast();
         Document document = newDocument();
         Element metadata = (Element) document.appendChild(document.createElement("metadata"));
         metadata.appendChild(document.createElement("groupId")).setTextContent(sample.groupId());
         metadata.appendChild(document.createElement("artifactId")).setTextContent(sample.artifactId());
         Element versioning = (Element) metadata.appendChild(document.createElement("versioning"));
+        if (latest != null) {
+            versioning.appendChild(document.createElement("latest")).setTextContent(latest);
+        }
         if (release != null) {
             versioning.appendChild(document.createElement("release")).setTextContent(release);
         }
@@ -133,6 +146,28 @@ public class MavenRepositoryExport implements BuildStep {
         }
         versioning.appendChild(document.createElement("lastUpdated")).setTextContent(timestamp);
         writeXml(document, artifactDir.resolve("maven-metadata-local.xml"));
+    }
+
+    private static SequencedSet<String> readMetadataVersions(Path metadata) throws IOException {
+        if (!Files.isRegularFile(metadata)) {
+            return new LinkedHashSet<>();
+        }
+        SequencedSet<String> versions = new LinkedHashSet<>();
+        try (InputStream stream = Files.newInputStream(metadata)) {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            NodeList nodes = factory.newDocumentBuilder().parse(stream).getElementsByTagName("version");
+            for (int index = 0; index < nodes.getLength(); index++) {
+                String text = nodes.item(index).getTextContent().trim();
+                if (!text.isEmpty()) {
+                    versions.add(text);
+                }
+            }
+        } catch (ParserConfigurationException | SAXException _) {
+            return new LinkedHashSet<>();
+        }
+        return versions;
     }
 
     private static void writeSnapshotMetadata(Path versionDir,

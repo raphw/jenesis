@@ -13,27 +13,27 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
 
-class JenesisClassLoaderBridge {
+class JenesisClassLoaderBridge implements AutoCloseable {
 
-    private final ModuleLayer layer;
-    private final ClassLoader loader;
+    private ModuleLayer layer;
+    private ClassLoader loader;
 
-    private final Class<?> foreignBuildExecutorModule;
+    private Class<?> foreignBuildExecutorModule;
 
-    private final MethodHandle foreignAccept;
-    private final MethodHandle foreignApply;
-    private final MethodHandle foreignShouldRun;
+    private MethodHandle foreignAccept;
+    private MethodHandle foreignApply;
+    private MethodHandle foreignShouldRun;
 
-    private final MethodHandle foreignContextCtor;
-    private final MethodHandle foreignArgumentCtor;
-    private final MethodHandle foreignResultNext;
+    private MethodHandle foreignContextCtor;
+    private MethodHandle foreignArgumentCtor;
+    private MethodHandle foreignResultNext;
 
-    private final Class<?> foreignBuildExecutor;
+    private Class<?> foreignBuildExecutor;
 
-    private final Class<? extends Annotation> foreignBuildModuleName;
-    private final MethodHandle foreignBuildModuleNameValue;
+    private Class<? extends Annotation> foreignBuildModuleName;
+    private MethodHandle foreignBuildModuleNameValue;
 
-    private final Map<String, Object> foreignChecksumValues;
+    private Map<String, Object> foreignChecksumValues;
 
     JenesisClassLoaderBridge(Collection<Path> artifacts) throws ReflectiveOperationException {
         ModuleFinder finder = ModuleFinder.of(artifacts.toArray(Path[]::new));
@@ -87,7 +87,27 @@ class JenesisClassLoaderBridge {
         foreignChecksumValues = Map.copyOf(values);
     }
 
+    @Override
+    public void close() {
+        layer = null;
+        loader = null;
+        foreignBuildExecutorModule = null;
+        foreignAccept = null;
+        foreignApply = null;
+        foreignShouldRun = null;
+        foreignContextCtor = null;
+        foreignArgumentCtor = null;
+        foreignResultNext = null;
+        foreignBuildExecutor = null;
+        foreignBuildModuleName = null;
+        foreignBuildModuleNameValue = null;
+        foreignChecksumValues = null;
+    }
+
     Object findProvider(String name) {
+        if (loader == null) {
+            throw new IllegalStateException("Build module class loader bridge was already closed");
+        }
         Object match = null;
         for (Object provider : ServiceLoader.load(layer, foreignBuildExecutorModule)) {
             Annotation annotation = provider.getClass().getAnnotation(foreignBuildModuleName);

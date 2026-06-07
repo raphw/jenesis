@@ -117,6 +117,28 @@ public class MavenRepositoryExportTest {
     }
 
     @Test
+    public void second_export_preserves_previously_exported_versions() throws IOException {
+        Path firstVersionDir = stageArtifact("com.example", "foo", "1.0", "v10");
+        run();
+
+        try (Stream<Path> staged = Files.list(firstVersionDir)) {
+            for (Path file : staged.toList()) {
+                Files.delete(file);
+            }
+        }
+        Files.delete(firstVersionDir);
+        stageArtifact("com.example", "foo", "2.0", "v20");
+        run();
+
+        Path metadata = target.resolve("com/example/foo/maven-metadata-local.xml");
+        String content = Files.readString(metadata);
+        assertThat(content).contains("<version>1.0</version>");
+        assertThat(content).contains("<version>2.0</version>");
+        assertThat(content).contains("<release>2.0</release>");
+        assertThat(content).contains("<latest>2.0</latest>");
+    }
+
+    @Test
     public void leaves_unrelated_files_in_target_untouched() throws IOException {
         Path otherArtifact = Files.createDirectories(target.resolve("org/other/lib/1.0"));
         Files.writeString(otherArtifact.resolve("lib-1.0.jar"), "untouched");

@@ -32,7 +32,11 @@ public class MavenDefaultRepository implements MavenRepository {
         }
         this.writable = this.local != null && Files.isWritable(this.local);
         token = System.getenv("MAVEN_REPOSITORY_TOKEN");
-        validations = Map.of("SHA1", repository);
+        Map<String, URI> validations = new LinkedHashMap<>();
+        validations.put("SHA512", repository);
+        validations.put("SHA256", repository);
+        validations.put("SHA1", repository);
+        this.validations = Collections.unmodifiableMap(validations);
         boolean verbose = Boolean.getBoolean("jenesis.print.fetch");
         callback = verbose ? path -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,
@@ -144,10 +148,14 @@ public class MavenDefaultRepository implements MavenRepository {
 
     private LazyRepositoryItem fetch(URI repository, String path, boolean validate) throws IOException {
         Path cached = local == null ? null : local.resolve(path);
+        if (cached != null && !cached.normalize().startsWith(local.normalize())) {
+            throw new IllegalStateException("Resolved path escapes the local repository root: " + path);
+        }
         if (cached != null) {
             if (Files.exists(cached)) {
                 boolean valid = true;
                 if (validate) {
+                    boolean verified = false;
                     Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
                         LazyRepositoryItem item = fetch(
@@ -174,10 +182,14 @@ public class MavenDefaultRepository implements MavenRepository {
                                 valid = Arrays.equals(
                                         HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
                                         digest.digest());
+                                verified = true;
                             }
                         } else {
                             results.put(item, null);
                         }
+                    }
+                    if (!validations.isEmpty() && !verified) {
+                        throw new IllegalStateException("No checksum sidecar available to validate " + path);
                     }
                     if (valid) {
                         for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
@@ -265,6 +277,7 @@ public class MavenDefaultRepository implements MavenRepository {
                 }
             }
             String invalid = null;
+            boolean verified = false;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
             for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
                 Optional<InputStream> candidate = entry.getKey().toLazyInputStream();
@@ -280,6 +293,7 @@ public class MavenDefaultRepository implements MavenRepository {
                         invalid = entry.getValue().getAlgorithm();
                         break;
                     }
+                    verified = true;
                 }
             }
             if (invalid != null) {
@@ -287,6 +301,12 @@ public class MavenDefaultRepository implements MavenRepository {
                     item.deleteIfPresent();
                 }
                 throw new IllegalStateException("Failed checksum validation for " + invalid);
+            }
+            if (!verified) {
+                for (LazyRepositoryItem item : digests.keySet()) {
+                    item.deleteIfPresent();
+                }
+                throw new IllegalStateException("No checksum sidecar available to validate " + uri);
             }
             for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                 entry.getKey().storeIfNotPresent(entry.getValue());

@@ -51,6 +51,34 @@ public class DockerizedJavaTest {
     }
 
     @Test
+    public void explicit_image_is_not_hardened_by_default() {
+        assertThat(new DockerizedJava(tmp, "dummy").hardened()).isFalse();
+    }
+
+    @Test
+    public void harden_toggles_flag_and_returns_new_instance() {
+        DockerizedJava original = new DockerizedJava(tmp, "dummy");
+        DockerizedJava hardened = original.harden(true);
+        assertThat(hardened).isNotSameAs(original);
+        assertThat(hardened.hardened()).isTrue();
+        assertThat(hardened.harden(false).hardened()).isFalse();
+    }
+
+    @Test
+    @EnabledIf("dockerAvailable")
+    public void implicit_image_command_drops_capabilities_and_new_privileges() throws IOException, InterruptedException {
+        List<String> command = new DockerizedJava(tmp).command(List.of("Main.java"));
+        assertThat(command).containsSubsequence("--cap-drop", "ALL", "--security-opt", "no-new-privileges");
+    }
+
+    @Test
+    @EnabledIf("dockerAvailable")
+    public void harden_false_omits_capability_drop_and_new_privileges() throws IOException, InterruptedException {
+        List<String> command = new DockerizedJava(tmp).harden(false).command(List.of("Main.java"));
+        assertThat(command).doesNotContain("--cap-drop", "--security-opt");
+    }
+
+    @Test
     public void parse_env_null_is_empty() {
         assertThat(DockerizedJava.Env.parse(null)).isEmpty();
     }

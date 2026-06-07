@@ -56,10 +56,19 @@ public class JenesisModuleRepository implements Repository {
         int slash = identifier.indexOf('/');
         String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
         String version = slash < 0 ? null : identifier.substring(slash + 1);
+        requireSafeSegment("module name", moduleName);
+        if (version != null) {
+            requireSafeSegment("version", version);
+        }
         String relative = version == null
                 ? moduleName + "/" + moduleName + "." + type
                 : moduleName + "/" + version + "/" + moduleName + "." + type;
-        URI uri = root.resolve(relative);
+        URI base = root.normalize();
+        URI uri = base.resolve(relative).normalize();
+        URI contained = base.relativize(uri);
+        if (contained.isAbsolute() || contained.getPath().startsWith("..")) {
+            throw new IllegalArgumentException("Resolved location " + uri + " escapes repository root " + root);
+        }
         if ("file".equals(uri.getScheme())) {
             Path file = Path.of(uri);
             return Files.isRegularFile(file)
@@ -77,5 +86,30 @@ public class JenesisModuleRepository implements Repository {
             return Optional.empty();
         }
         return Optional.of(() -> stream);
+    }
+
+    private static void requireSafeSegment(String role, String value) {
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("Blank " + role + " is not a valid coordinate");
+        }
+        for (String segment : value.split("/", -1)) {
+            if (segment.equals("..")) {
+                throw new IllegalArgumentException("Illegal " + role + " '" + value + "': path traversal is not permitted");
+            }
+        }
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            boolean permitted = character >= 'a' && character <= 'z'
+                    || character >= 'A' && character <= 'Z'
+                    || character >= '0' && character <= '9'
+                    || character == '.'
+                    || character == '-'
+                    || character == '_'
+                    || character == '+';
+            if (!permitted) {
+                throw new IllegalArgumentException(
+                        "Illegal " + role + " '" + value + "': character '" + character + "' is not permitted");
+            }
+        }
     }
 }

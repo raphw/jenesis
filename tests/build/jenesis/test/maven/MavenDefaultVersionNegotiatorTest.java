@@ -3,9 +3,13 @@ package build.jenesis.test.maven;
 import module java.base;
 import module org.junit.jupiter.api;
 import module org.junit.jupiter.params;
+import build.jenesis.RepositoryItem;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
+import build.jenesis.maven.MavenRepository;
+import build.jenesis.maven.MavenVersionNegotiator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MavenDefaultVersionNegotiatorTest {
 
@@ -82,5 +86,72 @@ public class MavenDefaultVersionNegotiatorTest {
         assertThat(Integer.signum(MavenDefaultVersionNegotiator.compareVersions(right, left)))
                 .as("compareVersions(%s, %s) reversed", right, left)
                 .isEqualTo(-expected);
+    }
+
+    @Test
+    public void resolves_latest_without_release() throws IOException {
+        String resolved = negotiator().resolve(Runnable::run,
+                metadata("<metadata><versioning><latest>1.0-SNAPSHOT</latest></versioning></metadata>"),
+                "group",
+                "artifact",
+                null,
+                null,
+                "LATEST");
+        assertThat(resolved).isEqualTo("1.0-SNAPSHOT");
+    }
+
+    @Test
+    public void resolves_range_without_latest_and_release() throws IOException {
+        String resolved = negotiator().resolve(Runnable::run,
+                metadata("<metadata><versioning><versions>"
+                        + "<version>1.0</version><version>2.0</version>"
+                        + "</versions></versioning></metadata>"),
+                "group",
+                "artifact",
+                null,
+                null,
+                "[1.0,2.0)");
+        assertThat(resolved).isEqualTo("1.0");
+    }
+
+    @Test
+    public void release_without_release_fails() {
+        assertThatThrownBy(() -> negotiator().resolve(Runnable::run,
+                metadata("<metadata><versioning><latest>1.0-SNAPSHOT</latest></versioning></metadata>"),
+                "group",
+                "artifact",
+                null,
+                null,
+                "RELEASE"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Property not defined: release");
+    }
+
+    private static MavenVersionNegotiator negotiator() {
+        Supplier<MavenVersionNegotiator> supplier = MavenDefaultVersionNegotiator.closest();
+        return supplier.get();
+    }
+
+    private static MavenRepository metadata(String xml) {
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
+                                                          String artifactId,
+                                                          String checksum) {
+                return Optional.of(() -> new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
+            }
+        };
     }
 }

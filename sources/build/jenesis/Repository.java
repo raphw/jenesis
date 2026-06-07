@@ -54,9 +54,14 @@ public interface Repository {
                         if (file != null) {
                             BuildStep.linkOrCopy(candidate, file);
                         } else {
+                            Path temporary = Files.createTempFile(candidate.getParent(), "fetch", ".jar");
                             try (InputStream inputStream = item.toInputStream()) {
-                                Files.copy(inputStream, candidate);
+                                Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
+                            } catch (Throwable t) {
+                                Files.deleteIfExists(temporary);
+                                throw t;
                             }
+                            Files.move(temporary, candidate, StandardCopyOption.ATOMIC_MOVE);
                         }
                         return candidate;
                     } catch (IOException e) {

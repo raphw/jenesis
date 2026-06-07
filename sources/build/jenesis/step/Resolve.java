@@ -81,7 +81,11 @@ public class Resolve implements BuildStep {
                 for (String key : properties.stringPropertyNames()) {
                     String[] parts = split(key);
                     if (parts == null) {
-                        continue;
+                        throw new IllegalArgumentException("Malformed version pin '"
+                                + key
+                                + "' in "
+                                + versionsFile
+                                + ": expected <scope>/<repository>/<coordinate>");
                     }
                     versions.computeIfAbsent(parts[0], _ -> new LinkedHashMap<>())
                             .computeIfAbsent(parts[1], _ -> new LinkedHashMap<>())

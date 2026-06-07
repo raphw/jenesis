@@ -357,6 +357,30 @@ public class TestModuleTest {
     }
 
     @Test
+    public void fails_when_selection_matches_no_tests() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", dependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(Map.of("maven", new MavenDefaultRepository(
+                                URI.create("https://repo1.maven.org/maven2/"),
+                                null,
+                                Map.of(),
+                                _ -> {})),
+                        Map.of("maven", new MavenPomResolver()))
+                        .engine(new JUnitPlatform())
+                        .isTest((Predicate<String> & Serializable) _ -> false)
+                        .filter("sample\\.DoesNotExist").jarsOnly(false),
+                "dependencies", "classes");
+
+        assertThatThrownBy(executor::execute)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
+                .hasMessageContaining("No tests matched the requested selection");
+    }
+
+    @Test
     public void throws_when_no_engine_found() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("dependencies", emptyDependencies);

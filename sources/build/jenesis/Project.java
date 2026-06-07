@@ -404,7 +404,7 @@ public record Project(
                       %{name}@jenesis.release%{reset} <V>             Java release target
                       %{name}@jenesis.main%{reset} <class>            Main class for the module
                       %{name}@jenesis.test%{reset} [<module>]         Mark module as a test variant of <module>
-                      %{name}@jenesis.pin%{reset} <mod> <ver> [<algo>/<hex>]
+                      %{name}@jenesis.pin%{reset} <scope>/<repo>/<coord> <ver> [<algo>/<hex>]
                                                        Pin a dependency version and checksum
 
                     See README.md for the full reference.
@@ -544,11 +544,11 @@ public record Project(
 
                       1. Find the step folder under target/build/ (e.g.
                          `target/build/maven/compose/module/<m>/produce/
-                         assemble/java/artifacts/`).
+                         assemble/binary/artifacts/`).
                       2. Strip the `target/` prefix and any trailing `/output` or
                          `/supplement` segment.
                       3. Pass what remains to the launcher as a selector (e.g.
-                         `build/maven/compose/module/<m>/produce/assemble/java/
+                         `build/maven/compose/module/<m>/produce/assemble/binary/
                          artifacts`).
 
                     The executor walks that selector's subgraph and re-runs only
@@ -641,7 +641,7 @@ public record Project(
                       @jenesis.main <class>             Main class for the module.
                       @jenesis.test [<module>]          Mark this module as a test
                                                         variant of <module>.
-                      @jenesis.pin <mod> <ver> [<algo>/<hex>]
+                      @jenesis.pin <scope>/<repo>/<coord> <ver> [<algo>/<hex>]
                                                         Pin a dependency's version
                                                         and (optionally) its
                                                         content checksum.
@@ -766,7 +766,7 @@ public record Project(
                     It writes pom.xml (`<dependencyManagement>` versions with
                     `<!--Checksum/<algo>/<hex>-->`, and qualified compiler closures
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
-                    (`@jenesis.pin <mod> <ver> [<algo>/<hex>]` tags), per layout.
+                    (`@jenesis.pin <scope>/<repo>/<coord> <ver> [<algo>/<hex>]` tags), per layout.
                     The same pins can be written by hand. Enforce coverage with
                     `-Djenesis.dependency.pin=strict`, which fails the build on
                     any unpinned artifact, or refresh them with
@@ -1433,6 +1433,7 @@ public record Project(
             if (code != 0) {
                 System.exit(code);
             }
+            return new LinkedHashMap<>();
         }
         return this.build(selectors);
     }
