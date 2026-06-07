@@ -26,7 +26,7 @@ public class InternalModule implements BuildExecutorModule {
 
     private static final String DEPENDENCIES = "dependencies", REQUIRES = "requires";
     private static final String MAIN_ARTIFACTS = JAVA + "/" + JavaToolchainModule.ARTIFACTS;
-    private static final String DEPENDENCY_ARTIFACTS = DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+    private static final String DEPENDENCY_ARTIFACTS = DEPENDENCIES;
 
     private final String prefix;
     private final Path source;
@@ -128,7 +128,7 @@ public class InternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(path);
         }
         return Optional.empty();
@@ -140,8 +140,8 @@ public class InternalModule implements BuildExecutorModule {
         buildExecutor.addStep(REQUIRES,
                 new ParseModuleInfo(prefix, additionalDependencies),
                 Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers).pinning(pinning),
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers).pinning(pinning),
                 REQUIRES);
         buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, DEPENDENCY_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {

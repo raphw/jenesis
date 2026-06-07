@@ -2,6 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 import build.jenesis.BuildStep;
+import build.jenesis.step.Dependencies;
 
 public interface TestEngine extends Serializable {
 
@@ -65,21 +66,22 @@ public interface TestEngine extends Serializable {
     static List<ModuleDescriptor> scan(Iterable<Path> folders) throws IOException {
         List<ModuleDescriptor> modules = new ArrayList<>();
         for (Path folder : folders) {
-            for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
-                Path jars = folder.resolve(jarFolder);
-                if (!Files.exists(jars)) {
-                    continue;
-                }
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(jars)) {
+            List<Path> jars = new ArrayList<>();
+            Path artifacts = folder.resolve(BuildStep.ARTIFACTS);
+            if (Files.exists(artifacts)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
                     for (Path file : stream) {
-                        if (!Files.isRegularFile(file)) {
-                            continue;
-                        }
-                        ModuleDescriptor module = inspect(file);
-                        if (module != null) {
-                            modules.add(module);
+                        if (Files.isRegularFile(file)) {
+                            jars.add(file);
                         }
                     }
+                }
+            }
+            jars.addAll(Dependencies.all(folder));
+            for (Path file : jars) {
+                ModuleDescriptor module = inspect(file);
+                if (module != null) {
+                    modules.add(module);
                 }
             }
         }

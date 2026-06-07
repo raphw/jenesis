@@ -16,7 +16,7 @@ import build.jenesis.step.Dependencies;
 public class ExternalModule implements BuildExecutorModule {
 
     public static final String COORDINATE = "coordinate", DEPENDENCIES = "dependencies", DELEGATE = "delegate";
-    private static final String EXTERNAL_ARTIFACTS = DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
+    private static final String EXTERNAL_ARTIFACTS = DEPENDENCIES;
 
     private final String coordinate;
     private final Map<String, Repository> repositories;
@@ -91,7 +91,7 @@ public class ExternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(path);
         }
         return Optional.empty();
@@ -105,8 +105,8 @@ public class ExternalModule implements BuildExecutorModule {
         buildExecutor.addStep(COORDINATE,
                 new WriteCoordinates(coordinates),
                 inherited.sequencedKeySet().stream());
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers)
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers)
                         .pinning(pinning),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {

@@ -13,7 +13,7 @@ public class Versions implements BuildStep {
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
-                Path.of(DEPENDENCY_INDEX),
+                Path.of(DEPENDENCIES),
                 Path.of(CLASSES)));
     }
 
@@ -24,7 +24,7 @@ public class Versions implements BuildStep {
             throws IOException {
         SequencedMap<String, String> versions = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path requires = argument.folder().resolve(DEPENDENCY_INDEX);
+            Path requires = argument.folder().resolve(DEPENDENCIES);
             if (!Files.exists(requires)) {
                 continue;
             }

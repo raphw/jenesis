@@ -30,7 +30,7 @@ public class ScalaDocumentationModuleTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("scaladoc/local/scaladoc", "scaladoc.jar");
         dependencies.setProperty("compile/local/compile", "compile.jar");
-        dependencies.store(input.resolve(BuildStep.DEPENDENCY_INDEX));
+        dependencies.store(input.resolve(BuildStep.DEPENDENCIES));
 
         List<String>[] captured = new List[1];
         BuildExecutor executor = BuildExecutor.of(root,

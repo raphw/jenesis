@@ -28,7 +28,6 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     private static final String MODULE_NAME = "org.scala.lang.scaladoc";
     private static final String MAVEN_GROUP = "org.scala-lang";
     private static final String MAVEN_ARTIFACT = "scaladoc_3";
-    private static final String LIBRARY_MARKER = "org.scala-lang-scala3-library_3-";
 
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -78,11 +77,11 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers).pinning(pinning),
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> documentInputs = new LinkedHashSet<>();
-        documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+        documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
                 factory == null ? new Document(within, qualifier) : new Document(within, qualifier, factory),
@@ -94,7 +93,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         if (path.equals(DOCUMENTED)) {
             return Optional.of(DOCUMENTED);
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(ARTIFACTS);
         }
         return Optional.empty();
@@ -119,10 +118,9 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                         "No suitable resolver for Scala documentation. Available prefixes: " + prefixes
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
-            String version = resolvedVersion(arguments);
             String coordinate = switch (selectedPrefix) {
                 case "module" -> selectedPrefix + "/" + MODULE_NAME;
-                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
+                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
@@ -132,34 +130,6 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }
-
-        private static String resolvedVersion(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
-            String[] found = new String[1];
-            for (BuildStepArgument argument : arguments.values()) {
-                for (String jarFolder : List.of(BuildStep.DEPENDENCIES, BuildStep.ARTIFACTS)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (!Files.exists(jarRoot)) {
-                        continue;
-                    }
-                    Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            String name = file.getFileName().toString();
-                            int at = name.indexOf(LIBRARY_MARKER);
-                            if (at >= 0 && name.indexOf('@') < 0 && name.endsWith(".jar")) {
-                                String candidate = name.substring(at + LIBRARY_MARKER.length(), name.length() - ".jar".length());
-                                if (!candidate.isEmpty() && Character.isDigit(candidate.charAt(0))) {
-                                    found[0] = candidate;
-                                    return FileVisitResult.TERMINATE;
-                                }
-                            }
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
-            }
-            return found[0] == null ? "RELEASE" : found[0];
         }
     }
 

@@ -10,7 +10,6 @@ public interface BuildStep extends Serializable {
             CLASSES = "classes/",
             ARTIFACTS = "artifacts/",
             DOCUMENTATION = "documentation/",
-            DEPENDENCIES = "dependencies/",
             TEST_REPORT = "testreport/";
 
     String IDENTITY = "identity.properties",
@@ -19,7 +18,7 @@ public interface BuildStep extends Serializable {
             MODULE = "module.properties",
             METADATA = "metadata.properties",
             EXCLUSIONS = "exclusions.properties",
-            DEPENDENCY_INDEX = "dependencies.properties";
+            DEPENDENCIES = "dependencies.properties";
 
     default BuildExecutorModule asModule(String name) {
         return new BuildExecutorModule() {

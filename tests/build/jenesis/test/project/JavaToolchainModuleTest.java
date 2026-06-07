@@ -58,7 +58,7 @@ public class JavaToolchainModuleTest {
         }
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("compile/local/sample", BuildStep.ARTIFACTS + "dependency.jar");
-        dependencies.store(input.resolve(BuildStep.DEPENDENCY_INDEX));
+        dependencies.store(input.resolve(BuildStep.DEPENDENCIES));
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new JavaToolchainModule(), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
@@ -185,7 +185,7 @@ public class JavaToolchainModuleTest {
             Files.copy(path, artifacts.resolve(jarName));
             dependencies.setProperty("compile/boot/jar" + index++, BuildStep.ARTIFACTS + jarName);
         }
-        dependencies.store(input.resolve(BuildStep.DEPENDENCY_INDEX));
+        dependencies.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("main/runtime/maven/org.junit.platform/junit-platform-console",
                 "1.11.4 SHA-256/a9c3309cdfded3542200de85da6cb274864439d6b02ba80bb45ecc8e0bdf1be7");

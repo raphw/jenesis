@@ -12,6 +12,7 @@ import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Dependencies;
 import build.jenesis.step.Java;
 import build.jenesis.step.ProcessHandler;
 
@@ -309,8 +310,8 @@ public class TestModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers).pinning(pinning),
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         buildExecutor.addStep(EXECUTED, new Run(
                         factory,
@@ -323,7 +324,7 @@ public class TestModule implements BuildExecutorModule {
                         group,
                         parallel,
                         reporting),
-                Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)));
+                Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
     }
 
     @Override
@@ -331,7 +332,7 @@ public class TestModule implements BuildExecutorModule {
         if (path.equals(EXECUTED)) {
             return Optional.of(EXECUTED);
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(ARTIFACTS);
         }
         return Optional.empty();

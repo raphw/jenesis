@@ -9,7 +9,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
-import build.jenesis.project.DependenciesModule;
+import build.jenesis.step.Dependencies;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,18 +34,17 @@ public class DependenciesModuleTest {
         dependencies.setProperty("main/compile/foo/bar", "");
         dependencies.store(input.resolve(BuildStep.REQUIRES));
         buildExecutor.addSource("input", input);
-        buildExecutor.addModule("output", new DependenciesModule(
+        buildExecutor.addStep("output", new Dependencies(
                 Map.of("foo", (_, coordinate) -> Optional.of(() -> new ByteArrayInputStream(
                         coordinate.getBytes(StandardCharsets.UTF_8)))),
                 Map.of("foo", Resolver.identity())), "input");
         SequencedMap<String, Path> steps = buildExecutor.execute();
-        assertThat(steps).containsKey("output/artifacts");
-        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output/artifacts").resolve(BuildStep.DEPENDENCY_INDEX));
+        assertThat(steps).containsKey("output");
+        SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output").resolve(BuildStep.DEPENDENCIES));
         assertThat(resolved.stringPropertyNames()).containsExactly("compile/foo/bar");
         assertThat(resolved.getProperty("compile/foo/bar")).doesNotContain(" ");
-        assertThat(steps.get("output/artifacts")
-                .resolve(BuildStep.DEPENDENCIES)
-                .resolve("foo-bar.jar")).content().isEqualTo("bar");
+        assertThat(steps.get("output")
+                .resolve(resolved.getProperty("compile/foo/bar"))).content().isEqualTo("bar");
     }
 
 }

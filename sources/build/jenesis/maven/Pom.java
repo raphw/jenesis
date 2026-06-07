@@ -41,7 +41,7 @@ public class Pom implements BuildStep {
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
-                Path.of(resolved ? DEPENDENCY_INDEX : REQUIRES),
+                Path.of(resolved ? DEPENDENCIES : REQUIRES),
                 Path.of(EXCLUSIONS),
                 Path.of(METADATA)));
     }
@@ -52,7 +52,7 @@ public class Pom implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
-        SequencedProperties requires = SequencedProperties.ofFolders(folders, resolved ? DEPENDENCY_INDEX : REQUIRES);
+        SequencedProperties requires = SequencedProperties.ofFolders(folders, resolved ? DEPENDENCIES : REQUIRES);
         SequencedProperties exclusions = SequencedProperties.ofFolders(folders, EXCLUSIONS);
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         SequencedMap<String, SequencedSet<String>> coordinateScopes = new LinkedHashMap<>();

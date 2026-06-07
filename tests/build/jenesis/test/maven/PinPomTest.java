@@ -52,7 +52,7 @@ public class PinPomTest {
             String version = space < 0 ? value : value.substring(0, space);
             String checksum = space < 0 ? "" : value.substring(space + 1).trim();
             String coordinate = entry.getKey() + "/" + version;
-            String jar = BuildStep.DEPENDENCIES + coordinate.replace('/', '-') + ".jar";
+            String jar = "resolved/" + coordinate.replace('/', '-') + ".jar";
             properties.setProperty("module.dependency." + index,
                     coordinate + " " + jar + (checksum.isEmpty() ? "" : " " + checksum));
             properties.setProperty("module.dependency." + index + ".scope", scope);
@@ -333,8 +333,8 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
-        Path jar = artifacts.resolve("maven-org.example-dep-1.0.jar");
+        Path resolved = Files.createDirectory(input.resolve("resolved"));
+        Path jar = resolved.resolve("maven-org.example-dep-1.0.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
         writeResolved(Map.of("maven/org.example/dep", "1.0 SHA-256/stale"));
@@ -362,8 +362,8 @@ public class PinPomTest {
                     <version>1</version>
                 </project>
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
-        Path jar = artifacts.resolve("maven-org.jetbrains-something-1.2.3.jar");
+        Path resolved = Files.createDirectory(input.resolve("resolved"));
+        Path jar = resolved.resolve("maven-org.jetbrains-something-1.2.3.jar");
         byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
         writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3"));

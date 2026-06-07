@@ -158,10 +158,10 @@ public class JPackageTest {
     @Test
     public void fails_on_duplicate_jar_file_names() throws IOException {
         Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"), "one");
-        Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.DEPENDENCIES)).resolve("app.jar"), "two");
+        Files.writeString(Files.createDirectory(bundle.resolve("resolved")).resolve("app.jar"), "two");
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("runtime/maven/app", "dependencies/app.jar");
-        index.store(bundle.resolve(BuildStep.DEPENDENCY_INDEX));
+        index.setProperty("runtime/maven/app", "resolved/app.jar");
+        index.store(bundle.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties configuration = new SequencedProperties();
         configuration.setProperty("--main-jar", "app.jar");
         configuration.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
@@ -171,7 +171,7 @@ public class JPackageTest {
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
                         Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED,
-                                Path.of("dependencies/app.jar"), ChecksumStatus.ADDED,
+                                Path.of("resolved/app.jar"), ChecksumStatus.ADDED,
                                 Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("same file name 'app.jar'");

@@ -28,7 +28,7 @@ public class DependenciesTest {
         index.setProperty("compile/maven/a", "libs/a.jar");
         index.setProperty("runtime/maven/c", "libs/c.jar");
         index.setProperty("compile/maven/b", "libs/b.jar");
-        index.store(folder.resolve(BuildStep.DEPENDENCY_INDEX));
+        index.store(folder.resolve(BuildStep.DEPENDENCIES));
         assertThat(Dependencies.select(folder, "compile"))
                 .containsExactly(folder.resolve("libs/a.jar"), folder.resolve("libs/b.jar"));
         assertThat(Dependencies.select(folder, "runtime"))
@@ -46,7 +46,7 @@ public class DependenciesTest {
         SequencedProperties index = new SequencedProperties();
         index.setProperty("compile/maven/present", "libs/present.jar");
         index.setProperty("compile/maven/absent", "libs/absent.jar");
-        index.store(folder.resolve(BuildStep.DEPENDENCY_INDEX));
+        index.store(folder.resolve(BuildStep.DEPENDENCIES));
         assertThat(Dependencies.select(folder, "compile"))
                 .containsExactly(folder.resolve("libs/present.jar"));
     }
@@ -58,7 +58,7 @@ public class DependenciesTest {
         SequencedProperties index = new SequencedProperties();
         index.setProperty("plugin/maven/processor", "libs/processor.jar");
         index.setProperty("plugin:kotlin/maven/kotlin-plugin", "libs/kotlin-plugin.jar");
-        index.store(folder.resolve(BuildStep.DEPENDENCY_INDEX));
+        index.store(folder.resolve(BuildStep.DEPENDENCIES));
         assertThat(Dependencies.select(folder, "plugin"))
                 .containsExactly(folder.resolve("libs/processor.jar"));
         assertThat(Dependencies.select(folder, "plugin:kotlin"))

@@ -52,7 +52,7 @@ public class PinModuleInfoTest {
             String version = space < 0 ? value : value.substring(0, space);
             String checksum = space < 0 ? "" : value.substring(space + 1).trim();
             String coordinate = entry.getKey() + "/" + version;
-            String jar = BuildStep.DEPENDENCIES + coordinate.replace('/', '-') + ".jar";
+            String jar = "resolved/" + coordinate.replace('/', '-') + ".jar";
             properties.setProperty("module.dependency." + index,
                     coordinate + " " + jar + (checksum.isEmpty() ? "" : " " + checksum));
             properties.setProperty("module.dependency." + index + ".scope", scope);
@@ -66,7 +66,7 @@ public class PinModuleInfoTest {
         int index = count(properties, "module.dependency.");
         for (Map.Entry<String, String> entry : entries.entrySet()) {
             properties.setProperty("module.dependency." + index,
-                    entry.getKey() + " " + BuildStep.DEPENDENCIES + entry.getValue());
+                    entry.getKey() + " " + "resolved/" + entry.getValue());
             properties.setProperty("module.dependency." + index + ".scope", "compile");
             index++;
         }
@@ -310,7 +310,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         writeAutomaticJar(artifacts, "maven-com.example-bar-1.2.3.jar", "com.example.bar");
         writeAutomaticJar(artifacts, "module-baz-2.0.0.jar", "com.example.baz");
         writeJars(new LinkedHashMap<>(Map.of(
@@ -329,7 +329,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         writeAutomaticJar(artifacts, "module-build.jenesis.jar", "build.jenesis");
         writeAutomaticJar(artifacts, "module-other-1.0.0.jar", "other.module");
         writeJars(new LinkedHashMap<>(Map.of(
@@ -348,7 +348,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         Path jar = artifacts.resolve("module-bar-1.2.3.jar");
         byte[] payload = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
@@ -390,7 +390,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         Path jar = artifacts.resolve("maven-org.jetbrains-something-1.2.3.jar");
         byte[] payload = "qualified-bytes".getBytes(StandardCharsets.UTF_8);
         Files.write(jar, payload);
@@ -414,7 +414,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         writePlainJar(artifacts, "maven-org.jetbrains-annotations-13.0.jar");
         writeJars(Map.of("maven/org.jetbrains/annotations/13.0", "maven-org.jetbrains-annotations-13.0.jar"));
         String result = runFromJars(file);
@@ -430,7 +430,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         writeAutomaticJar(artifacts, "maven-org.jetbrains-compiler-1.2.3.jar", "org.jetbrains.compiler");
         writeJars(Map.of("maven/org.jetbrains/compiler/1.2.3", "maven-org.jetbrains-compiler-1.2.3.jar"));
         String result = runFromJars(file);
@@ -446,7 +446,7 @@ public class PinModuleInfoTest {
                   requires bar;
                 }
                 """);
-        Path artifacts = Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES));
+        Path artifacts = Files.createDirectory(input.resolve("resolved"));
         writeAutomaticJar(artifacts, "module-internal-1.0.0.jar", "internal.module");
         writeAutomaticJar(artifacts, "module-external-2.0.0.jar", "external.module");
         writeJars(new LinkedHashMap<>(Map.of(
