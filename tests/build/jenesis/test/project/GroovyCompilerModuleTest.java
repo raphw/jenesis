@@ -230,7 +230,7 @@ public class GroovyCompilerModuleTest {
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 
-        assertThat(outputs).containsKeys("groovy/classes", "groovy/resolved");
+        assertThat(outputs).containsKeys("groovy/classes", "groovy/artifacts");
     }
 
     private BuildExecutor newExecutor() throws IOException {

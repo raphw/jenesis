@@ -21,7 +21,7 @@ import build.jenesis.step.ProcessHandler;
 public class ScalaDocumentationModule implements BuildExecutorModule {
 
     public static final String DOCUMENTED = "documented";
-    private static final String REQUIRED = "required", RESOLVED = "resolved", ARTIFACTS = "artifacts",
+    private static final String REQUIRED = "required", ARTIFACTS = "artifacts",
             DEPENDENCIES = "dependencies";
 
     private static final List<String> PREFERRED_PREFIXES = List.of("maven", "module");
@@ -93,9 +93,6 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     public Optional<String> resolve(String path) {
         if (path.equals(DOCUMENTED)) {
             return Optional.of(DOCUMENTED);
-        }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)) {
-            return Optional.of(RESOLVED);
         }
         if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
             return Optional.of(ARTIFACTS);

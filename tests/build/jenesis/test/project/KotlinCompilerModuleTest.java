@@ -342,9 +342,9 @@ public class KotlinCompilerModuleTest {
                 new KotlinCompilerModule(Map.of("maven", files()), Map.of("maven", Resolver.identity()))
                         .qualifier("kotlin"),
                 "project");
-        executor.execute("kotlin/dependencies/resolved");
+        executor.execute("kotlin/dependencies/artifacts");
 
-        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("resolved").resolve("output");
+        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("artifacts").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.TRANSITIVES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
@@ -362,7 +362,7 @@ public class KotlinCompilerModuleTest {
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 
-        assertThat(outputs).containsKeys("kotlin/classes", "kotlin/resolved");
+        assertThat(outputs).containsKeys("kotlin/classes", "kotlin/artifacts");
     }
 
     private BuildExecutor newExecutor() throws IOException {

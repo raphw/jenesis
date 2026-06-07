@@ -151,7 +151,6 @@ public record JavaMultiProjectAssembler(String packaging,
         return Stream.of(
                         descriptor.sources(),
                         descriptor.manifests(),
-                        descriptor.resolved(),
                         descriptor.artifacts())
                 .flatMap(SequencedSet::stream);
     }

@@ -31,9 +31,6 @@ public class ProjectModuleDescriptorTest {
         assertThat(descriptor.resources()).isEqualTo(base.resources());
         assertThat(descriptor.manifests()).isEqualTo(base.manifests());
         assertThat(descriptor.artifacts()).isEqualTo(base.artifacts());
-        assertThat(descriptor.artifacts()).isEqualTo(base.artifacts());
-        assertThat(descriptor.resolved()).isEqualTo(base.resolved());
-        assertThat(descriptor.resolved()).isEqualTo(base.resolved());
     }
 
     @Test
@@ -50,14 +47,10 @@ public class ProjectModuleDescriptorTest {
         assertThat(inherited.resources()).isEqualTo(prefixed(base.resources(), "../"));
         assertThat(inherited.manifests()).isEqualTo(prefixed(base.manifests(), "../"));
         assertThat(inherited.artifacts()).isEqualTo(prefixed(base.artifacts(), "../"));
-        assertThat(inherited.artifacts()).isEqualTo(prefixed(base.artifacts(), "../"));
-        assertThat(inherited.resolved()).isEqualTo(prefixed(base.resolved(), "../"));
-        assertThat(inherited.resolved()).isEqualTo(prefixed(base.resolved(), "../"));
         ProjectModuleDescriptor twice = inherited.toInherited();
         assertThat(twice.sources()).isEqualTo(prefixed(base.sources(), "../../"));
         assertThat(twice.manifests()).isEqualTo(prefixed(base.manifests(), "../../"));
         assertThat(twice.artifacts()).isEqualTo(prefixed(base.artifacts(), "../../"));
-        assertThat(twice.resolved()).isEqualTo(prefixed(base.resolved(), "../../"));
     }
 
     private static SequencedSet<String> prefixed(SequencedSet<String> values, String prefix) {

@@ -7,7 +7,6 @@ import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
-import build.jenesis.step.Forward;
 import build.jenesis.step.Resolve;
 
 public record DependenciesModule(Map<String, Repository> repositories,
@@ -15,7 +14,7 @@ public record DependenciesModule(Map<String, Repository> repositories,
                                  Pinning pinning,
                                  Supplier<ResolutionListener> listener) implements BuildExecutorModule {
 
-    public static final String RESOLVED = "resolved", ARTIFACTS = "artifacts";
+    public static final String ARTIFACTS = "artifacts";
 
     public DependenciesModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         this(repositories, resolvers, null, null);
@@ -31,11 +30,8 @@ public record DependenciesModule(Map<String, Repository> repositories,
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(RESOLVED,
+        buildExecutor.addStep(ARTIFACTS,
                 new Resolve(repositories, resolvers).pinning(pinning).listening(listener),
                 inherited.sequencedKeySet());
-        buildExecutor.addStep(ARTIFACTS,
-                new Forward(),
-                RESOLVED);
     }
 }

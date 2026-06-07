@@ -14,7 +14,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final SequencedSet<String> manifests;
     private final SequencedSet<String> coordinates;
     private final SequencedSet<String> artifacts;
-    private final SequencedSet<String> resolved;
     private final SequencedSet<String> content;
     private final boolean test;
     private final boolean source;
@@ -35,7 +34,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(base.manifests()),
                 immutable(base.coordinates()),
                 immutable(base.artifacts()),
-                immutable(base.resolved()),
                 Collections.emptyNavigableSet(),
                 test,
                 source,
@@ -50,7 +48,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                                     SequencedSet<String> manifests,
                                     SequencedSet<String> coordinates,
                                     SequencedSet<String> artifacts,
-                                    SequencedSet<String> resolved,
                                     SequencedSet<String> content,
                                     boolean test,
                                     boolean source,
@@ -64,7 +61,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
         this.manifests = manifests;
         this.coordinates = coordinates;
         this.artifacts = artifacts;
-        this.resolved = resolved;
         this.content = content;
         this.test = test;
         this.source = source;
@@ -81,7 +77,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 prefix(manifests),
                 prefix(coordinates),
                 prefix(artifacts),
-                prefix(resolved),
                 prefix(content),
                 test,
                 source,
@@ -102,7 +97,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -124,7 +118,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -150,7 +143,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -176,7 +168,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -202,7 +193,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(manifests),
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -228,7 +218,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 immutable(coordinates),
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -254,7 +243,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 immutable(artifacts),
-                resolved,
                 content,
                 test,
                 source,
@@ -265,32 +253,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor artifacts(String... artifacts) {
         return artifacts(new LinkedHashSet<>(List.of(artifacts)));
-    }
-
-    @Override
-    public SequencedSet<String> resolved() {
-        return resolved;
-    }
-
-    public ProjectModuleDescriptor resolved(SequencedSet<String> resolved) {
-        return new ProjectModuleDescriptor(name,
-                dependencies,
-                sources,
-                resources,
-                manifests,
-                coordinates,
-                artifacts,
-                immutable(resolved),
-                content,
-                test,
-                source,
-                documentation,
-                pinning,
-                modulePath);
-    }
-
-    public ProjectModuleDescriptor resolved(String... resolved) {
-        return resolved(new LinkedHashSet<>(List.of(resolved)));
     }
 
     public SequencedSet<String> content() {
@@ -305,7 +267,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 immutable(content),
                 test,
                 source,
@@ -330,7 +291,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -351,7 +311,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -372,7 +331,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -393,7 +351,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,
@@ -414,7 +371,6 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
-                resolved,
                 content,
                 test,
                 source,

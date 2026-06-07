@@ -91,8 +91,7 @@ public class ExternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)
-                || path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
             return Optional.of(path);
         }
         return Optional.empty();

@@ -525,16 +525,13 @@ public class MavenProjectTest {
                                     "../sources",
                                     "../manifests",
                                     "../coordinates",
-                                    "../dependencies/resolved",
                                     "../dependencies/artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
                                     "../manifests",
                                     "../coordinates",
-                                    "../dependencies/resolved",
                                     "../dependencies/artifacts",
                                     "../../module-foo/dependencies/prepare",
-                                    "../../module-foo/dependencies/resolved",
                                     "../../module-foo/dependencies/artifacts",
                                     "../../module-foo/produce/java/classes",
                                     "../../module-foo/produce/java/artifacts",

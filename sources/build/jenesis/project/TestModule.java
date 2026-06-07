@@ -331,9 +331,6 @@ public class TestModule implements BuildExecutorModule {
         if (path.equals(EXECUTED)) {
             return Optional.of(EXECUTED);
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)) {
-            return Optional.of(REQUIRED);
-        }
         if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
             return Optional.of(ARTIFACTS);
         }
