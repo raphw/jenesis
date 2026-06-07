@@ -356,12 +356,12 @@ public class InternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "module@tool/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
+                    "compile/module/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
-                "tool",
+                null,
                 source)
                 .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
                 .resolvers(Map.of("module", new ModularJarResolver(true))), "manifests");
@@ -395,12 +395,12 @@ public class InternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "module@tool/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
+                    "compile/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("internal", new InternalModule(
                 "module",
-                "tool",
+                null,
                 source)
                 .repositories(Map.of("module", versionInsensitive(Map.of("build.jenesis", jenesisJar))))
                 .resolvers(Map.of("module", new ModularJarResolver(true))), "manifests");
@@ -412,7 +412,7 @@ public class InternalModuleTest {
     }
 
     @Test
-    public void fails_when_pinned_checksum_mismatches_on_unqualified_trail() throws IOException {
+    public void fails_when_pinned_checksum_mismatches_on_runtime_scope() throws IOException {
         Path source = writeModuleSource(work.resolve("plugin"),
                 "module test.plugin { requires build.jenesis; provides build.jenesis.BuildExecutorModule with test.plugin.Plugin; }",
                 Map.of("test/plugin/Plugin.java", """
@@ -436,7 +436,8 @@ public class InternalModuleTest {
 
         buildExecutor.addStep("manifests", (e, context, args) -> {
             Files.writeString(context.next().resolve("versions.properties"),
-                    "module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
+                    "compile/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n"
+                            + "runtime/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
         });
         buildExecutor.addModule("internal", new InternalModule(

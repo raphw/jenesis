@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -128,12 +127,12 @@ public record JavaMultiProjectAssembler(String packaging,
                         new JLink(factory),
                         Stream.concat(
                                 Stream.of("prepare", jmod ? "jmod" : "binary"),
-                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
+                                descriptor.artifacts().stream()));
             }
             if (packaging != null) {
                 Stream<String> inputs = Stream.concat(
                         Stream.of("prepare", "binary"),
-                        descriptor.artifacts(DependencyScope.RUNTIME).stream());
+                        descriptor.artifacts().stream());
                 sub.addStep("jpackage",
                         new JPackage(factory, packaging),
                         jlink ? Stream.concat(Stream.of("jlink"), inputs) : inputs);
@@ -143,7 +142,7 @@ public record JavaMultiProjectAssembler(String packaging,
                         new Bundle(),
                         Stream.concat(
                                 Stream.of("prepare", "binary"),
-                                descriptor.artifacts(DependencyScope.RUNTIME).stream()));
+                                descriptor.artifacts().stream()));
             }
         };
     }
@@ -152,12 +151,8 @@ public record JavaMultiProjectAssembler(String packaging,
         return Stream.of(
                         descriptor.sources(),
                         descriptor.manifests(),
-                        descriptor.resolved(DependencyScope.COMPILE),
-                        descriptor.resolved(DependencyScope.RUNTIME),
-                        descriptor.resolved(DependencyScope.PLUGIN),
-                        descriptor.artifacts(DependencyScope.COMPILE),
-                        descriptor.artifacts(DependencyScope.RUNTIME),
-                        descriptor.artifacts(DependencyScope.PLUGIN))
+                        descriptor.resolved(),
+                        descriptor.artifacts())
                 .flatMap(SequencedSet::stream);
     }
 

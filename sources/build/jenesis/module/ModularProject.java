@@ -18,11 +18,12 @@ import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.DependencyScope;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Download;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
+import build.jenesis.step.Resolve;
 
 import static build.jenesis.project.MultiProjectModule.ASSIGN;
 import static build.jenesis.project.MultiProjectModule.COORDINATES;
@@ -85,31 +86,25 @@ public class ModularProject implements BuildExecutorModule {
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     (BiFunction<URI, String, Optional<URI>> & Serializable) (base, _) -> Optional.of(base),
                                     null));
-                    for (DependencyScope scope : DependencyScope.values()) {
-                        buildExecutor.addModule(scope.label(), (scopeExec, scopeInherited) -> {
-                            scopeExec.addStep(PREPARE,
-                                    new MultiProjectDependencies(
-                                            identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                            scope.label(),
-                                            digest),
-                                    scopeInherited.sequencedKeySet());
-                            scopeExec.addModule(DEPENDENCIES,
-                                    new DependenciesModule(mergedRepositories, resolvers, scope.resolution()).pinning(pinning)
-                                            .listener(listener)
-                                            .tag(scope == DependencyScope.PLUGIN ? "plugin:tool" : null),
-                                    PREPARE);
-                        }, inherited.sequencedKeySet());
-                    }
+                    buildExecutor.addModule(DEPENDENCIES, (depExec, depInherited) -> {
+                        depExec.addStep(PREPARE,
+                                new MultiProjectDependencies(
+                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
+                                        digest),
+                                depInherited.sequencedKeySet());
+                        depExec.addStep(DependenciesModule.RESOLVED,
+                                new Resolve(mergedRepositories, resolvers).pinned(pinning != Pinning.IGNORE).listening(listener),
+                                PREPARE);
+                        depExec.addStep(DependenciesModule.ARTIFACTS,
+                                new Download(mergedRepositories).pinning(pinning),
+                                DependenciesModule.RESOLVED);
+                    }, inherited.sequencedKeySet());
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES, COORDINATES);
-                    for (DependencyScope scope : DependencyScope.values()) {
-                        String resolved = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED;
-                        String artifacts = scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
-                        produceDeps.put(resolved, resolved);
-                        produceDeps.put(artifacts, artifacts);
-                    }
+                    produceDeps.put(DEPENDENCIES + "/" + DependenciesModule.RESOLVED, DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
+                    produceDeps.put(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS, DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
                     }
@@ -127,8 +122,7 @@ public class ModularProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
-                            DependencyScope.RUNTIME.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS,
-                            DependencyScope.PLUGIN.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+                            DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
                 });
     }
 
@@ -171,23 +165,15 @@ public class ModularProject implements BuildExecutorModule {
                         + ")");
             }
             SequencedProperties requires = new SequencedProperties();
-            SequencedProperties scopes = new SequencedProperties();
             for (String dependency : info.requires()) {
-                String key = prefix + "/" + dependency;
-                requires.setProperty(key, "");
-                scopes.setProperty(key, info.runtimeRequires().contains(dependency)
-                        ? DependencyScope.COMPILE.label() + "," + DependencyScope.RUNTIME.label()
-                        : DependencyScope.COMPILE.label());
+                requires.setProperty("compile/" + prefix + "/" + dependency, "");
+                if (info.runtimeRequires().contains(dependency)) {
+                    requires.setProperty("runtime/" + prefix + "/" + dependency, "");
+                }
             }
-            for (String plugin : info.plugins()) {
-                requires.setProperty(plugin, "");
-                String prior = scopes.getProperty(plugin);
-                scopes.setProperty(plugin, prior == null
-                        ? DependencyScope.PLUGIN.label()
-                        : prior + "," + DependencyScope.PLUGIN.label());
-            }
+            info.plugins().forEach((coordinate, scope) ->
+                    requires.setProperty(scope + "/" + coordinate, ""));
             requires.store(context.next().resolve(BuildStep.REQUIRES));
-            scopes.store(context.next().resolve(BuildStep.SCOPES));
             if (!info.versions().isEmpty()) {
                 SequencedProperties properties = new SequencedProperties();
                 info.versions().forEach(properties::setProperty);
@@ -288,13 +274,13 @@ public class ModularProject implements BuildExecutorModule {
         }
 
         @Override
-        public SequencedSet<String> artifacts(DependencyScope scope) {
-            return of(BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+        public SequencedSet<String> artifacts() {
+            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         }
 
         @Override
-        public SequencedSet<String> resolved(DependencyScope scope) {
-            return of(BuildExecutorModule.PREVIOUS + scope.label() + "/" + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
+        public SequencedSet<String> resolved() {
+            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + DependenciesModule.RESOLVED);
         }
 
         private static SequencedSet<String> of(String value) {

@@ -89,18 +89,19 @@ Because the module declares `requires org.apache.groovy`, the Groovy runtime is 
 real dependency of the module. With no `pom.xml`, `MavenModuleResolver` translates
 the module name into its Maven coordinate (`org.apache.groovy:groovy`) and resolves
 it, so `javac` finds it on the module path when it compiles `module-info.java`. The
-compiler toolchain that runs `groovyc` is resolved separately on its own qualified
-trail (`groovy`).
+compiler toolchain that runs `groovyc` is resolved separately in its own
+`groovy` scope.
 
-Both trails are pinned with version and checksum directly on the module
+Both scopes are pinned with version and checksum directly on the module
 declaration:
 
-    @jenesis.pin org.apache.groovy 5.0.6 SHA-256/...
-    @jenesis.pin maven@groovy/org.apache.groovy/groovy 5.0.6 SHA-256/...
+    @jenesis.pin compile/module/org.apache.groovy 5.0.6 SHA-256/...
+    @jenesis.pin groovy/maven/org.apache.groovy/groovy 5.0.6 SHA-256/...
 
-The first pins the module's own `org.apache.groovy` dependency; the second pins the
-compiler's copy on the independent `@groovy` trail (an explicit `maven@groovy`
-prefix, since the Groovy compiler resolves through Maven). Without a declared
+The first pins the module's own `org.apache.groovy` dependency in the `compile`
+scope; the second pins the
+compiler's copy in the `groovy` scope (resolved from the `maven` repository, since
+the Groovy compiler resolves through Maven). Without a declared
 version both would float to the latest release - which for Groovy currently
 includes pre-release builds - so pinning keeps the demo on the stable `5.0.6`. Run
 `java build/jenesis/Project.java pin` to record or refresh both pins; re-running

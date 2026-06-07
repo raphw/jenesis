@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -13,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.JdkProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
@@ -78,13 +78,13 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning).tag("compiler:" + qualifier),
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile(includeResources) : new Compile(includeResources, factory),
+                factory == null ? new Compile(includeResources, qualifier) : new Compile(includeResources, qualifier, factory),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -129,14 +129,13 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                         "No suitable resolver for Groovy compiler. Available prefixes: " + prefixes
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
-            String namespace = qualifier == null ? selectedPrefix : selectedPrefix + "@" + qualifier;
             String coordinate = switch (selectedPrefix) {
-                case "module" -> namespace + "/" + MODULE_NAME;
-                case "maven" -> namespace + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
+                case "module" -> selectedPrefix + "/" + MODULE_NAME;
+                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(coordinate, "");
+            requires.setProperty(qualifier + "/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -145,14 +144,16 @@ public class GroovyCompilerModule implements BuildExecutorModule {
     private static class Compile extends JdkProcessBuildStep {
 
         private final boolean includeResources;
+        private final String qualifier;
 
-        private Compile(boolean includeResources) {
-            this(includeResources, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Compile(boolean includeResources, String qualifier) {
+            this(includeResources, qualifier, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Compile(boolean includeResources, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Compile(boolean includeResources, String qualifier, Function<List<String>, ? extends ProcessHandler> factory) {
             super("groovyc", factory);
             this.includeResources = includeResources;
+            this.qualifier = qualifier;
         }
 
         @Override
@@ -175,17 +176,11 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (Files.exists(jarRoot)) {
-                        Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                            @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                jars.add(file.toString());
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    }
+                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                    jars.add(jar.toString());
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                    classpath.add(jar.toString());
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(sources)) {
@@ -210,7 +205,6 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 }
             }
             files.sort(null);
-            jars.sort(null);
             if (files.stream().noneMatch(name -> name.endsWith(".groovy"))) {
                 return CompletableFuture.completedStage(null);
             }
@@ -226,19 +220,10 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                     }
                 }
             }
-            List<String> launch = new ArrayList<>();
-            for (String jar : jars) {
-                if (new File(jar).getName().indexOf('@') != -1) {
-                    launch.add(jar);
-                }
-            }
-            if (launch.isEmpty()) {
-                launch = jars;
-            }
             List<String> userClasspath = new ArrayList<>(jars);
             userClasspath.addAll(classpath);
             List<String> commands = new ArrayList<>(List.of(
-                    "-cp", String.join(File.pathSeparator, launch),
+                    "-cp", String.join(File.pathSeparator, jars),
                     "org.codehaus.groovy.tools.FileSystemCompiler",
                     "-d", target.toString(),
                     "--classpath", String.join(File.pathSeparator, userClasspath)));

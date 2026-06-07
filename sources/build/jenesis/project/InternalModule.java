@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -17,6 +16,7 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModuleInfo;
 import build.jenesis.module.ModuleInfoParser;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Dependencies;
 
 public class InternalModule implements BuildExecutorModule {
 
@@ -24,9 +24,9 @@ public class InternalModule implements BuildExecutorModule {
             JAVA = "java",
             DELEGATE = "delegate";
 
+    private static final String DEPENDENCIES = "dependencies", REQUIRES = "requires";
     private static final String MAIN_ARTIFACTS = JAVA + "/" + JavaToolchainModule.ARTIFACTS;
-    private static final String COMPILE_ARTIFACTS = DependencyScope.COMPILE.label() + "/" + DependenciesModule.ARTIFACTS;
-    private static final String RUNTIME_ARTIFACTS = DependencyScope.RUNTIME.label() + "/" + DependenciesModule.ARTIFACTS;
+    private static final String DEPENDENCY_ARTIFACTS = DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
 
     private final String prefix;
     private final Path source;
@@ -128,11 +128,9 @@ public class InternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
-        for (DependencyScope scope : DependencyScope.values()) {
-            if (path.equals(scope.label() + "/" + DependenciesModule.RESOLVED)
-                    || path.equals(scope.label() + "/" + DependenciesModule.ARTIFACTS)) {
-                return Optional.of(path);
-            }
+        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.RESOLVED)
+                || path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+            return Optional.of(path);
         }
         return Optional.empty();
     }
@@ -140,32 +138,22 @@ public class InternalModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addSource(SOURCE, Bind.asSources(), source);
-        for (DependencyScope scope : DependencyScope.values()) {
-            String requiresId = scope.label() + "-requires";
-            buildExecutor.addStep(requiresId,
-                    new ParseModuleInfo(prefix, scope, additionalDependencies, qualifier),
-                    Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
-            buildExecutor.addModule(scope.label(),
-                    new DependenciesModule(repositories, resolvers, scope.resolution())
-                            .pinning(pinning)
-                            .tag(qualifier == null ? null : "module:" + qualifier),
-                    requiresId);
-        }
-        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, COMPILE_ARTIFACTS);
+        buildExecutor.addStep(REQUIRES,
+                new ParseModuleInfo(prefix, additionalDependencies),
+                Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
+        buildExecutor.addModule(DEPENDENCIES,
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
+                REQUIRES);
+        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, DEPENDENCY_ARTIFACTS);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
-            Path depArtifacts = delegated.get(PREVIOUS + RUNTIME_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
             List<Path> artifacts = new ArrayList<>();
             try (DirectoryStream<Path> files = Files.newDirectoryStream(mainArtifacts)) {
                 for (Path file : files) {
                     artifacts.add(file);
                 }
             }
-            try (DirectoryStream<Path> files = Files.newDirectoryStream(depArtifacts)) {
-                for (Path file : files) {
-                    artifacts.add(file);
-                }
-            }
+            artifacts.addAll(Dependencies.select(delegated.get(PREVIOUS + DEPENDENCY_ARTIFACTS), "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
@@ -177,15 +165,13 @@ public class InternalModule implements BuildExecutorModule {
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
             forwarded.remove(PREVIOUS + MAIN_ARTIFACTS);
-            forwarded.remove(PREVIOUS + RUNTIME_ARTIFACTS);
+            forwarded.remove(PREVIOUS + DEPENDENCY_ARTIFACTS);
             bridge.accept(foreignModule, delegateExecutor, forwarded);
-        }, Stream.concat(Stream.of(MAIN_ARTIFACTS, RUNTIME_ARTIFACTS), inherited.sequencedKeySet().stream()));
+        }, Stream.concat(Stream.of(MAIN_ARTIFACTS, DEPENDENCY_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
     private record ParseModuleInfo(String prefix,
-                                   DependencyScope scope,
-                                   SequencedSet<String> additionalDependencies,
-                                   String qualifier) implements BuildStep {
+                                   SequencedSet<String> additionalDependencies) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -214,22 +200,19 @@ public class InternalModule implements BuildExecutorModule {
             }
             ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
-            if (scope == DependencyScope.PLUGIN) {
-                for (String plugin : info.plugins()) {
-                    properties.setProperty(plugin, "");
-                }
-            } else {
-                for (String dependency : scope == DependencyScope.COMPILE ? info.requires() : info.runtimeRequires()) {
-                    properties.setProperty(Resolver.qualify(prefix + "/" + dependency, qualifier), "");
-                }
-                for (String dependency : additionalDependencies) {
-                    properties.setProperty(Resolver.qualify(dependency, qualifier), "");
+            for (String dependency : info.requires()) {
+                properties.setProperty("compile/" + prefix + "/" + dependency, "");
+                if (info.runtimeRequires().contains(dependency)) {
+                    properties.setProperty("runtime/" + prefix + "/" + dependency, "");
                 }
             }
+            for (String dependency : additionalDependencies) {
+                properties.setProperty("compile/" + dependency, "");
+                properties.setProperty("runtime/" + dependency, "");
+            }
+            info.plugins().forEach((coordinate, scope) -> properties.setProperty(scope + "/" + coordinate, ""));
             properties.store(context.next().resolve(BuildStep.REQUIRES));
-            SequencedProperties versions = pinnedVersions(arguments, qualifier == null
-                    ? prefix
-                    : prefix + "@" + qualifier);
+            SequencedProperties versions = pinnedVersions(arguments);
             if (!versions.isEmpty()) {
                 versions.store(context.next().resolve(BuildStep.VERSIONS));
             }
@@ -237,8 +220,8 @@ public class InternalModule implements BuildExecutorModule {
         }
     }
 
-    private static SequencedProperties pinnedVersions(SequencedMap<String, BuildStepArgument> arguments,
-                                                      String pinned) throws IOException {
+    private static SequencedProperties pinnedVersions(SequencedMap<String, BuildStepArgument> arguments)
+            throws IOException {
         SequencedProperties versions = new SequencedProperties();
         for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
             if (argument.getKey().equals(SOURCE)) {
@@ -250,10 +233,7 @@ public class InternalModule implements BuildExecutorModule {
             }
             SequencedProperties present = SequencedProperties.ofFiles(file);
             for (String coordinate : present.stringPropertyNames()) {
-                int slash = coordinate.indexOf('/');
-                if (slash > 0 && coordinate.substring(0, slash).equals(pinned)) {
-                    versions.setProperty(coordinate, present.getProperty(coordinate));
-                }
+                versions.putIfAbsent(coordinate, present.getProperty(coordinate));
             }
         }
         return versions;

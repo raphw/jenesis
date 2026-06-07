@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -13,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
@@ -85,13 +85,13 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning).tag("compiler:" + qualifier),
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> documentInputs = new LinkedHashSet<>();
         documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, includeJava) : new Document(within, includeJava, factory),
+                factory == null ? new Document(within, includeJava, qualifier) : new Document(within, includeJava, qualifier, factory),
                 documentInputs);
     }
 
@@ -129,14 +129,13 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
             String version = resolvedGroovyVersion(arguments);
-            String namespace = qualifier == null ? selectedPrefix : selectedPrefix + "@" + qualifier;
             String coordinate = switch (selectedPrefix) {
-                case "module" -> namespace + "/" + MODULE_NAME;
-                case "maven" -> namespace + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
+                case "module" -> selectedPrefix + "/" + MODULE_NAME;
+                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(coordinate, "");
+            requires.setProperty(qualifier + "/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -175,15 +174,17 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
 
         private final String within;
         private final boolean includeJava;
+        private final String qualifier;
 
-        private Document(String within, boolean includeJava) {
-            this(within, includeJava, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, boolean includeJava, String qualifier) {
+            this(within, includeJava, qualifier, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, boolean includeJava, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, boolean includeJava, String qualifier, Function<List<String>, ? extends ProcessHandler> factory) {
             super("groovydoc", factory);
             this.within = within;
             this.includeJava = includeJava;
+            this.qualifier = qualifier;
         }
 
         @Override
@@ -218,17 +219,11 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (Files.exists(jarRoot)) {
-                        Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                            @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                jars.add(file.toString());
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    }
+                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                    jars.add(jar.toString());
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                    jars.add(jar.toString());
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(sources)) {
@@ -259,7 +254,6 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                     release = candidate;
                 }
             }
-            jars.sort(null);
             if (!anyGroovy[0]) {
                 return CompletableFuture.completedStage(null);
             }

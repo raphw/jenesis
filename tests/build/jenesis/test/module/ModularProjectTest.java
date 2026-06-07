@@ -71,9 +71,9 @@ public class ModularProjectTest {
         Path moduleRequires = module.resolve(BuildStep.REQUIRES);
         assertThat(moduleRequires).exists();
         SequencedProperties dependencies = SequencedProperties.ofFiles(moduleRequires);
-        assertThat(dependencies).containsOnlyKeys("module/bar");
-        assertThat(dependencies.getProperty("module/bar")).isEmpty();
-        assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
+        assertThat(dependencies).containsOnlyKeys("compile/module/bar", "runtime/module/bar");
+        assertThat(dependencies.getProperty("compile/module/bar")).isEmpty();
+        assertThat(dependencies.getProperty("runtime/module/bar")).isEmpty();
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
@@ -118,14 +118,14 @@ public class ModularProjectTest {
         assertThat(compileVersionsFile).exists();
         SequencedProperties compileVersions = SequencedProperties.ofFiles(compileVersionsFile);
         assertThat(compileVersions).containsOnly(
-                Map.entry("module/bar", "1.2.3"),
-                Map.entry("module/transitive.pin", "9.9.9"));
+                Map.entry("bar", "1.2.3"),
+                Map.entry("transitive.pin", "9.9.9"));
         Path runtimeVersionsFile = module.resolve(BuildStep.VERSIONS);
         assertThat(runtimeVersionsFile).exists();
         SequencedProperties runtimeVersions = SequencedProperties.ofFiles(runtimeVersionsFile);
         assertThat(runtimeVersions).containsOnly(
-                Map.entry("module/bar", "1.2.3"),
-                Map.entry("module/transitive.pin", "9.9.9"));
+                Map.entry("bar", "1.2.3"),
+                Map.entry("transitive.pin", "9.9.9"));
     }
 
     @Test
@@ -197,31 +197,17 @@ public class ModularProjectTest {
                                     "../manifests",
                                     "../coordinates",
                                     "../sources",
-                                    "../compile/dependencies/resolved",
-                                    "../compile/dependencies/artifacts",
-                                    "../runtime/dependencies/resolved",
-                                    "../runtime/dependencies/artifacts",
-                                    "../plugin/dependencies/resolved",
-                                    "../plugin/dependencies/artifacts");
+                                    "../dependencies/resolved",
+                                    "../dependencies/artifacts");
                             case "module-bar" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
                                     "../coordinates",
                                     "../sources",
-                                    "../compile/dependencies/resolved",
-                                    "../compile/dependencies/artifacts",
-                                    "../runtime/dependencies/resolved",
-                                    "../runtime/dependencies/artifacts",
-                                    "../plugin/dependencies/resolved",
-                                    "../plugin/dependencies/artifacts",
-                                    "../../module-foo/compile/prepare",
-                                    "../../module-foo/compile/dependencies/resolved",
-                                    "../../module-foo/compile/dependencies/artifacts",
-                                    "../../module-foo/runtime/prepare",
-                                    "../../module-foo/runtime/dependencies/resolved",
-                                    "../../module-foo/runtime/dependencies/artifacts",
-                                    "../../module-foo/plugin/prepare",
-                                    "../../module-foo/plugin/dependencies/resolved",
-                                    "../../module-foo/plugin/dependencies/artifacts",
+                                    "../dependencies/resolved",
+                                    "../dependencies/artifacts",
+                                    "../../module-foo/dependencies/prepare",
+                                    "../../module-foo/dependencies/resolved",
+                                    "../../module-foo/dependencies/artifacts",
                                     "../../module-foo/produce/java/classes",
                                     "../../module-foo/produce/java/artifacts",
                                     "../../module-foo/assign",
@@ -230,8 +216,7 @@ public class ModularProjectTest {
                         }
                         buildExecutor.addModule("java", new JavaToolchainModule(),
                                 "../sources", "../manifests",
-                                "../compile/dependencies/artifacts",
-                                "../runtime/dependencies/artifacts");
+                                "../dependencies/artifacts");
                     };
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();

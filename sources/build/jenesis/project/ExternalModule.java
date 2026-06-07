@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -12,6 +11,7 @@ import build.jenesis.Pinning;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.step.Dependencies;
 
 public class ExternalModule implements BuildExecutorModule {
 
@@ -101,28 +101,18 @@ public class ExternalModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         List<String> coordinates = new ArrayList<>(additionalDependencies.size() + 1);
-        coordinates.add(Resolver.qualify(coordinate, qualifier));
-        for (String dependency : additionalDependencies) {
-            coordinates.add(Resolver.qualify(dependency, qualifier));
-        }
-        int slash = coordinate.indexOf('/');
-        String base = slash < 0 ? coordinate : coordinate.substring(0, slash);
+        coordinates.add(coordinate);
+        coordinates.addAll(additionalDependencies);
         buildExecutor.addStep(COORDINATE,
-                new WriteCoordinates(coordinates, qualifier == null ? base : base + "@" + qualifier),
+                new WriteCoordinates(coordinates),
                 inherited.sequencedKeySet().stream());
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME)
-                        .pinning(pinning)
-                        .tag(qualifier == null ? null : "module:" + qualifier),
+                new DependenciesModule(repositories, resolvers)
+                        .pinning(pinning),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
-            Path depArtifacts = delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS).resolve(BuildStep.DEPENDENCIES);
-            List<Path> artifacts = new ArrayList<>();
-            try (DirectoryStream<Path> files = Files.newDirectoryStream(depArtifacts)) {
-                for (Path file : files) {
-                    artifacts.add(file);
-                }
-            }
+            List<Path> artifacts = new ArrayList<>(
+                    Dependencies.select(delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS), "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
@@ -138,7 +128,7 @@ public class ExternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
     }
 
-    private record WriteCoordinates(List<String> coordinates, String pinned) implements BuildStep {
+    private record WriteCoordinates(List<String> coordinates) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -147,7 +137,8 @@ public class ExternalModule implements BuildExecutorModule {
                 throws IOException {
             SequencedProperties properties = new SequencedProperties();
             for (String coordinate : coordinates) {
-                properties.setProperty(coordinate, "");
+                properties.setProperty("compile/" + coordinate, "");
+                properties.setProperty("runtime/" + coordinate, "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedProperties versions = new SequencedProperties();
@@ -158,10 +149,7 @@ public class ExternalModule implements BuildExecutorModule {
                 }
                 SequencedProperties present = SequencedProperties.ofFiles(file);
                 for (String coordinate : present.stringPropertyNames()) {
-                    int slash = coordinate.indexOf('/');
-                    if (slash > 0 && coordinate.substring(0, slash).equals(pinned)) {
-                        versions.setProperty(coordinate, present.getProperty(coordinate));
-                    }
+                    versions.putIfAbsent(coordinate, present.getProperty(coordinate));
                 }
             }
             if (!versions.isEmpty()) {

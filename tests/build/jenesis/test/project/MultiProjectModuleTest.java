@@ -43,7 +43,7 @@ public class MultiProjectModuleTest {
             coordinates2.put("foo/qux", "");
             coordinates2.store(module2.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies2 = new SequencedProperties();
-            dependencies2.put("foo/bar", "");
+            dependencies2.put("compile/foo/bar", "");
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
@@ -107,7 +107,7 @@ public class MultiProjectModuleTest {
             coordinates2.put("foo/qux", "");
             coordinates2.store(module2.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies2 = new SequencedProperties();
-            dependencies2.put("foo/bar", "");
+            dependencies2.put("compile/foo/bar", "");
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
@@ -116,7 +116,7 @@ public class MultiProjectModuleTest {
             coordinates3.put("foo/baz", "");
             coordinates3.store(module3.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies3 = new SequencedProperties();
-            dependencies3.put("foo/qux", "");
+            dependencies3.put("compile/foo/qux", "");
             dependencies3.store(module3.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
@@ -202,7 +202,7 @@ public class MultiProjectModuleTest {
             coordinates2.put("foo/qux", "");
             coordinates2.store(module2.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies2 = new SequencedProperties();
-            dependencies2.put("foo/bar", "");
+            dependencies2.put("compile/foo/bar", "");
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
@@ -211,7 +211,7 @@ public class MultiProjectModuleTest {
             coordinates3.put("foo/baz", "");
             coordinates3.store(module3.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies3 = new SequencedProperties();
-            dependencies3.put("foo/qux", "");
+            dependencies3.put("compile/foo/qux", "");
             dependencies3.store(module3.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
@@ -250,7 +250,7 @@ public class MultiProjectModuleTest {
             coordinates2.put("foo/qux", "");
             coordinates2.store(module2.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies2 = new SequencedProperties();
-            dependencies2.put("foo/bar", "");
+            dependencies2.put("compile/foo/bar", "");
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
@@ -259,7 +259,7 @@ public class MultiProjectModuleTest {
             coordinates3.put("foo/baz", "");
             coordinates3.store(module3.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies3 = new SequencedProperties();
-            dependencies3.put("foo/qux", "");
+            dependencies3.put("compile/foo/qux", "");
             dependencies3.store(module3.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
@@ -296,7 +296,7 @@ public class MultiProjectModuleTest {
             coordinates1.put("foo/a", "");
             coordinates1.store(module1.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies1 = new SequencedProperties();
-            dependencies1.put("foo/b", "");
+            dependencies1.put("compile/foo/b", "");
             dependencies1.store(module1.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("1-module", module1);
             buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
@@ -305,7 +305,7 @@ public class MultiProjectModuleTest {
             coordinates2.put("foo/b", "");
             coordinates2.store(module2.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies2 = new SequencedProperties();
-            dependencies2.put("foo/c", "");
+            dependencies2.put("compile/foo/c", "");
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
             buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
@@ -320,7 +320,7 @@ public class MultiProjectModuleTest {
             coordinates4.put("foo/d", "");
             coordinates4.store(module4.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies4 = new SequencedProperties();
-            dependencies4.put("foo/e", "");
+            dependencies4.put("compile/foo/e", "");
             dependencies4.store(module4.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("4-module", module4);
             buildExecutor.addSource("4-source", Files.writeString(Files.createDirectory(source4
@@ -329,7 +329,7 @@ public class MultiProjectModuleTest {
             coordinates5.put("foo/e", "");
             coordinates5.store(module5.resolve(BuildStep.IDENTITY));
             SequencedProperties dependencies5 = new SequencedProperties();
-            dependencies5.put("foo/c", "");
+            dependencies5.put("compile/foo/c", "");
             dependencies5.store(module5.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("5-module", module5);
             buildExecutor.addSource("5-source", Files.writeString(Files.createDirectory(source5

@@ -1,7 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.DependencyScope;
+import build.jenesis.step.Dependencies;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
@@ -79,13 +79,13 @@ public class ScalaCompilerModule implements BuildExecutorModule {
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
         buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers, DependencyScope.RUNTIME).pinning(pinning).tag("compiler:" + qualifier),
+                new DependenciesModule(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
         compileInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile(includeResources) : new Compile(includeResources, factory),
+                factory == null ? new Compile(includeResources, qualifier) : new Compile(includeResources, qualifier, factory),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -130,14 +130,13 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                         "No suitable resolver for Scala compiler. Available prefixes: " + prefixes
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
-            String namespace = qualifier == null ? selectedPrefix : selectedPrefix + "@" + qualifier;
             String coordinate = switch (selectedPrefix) {
-                case "module" -> namespace + "/" + MODULE_NAME;
-                case "maven" -> namespace + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
+                case "module" -> selectedPrefix + "/" + MODULE_NAME;
+                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(coordinate, "");
+            requires.setProperty(qualifier + "/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -146,14 +145,16 @@ public class ScalaCompilerModule implements BuildExecutorModule {
     private static class Compile extends JdkProcessBuildStep {
 
         private final boolean includeResources;
+        private final String qualifier;
 
-        private Compile(boolean includeResources) {
-            this(includeResources, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Compile(boolean includeResources, String qualifier) {
+            this(includeResources, qualifier, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Compile(boolean includeResources, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Compile(boolean includeResources, String qualifier, Function<List<String>, ? extends ProcessHandler> factory) {
             super("scalac", factory);
             this.includeResources = includeResources;
+            this.qualifier = qualifier;
         }
 
         @Override
@@ -173,25 +174,15 @@ public class ScalaCompilerModule implements BuildExecutorModule {
             List<String> files = new ArrayList<>(), jars = new ArrayList<>(), classpath = new ArrayList<>(),
                     plugins = new ArrayList<>();
             String release = null;
-            for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
-                BuildStepArgument argument = entry.getValue();
-                if (entry.getKey().replaceAll("^(\\.\\./)+", "")
-                        .equals(DependencyScope.PLUGIN.label() + "/dependencies/artifacts")) {
-                    for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                        Path jarRoot = argument.folder().resolve(jarFolder);
-                        if (Files.exists(jarRoot)) {
-                            Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                                @Override
-                                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                    if (file.getFileName().toString().contains("@scala")) {
-                                        plugins.add(file.toString());
-                                    }
-                                    return FileVisitResult.CONTINUE;
-                                }
-                            });
-                        }
-                    }
-                    continue;
+            for (BuildStepArgument argument : arguments.values()) {
+                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                    jars.add(jar.toString());
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "plugin:" + qualifier)) {
+                    plugins.add(jar.toString());
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                    classpath.add(jar.toString());
                 }
                 Path javacProperties = argument.folder().resolve(ProcessBuildStep.PROCESS + "javac.properties");
                 if (Files.exists(javacProperties)) {
@@ -204,18 +195,6 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                 Path classes = argument.folder().resolve(CLASSES);
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
-                }
-                for (String jarFolder : List.of(ARTIFACTS, DEPENDENCIES)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (Files.exists(jarRoot)) {
-                        Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                            @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                jars.add(file.toString());
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    }
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);
                 if (Files.exists(sources)) {
@@ -242,8 +221,6 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                 }
             }
             files.sort(null);
-            jars.sort(null);
-            plugins.sort(null);
             if (files.stream().noneMatch(name -> name.endsWith(".scala"))) {
                 return CompletableFuture.completedStage(null);
             }
@@ -259,19 +236,10 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                     }
                 }
             }
-            List<String> launch = new ArrayList<>();
-            for (String jar : jars) {
-                if (new File(jar).getName().indexOf('@') != -1) {
-                    launch.add(jar);
-                }
-            }
-            if (launch.isEmpty()) {
-                launch = jars;
-            }
             List<String> userClasspath = new ArrayList<>(jars);
             userClasspath.addAll(classpath);
             List<String> commands = new ArrayList<>(List.of(
-                    "-cp", String.join(File.pathSeparator, launch),
+                    "-cp", String.join(File.pathSeparator, jars),
                     "dotty.tools.dotc.Main",
                     "-d", target.toString(),
                     "-classpath", String.join(File.pathSeparator, userClasspath)));

@@ -29,14 +29,19 @@ A single Javadoc tag on the module declaration turns the processor on:
     @jenesis.plugin org.immutables.value
 
 The processor is named the same way `requires` names a dependency - by module
-name. The tag is generic: a leading qualifier routes the plugin to a specific
-compiler (`@jenesis.plugin @kotlin/...` for a Kotlin compiler plugin); an
-unqualified token routes to the Java compiler. Jenesis records it under the
-single `plugin` scope in the module's `scopes.properties`, resolves it alongside
-the module's other dependencies, and the Java compiler picks the unqualified
-plugin jars and passes them to `javac` as `--processor-module-path`.
+name. The tag is generic: `@jenesis.plugin <repository>/<coordinate>` (or a bare
+module name) resolves to the `plugin` scope, a Java annotation processor;
+`@jenesis.plugin <compiler> <repository>/<coordinate>` resolves to the
+`plugin:<compiler>` scope for a language compiler plugin (`@jenesis.plugin kotlin
+maven/...` for a Kotlin compiler plugin). Here the bare module name resolves to
+the `plugin` scope; Jenesis resolves it alongside
+the module's other dependencies, and the Java compiler picks the `plugin`-scope
+jars and passes them to `javac` as `--processor-module-path`.
 The version is pinned the usual way - the `pin` step writes back a
-`@jenesis.pin org.immutables.value ...` line automatically.
+`@jenesis.pin plugin/module/org.immutables.value ...` line automatically. Because
+the same module is also a compile dependency, the module additionally carries a
+`@jenesis.pin compile/module/org.immutables.value ...` line; the two scopes are
+pinned independently.
 
 No implicit discovery
 ---------------------

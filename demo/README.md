@@ -73,7 +73,7 @@ Quick index
 | 21 | [`docker-isolation`](demo-21-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
 | 22 | [`supply-chain-security`](demo-22-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 23 | [`publishing`](demo-23-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
-| 24 | [`kotlin-plugin`](demo-24-kotlin-plugin/README.md)           | Run a Kotlin compiler plugin (kotlinx.serialization) declared with `@jenesis.plugin @kotlin/...`, passed to the compiler as `-Xplugin=` | `java build/jenesis/Project.java`  |
+| 24 | [`kotlin-plugin`](demo-24-kotlin-plugin/README.md)           | Run a Kotlin compiler plugin (kotlinx.serialization) declared with `@jenesis.plugin kotlin <repo>/<coord>`, passed to the compiler as `-Xplugin=` | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -112,8 +112,11 @@ What is new here:
   because it is a genuine named module; many libraries ship only as *automatic*
   modules and cannot be required by module name.
 - **Pinning in source, the modular way.** Instead of `<dependencyManagement>`,
-  a dependency is pinned with an `@jenesis.pin org.slf4j 2.0.16 [SHA-256/...]`
-  Javadoc tag on the module declaration.
+  a dependency is pinned with an
+  `@jenesis.pin compile/module/org.slf4j 2.0.16 [SHA-256/...]`
+  Javadoc tag on the module declaration. Every pin key is
+  `<scope>/<repository>/<coordinate>`; an ordinary application dependency lives in
+  the `compile` scope and the `module` repository.
 - **Staging.** `stage` lays the output out as both a module repository and a
   Maven repository, and `export` publishes them locally.
 
@@ -218,10 +221,12 @@ The processor is named with a single Javadoc tag on the module declaration:
     @jenesis.plugin org.immutables.value
 
 The processor is named by module name, just as `requires` names a dependency.
-The tag is generic - a leading qualifier routes the plugin to a specific compiler
-(`@jenesis.plugin @kotlin/...`); an unqualified token routes to the Java compiler.
-Jenesis records it under the single `plugin` scope, resolves it alongside the
-module's other dependencies, and the Java compiler picks the unqualified plugin
+The tag is generic - `@jenesis.plugin <repository>/<coordinate>` (or a bare module
+name) resolves to the `plugin` scope, a Java annotation processor; naming a
+compiler first (`@jenesis.plugin kotlin <repo>/<coord>`) routes to the
+`plugin:<compiler>` scope instead.
+Jenesis resolves the `plugin`-scope entry alongside the
+module's other dependencies, and the Java compiler picks the `plugin`-scope
 jars and hands them to `javac` as an explicit `--processor-module-path`. The Immutables processor then turns the abstract
 `@Value.Immutable` `Animal` into a generated `ImmutableAnimal` builder, which `Zoo`
 uses.
@@ -234,15 +239,17 @@ dependency (`requires static`), so the very same jar sits on the compile module
 path - yet delete the `@jenesis.plugin` line and the processor no longer
 runs, `ImmutableAnimal` is never generated, and the build fails to compile `Zoo`.
 The version is pinned the usual way, with the `pin` step writing back a
-`@jenesis.pin org.immutables.value ...` line.
+`@jenesis.pin plugin/module/org.immutables.value ...` line (and, since the same
+module is also a compile dependency, a separate
+`@jenesis.pin compile/module/org.immutables.value ...` line).
 
 ## 7. Other JVM languages - [`kotlin`](demo-09-kotlin/README.md), [`scala`](demo-10-scala/README.md), [`groovy`](demo-11-groovy/README.md)
 
 Jenesis drives non-Java compilers through the same inferred compiler chain, with
 no language-specific configuration beyond the sources. A *resolved* compiler
-(Kotlin, Scala, Groovy) is pinned on its own **qualified trail** - keyed
-`@kotlin/...`, `@scala/...`, `@groovy/...` - so the compiler's own closure never
-collides with the project's dependencies.
+(Kotlin, Scala, Groovy) is pinned in its own **scope** - `kotlin/...`,
+`scala/...`, `groovy/...` - so the compiler's own closure never
+collides with the project's dependencies (which live in `compile/...`).
 
 - `kotlin` and `scala` are MODULAR_TO_MAVEN modules (a `module-info.java`, no
   `pom.xml`) that each mix a `.java` source with their language source. The chain
@@ -257,9 +264,9 @@ collides with the project's dependencies.
   An exported package therefore needs at least one Java type; the demo's
   `README.md` explains why this is permanent for Groovy but not for Kotlin/Scala.
 
-These three are quick reads; each `README.md` has the detail. (Each pins both its
-library dependency and its compiler toolchain on a qualified trail; see "Pinning"
-below.)
+These three are quick reads; each `README.md` has the detail. (Each pins its
+library dependency in the `compile` scope and its compiler toolchain in the
+language scope; see "Pinning" below.)
 
 ## 8. Excluding a transitive dependency - [`maven-exclusions`](demo-12-maven-exclusions/README.md)
 ----------------------------------------------------
@@ -344,7 +351,8 @@ for a second project module.
 `external-module` is identical except for *where the build module comes from*:
 instead of compiling it from source, it stages the plugin to a jar and resolves
 it as a published repository **coordinate** through `ExternalModule`. The
-plugin's closure rides its own `"tool"` qualifier trail.
+build-module bridge dependencies (`build.jenesis`, `org.json`) are pinned in the
+`compile` scope (`compile/module/...`).
 
 Together these show that build logic itself is just another module - it can be
 authored inline, loaded from source, or consumed as a versioned artifact.
@@ -462,20 +470,20 @@ release would carry.
 ## 17. Compiler plugins for other languages - [`kotlin-plugin`](demo-24-kotlin-plugin/README.md)
 
 The same `@jenesis.plugin` tag that wires a Java annotation processor (demo 6)
-also wires compiler plugins for the other languages - the qualifier on the token
-routes the plugin to a specific compiler. `kotlin-plugin` declares the
-kotlinx.serialization compiler plugin on the Kotlin trail:
+also wires compiler plugins for the other languages - naming a compiler before the
+coordinate routes the plugin to that compiler. `kotlin-plugin` declares the
+kotlinx.serialization compiler plugin on the Kotlin compiler:
 
-    @jenesis.plugin maven@kotlin/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
+    @jenesis.plugin kotlin maven/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin
 
-Jenesis records it under the single `plugin` scope, resolves it on the same
-`@kotlin` trail as the compiler (so the plugin version stays matched to it), and
-the Kotlin compiler picks the `@kotlin`-qualified jar and passes it as
+Naming the compiler routes the plugin to the `plugin:kotlin` scope; Jenesis
+resolves it version coordinated to the compiler, and
+the Kotlin compiler picks the `plugin:kotlin`-scope jar and passes it as
 `-Xplugin=<jar>`. The plugin then generates `Point.serializer()` for the
 `@Serializable` data class, which `Use` references - delete the `@jenesis.plugin`
 line and the build fails, exactly like the annotation processor demo. The
-resolution path is identical for every language (one `plugin` scope, each compiler
-picking its own qualifier); only the compiler flag differs (`--processor-path` for
+resolution path is identical for every language (a `plugin:<compiler>` scope per
+compiler); only the compiler flag differs (`--processor-path` for
 `javac`, `-Xplugin=` for Kotlin, `-Xplugin:` for Scala).
 
 Cross-cutting concepts
@@ -500,21 +508,24 @@ native application image with `-Djenesis.java.jpackage` (the value is the `jpack
 --type`); the image is collected under `stage/packages/` next to `stage/maven` and
 `stage/modular`. See demo 4.
 
-**Pinning, checksums, and qualifiers.** Pins live in source: a POM's
+**Pinning, checksums, and scopes.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
-`module-info.java`'s `@jenesis.pin <module> <version> [<algorithm>/<hex>]`
+`module-info.java`'s
+`@jenesis.pin <scope>/<repository>/<coordinate> <version> [<algorithm>/<hex>]`
 Javadoc tags. `Download` verifies every fetch against a pinned checksum, and
 strict pinning (`-Djenesis.dependency.pin=strict`) fails the build on any
-unpinned coordinate. A *resolved compiler* pins on an independent qualified trail
-(`@kotlin`, `@scala`, `@groovy`, or an explicit `"tool"` qualifier) so it never
-mixes with the project's own dependencies.
+unpinned coordinate. The scope is the single isolation axis: an application
+dependency lives in `compile` (runtime inherits it), a test-only dependency in
+`runtime`, and a *resolved compiler* in its own language scope (`kotlin`, `scala`,
+`groovy`), so it never mixes with the project's own dependencies.
 
 Current pin state of the demos: every demo is committed pinned with checksums.
 `java-pom`, `java-pom-multi`, `java-modular`, and `java-modular-multi` pin their
 dependency closures (per module, so a dependency of one module never lands in a
 sibling's dependency management). The MODULAR_TO_MAVEN language demos - `kotlin`,
-`scala`, and `groovy` - pin both their library dependency (by module name) and
-their compiler toolchain on its own qualified trail (`@kotlin`, `@scala`,
-`@groovy`), each `@jenesis.pin` tag carrying a version and SHA-256 checksum.
+`scala`, and `groovy` - pin both their library dependency (in the `compile`
+scope) and
+their compiler toolchain in its own scope (`kotlin`, `scala`,
+`groovy`), each `@jenesis.pin` tag carrying a version and SHA-256 checksum.
 `groovy` is pinned to the stable `5.0.6`; `kotlin` and `scala` track whatever
 their compilers resolve (for `scala` that is often a release candidate).

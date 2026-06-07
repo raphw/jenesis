@@ -8,7 +8,8 @@
  *
  * @jenesis.release 25
  * @jenesis.plugin org.immutables.value
- * @jenesis.pin org.immutables.value 2.12.2 SHA-256/fa9582d54d079bae233f3e580b5a1241417fcdd3e7049ece9f8ca85c8edd49e1
+ * @jenesis.pin compile/module/org.immutables.value 2.12.2 SHA-256/fa9582d54d079bae233f3e580b5a1241417fcdd3e7049ece9f8ca85c8edd49e1
+ * @jenesis.pin plugin/module/org.immutables.value 2.12.2 SHA-256/fa9582d54d079bae233f3e580b5a1241417fcdd3e7049ece9f8ca85c8edd49e1
  */
 module demo.annotations {
     requires static org.immutables.value;

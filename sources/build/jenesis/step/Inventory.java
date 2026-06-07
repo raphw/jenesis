@@ -104,7 +104,8 @@ public class Inventory implements BuildStep {
         SequencedProperties inventory = new SequencedProperties();
         SequencedSet<Path> runtime = new LinkedHashSet<>(artifacts);
         for (Map.Entry<String, Path> entry : closureJars.entrySet()) {
-            if (!isToolScope(closureScopes.get(entry.getKey()))) {
+            String scope = closureScopes.get(entry.getKey());
+            if (scope != null && List.of(scope.split(",")).contains("runtime")) {
                 runtime.add(entry.getValue());
             }
         }
@@ -115,9 +116,14 @@ public class Inventory implements BuildStep {
         int dependencyIndex = 0;
         for (Map.Entry<String, Path> entry : closureJars.entrySet()) {
             String checksum = closureChecksums.get(entry.getKey());
-            inventory.setProperty(prefix + "dependency." + dependencyIndex++,
+            inventory.setProperty(prefix + "dependency." + dependencyIndex,
                     entry.getKey() + " " + relativize(context, entry.getValue())
                             + (checksum == null || checksum.isEmpty() ? "" : " " + checksum));
+            String scope = closureScopes.get(entry.getKey());
+            if (scope != null) {
+                inventory.setProperty(prefix + "dependency." + dependencyIndex + ".scope", scope);
+            }
+            dependencyIndex++;
         }
         writePaths(inventory, context, prefix + "artifacts", artifacts);
         writePaths(inventory, context, prefix + "sources", sources);
@@ -170,7 +176,7 @@ public class Inventory implements BuildStep {
         return ((path == null || path.isEmpty()) ? "module" : "module-" + path) + ".";
     }
 
-    public record Dependency(Path jar, String checksum) {
+    public record Dependency(Path jar, String checksum, String scope) {
     }
 
     public static SequencedMap<String, Dependency> closure(Iterable<BuildStepArgument> arguments, String path) throws IOException {
@@ -190,7 +196,8 @@ public class Inventory implements BuildStep {
                 String[] parts = value.split(" ", 3);
                 closure.putIfAbsent(parts[0], new Dependency(
                         argument.folder().resolve(parts[1]).normalize(),
-                        parts.length > 2 ? parts[2] : ""));
+                        parts.length > 2 ? parts[2] : "",
+                        inventory.getProperty(key + index + ".scope")));
             }
         }
         return closure;
@@ -264,40 +271,33 @@ public class Inventory implements BuildStep {
         Path requiresFile = folder.resolve(REQUIRES);
         if (Files.isRegularFile(requiresFile)) {
             SequencedProperties required = SequencedProperties.ofFiles(requiresFile);
-            for (String coordinate : required.stringPropertyNames()) {
-                String value = required.getProperty(coordinate);
+            for (String key : required.stringPropertyNames()) {
+                String value = required.getProperty(key);
                 if (!value.isEmpty()) {
-                    checksums.putIfAbsent(coordinate, value);
+                    checksums.putIfAbsent(key.substring(key.indexOf('/') + 1), value);
                 }
             }
         }
-        Path locationsFile = folder.resolve(LOCATIONS);
-        if (!Files.isRegularFile(locationsFile)) {
+        Path indexFile = folder.resolve(DEPENDENCY_INDEX);
+        if (!Files.isRegularFile(indexFile)) {
             return;
         }
-        SequencedProperties locations = SequencedProperties.ofFiles(locationsFile);
-        Path scopesFile = folder.resolve(SCOPES);
-        SequencedProperties scoped = Files.isRegularFile(scopesFile)
-                ? SequencedProperties.ofFiles(scopesFile)
-                : new SequencedProperties();
-        for (String coordinate : locations.stringPropertyNames()) {
-            Path file = folder.resolve(locations.getProperty(coordinate)).normalize();
+        SequencedProperties index = SequencedProperties.ofFiles(indexFile);
+        for (String key : index.stringPropertyNames()) {
+            int slash = key.indexOf('/');
+            String scope = key.substring(0, slash), coordinate = key.substring(slash + 1);
+            Path file = folder.resolve(index.getProperty(key)).normalize();
             if (!Files.isRegularFile(file)) {
                 continue;
             }
             jars.putIfAbsent(coordinate, file);
-            String scope = scoped.getProperty(coordinate);
             String prior = scopes.get(coordinate);
-            if (prior == null || isToolScope(prior)) {
-                scopes.put(coordinate, scope == null ? "" : scope);
+            if (prior == null) {
+                scopes.put(coordinate, scope);
+            } else if (!List.of(prior.split(",")).contains(scope)) {
+                scopes.put(coordinate, prior + "," + scope);
             }
         }
-    }
-
-    private static boolean isToolScope(String scope) {
-        // A scope carrying a ':' namespace (e.g. compiler:kotlin, module:tool) marks a build-tool
-        // closure, which is never a runtime dependency of the produced module.
-        return scope != null && scope.indexOf(':') >= 0;
     }
 
     private static String relativize(BuildStepContext context, Path file) {

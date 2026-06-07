@@ -4,7 +4,6 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.PathPlacement;
 import build.jenesis.maven.MavenProject.MavenModuleDescriptor;
-import build.jenesis.DependencyScope;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 
@@ -31,10 +30,10 @@ public class ProjectModuleDescriptorTest {
         assertThat(descriptor.sources()).isEqualTo(base.sources());
         assertThat(descriptor.resources()).isEqualTo(base.resources());
         assertThat(descriptor.manifests()).isEqualTo(base.manifests());
-        assertThat(descriptor.artifacts(DependencyScope.COMPILE)).isEqualTo(base.artifacts(DependencyScope.COMPILE));
-        assertThat(descriptor.artifacts(DependencyScope.RUNTIME)).isEqualTo(base.artifacts(DependencyScope.RUNTIME));
-        assertThat(descriptor.resolved(DependencyScope.COMPILE)).isEqualTo(base.resolved(DependencyScope.COMPILE));
-        assertThat(descriptor.resolved(DependencyScope.RUNTIME)).isEqualTo(base.resolved(DependencyScope.RUNTIME));
+        assertThat(descriptor.artifacts()).isEqualTo(base.artifacts());
+        assertThat(descriptor.artifacts()).isEqualTo(base.artifacts());
+        assertThat(descriptor.resolved()).isEqualTo(base.resolved());
+        assertThat(descriptor.resolved()).isEqualTo(base.resolved());
     }
 
     @Test
@@ -50,15 +49,15 @@ public class ProjectModuleDescriptorTest {
         assertThat(inherited.sources()).isEqualTo(prefixed(base.sources(), "../"));
         assertThat(inherited.resources()).isEqualTo(prefixed(base.resources(), "../"));
         assertThat(inherited.manifests()).isEqualTo(prefixed(base.manifests(), "../"));
-        assertThat(inherited.artifacts(DependencyScope.COMPILE)).isEqualTo(prefixed(base.artifacts(DependencyScope.COMPILE), "../"));
-        assertThat(inherited.artifacts(DependencyScope.RUNTIME)).isEqualTo(prefixed(base.artifacts(DependencyScope.RUNTIME), "../"));
-        assertThat(inherited.resolved(DependencyScope.COMPILE)).isEqualTo(prefixed(base.resolved(DependencyScope.COMPILE), "../"));
-        assertThat(inherited.resolved(DependencyScope.RUNTIME)).isEqualTo(prefixed(base.resolved(DependencyScope.RUNTIME), "../"));
+        assertThat(inherited.artifacts()).isEqualTo(prefixed(base.artifacts(), "../"));
+        assertThat(inherited.artifacts()).isEqualTo(prefixed(base.artifacts(), "../"));
+        assertThat(inherited.resolved()).isEqualTo(prefixed(base.resolved(), "../"));
+        assertThat(inherited.resolved()).isEqualTo(prefixed(base.resolved(), "../"));
         ProjectModuleDescriptor twice = inherited.toInherited();
         assertThat(twice.sources()).isEqualTo(prefixed(base.sources(), "../../"));
         assertThat(twice.manifests()).isEqualTo(prefixed(base.manifests(), "../../"));
-        assertThat(twice.artifacts(DependencyScope.COMPILE)).isEqualTo(prefixed(base.artifacts(DependencyScope.COMPILE), "../../"));
-        assertThat(twice.resolved(DependencyScope.RUNTIME)).isEqualTo(prefixed(base.resolved(DependencyScope.RUNTIME), "../../"));
+        assertThat(twice.artifacts()).isEqualTo(prefixed(base.artifacts(), "../../"));
+        assertThat(twice.resolved()).isEqualTo(prefixed(base.resolved(), "../../"));
     }
 
     private static SequencedSet<String> prefixed(SequencedSet<String> values, String prefix) {

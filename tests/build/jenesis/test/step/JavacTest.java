@@ -410,6 +410,9 @@ public class JavacTest {
         Path processorRoot = Files.createDirectories(root.resolve("processor"));
         Path jar = buildProcessorJar(Files.createDirectories(root.resolve("procbuild")), "one", "One", null);
         Files.copy(jar, Files.createDirectories(processorRoot.resolve(BuildStep.DEPENDENCIES)).resolve("processor.jar"));
+        SequencedProperties index = new SequencedProperties();
+        index.setProperty("plugin/maven/processor", "dependencies/processor.jar");
+        index.store(processorRoot.resolve(BuildStep.DEPENDENCY_INDEX));
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sources", new BuildStepArgument(sources,
@@ -417,7 +420,6 @@ public class JavacTest {
         arguments.put("processors/artifacts", new BuildStepArgument(processorRoot,
                 Map.of(Path.of(BuildStep.DEPENDENCIES + "processor.jar"), ChecksumStatus.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
-                .processorPath("processors/artifacts")
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
@@ -445,6 +447,10 @@ public class JavacTest {
                 processorRoot.resolve("plain.jar"));
         Files.copy(buildProcessorJar(Files.createDirectories(root.resolve("modular")), "modular", "Modular", "proc.modular"),
                 processorRoot.resolve("modular.jar"));
+        SequencedProperties index = new SequencedProperties();
+        index.setProperty("plugin/maven/plain", "dependencies/plain.jar");
+        index.setProperty("plugin/maven/modular", "dependencies/modular.jar");
+        index.store(root.resolve("processor").resolve(BuildStep.DEPENDENCY_INDEX));
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sources", new BuildStepArgument(sources, Map.of(
@@ -454,7 +460,6 @@ public class JavacTest {
                 Path.of(BuildStep.DEPENDENCIES + "plain.jar"), ChecksumStatus.ADDED,
                 Path.of(BuildStep.DEPENDENCIES + "modular.jar"), ChecksumStatus.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
-                .processorPath("processors/artifacts")
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();

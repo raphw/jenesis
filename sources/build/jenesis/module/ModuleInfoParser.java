@@ -39,7 +39,7 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
-            SequencedSet<String> plugins = new LinkedHashSet<>();
+            SequencedMap<String, String> plugins = new LinkedHashMap<>();
             String release = null;
             String name = null;
             String description = null;
@@ -77,74 +77,27 @@ public class ModuleInfoParser {
                                 }
                                 String token = content.substring(0, split).trim();
                                 String version = content.substring(split + 1).trim().replaceAll("\\s+", " ");
-                                if (token.isEmpty() || version.isEmpty()) {
+                                if (token.isEmpty() || version.isEmpty()
+                                        || token.startsWith("java.") || token.startsWith("jdk.")) {
                                     continue;
                                 }
-                                int at = token.indexOf('@');
-                                String key;
-                                if (at < 0) {
-                                    int slash = token.indexOf('/');
-                                    if (slash < 0) {
-                                        if (token.startsWith("java.") || token.startsWith("jdk.")) {
-                                            continue;
-                                        }
-                                        key = "module/" + token;
-                                    } else {
-                                        if (slash == 0 || slash == token.length() - 1) {
-                                            continue;
-                                        }
-                                        key = token;
-                                    }
-                                } else if (at == 0) {
-                                    int slash = token.indexOf('/');
-                                    if (slash < 2 || slash == token.length() - 1) {
-                                        continue;
-                                    }
-                                    key = "module" + token;
-                                } else {
-                                    int slash = token.indexOf('/', at);
-                                    if (slash <= at + 1 || slash == token.length() - 1) {
-                                        continue;
-                                    }
-                                    key = token;
-                                }
-                                versions.put(key, version);
+                                versions.put(token, version);
                             }
                             case "jenesis.plugin" -> {
-                                int space = content.indexOf(' ');
-                                String token = (space < 0 ? content : content.substring(0, space)).trim();
+                                String trimmed = content.trim();
+                                int space = trimmed.indexOf(' ');
+                                String scope, token;
+                                if (space > 0 && trimmed.substring(0, space).indexOf('/') < 0) {
+                                    scope = "plugin:" + trimmed.substring(0, space).trim();
+                                    token = trimmed.substring(space + 1).trim();
+                                } else {
+                                    scope = "plugin";
+                                    token = trimmed;
+                                }
                                 if (token.isEmpty()) {
                                     continue;
                                 }
-                                int at = token.indexOf('@');
-                                String key;
-                                if (at < 0) {
-                                    int slash = token.indexOf('/');
-                                    if (slash < 0) {
-                                        if (token.startsWith("java.") || token.startsWith("jdk.")) {
-                                            continue;
-                                        }
-                                        key = "module/" + token;
-                                    } else {
-                                        if (slash == 0 || slash == token.length() - 1) {
-                                            continue;
-                                        }
-                                        key = token;
-                                    }
-                                } else if (at == 0) {
-                                    int slash = token.indexOf('/');
-                                    if (slash < 2 || slash == token.length() - 1) {
-                                        continue;
-                                    }
-                                    key = "module" + token;
-                                } else {
-                                    int slash = token.indexOf('/', at);
-                                    if (slash <= at + 1 || slash == token.length() - 1) {
-                                        continue;
-                                    }
-                                    key = token;
-                                }
-                                plugins.add(key);
+                                plugins.put(token.indexOf('/') < 0 ? "module/" + token : token, scope);
                             }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
