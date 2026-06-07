@@ -7,7 +7,6 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
-import build.jenesis.DependencyScope;
 import build.jenesis.Pinning;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
@@ -181,15 +180,18 @@ public class ResolveTest {
     }
 
     @Test
-    public void runtime_inherits_the_compile_mediated_version() throws IOException {
+    public void group_pin_applies_to_all_scopes() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/lib", "");
         properties.setProperty("main/runtime/foo/lib", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, intent, _) -> {
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("main/foo/lib", "1.0");
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
+        BuildStepResult result = new Resolve(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
-                String version = intent == DependencyScope.COMPILE ? "1.0" : bom.getOrDefault(descriptor, "FLOAT");
+                String version = bom.getOrDefault(descriptor, "FLOAT");
                 resolved.put(prefix + "/" + descriptor + "/" + version, "");
             });
             return Resolver.materializeAll(executor, repositories, prefix, resolved);
@@ -200,6 +202,8 @@ public class ResolveTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED,
+                                Path.of(BuildStep.VERSIONS),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
@@ -208,15 +212,18 @@ public class ResolveTest {
     }
 
     @Test
-    public void secondary_scope_in_a_custom_group_inherits_the_compile_mediated_version() throws IOException {
+    public void group_pin_applies_to_every_scope_in_a_custom_group() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("custom/compile/foo/lib", "");
         properties.setProperty("custom/extra/foo/lib", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, intent, _) -> {
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("custom/foo/lib", "1.0");
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
+        BuildStepResult result = new Resolve(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
-                String version = intent == DependencyScope.COMPILE ? "1.0" : bom.getOrDefault(descriptor, "FLOAT");
+                String version = bom.getOrDefault(descriptor, "FLOAT");
                 resolved.put(prefix + "/" + descriptor + "/" + version, "");
             });
             return Resolver.materializeAll(executor, repositories, prefix, resolved);
@@ -227,6 +234,8 @@ public class ResolveTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED,
+                                Path.of(BuildStep.VERSIONS),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
@@ -241,10 +250,13 @@ public class ResolveTest {
         properties.setProperty("main/extra/foo/lib", "");
         properties.setProperty("other/extra/foo/lib", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Resolve(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, intent, _) -> {
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("main/foo/lib", "1.0");
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
+        BuildStepResult result = new Resolve(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
-                String version = intent == DependencyScope.COMPILE ? "1.0" : bom.getOrDefault(descriptor, "FLOAT");
+                String version = bom.getOrDefault(descriptor, "FLOAT");
                 resolved.put(prefix + "/" + descriptor + "/" + version, "");
             });
             return Resolver.materializeAll(executor, repositories, prefix, resolved);
@@ -255,6 +267,8 @@ public class ResolveTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
+                                ChecksumStatus.ADDED,
+                                Path.of(BuildStep.VERSIONS),
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.TRANSITIVES));
@@ -279,7 +293,7 @@ public class ResolveTest {
                                 ChecksumStatus.ADDED))))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("bar")
-                .hasMessageContaining("<group>/<scope>/<repository>/<coordinate>");
+                .hasMessageContaining("<group>/<repository>/<coordinate>");
     }
 
     @Test

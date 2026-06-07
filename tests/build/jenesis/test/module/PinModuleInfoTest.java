@@ -153,7 +153,7 @@ public class PinModuleInfoTest {
         writeResolved(Map.of("module/bar", "1.2.3 SHA-256/cafebabe"));
         String result = run(file);
         assertThat(result).contains("/**");
-        assertThat(result).contains("@jenesis.pin compile/module/bar 1.2.3 SHA-256/cafebabe");
+        assertThat(result).contains("@jenesis.pin bar 1.2.3 SHA-256/cafebabe");
         assertThat(result).contains("module foo {");
     }
 
@@ -180,9 +180,9 @@ public class PinModuleInfoTest {
         String result = run(file);
         assertThat(result).contains("@jenesis.release 25");
         assertThat(result).contains("Foo module.");
-        assertThat(result).contains("@jenesis.pin compile/module/bar 1.2.3 SHA-256/cafebabe");
-        assertThat(result).contains("@jenesis.pin compile/module/baz 2.0 SHA-256/deadbeef");
-        assertThat(result).contains("@jenesis.pin compile/module/transitive 3.0 SHA-256/feedface");
+        assertThat(result).contains("@jenesis.pin bar 1.2.3 SHA-256/cafebabe");
+        assertThat(result).contains("@jenesis.pin baz 2.0 SHA-256/deadbeef");
+        assertThat(result).contains("@jenesis.pin transitive 3.0 SHA-256/feedface");
         assertThat(result).doesNotContain("@jenesis.pin bar 0.9");
         assertThat(result).doesNotContain("@jenesis.pin baz 1.0");
     }
@@ -197,7 +197,7 @@ public class PinModuleInfoTest {
                 """);
         writeResolved(Map.of("module/bar", "1.2.3"));
         String result = run(file);
-        assertThat(result).contains("@jenesis.pin compile/module/bar 1.2.3\n");
+        assertThat(result).contains("@jenesis.pin bar 1.2.3\n");
         assertThat(result).doesNotContain("SHA-256");
     }
 
@@ -219,8 +219,8 @@ public class PinModuleInfoTest {
         String result = run(file);
         assertThat(result).contains("@jenesis.test foo");
         assertThat(result).contains("@jenesis.release 25");
-        assertThat(result).contains("@jenesis.pin runtime/module/junit 5.11.3 SHA-256/cafebabe");
-        assertInsideJavadoc(result, "@jenesis.pin runtime/module/junit 5.11.3 SHA-256/cafebabe");
+        assertThat(result).contains("@jenesis.pin junit 5.11.3 SHA-256/cafebabe");
+        assertInsideJavadoc(result, "@jenesis.pin junit 5.11.3 SHA-256/cafebabe");
     }
 
     @Test
@@ -238,10 +238,10 @@ public class PinModuleInfoTest {
                 """);
         writeResolved(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
         String result = run(file);
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/bar 1.0 SHA-256/cafebabe");
+        assertInsideJavadoc(result, "@jenesis.pin bar 1.0 SHA-256/cafebabe");
         assertThat(result.indexOf("@jenesis.release 25"))
-                .isLessThan(result.indexOf("@jenesis.pin compile/module/bar"));
-        assertThat(result.indexOf("@jenesis.pin compile/module/bar"))
+                .isLessThan(result.indexOf("@jenesis.pin bar"));
+        assertThat(result.indexOf("@jenesis.pin bar"))
                 .isLessThan(result.indexOf("*/"));
     }
 
@@ -261,8 +261,8 @@ public class PinModuleInfoTest {
                 "module/a", "1.0",
                 "module/b", "2.0"));
         String result = run(file);
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/a 1.0");
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/b 2.0");
+        assertInsideJavadoc(result, "@jenesis.pin a 1.0");
+        assertInsideJavadoc(result, "@jenesis.pin b 2.0");
     }
 
     private static void assertInsideJavadoc(String content, String needle) {
@@ -285,8 +285,8 @@ public class PinModuleInfoTest {
                 "maven/org.example/dep", "1.0",
                 "module/picked", "2.0"));
         String result = run(file);
-        assertThat(result).contains("@jenesis.pin compile/module/picked 2.0");
-        assertThat(result).contains("@jenesis.pin compile/maven/org.example/dep 1.0");
+        assertThat(result).contains("@jenesis.pin picked 2.0");
+        assertThat(result).contains("@jenesis.pin main/maven/org.example/dep 1.0");
     }
 
     @Test
@@ -317,8 +317,8 @@ public class PinModuleInfoTest {
                 "maven/com.example/bar/1.2.3", "maven-com.example-bar-1.2.3.jar",
                 "module/baz/2.0.0", "module-baz-2.0.0.jar")));
         String result = runFromJars(file);
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/com.example.bar 1.2.3 SHA-256/");
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/com.example.baz 2.0.0 SHA-256/");
+        assertInsideJavadoc(result, "@jenesis.pin com.example.bar 1.2.3 SHA-256/");
+        assertInsideJavadoc(result, "@jenesis.pin com.example.baz 2.0.0 SHA-256/");
     }
 
     @Test
@@ -336,8 +336,8 @@ public class PinModuleInfoTest {
                 "module/build.jenesis", "module-build.jenesis.jar",
                 "module/other/1.0.0", "module-other-1.0.0.jar")));
         String result = runFromJars(file);
-        assertThat(result).doesNotContain("@jenesis.pin compile/module/build.jenesis");
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/other.module 1.0.0");
+        assertThat(result).doesNotContain("@jenesis.pin build.jenesis");
+        assertInsideJavadoc(result, "@jenesis.pin other.module 1.0.0");
     }
 
     @Test
@@ -361,7 +361,7 @@ public class PinModuleInfoTest {
             throw new AssertionError(e);
         }
         String expected = HexFormat.of().formatHex(digest.digest(payload));
-        assertThat(result).contains("@jenesis.pin compile/module/bar 1.2.3 SHA-256/" + expected);
+        assertThat(result).contains("@jenesis.pin bar 1.2.3 SHA-256/" + expected);
         assertThat(result).doesNotContain("SHA-256/stale");
     }
 
@@ -378,8 +378,8 @@ public class PinModuleInfoTest {
                 "module/external", "2.0")));
         writeIdentity(Map.of("module/internal/1.0", ""));
         String result = run(file);
-        assertThat(result).doesNotContain("@jenesis.pin compile/module/internal");
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/external 2.0");
+        assertThat(result).doesNotContain("@jenesis.pin internal");
+        assertInsideJavadoc(result, "@jenesis.pin external 2.0");
     }
 
     @Test
@@ -418,7 +418,7 @@ public class PinModuleInfoTest {
         writePlainJar(artifacts, "maven-org.jetbrains-annotations-13.0.jar");
         writeJars(Map.of("maven/org.jetbrains/annotations/13.0", "maven-org.jetbrains-annotations-13.0.jar"));
         String result = runFromJars(file);
-        assertInsideJavadoc(result, "@jenesis.pin compile/maven/org.jetbrains/annotations 13.0 SHA-256/");
+        assertInsideJavadoc(result, "@jenesis.pin main/maven/org.jetbrains/annotations 13.0 SHA-256/");
         assertThat(result).doesNotContain("@jenesis.pin maven.org.jetbrains.annotations");
     }
 
@@ -434,8 +434,8 @@ public class PinModuleInfoTest {
         writeAutomaticJar(artifacts, "maven-org.jetbrains-compiler-1.2.3.jar", "org.jetbrains.compiler");
         writeJars(Map.of("maven/org.jetbrains/compiler/1.2.3", "maven-org.jetbrains-compiler-1.2.3.jar"));
         String result = runFromJars(file);
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/org.jetbrains.compiler 1.2.3 SHA-256/");
-        assertThat(result).doesNotContain("@jenesis.pin compile/maven/org.jetbrains/compiler");
+        assertInsideJavadoc(result, "@jenesis.pin org.jetbrains.compiler 1.2.3 SHA-256/");
+        assertThat(result).doesNotContain("@jenesis.pin main/maven/org.jetbrains/compiler");
     }
 
     @Test
@@ -454,7 +454,7 @@ public class PinModuleInfoTest {
                 "module/external/2.0.0", "module-external-2.0.0.jar")));
         writeIdentity(Map.of("module/internal/1.0.0", ""));
         String result = runFromJars(file);
-        assertThat(result).doesNotContain("@jenesis.pin compile/module/internal.module");
-        assertInsideJavadoc(result, "@jenesis.pin compile/module/external.module 2.0.0");
+        assertThat(result).doesNotContain("@jenesis.pin internal.module");
+        assertInsideJavadoc(result, "@jenesis.pin external.module 2.0.0");
     }
 }

@@ -63,7 +63,7 @@ public class Resolve implements BuildStep {
             throws IOException {
         boolean pinned = pinning != Pinning.IGNORE;
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> requires = new LinkedHashMap<>();
-        SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> versions = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> versions = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>>> exclusions = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path requiresFile = argument.folder().resolve(REQUIRES);
@@ -84,18 +84,18 @@ public class Resolve implements BuildStep {
             if (Files.exists(versionsFile)) {
                 SequencedProperties properties = SequencedProperties.ofFiles(versionsFile);
                 for (String key : properties.stringPropertyNames()) {
-                    String[] parts = split(key);
-                    if (parts == null) {
+                    int first = key.indexOf('/');
+                    int second = first < 1 ? -1 : key.indexOf('/', first + 1);
+                    if (first < 1 || second <= first || second == key.length() - 1) {
                         throw new IllegalArgumentException("Malformed version pin '"
                                 + key
                                 + "' in "
                                 + versionsFile
-                                + ": expected <group>/<scope>/<repository>/<coordinate>");
+                                + ": expected <group>/<repository>/<coordinate>");
                     }
-                    versions.computeIfAbsent(parts[0], _ -> new LinkedHashMap<>())
-                            .computeIfAbsent(parts[1], _ -> new LinkedHashMap<>())
-                            .computeIfAbsent(parts[2], _ -> new LinkedHashMap<>())
-                            .putIfAbsent(parts[3], properties.getProperty(key));
+                    versions.computeIfAbsent(key.substring(0, first), _ -> new LinkedHashMap<>())
+                            .computeIfAbsent(key.substring(first + 1, second), _ -> new LinkedHashMap<>())
+                            .putIfAbsent(key.substring(second + 1), properties.getProperty(key));
                 }
             }
             Path exclusionsFile = argument.folder().resolve(EXCLUSIONS);
@@ -137,12 +137,7 @@ public class Resolve implements BuildStep {
         SequencedMap<String, Resolver.Resolved> materialized = new LinkedHashMap<>();
         for (Map.Entry<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> groupEntry : requires.entrySet()) {
             String group = groupEntry.getKey();
-            SequencedMap<String, SequencedMap<String, String>> compileVersions = new LinkedHashMap<>();
-            List<String> order = new ArrayList<>(groupEntry.getValue().sequencedKeySet());
-            order.sort((left, right) -> left.equals("compile") == right.equals("compile")
-                    ? left.compareTo(right)
-                    : (left.equals("compile") ? -1 : 1));
-            for (String scope : order) {
+            for (String scope : groupEntry.getValue().sequencedKeySet()) {
                 DependencyScope intent = scope.equals("compile") ? DependencyScope.COMPILE : DependencyScope.RUNTIME;
                 for (Map.Entry<String, SequencedMap<String, String>> repoEntry : groupEntry.getValue().get(scope).entrySet()) {
                     String repo = repoEntry.getKey();
@@ -157,15 +152,11 @@ public class Resolve implements BuildStep {
                     }
                     SequencedMap<String, String> bom = new LinkedHashMap<>();
                     if (pinned) {
-                        SequencedMap<String, SequencedMap<String, String>> scopeVersions = versions
-                                .getOrDefault(group, new LinkedHashMap<>())
-                                .getOrDefault(scope, new LinkedHashMap<>());
-                        bom.putAll(scopeVersions.getOrDefault(repo, new LinkedHashMap<>()));
+                        SequencedMap<String, SequencedMap<String, String>> groupVersions = versions
+                                .getOrDefault(group, new LinkedHashMap<>());
+                        bom.putAll(groupVersions.getOrDefault(repo, new LinkedHashMap<>()));
                         for (String managed : resolver.managedPrefixes()) {
-                            scopeVersions.getOrDefault(managed, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
-                        }
-                        if (!scope.equals("compile")) {
-                            compileVersions.getOrDefault(repo, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
+                            groupVersions.getOrDefault(managed, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
                         }
                     }
                     SequencedMap<String, Resolver.Resolved> result;
@@ -183,14 +174,6 @@ public class Resolve implements BuildStep {
                         String transitiveKey = scope + "/" + entry.getKey();
                         resolved.setProperty(transitiveKey, value);
                         materialized.putIfAbsent(transitiveKey, entry.getValue());
-                        if (scope.equals("compile")) {
-                            String key = entry.getKey();
-                            int first = key.indexOf('/'), last = key.lastIndexOf('/');
-                            if (last > first) {
-                                compileVersions.computeIfAbsent(repo, _ -> new LinkedHashMap<>())
-                                        .put(key.substring(first + 1, last), key.substring(last + 1));
-                            }
-                        }
                     }
                 }
             }

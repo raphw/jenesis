@@ -54,17 +54,6 @@ public class PinPom implements BuildStep {
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private static SequencedSet<String> scopesOf(String scope) {
-        SequencedSet<String> scopes = new LinkedHashSet<>();
-        if (scope != null) {
-            scopes.addAll(List.of(scope.split(",")));
-        }
-        if (scopes.contains("compile") && scopes.contains("runtime")) {
-            scopes.remove("runtime");
-        }
-        return scopes;
-    }
-
     private void updatePom(Path pomFile, SequencedMap<String, String> entries) throws IOException {
         String existing = Files.readString(pomFile);
         Matcher dependencyManagementMatcher = DEPENDENCY_MANAGEMENT.matcher(existing);
@@ -81,9 +70,9 @@ public class PinPom implements BuildStep {
             String key = entry.getKey();
             int first = key.indexOf('/');
             int second = key.indexOf('/', first + 1);
-            String scope = key.substring(0, first);
+            String group = key.substring(0, first);
             String repository = second < 0 ? "" : key.substring(first + 1, second);
-            if (repository.equals("maven") && isStandardScope(scope)) {
+            if (repository.equals("maven") && group.equals("main")) {
                 managed.putIfAbsent(key.substring(second + 1), entry.getValue());
             } else {
                 qualified.put(key, entry.getValue());
@@ -142,19 +131,9 @@ public class PinPom implements BuildStep {
             String version = key.substring(lastSlash + 1);
             String checksum = computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
-            for (String scope : scopesOf(dependency.getValue().scope())) {
-                entries.putIfAbsent(scope + "/" + coordinate, value);
-            }
+            entries.putIfAbsent(dependency.getValue().group() + "/" + coordinate, value);
         }
         return entries;
-    }
-
-    private static boolean isStandardScope(String scope) {
-        return scope.equals("compile")
-                || scope.equals("runtime")
-                || scope.equals("provided")
-                || scope.equals("test")
-                || scope.equals("system");
     }
 
     private static String renderRequires(SequencedMap<String, String> qualified, String indent) {

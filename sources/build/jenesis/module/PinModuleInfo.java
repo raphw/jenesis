@@ -62,17 +62,6 @@ public class PinModuleInfo implements BuildStep {
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private static SequencedSet<String> scopesOf(String scope) {
-        SequencedSet<String> scopes = new LinkedHashSet<>();
-        if (scope != null) {
-            scopes.addAll(List.of(scope.split(",")));
-        }
-        if (scopes.contains("compile") && scopes.contains("runtime")) {
-            scopes.remove("runtime");
-        }
-        return scopes;
-    }
-
     private static String computeChecksum(Inventory.Dependency dependency,
                                           HashDigestFunction hashFunction) throws IOException {
         if (dependency.jar() != null && Files.isRegularFile(dependency.jar())) {
@@ -118,20 +107,29 @@ public class PinModuleInfo implements BuildStep {
             String version = coordinate.substring(lastSlash + 1);
             String checksum = computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
-            Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
-            if (reference.isEmpty()) {
-                continue;
+            String group = dependency.getValue().group();
+            String token;
+            if (group.equals("main")) {
+                try {
+                    Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
+                    if (reference.isEmpty()) {
+                        continue;
+                    }
+                    ModuleDescriptor descriptor = reference.get().descriptor();
+                    token = descriptor.isAutomatic() && !hasAutomaticModuleName(jar)
+                            ? coordinate.substring(0, lastSlash)
+                            : "module/" + descriptor.name();
+                } catch (FindException e) {
+                    token = coordinate.substring(0, lastSlash);
+                }
+            } else {
+                token = coordinate.substring(0, lastSlash);
             }
-            ModuleDescriptor descriptor = reference.get().descriptor();
-            String moduleToken = descriptor.isAutomatic() && !hasAutomaticModuleName(jar)
-                    ? coordinate.substring(0, lastSlash)
-                    : "module/" + descriptor.name();
-            for (String scope : scopesOf(dependency.getValue().scope())) {
-                String token = scope.equals("compile") || scope.equals("runtime")
-                        ? moduleToken
-                        : coordinate.substring(0, lastSlash);
-                entries.putIfAbsent(scope + "/" + token, value);
-            }
+            entries.putIfAbsent(
+                    group.equals("main") && token.startsWith("module/")
+                            ? token.substring("module/".length())
+                            : group + "/" + token,
+                    value);
         }
         return entries;
     }
@@ -162,9 +160,12 @@ public class PinModuleInfo implements BuildStep {
             String version = key.substring(lastSlash + 1);
             String checksum = computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
-            for (String scope : scopesOf(dependency.getValue().scope())) {
-                entries.putIfAbsent(scope + "/" + coordinate, value);
-            }
+            String group = dependency.getValue().group();
+            entries.putIfAbsent(
+                    group.equals("main") && coordinate.startsWith("module/")
+                            ? coordinate.substring("module/".length())
+                            : group + "/" + coordinate,
+                    value);
         }
         return entries;
     }

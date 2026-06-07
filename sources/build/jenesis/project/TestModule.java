@@ -371,7 +371,7 @@ public class TestModule implements BuildExecutorModule {
                         }
                         SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
                         for (String key : upstream.stringPropertyNames()) {
-                            if (key.startsWith("main/runtime/" + selectedPrefix + "/")) {
+                            if (key.startsWith("main/" + selectedPrefix + "/")) {
                                 versions.putIfAbsent(key, upstream.getProperty(key));
                             }
                         }
@@ -380,7 +380,7 @@ public class TestModule implements BuildExecutorModule {
                         String coordinate = entry.getKey(), version = entry.getValue();
                         int index = coordinate.indexOf('/');
                         if (version != null && index > 0 && selectedPrefix.equals(coordinate.substring(0, index))) {
-                            versions.putIfAbsent("main/runtime/" + coordinate, version);
+                            versions.putIfAbsent("main/" + coordinate, version);
                         }
                     }
                 }

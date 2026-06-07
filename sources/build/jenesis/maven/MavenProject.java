@@ -252,8 +252,7 @@ public class MavenProject implements BuildExecutorModule {
                                     for (String entry : managed.split(",")) {
                                         int split = entry.indexOf('=');
                                         String coord = entry.substring(0, split), version = entry.substring(split + 1);
-                                        versions.setProperty("main/compile/" + coord, version);
-                                        versions.setProperty("main/runtime/" + coord, version);
+                                        versions.setProperty("main/" + coord, version);
                                     }
                                 }
                                 if (!versions.isEmpty()) {

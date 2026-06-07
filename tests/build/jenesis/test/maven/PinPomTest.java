@@ -244,7 +244,7 @@ public class PinPomTest {
         String result = run(pom);
         assertThat(result).contains("<artifactId>picked</artifactId>");
         assertThat(result).doesNotContain("<artifactId>org.example.module</artifactId>");
-        assertThat(result).contains("compile/module/org.example.module 1.0");
+        assertThat(result).contains("main/module/org.example.module 1.0");
     }
 
     @Test

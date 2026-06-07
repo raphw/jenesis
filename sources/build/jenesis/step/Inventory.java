@@ -177,6 +177,9 @@ public class Inventory implements BuildStep {
     }
 
     public record Dependency(Path jar, String checksum, String scope) {
+        public String group() {
+            return scope == null || scope.contains("compile") || scope.contains("runtime") ? "main" : scope;
+        }
     }
 
     public static SequencedMap<String, Dependency> closure(Iterable<BuildStepArgument> arguments, String path) throws IOException {
