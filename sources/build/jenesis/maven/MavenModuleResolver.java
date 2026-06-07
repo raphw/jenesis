@@ -25,7 +25,7 @@ public class MavenModuleResolver implements Resolver {
     }
 
     @Override
-    public SequencedMap<String, String> dependencies(Executor executor,
+    public SequencedMap<String, Resolver.Resolved> dependencies(Executor executor,
                                                      String prefix,
                                                      Map<String, Repository> repositories,
                                                      SequencedMap<String, SequencedSet<String>> coordinates,
@@ -71,7 +71,7 @@ public class MavenModuleResolver implements Resolver {
                     }
                     result.put(key.coordinate(mavenPrefix, value.version()), checksum == null ? "" : checksum);
                 });
-        return result;
+        return Resolver.materializeAll(executor, repositories, mavenPrefix, result);
     }
 
     private MavenResolver.RootPom toRootPom(Executor executor,

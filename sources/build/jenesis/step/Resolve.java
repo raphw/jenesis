@@ -1,12 +1,15 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.DependencyScope;
+import build.jenesis.Pinning;
 import build.jenesis.Repository;
+import build.jenesis.RepositoryItem;
 import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -17,29 +20,29 @@ public class Resolve implements BuildStep {
 
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
-    private final boolean pinned;
+    private final Pinning pinning;
     private final transient Supplier<ResolutionListener> listener;
 
     public Resolve(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, true, null);
+        this(repositories, resolvers, null, null);
     }
 
     private Resolve(Map<String, Repository> repositories,
                     Map<String, Resolver> resolvers,
-                    boolean pinned,
+                    Pinning pinning,
                     Supplier<ResolutionListener> listener) {
         this.repositories = repositories;
         this.resolvers = new LinkedHashMap<>(resolvers);
-        this.pinned = pinned;
+        this.pinning = pinning;
         this.listener = listener;
     }
 
-    public Resolve pinned(boolean pinned) {
-        return new Resolve(repositories, resolvers, pinned, listener);
+    public Resolve pinning(Pinning pinning) {
+        return new Resolve(repositories, resolvers, pinning, listener);
     }
 
     public Resolve listening(Supplier<ResolutionListener> listener) {
-        return new Resolve(repositories, resolvers, pinned, listener);
+        return new Resolve(repositories, resolvers, pinning, listener);
     }
 
     @Override
@@ -58,6 +61,7 @@ public class Resolve implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
+        boolean pinned = pinning != Pinning.IGNORE;
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> requires = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> versions = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>>> exclusions = new LinkedHashMap<>();
@@ -116,7 +120,21 @@ public class Resolve implements BuildStep {
                 }
             }
         }
+        Path cache = Files.createDirectories(context.next().resolve("cache"));
+        Path previousCache = context.previous() == null ? null : context.previous().resolve("cache");
+        Map<String, Repository> wrapped = new LinkedHashMap<>();
+        repositories.forEach((name, repository) -> {
+            Repository effective = repository;
+            if (previousCache != null) {
+                effective = effective.prepend((_, coordinate) -> {
+                    Path file = previousCache.resolve(BuildExecutorModule.encode(coordinate) + ".jar");
+                    return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
+                });
+            }
+            wrapped.put(name, effective.cached(cache));
+        });
         SequencedProperties resolved = new SequencedProperties();
+        SequencedMap<String, Resolver.Resolved> materialized = new LinkedHashMap<>();
         for (Map.Entry<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> groupEntry : requires.entrySet()) {
             String group = groupEntry.getKey();
             SequencedMap<String, SequencedMap<String, String>> compileVersions = new LinkedHashMap<>();
@@ -150,19 +168,21 @@ public class Resolve implements BuildStep {
                             compileVersions.getOrDefault(repo, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
                         }
                     }
-                    SequencedMap<String, String> result;
+                    SequencedMap<String, Resolver.Resolved> result;
                     if (listener == null) {
-                        result = resolver.dependencies(executor, repo, repositories, coordinates, bom, intent);
+                        result = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
                     } else {
                         ResolutionListener current = listener.get();
-                        result = resolver.dependencies(executor, repo, repositories, coordinates, bom, intent, current);
+                        result = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent, current);
                         current.onResolved();
                     }
-                    for (Map.Entry<String, String> entry : result.entrySet()) {
+                    for (Map.Entry<String, Resolver.Resolved> entry : result.entrySet()) {
                         String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
                         String declared = repoEntry.getValue().get(coordinate);
-                        resolved.setProperty(scope + "/" + entry.getKey(),
-                                declared != null && !declared.isEmpty() ? declared : entry.getValue());
+                        String value = declared != null && !declared.isEmpty() ? declared : entry.getValue().checksum();
+                        String transitiveKey = scope + "/" + entry.getKey();
+                        resolved.setProperty(transitiveKey, value);
+                        materialized.putIfAbsent(transitiveKey, entry.getValue());
                         if (scope.equals("compile")) {
                             String key = entry.getKey();
                             int first = key.indexOf('/'), last = key.lastIndexOf('/');
@@ -176,6 +196,40 @@ public class Resolve implements BuildStep {
             }
         }
         resolved.store(context.next().resolve(TRANSITIVES));
+        Path libs = Files.createDirectory(context.next().resolve(DEPENDENCIES));
+        SequencedProperties index = new SequencedProperties();
+        SequencedMap<String, Resolver.Resolved> placements = new LinkedHashMap<>();
+        SequencedMap<String, String> checksums = new LinkedHashMap<>();
+        for (Map.Entry<String, Resolver.Resolved> entry : materialized.entrySet()) {
+            String key = entry.getKey();
+            int first = key.indexOf('/'), second = key.indexOf('/', first + 1);
+            if (first < 0 || second < 0) {
+                continue;
+            }
+            String dependency = key.substring(first + 1), name = dependency.replace('/', '-') + ".jar";
+            index.setProperty(key, DEPENDENCIES + name);
+            String value = resolved.getProperty(key);
+            placements.putIfAbsent(name, entry.getValue());
+            checksums.merge(name, value, (left, right) -> {
+                if (right.isEmpty()) {
+                    return left;
+                }
+                if (!left.isEmpty() && !left.equals(right)) {
+                    throw new IllegalStateException("Conflicting checksums pinned for " + name + ": " + left + " and " + right);
+                }
+                return left.isEmpty() ? right : left;
+            });
+        }
+        for (Map.Entry<String, Resolver.Resolved> entry : placements.entrySet()) {
+            String name = entry.getKey();
+            Resolver.Resolved artifact = entry.getValue();
+            String value = pinning == Pinning.IGNORE ? "" : checksums.get(name);
+            if (value.isEmpty() && pinning == Pinning.STRICT && !artifact.internal()) {
+                throw new IllegalStateException("No checksum pinned for " + name + " (strict pinning is enabled)");
+            }
+            BuildStep.linkOrCopy(libs.resolve(name), artifact.file());
+        }
+        index.store(context.next().resolve(DEPENDENCY_INDEX));
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 

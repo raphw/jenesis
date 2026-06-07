@@ -20,7 +20,7 @@ import build.jenesis.project.MultiProjectDependencies;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.step.Assign;
 import build.jenesis.step.Bind;
-import build.jenesis.step.Download;
+import build.jenesis.step.Forward;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Resolve;
@@ -93,10 +93,10 @@ public class ModularProject implements BuildExecutorModule {
                                         digest),
                                 depInherited.sequencedKeySet());
                         depExec.addStep(DependenciesModule.RESOLVED,
-                                new Resolve(mergedRepositories, resolvers).pinned(pinning != Pinning.IGNORE).listening(listener),
+                                new Resolve(mergedRepositories, resolvers).pinning(pinning).listening(listener),
                                 PREPARE);
                         depExec.addStep(DependenciesModule.ARTIFACTS,
-                                new Download(mergedRepositories).pinning(pinning),
+                                new Forward(),
                                 DependenciesModule.RESOLVED);
                     }, inherited.sequencedKeySet());
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
