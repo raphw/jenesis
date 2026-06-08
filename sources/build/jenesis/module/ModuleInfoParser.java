@@ -118,18 +118,18 @@ public class ModuleInfoParser {
                             case "jenesis.plugin" -> {
                                 String trimmed = content.trim();
                                 int space = trimmed.indexOf(' ');
-                                String scope, token;
+                                String group, token;
                                 if (space > 0 && trimmed.substring(0, space).indexOf('/') < 0) {
-                                    scope = "plugin:" + trimmed.substring(0, space).trim();
+                                    group = trimmed.substring(0, space).trim();
                                     token = trimmed.substring(space + 1).trim();
                                 } else {
-                                    scope = "plugin";
+                                    group = "plugin";
                                     token = trimmed;
                                 }
                                 if (token.isEmpty()) {
                                     continue;
                                 }
-                                plugins.put(token.indexOf('/') < 0 ? "module/" + token : token, scope);
+                                plugins.put(token.indexOf('/') < 0 ? "module/" + token : token, group);
                             }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {

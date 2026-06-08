@@ -125,19 +125,19 @@ public class ModuleInfoParserTest {
     }
 
     @Test
-    public void jenesis_plugin_compiler_word_names_the_scope() throws IOException {
+    public void jenesis_plugin_compiler_word_names_the_group() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @jenesis.plugin kotlin module/some.processor
-                 * @jenesis.plugin scala maven/com.example/plugin
+                 * @jenesis.plugin kotlinc module/some.processor
+                 * @jenesis.plugin scalac maven/com.example/plugin
                  */
                 module foo {
                     requires bar;
                 }
                 """);
         assertThat(new ModuleInfoParser().identify(folder.resolve("module-info.java")).plugins()).containsExactly(
-                Map.entry("module/some.processor", "plugin:kotlin"),
-                Map.entry("maven/com.example/plugin", "plugin:scala"));
+                Map.entry("module/some.processor", "kotlinc"),
+                Map.entry("maven/com.example/plugin", "scalac"));
     }
 
     @Test

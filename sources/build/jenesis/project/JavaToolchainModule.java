@@ -24,6 +24,10 @@ public record JavaToolchainModule(BuildExecutorModule compiler,
         return new JavaToolchainModule(compiler, transformer, validator, archiver);
     }
 
+    public JavaToolchainModule group(String group) {
+        return compiler(new Javac(ProcessHandler.Factory.of()).group(group).asModule("javac"));
+    }
+
     public JavaToolchainModule archiver(BuildExecutorModule archiver) {
         return new JavaToolchainModule(compiler, transformer, validator, archiver);
     }

@@ -16,17 +16,20 @@ public class Javac extends JdkProcessBuildStep {
 
     private final boolean includeResources;
     private final PathPlacement placement;
+    private final String group;
 
     public Javac(ProcessHandler.Factory factory) {
-        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED);
+        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED, "main");
     }
 
     private Javac(Function<List<String>, ? extends ProcessHandler> factory,
                   boolean includeResources,
-                  PathPlacement placement) {
+                  PathPlacement placement,
+                  String group) {
         super("javac", factory);
         this.includeResources = includeResources;
         this.placement = placement;
+        this.group = group;
     }
 
     public static void writeRelease(Path folder, String release) throws IOException {
@@ -40,11 +43,15 @@ public class Javac extends JdkProcessBuildStep {
     }
 
     public Javac includeResources(boolean includeResources) {
-        return new Javac(factory, includeResources, placement);
+        return new Javac(factory, includeResources, placement, group);
     }
 
     public Javac modulePath(PathPlacement placement) {
-        return new Javac(factory, includeResources, placement);
+        return new Javac(factory, includeResources, placement, group);
+    }
+
+    public Javac group(String group) {
+        return new Javac(factory, includeResources, placement, group);
     }
 
     @Override
@@ -125,7 +132,7 @@ public class Javac extends JdkProcessBuildStep {
                 siblingClasses = new ArrayList<>(),
                 commands = new ArrayList<>(List.of("-d", target.toString()));
         for (BuildStepArgument argument : arguments.values()) {
-            for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+            for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                 path.add(jar.toString());
             }
             for (Path jar : Dependencies.select(argument.folder(), "plugin", "plugin")) {
@@ -236,7 +243,7 @@ public class Javac extends JdkProcessBuildStep {
             if (Files.exists(classes)) {
                 dependencyPath.add(classes.toString());
             }
-            for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+            for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                 dependencyPath.add(jar.toString());
             }
             Path sources = argument.folder().resolve(Bind.SOURCES);
