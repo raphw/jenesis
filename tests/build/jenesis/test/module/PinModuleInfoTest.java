@@ -60,18 +60,6 @@ public class PinModuleInfoTest {
         properties.store(input.resolve(Inventory.INVENTORY));
     }
 
-    private void writeJars(Map<String, String> entries) throws IOException {
-        SequencedProperties properties = loadInventory();
-        int index = count(properties, "module.dependency.");
-        for (Map.Entry<String, String> entry : entries.entrySet()) {
-            properties.setProperty("module.dependency." + index,
-                    entry.getKey() + " " + "resolved/" + entry.getValue());
-            properties.setProperty("module.dependency." + index + ".scope", "compile");
-            index++;
-        }
-        properties.store(input.resolve(Inventory.INVENTORY));
-    }
-
     private void writeIdentity(Map<String, String> entries) throws IOException {
         SequencedProperties properties = loadInventory();
         int index = count(properties, "module.identity.");
@@ -81,42 +69,8 @@ public class PinModuleInfoTest {
         properties.store(input.resolve(Inventory.INVENTORY));
     }
 
-    private Path writeAutomaticJar(Path artifacts, String filename, String moduleName) throws IOException {
-        Path jar = artifacts.resolve(filename);
-        Manifest manifest = new Manifest();
-        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
-        manifest.getMainAttributes().putValue("Automatic-Module-Name", moduleName);
-        try (JarOutputStream _ = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
-            // Manifest is implicit; no further entries needed for an automatic module.
-        }
-        return jar;
-    }
-
-    private Path writePlainJar(Path artifacts, String filename) throws IOException {
-        Path jar = artifacts.resolve(filename);
-        Manifest manifest = new Manifest();
-        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
-        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
-            out.putNextEntry(new JarEntry("sample/Type.class"));
-            out.write(new byte[] {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE});
-            out.closeEntry();
-        }
-        return jar;
-    }
-
     private String run(Path moduleInfo) throws IOException {
         new PinModuleInfo("module", "", moduleInfo, new HashDigestFunction("SHA-256")).apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
-                                input,
-                                Map.of(Path.of(Inventory.INVENTORY), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        return Files.readString(moduleInfo);
-    }
-
-    private String runFromJars(Path moduleInfo) throws IOException {
-        new PinModuleInfo("module", "", moduleInfo, true, new HashDigestFunction("SHA-256")).apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
@@ -302,44 +256,6 @@ public class PinModuleInfoTest {
     }
 
     @Test
-    public void from_jars_pins_module_names_with_coordinate_versions() throws IOException {
-        Path file = root.resolve("module-info.java");
-        Files.writeString(file, """
-                module foo {
-                  requires bar;
-                }
-                """);
-        Path artifacts = Files.createDirectory(input.resolve("resolved"));
-        writeAutomaticJar(artifacts, "maven-com.example-bar-1.2.3.jar", "com.example.bar");
-        writeAutomaticJar(artifacts, "module-baz-2.0.0.jar", "com.example.baz");
-        writeJars(new LinkedHashMap<>(Map.of(
-                "maven/com.example/bar/1.2.3", "maven-com.example-bar-1.2.3.jar",
-                "module/baz/2.0.0", "module-baz-2.0.0.jar")));
-        String result = runFromJars(file);
-        assertInsideJavadoc(result, "@jenesis.pin com.example.bar 1.2.3 SHA-256/");
-        assertInsideJavadoc(result, "@jenesis.pin com.example.baz 2.0.0 SHA-256/");
-    }
-
-    @Test
-    public void from_jars_skips_versionless_coordinates() throws IOException {
-        Path file = root.resolve("module-info.java");
-        Files.writeString(file, """
-                module foo {
-                  requires bar;
-                }
-                """);
-        Path artifacts = Files.createDirectory(input.resolve("resolved"));
-        writeAutomaticJar(artifacts, "module-build.jenesis.jar", "build.jenesis");
-        writeAutomaticJar(artifacts, "module-other-1.0.0.jar", "other.module");
-        writeJars(new LinkedHashMap<>(Map.of(
-                "module/build.jenesis", "module-build.jenesis.jar",
-                "module/other/1.0.0", "module-other-1.0.0.jar")));
-        String result = runFromJars(file);
-        assertThat(result).doesNotContain("@jenesis.pin build.jenesis");
-        assertInsideJavadoc(result, "@jenesis.pin other.module 1.0.0");
-    }
-
-    @Test
     public void recomputes_checksum_when_jar_is_present() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """
@@ -403,57 +319,5 @@ public class PinModuleInfoTest {
         }
         String expected = HexFormat.of().formatHex(digest.digest(payload));
         assertThat(result).contains("@jenesis.pin kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/" + expected);
-    }
-
-    @Test
-    public void from_jars_pins_non_modular_dependency_by_maven_coordinate() throws IOException {
-        Path file = root.resolve("module-info.java");
-        Files.writeString(file, """
-                module foo {
-                  requires bar;
-                }
-                """);
-        Path artifacts = Files.createDirectory(input.resolve("resolved"));
-        writePlainJar(artifacts, "maven-org.jetbrains-annotations-13.0.jar");
-        writeJars(Map.of("maven/org.jetbrains/annotations/13.0", "maven-org.jetbrains-annotations-13.0.jar"));
-        String result = runFromJars(file);
-        assertInsideJavadoc(result, "@jenesis.pin main/maven/org.jetbrains/annotations 13.0 SHA-256/");
-        assertThat(result).doesNotContain("@jenesis.pin maven.org.jetbrains.annotations");
-    }
-
-    @Test
-    public void from_jars_pins_modular_dependency_by_module_name() throws IOException {
-        Path file = root.resolve("module-info.java");
-        Files.writeString(file, """
-                module foo {
-                  requires bar;
-                }
-                """);
-        Path artifacts = Files.createDirectory(input.resolve("resolved"));
-        writeAutomaticJar(artifacts, "maven-org.jetbrains-compiler-1.2.3.jar", "org.jetbrains.compiler");
-        writeJars(Map.of("maven/org.jetbrains/compiler/1.2.3", "maven-org.jetbrains-compiler-1.2.3.jar"));
-        String result = runFromJars(file);
-        assertInsideJavadoc(result, "@jenesis.pin org.jetbrains.compiler 1.2.3 SHA-256/");
-        assertThat(result).doesNotContain("@jenesis.pin main/maven/org.jetbrains/compiler");
-    }
-
-    @Test
-    public void from_jars_skips_internal_coordinates_from_identity() throws IOException {
-        Path file = root.resolve("module-info.java");
-        Files.writeString(file, """
-                module foo {
-                  requires bar;
-                }
-                """);
-        Path artifacts = Files.createDirectory(input.resolve("resolved"));
-        writeAutomaticJar(artifacts, "module-internal-1.0.0.jar", "internal.module");
-        writeAutomaticJar(artifacts, "module-external-2.0.0.jar", "external.module");
-        writeJars(new LinkedHashMap<>(Map.of(
-                "module/internal/1.0.0", "module-internal-1.0.0.jar",
-                "module/external/2.0.0", "module-external-2.0.0.jar")));
-        writeIdentity(Map.of("module/internal/1.0.0", ""));
-        String result = runFromJars(file);
-        assertThat(result).doesNotContain("@jenesis.pin internal.module");
-        assertInsideJavadoc(result, "@jenesis.pin external.module 2.0.0");
     }
 }

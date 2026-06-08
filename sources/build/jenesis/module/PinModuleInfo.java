@@ -18,26 +18,16 @@ public class PinModuleInfo implements BuildStep {
     private final String prefix;
     private final String path;
     private final List<Path> moduleInfoFiles;
-    private final boolean fromJars;
     private final transient HashDigestFunction hashFunction;
 
     public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), false, hashFunction);
+        this(prefix, path, List.of(moduleInfoFile), hashFunction);
     }
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, moduleInfoFiles, false, hashFunction);
-    }
-
-    public PinModuleInfo(String prefix, String path, Path moduleInfoFile, boolean fromJars, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), fromJars, hashFunction);
-    }
-
-    public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, boolean fromJars, HashDigestFunction hashFunction) {
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
-        this.fromJars = fromJars;
         this.hashFunction = hashFunction;
     }
 
@@ -53,9 +43,7 @@ public class PinModuleInfo implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = fromJars
-                ? collectFromJars(closure, internal, hashFunction)
-                : collectEntries(closure, internal, hashFunction);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries);
         }
@@ -86,65 +74,15 @@ public class PinModuleInfo implements BuildStep {
         }
     }
 
-    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, Inventory.Dependency> closure,
-                                                               Set<String> internal,
-                                                               HashDigestFunction hashFunction) throws IOException {
-        SequencedMap<String, String> entries = new TreeMap<>();
-        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
-            String coordinate = dependency.getKey();
-            if (internal.contains(coordinate)) {
-                continue;
-            }
-            int firstSlash = coordinate.indexOf('/');
-            int lastSlash = coordinate.lastIndexOf('/');
-            if (firstSlash <= 0 || lastSlash == firstSlash) {
-                continue;
-            }
-            Path jar = dependency.getValue().jar();
-            if (jar == null || !Files.isRegularFile(jar)) {
-                continue;
-            }
-            String version = coordinate.substring(lastSlash + 1);
-            String checksum = computeChecksum(dependency.getValue(), hashFunction);
-            String value = checksum == null ? version : version + " " + checksum;
-            String group = dependency.getValue().group();
-            String token;
-            if (group.equals("main")) {
-                try {
-                    Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
-                    if (reference.isEmpty()) {
-                        continue;
-                    }
-                    ModuleDescriptor descriptor = reference.get().descriptor();
-                    token = descriptor.isAutomatic() && !hasAutomaticModuleName(jar)
-                            ? coordinate.substring(0, lastSlash)
-                            : "module/" + descriptor.name();
-                } catch (FindException e) {
-                    token = coordinate.substring(0, lastSlash);
-                }
-            } else {
-                token = coordinate.substring(0, lastSlash);
-            }
-            entries.putIfAbsent(
-                    group.equals("main") && token.startsWith("module/")
-                            ? token.substring("module/".length())
-                            : group + "/" + token,
-                    value);
-        }
-        return entries;
-    }
-
-    private static boolean hasAutomaticModuleName(Path jar) throws IOException {
-        try (JarFile jarFile = new JarFile(jar.toFile())) {
-            Manifest manifest = jarFile.getManifest();
-            return manifest != null
-                    && manifest.getMainAttributes().getValue("Automatic-Module-Name") != null;
-        }
-    }
-
     static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
                                                        Set<String> internal,
                                                        HashDigestFunction hashFunction) throws IOException {
+        Set<Path> hashedElsewhere = new HashSet<>();
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            if (!dependency.getKey().startsWith("module/") && dependency.getValue().jar() != null) {
+                hashedElsewhere.add(dependency.getValue().jar());
+            }
+        }
         SequencedMap<String, String> entries = new TreeMap<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
             String key = dependency.getKey();
@@ -158,13 +96,18 @@ public class PinModuleInfo implements BuildStep {
             }
             String coordinate = key.substring(0, lastSlash);
             String version = key.substring(lastSlash + 1);
-            String checksum = computeChecksum(dependency.getValue(), hashFunction);
-            String value = checksum == null ? version : version + " " + checksum;
             String group = dependency.getValue().group();
+            boolean moduleRoot = group.equals("main") && coordinate.startsWith("module/");
+            // A module root in a Maven-resolved layout pins only the version: the root pom
+            // it stands for is not hashed, and the jar it points at is hashed by its Maven entry.
+            String checksum = moduleRoot
+                    && dependency.getValue().jar() != null
+                    && hashedElsewhere.contains(dependency.getValue().jar())
+                    ? null
+                    : computeChecksum(dependency.getValue(), hashFunction);
+            String value = checksum == null ? version : version + " " + checksum;
             entries.putIfAbsent(
-                    group.equals("main") && coordinate.startsWith("module/")
-                            ? coordinate.substring("module/".length())
-                            : group + "/" + coordinate,
+                    moduleRoot ? coordinate.substring("module/".length()) : group + "/" + coordinate,
                     value);
         }
         return entries;

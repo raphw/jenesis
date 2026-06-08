@@ -226,7 +226,7 @@ public record Project(
             }, STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    (path, file) -> new PinModuleInfo("module", path, file, true, project.hashFunction())), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1

@@ -219,8 +219,16 @@ public class Dependencies implements BuildStep {
             });
         }
         if (pinning == Pinning.STRICT) {
+            Set<Path> pinnedFiles = new HashSet<>();
             for (Map.Entry<String, String> entry : checksums.entrySet()) {
-                if (entry.getValue().isEmpty() && !internals.get(entry.getKey())) {
+                if (!entry.getValue().isEmpty()) {
+                    pinnedFiles.add(placed.get(entry.getKey()));
+                }
+            }
+            for (Map.Entry<String, String> entry : checksums.entrySet()) {
+                if (entry.getValue().isEmpty()
+                        && !internals.get(entry.getKey())
+                        && !pinnedFiles.contains(placed.get(entry.getKey()))) {
                     throw new IllegalStateException("No checksum pinned for " + entry.getKey() + " (strict pinning is enabled)");
                 }
             }
@@ -235,7 +243,7 @@ public class Dependencies implements BuildStep {
             return List.of();
         }
         SequencedProperties properties = SequencedProperties.ofFiles(file);
-        List<Path> selected = new ArrayList<>();
+        SequencedSet<Path> selected = new LinkedHashSet<>();
         for (String key : properties.stringPropertyNames()) {
             int slash = key.indexOf('/');
             if (slash > 0 && key.substring(0, slash).equals(scope)) {
@@ -247,7 +255,7 @@ public class Dependencies implements BuildStep {
                 }
             }
         }
-        return selected;
+        return new ArrayList<>(selected);
     }
 
     public static List<Path> all(Path folder) throws IOException {
