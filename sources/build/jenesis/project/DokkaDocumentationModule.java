@@ -31,7 +31,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
-    private final String qualifier;
+    private final String group;
     private final String within;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
@@ -42,37 +42,37 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private DokkaDocumentationModule(Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers,
                                      Pinning pinning,
-                                     String qualifier,
+                                     String group,
                                      String within,
                                      Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
-        this.qualifier = qualifier;
+        this.group = group;
         this.within = within;
         this.factory = factory;
     }
 
     public DokkaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
     }
 
     public DokkaDocumentationModule pinning(Pinning pinning) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
     }
 
-    public DokkaDocumentationModule qualifier(String qualifier) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+    public DokkaDocumentationModule group(String group) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
     }
 
     public DokkaDocumentationModule within(String within) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, qualifier, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(resolvers.containsKey("maven"), qualifier), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(resolvers.containsKey("maven"), group), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -83,7 +83,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, qualifier) : new Document(within, qualifier, factory),
+                factory == null ? new Document(within, group) : new Document(within, group, factory),
                 documentInputs);
     }
 
@@ -98,7 +98,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(boolean maven, String qualifier) implements BuildStep {
+    private record Requires(boolean maven, String group) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -108,7 +108,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
             SequencedProperties requires = new SequencedProperties();
             if (maven) {
                 for (String artifact : CLI_ARTIFACTS) {
-                    requires.setProperty(qualifier + "/" + qualifier + "/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
+                    requires.setProperty(group + "/runtime/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
                 }
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
@@ -119,16 +119,16 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private static class Document extends JdkProcessBuildStep {
 
         private final String within;
-        private final String qualifierTrail;
+        private final String groupTrail;
 
-        private Document(String within, String qualifierTrail) {
-            this(within, qualifierTrail, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String groupTrail) {
+            this(within, groupTrail, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, String qualifierTrail, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, String groupTrail, Function<List<String>, ? extends ProcessHandler> factory) {
             super("dokka", factory);
             this.within = within;
-            this.qualifierTrail = qualifierTrail;
+            this.groupTrail = groupTrail;
         }
 
         @Override
@@ -161,7 +161,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), qualifierTrail, qualifierTrail)) {
+                for (Path jar : Dependencies.select(argument.folder(), groupTrail, "runtime")) {
                     jars.add(jar.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {

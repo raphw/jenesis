@@ -34,47 +34,47 @@ public class KotlinCompilerModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final boolean includeResources;
-    private final String qualifier;
+    private final String group;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public KotlinCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, true, "kotlin", null);
+        this(repositories, resolvers, null, true, "kotlinc", null);
     }
 
     private KotlinCompilerModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
                                  Pinning pinning,
                                  boolean includeResources,
-                                 String qualifier,
+                                 String group,
                                  Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.includeResources = includeResources;
-        this.qualifier = qualifier;
+        this.group = group;
         this.factory = factory;
     }
 
     public KotlinCompilerModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
     }
 
     public KotlinCompilerModule pinning(Pinning pinning) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
     }
 
     public KotlinCompilerModule includeResources(boolean includeResources) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
     }
 
-    public KotlinCompilerModule qualifier(String qualifier) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, qualifier, factory);
+    public KotlinCompilerModule group(String group) {
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), qualifier), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), group), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -85,7 +85,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         compileInputs.add(DEPENDENCIES);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile(includeResources, qualifier) : new Compile(includeResources, qualifier, factory),
+                factory == null ? new Compile(includeResources, group) : new Compile(includeResources, group, factory),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -103,7 +103,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(Set<String> prefixes, String qualifier) implements BuildStep {
+    private record Requires(Set<String> prefixes, String group) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -133,7 +133,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(qualifier + "/" + qualifier + "/" + coordinate, "");
+            requires.setProperty(group + "/runtime/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -142,16 +142,16 @@ public class KotlinCompilerModule implements BuildExecutorModule {
     private static class Compile extends JdkProcessBuildStep {
 
         private final boolean includeResources;
-        private final String qualifier;
+        private final String group;
 
-        private Compile(boolean includeResources, String qualifier) {
-            this(includeResources, qualifier, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Compile(boolean includeResources, String group) {
+            this(includeResources, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Compile(boolean includeResources, String qualifier, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Compile(boolean includeResources, String group, Function<List<String>, ? extends ProcessHandler> factory) {
             super("kotlinc", factory);
             this.includeResources = includeResources;
-            this.qualifier = qualifier;
+            this.group = group;
         }
 
         @Override
@@ -172,10 +172,10 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                     plugins = new ArrayList<>();
             String release = null;
             for (BuildStepArgument argument : arguments.values()) {
-                for (Path jar : Dependencies.select(argument.folder(), qualifier, qualifier)) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "plugin:" + qualifier, "plugin:" + qualifier)) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "plugin")) {
                     plugins.add(jar.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {

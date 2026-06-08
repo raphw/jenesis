@@ -145,7 +145,6 @@ public class ExternalModule implements BuildExecutorModule {
                 throws IOException {
             SequencedProperties properties = new SequencedProperties();
             for (String coordinate : coordinates) {
-                properties.setProperty(group + "/compile/" + coordinate, "");
                 properties.setProperty(group + "/runtime/" + coordinate, "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));

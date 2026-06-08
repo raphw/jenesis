@@ -213,7 +213,7 @@ public class InternalModule implements BuildExecutorModule {
                 properties.setProperty(group + "/compile/" + dependency, "");
                 properties.setProperty(group + "/runtime/" + dependency, "");
             }
-            info.plugins().forEach((coordinate, scope) -> properties.setProperty(scope + "/" + scope + "/" + coordinate, ""));
+            info.plugins().forEach((coordinate, group) -> properties.setProperty(group + "/plugin/" + coordinate, ""));
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedProperties versions = pinnedVersions(arguments);
             if (!versions.isEmpty()) {

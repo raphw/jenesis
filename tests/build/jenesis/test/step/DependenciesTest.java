@@ -57,11 +57,11 @@ public class DependenciesTest {
         jar("libs/kotlin-plugin.jar");
         SequencedProperties index = new SequencedProperties();
         index.setProperty("plugin/plugin/maven/processor", "libs/processor.jar");
-        index.setProperty("plugin:kotlin/plugin:kotlin/maven/kotlin-plugin", "libs/kotlin-plugin.jar");
+        index.setProperty("kotlinc/plugin/maven/kotlin-plugin", "libs/kotlin-plugin.jar");
         index.store(folder.resolve(BuildStep.DEPENDENCIES));
         assertThat(Dependencies.select(folder, "plugin", "plugin"))
                 .containsExactly(folder.resolve("libs/processor.jar"));
-        assertThat(Dependencies.select(folder, "plugin:kotlin", "plugin:kotlin"))
+        assertThat(Dependencies.select(folder, "kotlinc", "plugin"))
                 .containsExactly(folder.resolve("libs/kotlin-plugin.jar"));
     }
 }

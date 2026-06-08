@@ -173,8 +173,8 @@ public class ModularProject implements BuildExecutorModule {
                     requires.setProperty(group + "/runtime/" + prefix + "/" + dependency, "");
                 }
             }
-            info.plugins().forEach((coordinate, scope) ->
-                    requires.setProperty(scope + "/" + scope + "/" + coordinate, ""));
+            info.plugins().forEach((coordinate, group) ->
+                    requires.setProperty(group + "/plugin/" + coordinate, ""));
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             if (!info.versions().isEmpty()) {
                 SequencedProperties properties = new SequencedProperties();

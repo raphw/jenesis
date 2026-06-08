@@ -94,7 +94,7 @@ public class DependenciesResolutionTest {
     @Test
     public void resolves_a_non_main_scope_through_its_base_resolver() throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("plugin:kotlin/plugin:kotlin/maven/org.jetbrains/something", "");
+        properties.setProperty("kotlinc/plugin/maven/org.jetbrains/something", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Dependencies(Map.of("maven", files(Map.of())), Map.of("maven", (executor, prefix, repositories, descriptors, _, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
@@ -110,7 +110,7 @@ public class DependenciesResolutionTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
-        assertThat(resolved.stringPropertyNames()).containsExactly("plugin:kotlin/plugin:kotlin/maven/org.jetbrains/something");
+        assertThat(resolved.stringPropertyNames()).containsExactly("kotlinc/plugin/maven/org.jetbrains/something");
     }
 
     @Test

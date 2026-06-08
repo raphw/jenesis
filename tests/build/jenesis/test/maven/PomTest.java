@@ -96,7 +96,7 @@ public class PomTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("main/compile/maven/org.example/lib/1.2.3", "");
         dependencies.setProperty("main/runtime/maven/org.example/lib/1.2.3", "");
-        dependencies.setProperty("kotlin/kotlin/maven/org.example/compiler/2.0.0", "");
+        dependencies.setProperty("kotlinc/kotlinc/maven/org.example/compiler/2.0.0", "");
         dependencies.store(argument.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");

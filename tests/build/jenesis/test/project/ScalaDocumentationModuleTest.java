@@ -28,7 +28,7 @@ public class ScalaDocumentationModuleTest {
                 .createDirectories(input.resolve(BuildStep.SOURCES))
                 .resolve("Sample.scala"), "class Sample\n");
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("scaladoc/scaladoc/local/scaladoc", "scaladoc.jar");
+        dependencies.setProperty("scaladoc/runtime/local/scaladoc", "scaladoc.jar");
         dependencies.setProperty("main/compile/local/compile", "compile.jar");
         dependencies.store(input.resolve(BuildStep.DEPENDENCIES));
 
