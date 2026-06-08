@@ -37,8 +37,12 @@ public class DownloadModuleUris implements BuildStep {
             throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(URIS))) {
             for (URI location : locations.get()) {
+                URLConnection connection = location.toURL().openConnection();
+                if (connection instanceof HttpURLConnection http) {
+                    http.setRequestProperty("User-Agent", "Jenesis");
+                }
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                        location.toURL().openStream(),
+                        connection.getInputStream(),
                         StandardCharsets.UTF_8))) {
                     Iterator<String> it = reader.lines().iterator();
                     while (it.hasNext()) {

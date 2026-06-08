@@ -126,7 +126,13 @@ public interface Repository {
             if (Objects.equals("file", uri.getScheme())) {
                 return Optional.of(RepositoryItem.ofFile(Path.of(uri), true));
             } else {
-                return Optional.of(() -> uri.toURL().openStream());
+                return Optional.of(() -> {
+                    URLConnection connection = uri.toURL().openConnection();
+                    if (connection instanceof HttpURLConnection http) {
+                        http.setRequestProperty("User-Agent", "Jenesis");
+                    }
+                    return connection.getInputStream();
+                });
             }
         };
     }

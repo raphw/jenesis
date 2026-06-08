@@ -243,8 +243,11 @@ public class MavenDefaultRepository implements MavenRepository {
 
     private static InputStream openStream(URI uri, String token) throws IOException {
         URLConnection connection = uri.toURL().openConnection();
-        if (token != null && connection instanceof HttpURLConnection http) {
-            http.setRequestProperty("Authorization", token);
+        if (connection instanceof HttpURLConnection http) {
+            http.setRequestProperty("User-Agent", "Jenesis");
+            if (token != null) {
+                http.setRequestProperty("Authorization", token);
+            }
         }
         return connection.getInputStream();
     }
