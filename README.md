@@ -1146,8 +1146,8 @@ map - the tag does not have to name a directly-required module, so a transitive 
 ```java
 /**
  * @jenesis.release 25
- * @jenesis.pin runtime/module/org.junit.jupiter 5.11.3
- * @jenesis.pin runtime/module/org.junit.platform.commons 1.11.4
+ * @jenesis.pin org.junit.jupiter 5.11.3
+ * @jenesis.pin org.junit.platform.commons 1.11.4
  */
 open module build.jenesis.test {
     requires org.junit.jupiter;
@@ -1158,13 +1158,16 @@ An `@jenesis.release <V>` tag on the module declaration (independent of the BOM 
 manifests step into a `process/javac.properties` sidecar containing `--release=<V>`, which `ProcessBuildStep`
 forwards to `javac` when compiling the module.
 
-The same `@jenesis.pin` tag pins a coordinate in any scope, since scope is the single isolation axis. The grammar
-is always scope-first with no shortcuts: `@jenesis.pin <scope>/<repository>/<coordinate> <version> [<algo>/<hash>]`.
-So `compile/module/org.junit.jupiter` is a compile-scope module pin, `kotlin/maven/org.jetbrains.kotlin/...` is a
-compiler-scope Maven pin, and `compile/maven/org.jetbrains/annotations` pins a non-modular transitive that the
-module pulls in through the `maven` repository. All forms land in the same `versions.properties`
-under their canonical `<scope>/<repository>/<coordinate>` key, and a separate scope (a compiler closure, a plugin
-closure) resolves separately from the module's own `compile`/`runtime` dependencies.
+The same `@jenesis.pin` tag pins a coordinate in any group. The canonical key is
+`<group>/<repository>/<coordinate>`, where the group names the resolver closure (`main` for the project's own
+dependencies, a tool name for a compiler or plugin closure). Two abbreviations expand into the default `main`
+group, keyed off the slash count of the token: a bare `<module>` name (no slash) is short for
+`main/module/<module>`, and a `<groupId>/<artifactId>` Maven coordinate (one slash) is short for
+`main/maven/<groupId>/<artifactId>`. So `org.junit.jupiter` is a module pin, `org.slf4j/slf4j-api` a Maven pin, and
+the long form `kotlin/maven/org.jetbrains.kotlin/...` pins a non-`main` (compiler) group; a Maven coordinate that
+carries a type or classifier (more than one slash in the coordinate) has to be written in full. All forms land in
+the same `versions.properties` under their canonical `<group>/<repository>/<coordinate>` key, and a separate group
+(a compiler closure, a plugin closure) resolves separately from the module's own dependencies.
 
 A `@jenesis.plugin` tag declares a compile-time processor dependency: a Java annotation processor
 (JSR-269), a Kotlin compiler plugin, or a Scala compiler plugin. The grammar is

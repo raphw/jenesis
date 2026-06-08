@@ -87,7 +87,7 @@ public class PinModuleInfoTest {
                 module foo {
                 }
                 """);
-        writeResolved(Map.of("maven/org.example/lib", "1.0 SHA-256/cafebabe"));
+        writeResolved(Map.of("maven/org.example/lib/tests", "1.0 SHA-256/cafebabe"));
         new PinModuleInfo("tool", "module", "", file, new HashDigestFunction("SHA-256"))
                 .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
@@ -97,8 +97,33 @@ public class PinModuleInfoTest {
                 .toCompletableFuture()
                 .join();
         String result = Files.readString(file);
-        assertThat(result).contains("@jenesis.pin tool/maven/org.example/lib 1.0 SHA-256/cafebabe");
-        assertThat(result).doesNotContain("main/maven/org.example/lib");
+        assertThat(result).contains("@jenesis.pin tool/maven/org.example/lib/tests 1.0 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("main/maven/org.example/lib/tests");
+    }
+
+    @Test
+    public void renders_main_group_maven_dependencies_as_bare_coordinates() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                }
+                """);
+        writeResolved(Map.of("maven/org.slf4j/slf4j-api", "2.0.16 SHA-256/cafebabe"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin org.slf4j/slf4j-api 2.0.16 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("main/maven/org.slf4j/slf4j-api");
+    }
+
+    @Test
+    public void keeps_long_form_for_maven_coordinates_with_a_classifier() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                }
+                """);
+        writeResolved(Map.of("maven/org.example/lib/tests", "1.0 SHA-256/cafebabe"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin main/maven/org.example/lib/tests 1.0 SHA-256/cafebabe");
     }
 
     @Test
@@ -260,7 +285,7 @@ public class PinModuleInfoTest {
                 "module/picked", "2.0"));
         String result = run(file);
         assertThat(result).contains("@jenesis.pin picked 2.0");
-        assertThat(result).contains("@jenesis.pin main/maven/org.example/dep 1.0");
+        assertThat(result).contains("@jenesis.pin org.example/dep 1.0");
     }
 
     @Test

@@ -115,6 +115,12 @@ public class PinModuleInfo implements BuildStep {
             String version = key.substring(lastSlash + 1);
             String group = dependency.getValue().group(defaultGroup);
             boolean moduleRoot = group.equals(defaultGroup) && coordinate.startsWith("module/");
+            String mavenCoordinate = group.equals(defaultGroup) && coordinate.startsWith("maven/")
+                    ? coordinate.substring("maven/".length())
+                    : null;
+            boolean mavenShortcut = mavenCoordinate != null
+                    && mavenCoordinate.indexOf('/') > 0
+                    && mavenCoordinate.indexOf('/') == mavenCoordinate.lastIndexOf('/');
             // A module root in a Maven-resolved layout pins only the version: the root pom
             // it stands for is not hashed, and the jar it points at is hashed by its Maven entry.
             String checksum = moduleRoot
@@ -124,7 +130,9 @@ public class PinModuleInfo implements BuildStep {
                     : computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
             entries.putIfAbsent(
-                    moduleRoot ? coordinate.substring("module/".length()) : group + "/" + coordinate,
+                    moduleRoot ? coordinate.substring("module/".length())
+                            : mavenShortcut ? mavenCoordinate
+                            : group + "/" + coordinate,
                     value);
         }
         return entries;

@@ -410,6 +410,8 @@ public record Project(
                       %{name}@jenesis.test%{reset} [<module>]         Mark module as a test variant of <module>
                       %{name}@jenesis.pin%{reset} <group>/<repo>/<coord> <ver> [<algo>/<hex>]
                                                        Pin a dependency version and checksum
+                                                       (<module> is short for <group>/module/<module>,
+                                                       <groupId>/<artifactId> for <group>/maven/<groupId>/<artifactId>)
 
                     See README.md for the full reference.
                     """)
@@ -648,7 +650,12 @@ public record Project(
                       @jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>]
                                                         Pin a dependency's version
                                                         and (optionally) its
-                                                        content checksum.
+                                                        content checksum. A bare
+                                                        <module> abbreviates
+                                                        <group>/module/<module>,
+                                                        and <groupId>/<artifactId>
+                                                        abbreviates
+                                                        <group>/maven/<groupId>/<artifactId>.
 
                     9. Set system properties for one-off overrides
                     ----------------------------------------------

@@ -48,6 +48,21 @@ public class ModuleInfoParserTest {
     }
 
     @Test
+    public void jenesis_pin_expands_maven_coordinate_shortcut() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin org.slf4j/slf4j-api 2.0.16 SHA256/cafebabe
+                 */
+                module foo {
+                    requires org.slf4j;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.versions())
+                .containsEntry("main/maven/org.slf4j/slf4j-api", "2.0.16 SHA256/cafebabe");
+    }
+
+    @Test
     public void jenesis_pin_tolerates_surrounding_whitespace() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
@@ -231,7 +246,7 @@ public class ModuleInfoParserTest {
     public void group_with_repository_but_no_coordinate_pin_is_rejected() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
-                 * @jenesis.pin main/module 1.0
+                 * @jenesis.pin main/maven/ 1.0
                  */
                 module foo {
                   requires bar;
@@ -239,8 +254,8 @@ public class ModuleInfoParserTest {
                 """);
         assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("main/module")
-                .hasMessageContaining("<module> or <group>/<repository>/<coordinate>");
+                .hasMessageContaining("main/maven/")
+                .hasMessageContaining("<module>, <groupId>/<artifactId>, or <group>/<repository>/<coordinate>");
     }
 
     @Test

@@ -91,15 +91,25 @@ public class ModuleInfoParser {
                                     continue;
                                 }
                                 String key;
-                                if (token.indexOf('/') < 0) {
+                                int firstSlash = token.indexOf('/');
+                                int secondSlash = firstSlash < 0 ? -1 : token.indexOf('/', firstSlash + 1);
+                                if (firstSlash < 0) {
                                     key = group + "/module/" + token;
-                                } else {
-                                    int repo = token.indexOf('/');
-                                    int coordinate = token.indexOf('/', repo + 1);
-                                    if (repo < 1 || coordinate <= repo || coordinate == token.length() - 1) {
+                                } else if (secondSlash < 0) {
+                                    if (firstSlash < 1 || firstSlash == token.length() - 1) {
                                         throw new IllegalArgumentException("Malformed @jenesis.pin token '"
                                                 + token
-                                                + "': expected <module> or <group>/<repository>/<coordinate>");
+                                                + "': expected <module>, <groupId>/<artifactId>,"
+                                                + " or <group>/<repository>/<coordinate>");
+                                    }
+                                    key = group + "/maven/" + token;
+                                } else {
+                                    if (firstSlash < 1 || secondSlash == firstSlash + 1
+                                            || secondSlash == token.length() - 1) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.pin token '"
+                                                + token
+                                                + "': expected <module>, <groupId>/<artifactId>,"
+                                                + " or <group>/<repository>/<coordinate>");
                                     }
                                     key = token;
                                 }
