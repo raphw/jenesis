@@ -306,6 +306,56 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void undefined_managed_version_applied_to_a_consumed_dependency_still_fails() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>${undefined.property}</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Failed to resolve other:artifact:${undefined.property}");
+    }
+
+    @Test
+    public void undefined_property_in_a_consumed_dependency_still_fails() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>${undefined.property}</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Failed to resolve other:artifact:${undefined.property}");
+    }
+
+    @Test
     public void can_resolve_dependencies_with_nested_property() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
