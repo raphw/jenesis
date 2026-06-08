@@ -507,6 +507,7 @@ public class MavenProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         root.addModule("maven", MavenProject.make(project,
+                "main",
                 "maven",
                 Map.of("maven", new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})),
                 Map.of("maven", new MavenPomResolver()),

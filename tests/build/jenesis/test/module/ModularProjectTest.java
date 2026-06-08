@@ -171,6 +171,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         root.addModule("modules", ModularProject.make(project,
+                "main",
                 "module",
                 _ -> true,
                 Map.of(),

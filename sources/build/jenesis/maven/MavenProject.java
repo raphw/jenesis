@@ -43,12 +43,18 @@ public class MavenProject implements BuildExecutorModule {
     private static final String SIBLING_MODULE_PREFIX = MultiProjectModule.MODULE + "-";
 
     private final Path root;
+    private final String group;
     private final String prefix;
     private final MavenRepository repository;
     private final MavenResolver resolver;
 
     public MavenProject(Path root, String prefix, MavenRepository repository, MavenResolver resolver) {
+        this(root, "main", prefix, repository, resolver);
+    }
+
+    public MavenProject(Path root, String group, String prefix, MavenRepository repository, MavenResolver resolver) {
         this.root = root;
+        this.group = group;
         this.prefix = prefix;
         this.repository = repository;
         this.resolver = resolver;
@@ -57,6 +63,7 @@ public class MavenProject implements BuildExecutorModule {
     public static BuildExecutorModule make(Path root,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         return make(root,
+                "main",
                 "maven",
                 Map.of("maven", new MavenDefaultRepository()),
                 Map.of("maven", new MavenPomResolver()),
@@ -67,6 +74,7 @@ public class MavenProject implements BuildExecutorModule {
     }
 
     public static BuildExecutorModule make(Path root,
+                                           String group,
                                            String prefix,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
@@ -76,7 +84,7 @@ public class MavenProject implements BuildExecutorModule {
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         MavenRepository repository = MavenRepository.of(requireNonNull(repositories.get(prefix)));
         MavenResolver resolver = MavenResolver.of(resolvers.get(prefix));
-        return new MultiProjectModule(new MavenProject(root, prefix, repository, resolver),
+        return new MultiProjectModule(new MavenProject(root, group, prefix, repository, resolver),
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
@@ -149,6 +157,7 @@ public class MavenProject implements BuildExecutorModule {
         if (!Files.exists(root.resolve("pom.xml"))) {
             return;
         }
+        String group = this.group;
         buildExecutor.addStep(SCAN, new Scan(root));
         buildExecutor.addStep(PREPARE, new Prepare(prefix, resolver, repository), SCAN);
         buildExecutor.addModule(MODULE, (modules, paths) -> {
@@ -219,19 +228,19 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 for (String dependency : compile.isEmpty() ? new String[0] : compile.split(",")) {
                                     String value = checksumByCoordinate.getOrDefault(dependency, "");
-                                    requires.setProperty("main/compile/" + dependency, value);
-                                    requires.setProperty("main/runtime/" + dependency, value);
+                                    requires.setProperty(group + "/compile/" + dependency, value);
+                                    requires.setProperty(group + "/runtime/" + dependency, value);
                                 }
                                 for (String dependency : provided.isEmpty() ? new String[0] : provided.split(",")) {
-                                    requires.setProperty("main/compile/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
+                                    requires.setProperty(group + "/compile/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                 }
                                 for (String dependency : runtime.isEmpty() ? new String[0] : runtime.split(",")) {
-                                    requires.setProperty("main/runtime/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
+                                    requires.setProperty(group + "/runtime/" + dependency, checksumByCoordinate.getOrDefault(dependency, ""));
                                 }
                                 for (String dependency : test.isEmpty() ? new String[0] : test.split(",")) {
                                     String value = checksumByCoordinate.getOrDefault(dependency, "");
-                                    requires.setProperty("main/compile/" + dependency, value);
-                                    requires.setProperty("main/runtime/" + dependency, value);
+                                    requires.setProperty(group + "/compile/" + dependency, value);
+                                    requires.setProperty(group + "/runtime/" + dependency, value);
                                 }
                                 requires.store(context.next().resolve(BuildStep.REQUIRES));
                                 SequencedProperties exclusionsProperties = new SequencedProperties();
@@ -251,7 +260,7 @@ public class MavenProject implements BuildExecutorModule {
                                     for (String entry : managed.split(",")) {
                                         int split = entry.indexOf('=');
                                         String coord = entry.substring(0, split), version = entry.substring(split + 1);
-                                        versions.setProperty("main/" + coord, version);
+                                        versions.setProperty(group + "/" + coord, version);
                                     }
                                 }
                                 if (!versions.isEmpty()) {

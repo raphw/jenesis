@@ -78,6 +78,7 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
                 sub.addModule("maven", MavenProject.make(project.root(),
+                                "main",
                                 "maven",
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
@@ -131,6 +132,7 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
+                        "main",
                         "module",
                         _ -> true,
                         Collections.unmodifiableMap(repositories),
@@ -195,6 +197,7 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
+                                "main",
                                 "module",
                                 _ -> true,
                                 Collections.unmodifiableMap(repositories),

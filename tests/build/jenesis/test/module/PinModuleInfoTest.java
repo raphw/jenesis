@@ -81,6 +81,27 @@ public class PinModuleInfoTest {
     }
 
     @Test
+    public void renders_default_group_dependencies_under_an_overridden_group() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                }
+                """);
+        writeResolved(Map.of("maven/org.example/lib", "1.0 SHA-256/cafebabe"));
+        new PinModuleInfo("tool", "module", "", file, new HashDigestFunction("SHA-256"))
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
+                                input,
+                                Map.of(Path.of(Inventory.INVENTORY), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        String result = Files.readString(file);
+        assertThat(result).contains("@jenesis.pin tool/maven/org.example/lib 1.0 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("main/maven/org.example/lib");
+    }
+
+    @Test
     public void writes_qualified_dependencies_as_jenesis_pin_tags() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """

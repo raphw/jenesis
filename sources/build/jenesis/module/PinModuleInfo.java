@@ -15,16 +15,26 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
 
+    private final String group;
     private final String prefix;
     private final String path;
     private final List<Path> moduleInfoFiles;
     private final transient HashDigestFunction hashFunction;
 
     public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), hashFunction);
+        this("main", prefix, path, List.of(moduleInfoFile), hashFunction);
     }
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
+        this("main", prefix, path, moduleInfoFiles, hashFunction);
+    }
+
+    public PinModuleInfo(String group, String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
+        this(group, prefix, path, List.of(moduleInfoFile), hashFunction);
+    }
+
+    public PinModuleInfo(String group, String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
+        this.group = group;
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
@@ -43,7 +53,7 @@ public class PinModuleInfo implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction, group);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries);
         }
@@ -77,6 +87,13 @@ public class PinModuleInfo implements BuildStep {
     static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
                                                        Set<String> internal,
                                                        HashDigestFunction hashFunction) throws IOException {
+        return collectEntries(closure, internal, hashFunction, "main");
+    }
+
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
+                                                       Set<String> internal,
+                                                       HashDigestFunction hashFunction,
+                                                       String defaultGroup) throws IOException {
         Set<Path> hashedElsewhere = new HashSet<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
             if (!dependency.getKey().startsWith("module/") && dependency.getValue().jar() != null) {
@@ -96,8 +113,8 @@ public class PinModuleInfo implements BuildStep {
             }
             String coordinate = key.substring(0, lastSlash);
             String version = key.substring(lastSlash + 1);
-            String group = dependency.getValue().group();
-            boolean moduleRoot = group.equals("main") && coordinate.startsWith("module/");
+            String group = dependency.getValue().group(defaultGroup);
+            boolean moduleRoot = group.equals(defaultGroup) && coordinate.startsWith("module/");
             // A module root in a Maven-resolved layout pins only the version: the root pom
             // it stands for is not hashed, and the jar it points at is hashed by its Maven entry.
             String checksum = moduleRoot

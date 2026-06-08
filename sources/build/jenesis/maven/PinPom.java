@@ -19,16 +19,26 @@ public class PinPom implements BuildStep {
     private static final Pattern INDENT = Pattern.compile("\\n([ \\t]+)<");
     private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--\\s*jenesis\\.pin\\b.*?-->\\s*\\n");
 
+    private final String group;
     private final String prefix;
     private final String path;
     private final List<Path> pomFiles;
     private final transient HashDigestFunction hashFunction;
 
     public PinPom(String prefix, String path, Path pomFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(pomFile), hashFunction);
+        this("main", prefix, path, List.of(pomFile), hashFunction);
     }
 
     public PinPom(String prefix, String path, List<Path> pomFiles, HashDigestFunction hashFunction) {
+        this("main", prefix, path, pomFiles, hashFunction);
+    }
+
+    public PinPom(String group, String prefix, String path, Path pomFile, HashDigestFunction hashFunction) {
+        this(group, prefix, path, List.of(pomFile), hashFunction);
+    }
+
+    public PinPom(String group, String prefix, String path, List<Path> pomFiles, HashDigestFunction hashFunction) {
+        this.group = group;
         this.prefix = prefix;
         this.path = path;
         this.pomFiles = List.copyOf(pomFiles);
@@ -47,7 +57,7 @@ public class PinPom implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction, group);
         for (Path pomFile : pomFiles) {
             updatePom(pomFile, entries);
         }
@@ -72,7 +82,7 @@ public class PinPom implements BuildStep {
             int second = key.indexOf('/', first + 1);
             String group = key.substring(0, first);
             String repository = second < 0 ? "" : key.substring(first + 1, second);
-            if (repository.equals("maven") && group.equals("main")) {
+            if (repository.equals("maven") && group.equals(this.group)) {
                 managed.putIfAbsent(key.substring(second + 1), entry.getValue());
             } else {
                 qualified.put(key, entry.getValue());
@@ -116,6 +126,13 @@ public class PinPom implements BuildStep {
     static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
                                                        Set<String> internal,
                                                        HashDigestFunction hashFunction) throws IOException {
+        return collectEntries(closure, internal, hashFunction, "main");
+    }
+
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
+                                                       Set<String> internal,
+                                                       HashDigestFunction hashFunction,
+                                                       String defaultGroup) throws IOException {
         SequencedMap<String, String> entries = new TreeMap<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
             String key = dependency.getKey();
@@ -131,7 +148,7 @@ public class PinPom implements BuildStep {
             String version = key.substring(lastSlash + 1);
             String checksum = computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
-            entries.putIfAbsent(dependency.getValue().group() + "/" + coordinate, value);
+            entries.putIfAbsent(dependency.getValue().group(defaultGroup) + "/" + coordinate, value);
         }
         return entries;
     }

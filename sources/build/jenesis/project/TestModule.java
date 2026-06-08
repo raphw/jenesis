@@ -35,6 +35,7 @@ public class TestModule implements BuildExecutorModule {
     private final String group;
     private final boolean parallel;
     private final boolean reporting;
+    private final String dependencyGroup;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
@@ -54,7 +55,8 @@ public class TestModule implements BuildExecutorModule {
                 System.getProperty("jenesis.test.filter"),
                 System.getProperty("jenesis.test.group"),
                 Boolean.getBoolean("jenesis.test.parallel"),
-                Boolean.getBoolean("jenesis.test.reporting"));
+                Boolean.getBoolean("jenesis.test.reporting"),
+                "main");
     }
 
     private TestModule(TestEngine engine,
@@ -70,7 +72,8 @@ public class TestModule implements BuildExecutorModule {
                        String filter,
                        String group,
                        boolean parallel,
-                       boolean reporting) {
+                       boolean reporting,
+                       String dependencyGroup) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -85,6 +88,7 @@ public class TestModule implements BuildExecutorModule {
         this.group = group;
         this.parallel = parallel;
         this.reporting = reporting;
+        this.dependencyGroup = dependencyGroup;
     }
 
     public TestModule engine(TestEngine engine) {
@@ -101,7 +105,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
@@ -118,7 +123,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
@@ -135,7 +141,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule filter(String filter) {
@@ -152,7 +159,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
@@ -169,7 +177,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
@@ -186,7 +195,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule pinning(Pinning pinning) {
@@ -203,7 +213,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule modulePath(PathPlacement modulePath) {
@@ -220,7 +231,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule moduleName(String moduleName) {
@@ -237,7 +249,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule group(String group) {
@@ -254,7 +267,26 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
+    }
+
+    public TestModule dependencyGroup(String dependencyGroup) {
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                pinning,
+                modulePath,
+                moduleName,
+                filter,
+                group,
+                parallel,
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule parallel(boolean parallel) {
@@ -271,7 +303,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     public TestModule reporting(boolean reporting) {
@@ -288,7 +321,8 @@ public class TestModule implements BuildExecutorModule {
                 filter,
                 group,
                 parallel,
-                reporting);
+                reporting,
+                dependencyGroup);
     }
 
     @Override
@@ -306,7 +340,7 @@ public class TestModule implements BuildExecutorModule {
             }
         }
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(RESOLVED, new Requires(resolved, Set.copyOf(resolvers.keySet())), upstream);
+        buildExecutor.addStep(RESOLVED, new Requires(dependencyGroup, resolved, Set.copyOf(resolvers.keySet())), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
@@ -338,7 +372,7 @@ public class TestModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(TestEngine engine, Set<String> prefixes) implements BuildStep {
+    private record Requires(String group, TestEngine engine, Set<String> prefixes) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -361,7 +395,7 @@ public class TestModule implements BuildExecutorModule {
                         selectedPrefix = prefix;
                     }
                     if (prefix.equals(selectedPrefix)) {
-                        properties.setProperty("main/runtime/" + coordinate, "");
+                        properties.setProperty(group + "/runtime/" + coordinate, "");
                     }
                 }
                 if (selectedPrefix != null) {
@@ -372,7 +406,7 @@ public class TestModule implements BuildExecutorModule {
                         }
                         SequencedProperties upstream = SequencedProperties.ofFiles(versionsFile);
                         for (String key : upstream.stringPropertyNames()) {
-                            if (key.startsWith("main/" + selectedPrefix + "/")) {
+                            if (key.startsWith(group + "/" + selectedPrefix + "/")) {
                                 versions.putIfAbsent(key, upstream.getProperty(key));
                             }
                         }
@@ -381,7 +415,7 @@ public class TestModule implements BuildExecutorModule {
                         String coordinate = entry.getKey(), version = entry.getValue();
                         int index = coordinate.indexOf('/');
                         if (version != null && index > 0 && selectedPrefix.equals(coordinate.substring(0, index))) {
-                            versions.putIfAbsent("main/" + coordinate, version);
+                            versions.putIfAbsent(group + "/" + coordinate, version);
                         }
                     }
                 }

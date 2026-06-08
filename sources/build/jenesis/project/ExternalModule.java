@@ -24,12 +24,13 @@ public class ExternalModule implements BuildExecutorModule {
     private final String buildModuleName;
     private final String qualifier;
     private final Pinning pinning;
+    private final String group;
 
     public ExternalModule(String coordinate,
                           String qualifier,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier, null);
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier, null, "main");
     }
 
     private ExternalModule(String coordinate,
@@ -38,7 +39,8 @@ public class ExternalModule implements BuildExecutorModule {
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
                            String qualifier,
-                           Pinning pinning) {
+                           Pinning pinning,
+                           String group) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
@@ -46,6 +48,7 @@ public class ExternalModule implements BuildExecutorModule {
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
         this.pinning = pinning;
+        this.group = group;
     }
 
     public ExternalModule dependencies(String... dependencies) {
@@ -59,7 +62,8 @@ public class ExternalModule implements BuildExecutorModule {
                 dependencies,
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public ExternalModule buildModuleName(String name) {
@@ -69,7 +73,8 @@ public class ExternalModule implements BuildExecutorModule {
                 additionalDependencies,
                 name,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public ExternalModule pinning(Pinning pinning) {
@@ -79,7 +84,19 @@ public class ExternalModule implements BuildExecutorModule {
                 additionalDependencies,
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
+    }
+
+    public ExternalModule group(String group) {
+        return new ExternalModule(coordinate,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                buildModuleName,
+                qualifier,
+                pinning,
+                group);
     }
 
     @Override
@@ -102,7 +119,7 @@ public class ExternalModule implements BuildExecutorModule {
         coordinates.add(coordinate);
         coordinates.addAll(additionalDependencies);
         buildExecutor.addStep(COORDINATE,
-                new WriteCoordinates(coordinates),
+                new WriteCoordinates(group, coordinates),
                 inherited.sequencedKeySet().stream());
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers)
@@ -126,7 +143,7 @@ public class ExternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(DEPENDENCIES), inherited.sequencedKeySet().stream()));
     }
 
-    private record WriteCoordinates(List<String> coordinates) implements BuildStep {
+    private record WriteCoordinates(String group, List<String> coordinates) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -135,8 +152,8 @@ public class ExternalModule implements BuildExecutorModule {
                 throws IOException {
             SequencedProperties properties = new SequencedProperties();
             for (String coordinate : coordinates) {
-                properties.setProperty("main/compile/" + coordinate, "");
-                properties.setProperty("main/runtime/" + coordinate, "");
+                properties.setProperty(group + "/compile/" + coordinate, "");
+                properties.setProperty(group + "/runtime/" + coordinate, "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedProperties versions = new SequencedProperties();

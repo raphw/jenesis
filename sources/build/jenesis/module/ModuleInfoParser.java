@@ -9,6 +9,15 @@ import static java.util.Objects.requireNonNull;
 public class ModuleInfoParser {
 
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    private final String group;
+
+    public ModuleInfoParser() {
+        this("main");
+    }
+
+    public ModuleInfoParser(String group) {
+        this.group = group;
+    }
 
     public ModuleInfo identify(Path moduleInfo) throws IOException {
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
@@ -83,7 +92,7 @@ public class ModuleInfoParser {
                                 }
                                 String key;
                                 if (token.indexOf('/') < 0) {
-                                    key = "main/module/" + token;
+                                    key = group + "/module/" + token;
                                 } else {
                                     int repo = token.indexOf('/');
                                     int coordinate = token.indexOf('/', repo + 1);

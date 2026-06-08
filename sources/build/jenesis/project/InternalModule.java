@@ -35,6 +35,7 @@ public class InternalModule implements BuildExecutorModule {
     private final String buildModuleName;
     private final String qualifier;
     private final Pinning pinning;
+    private final String group;
 
     public InternalModule(String prefix,
                           String qualifier,
@@ -46,15 +47,20 @@ public class InternalModule implements BuildExecutorModule {
                 Collections.emptyNavigableSet(),
                 null,
                 qualifier,
-                null);
+                null,
+                "main");
     }
 
     public InternalModule repositories(Map<String, Repository> repositories) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning);
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning, group);
     }
 
     public InternalModule resolvers(Map<String, Resolver> resolvers) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning);
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning, group);
+    }
+
+    public InternalModule group(String group) {
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning, group);
     }
 
     private InternalModule(String prefix,
@@ -64,7 +70,8 @@ public class InternalModule implements BuildExecutorModule {
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
                            String qualifier,
-                           Pinning pinning) {
+                           Pinning pinning,
+                           String group) {
         this.prefix = prefix;
         this.source = source;
         this.repositories = repositories;
@@ -73,6 +80,7 @@ public class InternalModule implements BuildExecutorModule {
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
         this.pinning = pinning;
+        this.group = group;
     }
 
     public InternalModule dependencies(String... dependencies) {
@@ -83,7 +91,8 @@ public class InternalModule implements BuildExecutorModule {
                 new LinkedHashSet<>(List.of(dependencies)),
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public InternalModule dependencies(SequencedSet<String> dependencies) {
@@ -94,7 +103,8 @@ public class InternalModule implements BuildExecutorModule {
                 new LinkedHashSet<>(dependencies),
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public InternalModule buildModuleName(String name) {
@@ -105,7 +115,8 @@ public class InternalModule implements BuildExecutorModule {
                 additionalDependencies,
                 name,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public InternalModule pinning(Pinning pinning) {
@@ -116,7 +127,8 @@ public class InternalModule implements BuildExecutorModule {
                 additionalDependencies,
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     @Override
@@ -137,7 +149,7 @@ public class InternalModule implements BuildExecutorModule {
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addSource(SOURCE, Bind.asSources(), source);
         buildExecutor.addStep(REQUIRES,
-                new ParseModuleInfo(prefix, additionalDependencies),
+                new ParseModuleInfo(group, prefix, additionalDependencies),
                 Stream.concat(Stream.of(SOURCE), inherited.sequencedKeySet().stream()));
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
@@ -168,7 +180,8 @@ public class InternalModule implements BuildExecutorModule {
         }, Stream.concat(Stream.of(MAIN_ARTIFACTS, DEPENDENCIES), inherited.sequencedKeySet().stream()));
     }
 
-    private record ParseModuleInfo(String prefix,
+    private record ParseModuleInfo(String group,
+                                   String prefix,
                                    SequencedSet<String> additionalDependencies) implements BuildStep {
 
         @Override
@@ -196,17 +209,17 @@ public class InternalModule implements BuildExecutorModule {
                 throw new IllegalStateException(
                         "Internal module source is not modular (missing module-info.java)");
             }
-            ModuleInfo info = new ModuleInfoParser().identify(moduleInfo);
+            ModuleInfo info = new ModuleInfoParser(group).identify(moduleInfo);
             SequencedProperties properties = new SequencedProperties();
             for (String dependency : info.requires()) {
-                properties.setProperty("main/compile/" + prefix + "/" + dependency, "");
+                properties.setProperty(group + "/compile/" + prefix + "/" + dependency, "");
                 if (info.runtimeRequires().contains(dependency)) {
-                    properties.setProperty("main/runtime/" + prefix + "/" + dependency, "");
+                    properties.setProperty(group + "/runtime/" + prefix + "/" + dependency, "");
                 }
             }
             for (String dependency : additionalDependencies) {
-                properties.setProperty("main/compile/" + dependency, "");
-                properties.setProperty("main/runtime/" + dependency, "");
+                properties.setProperty(group + "/compile/" + dependency, "");
+                properties.setProperty(group + "/runtime/" + dependency, "");
             }
             info.plugins().forEach((coordinate, scope) -> properties.setProperty(scope + "/" + scope + "/" + coordinate, ""));
             properties.store(context.next().resolve(BuildStep.REQUIRES));
