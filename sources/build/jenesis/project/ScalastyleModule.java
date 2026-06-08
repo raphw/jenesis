@@ -177,7 +177,7 @@ public class ScalastyleModule implements BuildExecutorModule {
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "org.scalastyle.Main",
-                    "-c", config.toString(),
+                    "--config", config.toString(),
                     "--xmlOutput", report.toString()));
             commands.addAll(roots);
             return CompletableFuture.completedStage(commands);

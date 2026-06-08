@@ -11,26 +11,18 @@ import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
-import build.jenesis.project.CheckstyleModule;
+import build.jenesis.project.ScalafmtModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class CheckstyleModuleRunTest {
+public class ScalafmtModuleRunTest {
 
-    private static final String VERSION = "10.21.0";
+    private static final String VERSION = "3.8.3";
 
     private static final String CONFIG = """
-            <?xml version="1.0"?>
-            <!DOCTYPE module PUBLIC
-                "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
-                "https://checkstyle.org/dtds/configuration_1_3.dtd">
-            <module name="Checker">
-                <property name="severity" value="error"/>
-                <module name="TreeWalker">
-                    <module name="TypeName"/>
-                </module>
-            </module>
+            version = "3.8.3"
+            runner.dialect = scala213
             """;
 
     @TempDir
@@ -39,47 +31,43 @@ public class CheckstyleModuleRunTest {
     @BeforeEach
     public void writeProject() throws IOException {
         SequencedProperties versions = new SequencedProperties();
-        versions.setProperty("checkstyle/maven/com.puppycrawl.tools/checkstyle", VERSION);
+        versions.setProperty("scalafmt/maven/org.scalameta/scalafmt-cli_2.13", VERSION);
         versions.store(project.resolve(BuildStep.VERSIONS));
-        Files.writeString(project.resolve("checkstyle.xml"), CONFIG);
+        Files.writeString(project.resolve(".scalafmt.conf"), CONFIG);
         Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
-        Files.writeString(sampleDir.resolve("badName.java"), """
-                package sample;
-                public class badName {
-                }
-                """);
+        Files.writeString(sampleDir.resolve("Sample.scala"), "package sample\nclass Sample {   def  f( ) :Int=42 }\n");
     }
 
     @Test
-    public void writes_a_report_without_failing_the_build_in_report_only_mode() throws IOException {
+    public void report_only_runs_the_pinned_scalafmt_and_flags_the_misformatted_file() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
-                "checkstyle",
-                new CheckstyleModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver())),
+                "scalafmt",
+                new ScalafmtModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
 
-        Path resolved = root.resolve("checkstyle").resolve("dependencies").resolve("output").resolve("resolved");
+        Path resolved = root.resolve("scalafmt").resolve("dependencies").resolve("output").resolve("resolved");
         try (Stream<Path> jars = Files.list(resolved)) {
             assertThat(jars.map(jar -> jar.getFileName().toString()))
-                    .as("the pinned Checkstyle version is the one that resolves, not a floated RELEASE")
-                    .anyMatch(name -> name.contains("checkstyle") && name.contains(VERSION));
+                    .as("the pinned scalafmt version resolves")
+                    .anyMatch(name -> name.contains("scalafmt-cli") && name.contains(VERSION));
         }
-        Path report = root.resolve("checkstyle").resolve("check").resolve("output").resolve("checkstyle-report.xml");
-        assertThat(report)
-                .as("report-only run still produces the Checkstyle XML report")
-                .isNotEmptyFile();
-        assertThat(report).content().contains("badName");
+        Path supplement = root.resolve("scalafmt").resolve("check").resolve("supplement");
+        String captured = Files.readString(supplement.resolve("output")) + Files.readString(supplement.resolve("error"));
+        assertThat(captured)
+                .as("scalafmt --test reports the misformatted file")
+                .contains("Sample.scala");
     }
 
     @Test
-    public void strict_mode_fails_the_build_on_a_violation() throws IOException {
+    public void strict_mode_fails_the_build_on_a_misformatted_file() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
-                "checkstyle",
-                new CheckstyleModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver()))
+                "scalafmt",
+                new ScalafmtModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver()))
                         .strict(true),
                 "project");
 
