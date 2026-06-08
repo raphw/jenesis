@@ -25,9 +25,9 @@ public class DependenciesTest {
         jar("libs/b.jar");
         jar("libs/c.jar");
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("compile/maven/a", "libs/a.jar");
-        index.setProperty("runtime/maven/c", "libs/c.jar");
-        index.setProperty("compile/maven/b", "libs/b.jar");
+        index.setProperty("main/compile/maven/a", "libs/a.jar");
+        index.setProperty("main/runtime/maven/c", "libs/c.jar");
+        index.setProperty("main/compile/maven/b", "libs/b.jar");
         index.store(folder.resolve(BuildStep.DEPENDENCIES));
         assertThat(Dependencies.select(folder, "compile"))
                 .containsExactly(folder.resolve("libs/a.jar"), folder.resolve("libs/b.jar"));
@@ -44,8 +44,8 @@ public class DependenciesTest {
     public void skips_entries_whose_jar_is_missing() throws IOException {
         jar("libs/present.jar");
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("compile/maven/present", "libs/present.jar");
-        index.setProperty("compile/maven/absent", "libs/absent.jar");
+        index.setProperty("main/compile/maven/present", "libs/present.jar");
+        index.setProperty("main/compile/maven/absent", "libs/absent.jar");
         index.store(folder.resolve(BuildStep.DEPENDENCIES));
         assertThat(Dependencies.select(folder, "compile"))
                 .containsExactly(folder.resolve("libs/present.jar"));
@@ -56,12 +56,12 @@ public class DependenciesTest {
         jar("libs/processor.jar");
         jar("libs/kotlin-plugin.jar");
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("plugin/maven/processor", "libs/processor.jar");
-        index.setProperty("plugin:kotlin/maven/kotlin-plugin", "libs/kotlin-plugin.jar");
+        index.setProperty("plugin/plugin/maven/processor", "libs/processor.jar");
+        index.setProperty("plugin:kotlin/plugin:kotlin/maven/kotlin-plugin", "libs/kotlin-plugin.jar");
         index.store(folder.resolve(BuildStep.DEPENDENCIES));
-        assertThat(Dependencies.select(folder, "plugin"))
+        assertThat(Dependencies.select(folder, "plugin", "plugin"))
                 .containsExactly(folder.resolve("libs/processor.jar"));
-        assertThat(Dependencies.select(folder, "plugin:kotlin"))
+        assertThat(Dependencies.select(folder, "plugin:kotlin", "plugin:kotlin"))
                 .containsExactly(folder.resolve("libs/kotlin-plugin.jar"));
     }
 }

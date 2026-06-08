@@ -173,7 +173,7 @@ public class Dependencies implements BuildStep {
                         String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
                         String declared = repoEntry.getValue().get(coordinate);
                         String value = declared != null && !declared.isEmpty() ? declared : entry.getValue().checksum();
-                        String transitiveKey = scope + "/" + entry.getKey();
+                        String transitiveKey = group + "/" + scope + "/" + entry.getKey();
                         resolved.setProperty(transitiveKey, value);
                         materialized.putIfAbsent(transitiveKey, entry.getValue());
                     }
@@ -190,7 +190,7 @@ public class Dependencies implements BuildStep {
             if (first < 0 || second < 0) {
                 continue;
             }
-            String dependency = key.substring(first + 1), name = dependency.replace('/', '-') + ".jar";
+            String dependency = key.substring(second + 1), name = dependency.replace('/', '-') + ".jar";
             Resolver.Resolved artifact = entry.getValue();
             String value = resolved.getProperty(key);
             Path file = placed.get(name);
@@ -238,15 +238,19 @@ public class Dependencies implements BuildStep {
     }
 
     public static List<Path> select(Path folder, String scope) throws IOException {
+        return select(folder, "main", scope);
+    }
+
+    public static List<Path> select(Path folder, String group, String scope) throws IOException {
         Path file = folder.resolve(BuildStep.DEPENDENCIES);
         if (!Files.exists(file)) {
             return List.of();
         }
         SequencedProperties properties = SequencedProperties.ofFiles(file);
         SequencedSet<Path> selected = new LinkedHashSet<>();
+        String prefix = group + "/" + scope + "/";
         for (String key : properties.stringPropertyNames()) {
-            int slash = key.indexOf('/');
-            if (slash > 0 && key.substring(0, slash).equals(scope)) {
+            if (key.startsWith(prefix)) {
                 String value = properties.getProperty(key);
                 int space = value.indexOf(' ');
                 Path jar = folder.resolve(space < 0 ? value : value.substring(0, space)).normalize();

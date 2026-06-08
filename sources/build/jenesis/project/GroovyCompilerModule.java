@@ -173,7 +173,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                for (Path jar : Dependencies.select(argument.folder(), qualifier, qualifier)) {
                     jars.add(jar.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {

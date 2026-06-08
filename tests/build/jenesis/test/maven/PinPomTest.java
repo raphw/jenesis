@@ -43,6 +43,7 @@ public class PinPomTest {
     }
 
     private void writeResolved(String scope, Map<String, String> entries) throws IOException {
+        String group = scope.equals("compile") || scope.equals("runtime") ? "main" : scope;
         SequencedProperties properties = loadInventory();
         int index = count(properties, "module.dependency.");
         for (Map.Entry<String, String> entry : entries.entrySet()) {
@@ -55,6 +56,7 @@ public class PinPomTest {
             properties.setProperty("module.dependency." + index,
                     coordinate + " " + jar + (checksum.isEmpty() ? "" : " " + checksum));
             properties.setProperty("module.dependency." + index + ".scope", scope);
+            properties.setProperty("module.dependency." + index + ".group", group);
             index++;
         }
         properties.store(input.resolve(Inventory.INVENTORY));

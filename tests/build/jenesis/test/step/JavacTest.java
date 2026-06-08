@@ -411,7 +411,7 @@ public class JavacTest {
         Path jar = buildProcessorJar(Files.createDirectories(root.resolve("procbuild")), "one", "One", null);
         Files.copy(jar, Files.createDirectories(processorRoot.resolve("resolved")).resolve("processor.jar"));
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("plugin/maven/processor", "resolved/processor.jar");
+        index.setProperty("plugin/plugin/maven/processor", "resolved/processor.jar");
         index.store(processorRoot.resolve(BuildStep.DEPENDENCIES));
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
@@ -448,8 +448,8 @@ public class JavacTest {
         Files.copy(buildProcessorJar(Files.createDirectories(root.resolve("modular")), "modular", "Modular", "proc.modular"),
                 processorRoot.resolve("modular.jar"));
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("plugin/maven/plain", "resolved/plain.jar");
-        index.setProperty("plugin/maven/modular", "resolved/modular.jar");
+        index.setProperty("plugin/plugin/maven/plain", "resolved/plain.jar");
+        index.setProperty("plugin/plugin/maven/modular", "resolved/modular.jar");
         index.store(root.resolve("processor").resolve(BuildStep.DEPENDENCIES));
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();

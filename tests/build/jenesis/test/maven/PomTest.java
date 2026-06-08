@@ -89,6 +89,50 @@ public class PomTest {
     }
 
     @Test
+    public void emits_resolved_dependencies_under_their_group() throws IOException {
+        SequencedProperties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        SequencedProperties dependencies = new SequencedProperties();
+        dependencies.setProperty("main/compile/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("main/runtime/maven/org.example/lib/1.2.3", "");
+        dependencies.setProperty("kotlin/kotlin/maven/org.example/compiler/2.0.0", "");
+        dependencies.store(argument.resolve(BuildStep.DEPENDENCIES));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.setProperty("version", "1.0.0");
+        metadata.store(argument.resolve(BuildStep.METADATA));
+        BuildStepResult result = new Pom().resolved(true).apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED,
+                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(Files.readString(next.resolve(Pom.POM))).isEqualTo("""
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>build.jenesis</groupId>
+                    <artifactId>jenesis</artifactId>
+                    <version>1.0.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.example</groupId>
+                            <artifactId>lib</artifactId>
+                            <version>1.2.3</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+    }
+
+    @Test
     public void compile_only_dependency_is_emitted_with_provided_scope() throws IOException {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");

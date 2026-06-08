@@ -178,7 +178,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classRoots.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                for (Path jar : Dependencies.select(argument.folder(), qualifier, qualifier)) {
                     jars.add(jar.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {

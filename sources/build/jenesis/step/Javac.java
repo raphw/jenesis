@@ -128,7 +128,7 @@ public class Javac extends JdkProcessBuildStep {
             for (Path jar : Dependencies.select(argument.folder(), "compile")) {
                 path.add(jar.toString());
             }
-            for (Path jar : Dependencies.select(argument.folder(), "plugin")) {
+            for (Path jar : Dependencies.select(argument.folder(), "plugin", "plugin")) {
                 processorPath.add(jar.toString());
             }
             Path sources = argument.folder().resolve(Bind.SOURCES),

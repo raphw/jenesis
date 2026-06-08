@@ -41,10 +41,10 @@ public class DependenciesExecutionTest {
         SequencedMap<String, Path> steps = buildExecutor.execute();
         assertThat(steps).containsKey("output");
         SequencedProperties resolved = SequencedProperties.ofFiles(steps.get("output").resolve(BuildStep.DEPENDENCIES));
-        assertThat(resolved.stringPropertyNames()).containsExactly("compile/foo/bar");
-        assertThat(resolved.getProperty("compile/foo/bar")).doesNotContain(" ");
+        assertThat(resolved.stringPropertyNames()).containsExactly("main/compile/foo/bar");
+        assertThat(resolved.getProperty("main/compile/foo/bar")).doesNotContain(" ");
         assertThat(steps.get("output")
-                .resolve(resolved.getProperty("compile/foo/bar"))).content().isEqualTo("bar");
+                .resolve(resolved.getProperty("main/compile/foo/bar"))).content().isEqualTo("bar");
     }
 
 }

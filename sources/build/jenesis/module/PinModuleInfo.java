@@ -15,26 +15,16 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
 
-    private final String group;
     private final String prefix;
     private final String path;
     private final List<Path> moduleInfoFiles;
     private final transient HashDigestFunction hashFunction;
 
     public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this("main", prefix, path, List.of(moduleInfoFile), hashFunction);
+        this(prefix, path, List.of(moduleInfoFile), hashFunction);
     }
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this("main", prefix, path, moduleInfoFiles, hashFunction);
-    }
-
-    public PinModuleInfo(String group, String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(group, prefix, path, List.of(moduleInfoFile), hashFunction);
-    }
-
-    public PinModuleInfo(String group, String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this.group = group;
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
@@ -53,7 +43,7 @@ public class PinModuleInfo implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction, group);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries);
         }
@@ -87,22 +77,17 @@ public class PinModuleInfo implements BuildStep {
     static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
                                                        Set<String> internal,
                                                        HashDigestFunction hashFunction) throws IOException {
-        return collectEntries(closure, internal, hashFunction, "main");
-    }
-
-    static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
-                                                       Set<String> internal,
-                                                       HashDigestFunction hashFunction,
-                                                       String defaultGroup) throws IOException {
         Set<Path> hashedElsewhere = new HashSet<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
-            if (!dependency.getKey().startsWith("module/") && dependency.getValue().jar() != null) {
+            String coordinate = dependency.getKey().substring(dependency.getValue().group().length() + 1);
+            if (!coordinate.startsWith("module/") && dependency.getValue().jar() != null) {
                 hashedElsewhere.add(dependency.getValue().jar());
             }
         }
         SequencedMap<String, String> entries = new TreeMap<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
-            String key = dependency.getKey();
+            String group = dependency.getValue().group();
+            String key = dependency.getKey().substring(group.length() + 1);
             if (internal.contains(key)) {
                 continue;
             }
@@ -113,9 +98,8 @@ public class PinModuleInfo implements BuildStep {
             }
             String coordinate = key.substring(0, lastSlash);
             String version = key.substring(lastSlash + 1);
-            String group = dependency.getValue().group(defaultGroup);
-            boolean moduleRoot = group.equals(defaultGroup) && coordinate.startsWith("module/");
-            String mavenCoordinate = group.equals(defaultGroup) && coordinate.startsWith("maven/")
+            boolean moduleRoot = group.equals("main") && coordinate.startsWith("module/");
+            String mavenCoordinate = group.equals("main") && coordinate.startsWith("maven/")
                     ? coordinate.substring("maven/".length())
                     : null;
             boolean mavenShortcut = mavenCoordinate != null

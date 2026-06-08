@@ -57,16 +57,10 @@ public class Pom implements BuildStep {
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         SequencedMap<String, SequencedSet<String>> coordinateScopes = new LinkedHashMap<>();
         for (String key : requires.stringPropertyNames()) {
-            if (resolved) {
-                int first = key.indexOf('/');
-                coordinateScopes.computeIfAbsent(key.substring(first + 1), _ -> new LinkedHashSet<>())
-                        .add(key.substring(0, first));
-            } else {
-                int first = key.indexOf('/');
-                int second = key.indexOf('/', first + 1);
-                coordinateScopes.computeIfAbsent(key.substring(second + 1), _ -> new LinkedHashSet<>())
-                        .add(key.substring(first + 1, second));
-            }
+            int first = key.indexOf('/');
+            int second = key.indexOf('/', first + 1);
+            coordinateScopes.computeIfAbsent(key.substring(second + 1), _ -> new LinkedHashSet<>())
+                    .add(key.substring(first + 1, second));
         }
         SequencedMap<String, String> coordinateExclusions = new LinkedHashMap<>();
         for (String key : exclusions.stringPropertyNames()) {
