@@ -9,6 +9,15 @@ import static java.util.Objects.requireNonNull;
 public class ModuleInfoParser {
 
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    private final String group;
+
+    public ModuleInfoParser() {
+        this("main");
+    }
+
+    public ModuleInfoParser(String group) {
+        this.group = group;
+    }
 
     public ModuleInfo identify(Path moduleInfo) throws IOException {
         JavacTask javac = (JavacTask) compiler.getTask(new PrintWriter(Writer.nullWriter()),
@@ -81,16 +90,20 @@ public class ModuleInfoParser {
                                         || token.startsWith("java.") || token.startsWith("jdk.")) {
                                     continue;
                                 }
-                                int repo = token.indexOf('/');
-                                int coordinate = repo < 1 ? -1 : token.indexOf('/', repo + 1);
-                                if (repo < 1 || coordinate <= repo || coordinate == token.length() - 1) {
-                                    throw new IllegalArgumentException("Malformed @jenesis.pin token '"
-                                            + token
-                                            + "': expected <scope>/<repository>/<coordinate>");
+                                String key;
+                                if (token.indexOf('/') < 0) {
+                                    key = group + "/module/" + token;
+                                } else {
+                                    int repo = token.indexOf('/');
+                                    int coordinate = token.indexOf('/', repo + 1);
+                                    if (repo < 1 || coordinate <= repo || coordinate == token.length() - 1) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.pin token '"
+                                                + token
+                                                + "': expected <module> or <group>/<repository>/<coordinate>");
+                                    }
+                                    key = token;
                                 }
-                                String scope = token.substring(0, repo);
-                                String group = scope.equals("compile") || scope.equals("runtime") ? "main" : scope;
-                                versions.put(group + "/" + token, version);
+                                versions.put(key, version);
                             }
                             case "jenesis.plugin" -> {
                                 String trimmed = content.trim();

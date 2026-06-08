@@ -29,10 +29,10 @@ public class BundleTest {
     @Test
     public void bundles_a_non_modular_main_onto_the_class_path() throws IOException {
         writePlainJar(Files.createDirectory(input.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"));
-        writePlainJar(Files.createDirectory(input.resolve(BuildStep.DEPENDENCIES)).resolve("lib.jar"));
+        writePlainJar(Files.createDirectory(input.resolve("resolved")).resolve("lib.jar"));
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("runtime/maven/lib", "dependencies/lib.jar");
-        index.store(input.resolve(BuildStep.DEPENDENCY_INDEX));
+        index.setProperty("runtime/maven/lib", "resolved/lib.jar");
+        index.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("--main-jar", "app.jar");
         launcher.setProperty("--main-class", "sample.Sample");
@@ -44,7 +44,7 @@ public class BundleTest {
                 new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                         input,
                         Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED,
-                                Path.of("dependencies/lib.jar"), ChecksumStatus.ADDED,
+                                Path.of("resolved/lib.jar"), ChecksumStatus.ADDED,
                                 Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();

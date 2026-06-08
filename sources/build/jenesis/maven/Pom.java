@@ -13,29 +13,35 @@ public class Pom implements BuildStep {
 
     private final Set<String> prefixes;
     private final Map<String, String> shared;
+    private final boolean resolved;
     private final transient MavenPomEmitter emitter = new MavenPomEmitter();
 
     public Pom() {
-        this(Set.of("maven"), Map.of());
+        this(Set.of("maven"), Map.of(), false);
     }
 
-    public Pom(Set<String> prefixes) {
-        this(prefixes, Map.of());
-    }
-
-    public Pom(Map<String, String> shared) {
-        this(Set.of("maven"), shared);
-    }
-
-    public Pom(Set<String> prefixes, Map<String, String> shared) {
+    private Pom(Set<String> prefixes, Map<String, String> shared, boolean resolved) {
         this.prefixes = Set.copyOf(prefixes);
         this.shared = Map.copyOf(shared);
+        this.resolved = resolved;
+    }
+
+    public Pom prefixes(Set<String> prefixes) {
+        return new Pom(prefixes, shared, resolved);
+    }
+
+    public Pom shared(Map<String, String> shared) {
+        return new Pom(prefixes, shared, resolved);
+    }
+
+    public Pom resolved(boolean resolved) {
+        return new Pom(prefixes, shared, resolved);
     }
 
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
-                Path.of(REQUIRES),
+                Path.of(resolved ? DEPENDENCIES : REQUIRES),
                 Path.of(EXCLUSIONS),
                 Path.of(METADATA)));
     }
@@ -46,15 +52,21 @@ public class Pom implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         List<Path> folders = arguments.values().stream().map(BuildStepArgument::folder).toList();
-        SequencedProperties requires = SequencedProperties.ofFolders(folders, REQUIRES);
+        SequencedProperties requires = SequencedProperties.ofFolders(folders, resolved ? DEPENDENCIES : REQUIRES);
         SequencedProperties exclusions = SequencedProperties.ofFolders(folders, EXCLUSIONS);
         SequencedProperties metadata = SequencedProperties.ofFolders(folders, METADATA);
         SequencedMap<String, SequencedSet<String>> coordinateScopes = new LinkedHashMap<>();
         for (String key : requires.stringPropertyNames()) {
-            int first = key.indexOf('/');
-            int second = key.indexOf('/', first + 1);
-            coordinateScopes.computeIfAbsent(key.substring(second + 1), _ -> new LinkedHashSet<>())
-                    .add(key.substring(first + 1, second));
+            if (resolved) {
+                int first = key.indexOf('/');
+                coordinateScopes.computeIfAbsent(key.substring(first + 1), _ -> new LinkedHashSet<>())
+                        .add(key.substring(0, first));
+            } else {
+                int first = key.indexOf('/');
+                int second = key.indexOf('/', first + 1);
+                coordinateScopes.computeIfAbsent(key.substring(second + 1), _ -> new LinkedHashSet<>())
+                        .add(key.substring(first + 1, second));
+            }
         }
         SequencedMap<String, String> coordinateExclusions = new LinkedHashMap<>();
         for (String key : exclusions.stringPropertyNames()) {

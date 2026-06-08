@@ -65,7 +65,7 @@ public record Project(
             executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
-            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, null, null);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler, null, null, false);
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
@@ -78,6 +78,7 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(mavenDeps::add);
                 sub.addModule("maven", MavenProject.make(project.root(),
+                                "main",
                                 "maven",
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
@@ -131,6 +132,7 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
+                        "main",
                         "module",
                         _ -> true,
                         Collections.unmodifiableMap(repositories),
@@ -176,7 +178,8 @@ public record Project(
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
             MultiProjectAssembler<? super ProjectModuleDescriptor> pomAware = new PomAwareAssembler(assembler,
                     BuildExecutorModule.PREVIOUS.repeat(2) + MultiProjectModule.MANIFESTS,
-                    "module");
+                    "module",
+                    true);
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
@@ -194,6 +197,7 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
+                                "main",
                                 "module",
                                 _ -> true,
                                 Collections.unmodifiableMap(repositories),
@@ -225,7 +229,7 @@ public record Project(
             }, STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    (path, file) -> new PinModuleInfo("module", path, file, true, project.hashFunction())), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -404,7 +408,7 @@ public record Project(
                       %{name}@jenesis.release%{reset} <V>             Java release target
                       %{name}@jenesis.main%{reset} <class>            Main class for the module
                       %{name}@jenesis.test%{reset} [<module>]         Mark module as a test variant of <module>
-                      %{name}@jenesis.pin%{reset} <scope>/<repo>/<coord> <ver> [<algo>/<hex>]
+                      %{name}@jenesis.pin%{reset} <group>/<repo>/<coord> <ver> [<algo>/<hex>]
                                                        Pin a dependency version and checksum
 
                     See README.md for the full reference.
@@ -641,7 +645,7 @@ public record Project(
                       @jenesis.main <class>             Main class for the module.
                       @jenesis.test [<module>]          Mark this module as a test
                                                         variant of <module>.
-                      @jenesis.pin <scope>/<repo>/<coord> <ver> [<algo>/<hex>]
+                      @jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>]
                                                         Pin a dependency's version
                                                         and (optionally) its
                                                         content checksum.
@@ -766,7 +770,7 @@ public record Project(
                     It writes pom.xml (`<dependencyManagement>` versions with
                     `<!--Checksum/<algo>/<hex>-->`, and qualified compiler closures
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
-                    (`@jenesis.pin <scope>/<repo>/<coord> <ver> [<algo>/<hex>]` tags), per layout.
+                    (`@jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>]` tags), per layout.
                     The same pins can be written by hand. Enforce coverage with
                     `-Djenesis.dependency.pin=strict`, which fails the build on
                     any unpinned artifact, or refresh them with
@@ -874,7 +878,8 @@ public record Project(
 
     private record PomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base,
                                      String manifests,
-                                     String prefix) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                     String prefix,
+                                     boolean resolved) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         @Override
         public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
@@ -884,7 +889,7 @@ public record Project(
             return (sub, inherited) -> {
                 sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
                 sub.addModule("describe", (describe, describeInherited) -> {
-                            describe.addStep("pom", new Pom(), describeInherited.sequencedKeySet().stream());
+                            describe.addStep("pom", new Pom().resolved(resolved), describeInherited.sequencedKeySet().stream());
                             if (manifests != null) {
                                 describe.addStep("identity", new MavenIdentity(prefix, manifests), "pom", manifests);
                             }

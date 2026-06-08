@@ -87,13 +87,13 @@ public class JavacTest {
 
     @Test
     public void shouldRun_fires_when_upstream_classpath_or_dependencies_changed() {
-        for (String prefix : List.of("classes/", "artifacts/", "dependencies/")) {
+        for (Path changed : List.of(Path.of("classes/x.jar"), Path.of("artifacts/x.jar"), Path.of(BuildStep.DEPENDENCIES))) {
             BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
-                    Path.of(prefix + "x.jar"), ChecksumStatus.ADDED));
+                    changed, ChecksumStatus.ADDED));
             SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
             arguments.put("input", argument);
             assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments))
-                    .as("change under " + prefix + " triggers Javac")
+                    .as("change to " + changed + " triggers Javac")
                     .isTrue();
         }
     }
@@ -409,16 +409,16 @@ public class JavacTest {
         Files.writeString(folder.resolve("Sample.java"), "package sample; public class Sample { }\n");
         Path processorRoot = Files.createDirectories(root.resolve("processor"));
         Path jar = buildProcessorJar(Files.createDirectories(root.resolve("procbuild")), "one", "One", null);
-        Files.copy(jar, Files.createDirectories(processorRoot.resolve(BuildStep.DEPENDENCIES)).resolve("processor.jar"));
+        Files.copy(jar, Files.createDirectories(processorRoot.resolve("resolved")).resolve("processor.jar"));
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("plugin/maven/processor", "dependencies/processor.jar");
-        index.store(processorRoot.resolve(BuildStep.DEPENDENCY_INDEX));
+        index.setProperty("plugin/maven/processor", "resolved/processor.jar");
+        index.store(processorRoot.resolve(BuildStep.DEPENDENCIES));
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sources", new BuildStepArgument(sources,
                 Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)));
         arguments.put("processors/artifacts", new BuildStepArgument(processorRoot,
-                Map.of(Path.of(BuildStep.DEPENDENCIES + "processor.jar"), ChecksumStatus.ADDED)));
+                Map.of(Path.of("resolved/processor.jar"), ChecksumStatus.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
@@ -442,23 +442,23 @@ public class JavacTest {
                 "module sample { exports sample; }\n");
         Files.writeString(Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample")).resolve("Sample.java"),
                 "package sample; public class Sample { }\n");
-        Path processorRoot = Files.createDirectories(root.resolve("processor").resolve(BuildStep.DEPENDENCIES));
+        Path processorRoot = Files.createDirectories(root.resolve("processor").resolve("resolved"));
         Files.copy(buildProcessorJar(Files.createDirectories(root.resolve("plain")), "plain", "Plain", null),
                 processorRoot.resolve("plain.jar"));
         Files.copy(buildProcessorJar(Files.createDirectories(root.resolve("modular")), "modular", "Modular", "proc.modular"),
                 processorRoot.resolve("modular.jar"));
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("plugin/maven/plain", "dependencies/plain.jar");
-        index.setProperty("plugin/maven/modular", "dependencies/modular.jar");
-        index.store(root.resolve("processor").resolve(BuildStep.DEPENDENCY_INDEX));
+        index.setProperty("plugin/maven/plain", "resolved/plain.jar");
+        index.setProperty("plugin/maven/modular", "resolved/modular.jar");
+        index.store(root.resolve("processor").resolve(BuildStep.DEPENDENCIES));
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sources", new BuildStepArgument(sources, Map.of(
                 Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
                 Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)));
         arguments.put("processors/artifacts", new BuildStepArgument(root.resolve("processor"), Map.of(
-                Path.of(BuildStep.DEPENDENCIES + "plain.jar"), ChecksumStatus.ADDED,
-                Path.of(BuildStep.DEPENDENCIES + "modular.jar"), ChecksumStatus.ADDED)));
+                Path.of("resolved/plain.jar"), ChecksumStatus.ADDED,
+                Path.of("resolved/modular.jar"), ChecksumStatus.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();

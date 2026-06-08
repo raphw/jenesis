@@ -12,6 +12,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.GroovyCompilerModule;
+import build.jenesis.step.Dependencies;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,9 +58,7 @@ public class GroovyCompilerModuleTest {
         Path artifacts = root
                 .resolve("groovy")
                 .resolve("dependencies")
-                .resolve(GroovyCompilerModule.ARTIFACTS)
-                .resolve("output")
-                .resolve(BuildStep.DEPENDENCIES);
+                .resolve("output");
         URL[] runtimeUrls = collectJarUrls(artifacts).stream().toArray(URL[]::new);
         URL[] urls = Stream.concat(
                         Stream.of(classes.toUri().toURL()),
@@ -251,14 +250,9 @@ public class GroovyCompilerModuleTest {
     }
 
     private static List<URL> collectJarUrls(Path folder) throws IOException {
-        if (!Files.isDirectory(folder)) {
-            return List.of();
-        }
         List<URL> urls = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.jar")) {
-            for (Path file : stream) {
-                urls.add(file.toUri().toURL());
-            }
+        for (Path jar : Dependencies.all(folder)) {
+            urls.add(jar.toUri().toURL());
         }
         return urls;
     }

@@ -11,7 +11,7 @@ class GreeterTest {
     @Test
     @Tag("slow")
     void prefix_is_a_greeting() {
-        assertTrue(new Greeter().prefix().startsWith("hello"));
+        assertTrue(new Greeter().prefix().startsWith("Hello"));
     }
 
     @Test

@@ -62,17 +62,18 @@ public class Javadoc extends JdkProcessBuildStep {
             if (Files.exists(classes)) {
                 path.add(classes.toString());
             }
-            for (String jarFolder : List.of(BuildStep.ARTIFACTS, BuildStep.DEPENDENCIES)) {
-                Path jars = argument.folder().resolve(jarFolder);
-                if (Files.exists(jars)) {
-                    Files.walkFileTree(jars, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            path.add(file.toString());
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
+            Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.exists(artifacts)) {
+                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        path.add(file.toString());
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+            for (Path jar : Dependencies.all(argument.folder())) {
+                path.add(jar.toString());
             }
             if (Files.exists(sources)) {
                 Files.walkFileTree(sources, new SimpleFileVisitor<>() {

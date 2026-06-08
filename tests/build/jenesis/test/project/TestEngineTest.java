@@ -4,6 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import java.util.jar.Attributes;
 import build.jenesis.BuildStep;
+import build.jenesis.SequencedProperties;
 import build.jenesis.project.JUnit4;
 import build.jenesis.project.JUnitPlatform;
 import build.jenesis.project.TestEngine;
@@ -36,8 +37,11 @@ public class TestEngineTest {
     }
 
     @Test
-    public void detects_engine_from_dependencies_folder() throws IOException {
-        writeJar(root.resolve("dependencies"), "engine.jar", "org.junit.platform.engine");
+    public void detects_engine_from_resolved_dependencies() throws IOException {
+        writeJar(root.resolve("resolved"), "engine.jar", "org.junit.platform.engine");
+        SequencedProperties index = new SequencedProperties();
+        index.setProperty("runtime/maven/engine", "resolved/engine.jar");
+        index.store(root.resolve(BuildStep.DEPENDENCIES));
         assertThat(TestEngine.of(List.of(root))).get().isInstanceOf(JUnitPlatform.class);
     }
 

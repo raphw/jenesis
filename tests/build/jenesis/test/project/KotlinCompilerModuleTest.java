@@ -14,6 +14,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.KotlinCompilerModule;
+import build.jenesis.step.Dependencies;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,9 +60,7 @@ public class KotlinCompilerModuleTest {
         Path artifacts = root
                 .resolve("kotlin")
                 .resolve("dependencies")
-                .resolve(KotlinCompilerModule.ARTIFACTS)
-                .resolve("output")
-                .resolve(BuildStep.DEPENDENCIES);
+                .resolve("output");
         URL[] runtimeUrls = collectJarUrls(artifacts).stream().toArray(URL[]::new);
         URL[] urls = Stream.concat(
                         Stream.of(classes.toUri().toURL()),
@@ -247,9 +246,7 @@ public class KotlinCompilerModuleTest {
         Path artifacts = root
                 .resolve("kotlin")
                 .resolve("dependencies")
-                .resolve(KotlinCompilerModule.ARTIFACTS)
-                .resolve("output")
-                .resolve(BuildStep.DEPENDENCIES);
+                .resolve("output");
         List<String> names = listJarNames(artifacts);
         assertThat(names).anyMatch(name -> name.contains("kotlin-compiler-embeddable"));
         assertThat(names).anyMatch(name -> name.contains("kotlin-stdlib"));
@@ -342,10 +339,10 @@ public class KotlinCompilerModuleTest {
                 new KotlinCompilerModule(Map.of("maven", files()), Map.of("maven", Resolver.identity()))
                         .qualifier("kotlin"),
                 "project");
-        executor.execute("kotlin/dependencies/artifacts");
+        executor.execute("kotlin/dependencies");
 
-        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("artifacts").resolve("output");
-        SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.TRANSITIVES));
+        Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.DEPENDENCIES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
     }
@@ -392,27 +389,17 @@ public class KotlinCompilerModuleTest {
     }
 
     private static List<URL> collectJarUrls(Path folder) throws IOException {
-        if (!Files.isDirectory(folder)) {
-            return List.of();
-        }
         List<URL> urls = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.jar")) {
-            for (Path file : stream) {
-                urls.add(file.toUri().toURL());
-            }
+        for (Path jar : Dependencies.all(folder)) {
+            urls.add(jar.toUri().toURL());
         }
         return urls;
     }
 
     private static List<String> listJarNames(Path folder) throws IOException {
-        if (!Files.isDirectory(folder)) {
-            return List.of();
-        }
         List<String> names = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.jar")) {
-            for (Path file : stream) {
-                names.add(file.getFileName().toString());
-            }
+        for (Path jar : Dependencies.all(folder)) {
+            names.add(jar.getFileName().toString());
         }
         return names;
     }

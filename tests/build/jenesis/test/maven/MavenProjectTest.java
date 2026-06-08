@@ -507,6 +507,7 @@ public class MavenProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         root.addModule("maven", MavenProject.make(project,
+                "main",
                 "maven",
                 Map.of("maven", new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})),
                 Map.of("maven", new MavenPomResolver()),
@@ -622,26 +623,13 @@ public class MavenProjectTest {
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("maven/module-/manifests");
-        Path compileVersions = module.resolve(BuildStep.VERSIONS);
-        assertThat(compileVersions).exists();
-        SequencedProperties versions = SequencedProperties.ofFiles(compileVersions);
+        Path versionsFile = module.resolve(BuildStep.VERSIONS);
+        assertThat(versionsFile).exists();
+        SequencedProperties versions = SequencedProperties.ofFiles(versionsFile);
         assertThat(versions).containsOnly(
-                Map.entry("main/compile/maven/pinned/simple", "2.0"),
-                Map.entry("main/runtime/maven/pinned/simple", "2.0"),
-                Map.entry("main/compile/maven/pinned/typed/war", "3.0"),
-                Map.entry("main/runtime/maven/pinned/typed/war", "3.0"),
-                Map.entry("main/compile/maven/pinned/classified/jar/sources", "4.0"),
-                Map.entry("main/runtime/maven/pinned/classified/jar/sources", "4.0"));
-        Path runtimeVersions = module.resolve(BuildStep.VERSIONS);
-        assertThat(runtimeVersions).exists();
-        SequencedProperties runtime = SequencedProperties.ofFiles(runtimeVersions);
-        assertThat(runtime).containsOnly(
-                Map.entry("main/compile/maven/pinned/simple", "2.0"),
-                Map.entry("main/runtime/maven/pinned/simple", "2.0"),
-                Map.entry("main/compile/maven/pinned/typed/war", "3.0"),
-                Map.entry("main/runtime/maven/pinned/typed/war", "3.0"),
-                Map.entry("main/compile/maven/pinned/classified/jar/sources", "4.0"),
-                Map.entry("main/runtime/maven/pinned/classified/jar/sources", "4.0"));
+                Map.entry("main/maven/pinned/simple", "2.0"),
+                Map.entry("main/maven/pinned/typed/war", "3.0"),
+                Map.entry("main/maven/pinned/classified/jar/sources", "4.0"));
         Path testModule = results.get("maven/test-module-/manifests");
         assertThat(testModule.resolve(BuildStep.VERSIONS)).exists();
         assertThat(testModule.resolve(BuildStep.VERSIONS)).exists();
@@ -780,8 +768,7 @@ public class MavenProjectTest {
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(results.get("maven/module-/manifests")
                 .resolve(BuildStep.VERSIONS));
-        assertThat(versions.getProperty("main/compile/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
-        assertThat(versions.getProperty("main/runtime/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
+        assertThat(versions.getProperty("main/maven/com.example/pinned")).isEqualTo("2.0.0 SHA256/cafebabe");
     }
 
     @Test

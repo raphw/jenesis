@@ -15,29 +15,29 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
 
+    private final String group;
     private final String prefix;
     private final String path;
     private final List<Path> moduleInfoFiles;
-    private final boolean fromJars;
     private final transient HashDigestFunction hashFunction;
 
     public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), false, hashFunction);
+        this("main", prefix, path, List.of(moduleInfoFile), hashFunction);
     }
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, moduleInfoFiles, false, hashFunction);
+        this("main", prefix, path, moduleInfoFiles, hashFunction);
     }
 
-    public PinModuleInfo(String prefix, String path, Path moduleInfoFile, boolean fromJars, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), fromJars, hashFunction);
+    public PinModuleInfo(String group, String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
+        this(group, prefix, path, List.of(moduleInfoFile), hashFunction);
     }
 
-    public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, boolean fromJars, HashDigestFunction hashFunction) {
+    public PinModuleInfo(String group, String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
+        this.group = group;
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
-        this.fromJars = fromJars;
         this.hashFunction = hashFunction;
     }
 
@@ -53,24 +53,11 @@ public class PinModuleInfo implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = fromJars
-                ? collectFromJars(closure, internal, hashFunction)
-                : collectEntries(closure, internal, hashFunction);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction, group);
         for (Path file : moduleInfoFiles) {
             updateModuleInfo(file, entries);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
-    }
-
-    private static SequencedSet<String> scopesOf(String scope) {
-        SequencedSet<String> scopes = new LinkedHashSet<>();
-        if (scope != null) {
-            scopes.addAll(List.of(scope.split(",")));
-        }
-        if (scopes.contains("compile") && scopes.contains("runtime")) {
-            scopes.remove("runtime");
-        }
-        return scopes;
     }
 
     private static String computeChecksum(Inventory.Dependency dependency,
@@ -97,56 +84,22 @@ public class PinModuleInfo implements BuildStep {
         }
     }
 
-    public static SequencedMap<String, String> collectFromJars(SequencedMap<String, Inventory.Dependency> closure,
-                                                               Set<String> internal,
-                                                               HashDigestFunction hashFunction) throws IOException {
-        SequencedMap<String, String> entries = new TreeMap<>();
-        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
-            String coordinate = dependency.getKey();
-            if (internal.contains(coordinate)) {
-                continue;
-            }
-            int firstSlash = coordinate.indexOf('/');
-            int lastSlash = coordinate.lastIndexOf('/');
-            if (firstSlash <= 0 || lastSlash == firstSlash) {
-                continue;
-            }
-            Path jar = dependency.getValue().jar();
-            if (jar == null || !Files.isRegularFile(jar)) {
-                continue;
-            }
-            String version = coordinate.substring(lastSlash + 1);
-            String checksum = computeChecksum(dependency.getValue(), hashFunction);
-            String value = checksum == null ? version : version + " " + checksum;
-            Optional<ModuleReference> reference = ModuleFinder.of(jar).findAll().stream().findFirst();
-            if (reference.isEmpty()) {
-                continue;
-            }
-            ModuleDescriptor descriptor = reference.get().descriptor();
-            String moduleToken = descriptor.isAutomatic() && !hasAutomaticModuleName(jar)
-                    ? coordinate.substring(0, lastSlash)
-                    : "module/" + descriptor.name();
-            for (String scope : scopesOf(dependency.getValue().scope())) {
-                String token = scope.equals("compile") || scope.equals("runtime")
-                        ? moduleToken
-                        : coordinate.substring(0, lastSlash);
-                entries.putIfAbsent(scope + "/" + token, value);
-            }
-        }
-        return entries;
-    }
-
-    private static boolean hasAutomaticModuleName(Path jar) throws IOException {
-        try (JarFile jarFile = new JarFile(jar.toFile())) {
-            Manifest manifest = jarFile.getManifest();
-            return manifest != null
-                    && manifest.getMainAttributes().getValue("Automatic-Module-Name") != null;
-        }
+    static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
+                                                       Set<String> internal,
+                                                       HashDigestFunction hashFunction) throws IOException {
+        return collectEntries(closure, internal, hashFunction, "main");
     }
 
     static SequencedMap<String, String> collectEntries(SequencedMap<String, Inventory.Dependency> closure,
                                                        Set<String> internal,
-                                                       HashDigestFunction hashFunction) throws IOException {
+                                                       HashDigestFunction hashFunction,
+                                                       String defaultGroup) throws IOException {
+        Set<Path> hashedElsewhere = new HashSet<>();
+        for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
+            if (!dependency.getKey().startsWith("module/") && dependency.getValue().jar() != null) {
+                hashedElsewhere.add(dependency.getValue().jar());
+            }
+        }
         SequencedMap<String, String> entries = new TreeMap<>();
         for (Map.Entry<String, Inventory.Dependency> dependency : closure.entrySet()) {
             String key = dependency.getKey();
@@ -160,11 +113,19 @@ public class PinModuleInfo implements BuildStep {
             }
             String coordinate = key.substring(0, lastSlash);
             String version = key.substring(lastSlash + 1);
-            String checksum = computeChecksum(dependency.getValue(), hashFunction);
+            String group = dependency.getValue().group(defaultGroup);
+            boolean moduleRoot = group.equals(defaultGroup) && coordinate.startsWith("module/");
+            // A module root in a Maven-resolved layout pins only the version: the root pom
+            // it stands for is not hashed, and the jar it points at is hashed by its Maven entry.
+            String checksum = moduleRoot
+                    && dependency.getValue().jar() != null
+                    && hashedElsewhere.contains(dependency.getValue().jar())
+                    ? null
+                    : computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
-            for (String scope : scopesOf(dependency.getValue().scope())) {
-                entries.putIfAbsent(scope + "/" + coordinate, value);
-            }
+            entries.putIfAbsent(
+                    moduleRoot ? coordinate.substring("module/".length()) : group + "/" + coordinate,
+                    value);
         }
         return entries;
     }

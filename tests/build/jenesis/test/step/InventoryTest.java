@@ -49,7 +49,7 @@ public class InventoryTest {
         Path lib = Files.writeString(runtimeDeps.resolve("maven-org.example-lib-1.0.jar"), "library");
         SequencedProperties runtimeIndex = new SequencedProperties();
         runtimeIndex.setProperty("runtime/maven/org.example/lib/1.0", "dependencies/maven-org.example-lib-1.0.jar");
-        runtimeIndex.store(runtime.resolve(BuildStep.DEPENDENCY_INDEX));
+        runtimeIndex.store(runtime.resolve(BuildStep.DEPENDENCIES));
 
         BuildStepResult result = run(args("manifests", manifests, "produce", produce, "runtime", runtime));
 
@@ -219,13 +219,13 @@ public class InventoryTest {
         Path libA = Files.writeString(firstDir.resolve("maven-org.example-a-1.0.jar"), "a");
         SequencedProperties firstIndex = new SequencedProperties();
         firstIndex.setProperty("runtime/maven/org.example/a/1.0", "dependencies/maven-org.example-a-1.0.jar");
-        firstIndex.store(firstDeps.resolve(BuildStep.DEPENDENCY_INDEX));
+        firstIndex.store(firstDeps.resolve(BuildStep.DEPENDENCIES));
         Path secondDeps = Files.createDirectory(root.resolve("second"));
         Path secondDir = Files.createDirectory(secondDeps.resolve("dependencies"));
         Path libB = Files.writeString(secondDir.resolve("maven-org.example-b-1.0.jar"), "b");
         SequencedProperties secondIndex = new SequencedProperties();
         secondIndex.setProperty("runtime/maven/org.example/b/1.0", "dependencies/maven-org.example-b-1.0.jar");
-        secondIndex.store(secondDeps.resolve(BuildStep.DEPENDENCY_INDEX));
+        secondIndex.store(secondDeps.resolve(BuildStep.DEPENDENCIES));
 
         run(args("manifests", manifests, "first", firstDeps, "second", secondDeps));
 

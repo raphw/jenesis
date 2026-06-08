@@ -94,3 +94,13 @@ include automatic or otherwise non-modular jars. A module built against a *newer
 Jenesis that calls a `BuildExecutor` method this version lacks fails with an
 `UnsupportedOperationException` advising you to upgrade Jenesis. See that demo's
 "Isolating the build module's Jenesis" section for the full explanation.
+
+Pinning
+-------
+
+Because this launcher stages the build module and serves it through a repository
+and resolver of its own, the plugin's dependency closure is resolved on a trail
+the standard `pin` step never walks, so its Maven-coordinate checksums are not
+recorded and the build cannot run under strict pinning
+(`-Djenesis.dependency.pin=strict`); a project built entirely through the regular
+modular flow, by contrast, pins and verifies strictly as usual.

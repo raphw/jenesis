@@ -41,7 +41,7 @@ public class MavenModuleResolver implements Resolver {
         Repository repository = repositories.getOrDefault(Resolver.base(prefix), discovery);
         List<MavenResolver.RootPom> rootPoms = new ArrayList<>();
         for (String coordinate : coordinates.sequencedKeySet()) {
-            rootPoms.add(toRootPom(executor, repository, coordinate, versions.get(coordinate)));
+            rootPoms.add(toRootPom(executor, repository, coordinate, versions.get(coordinate), coordinate));
         }
         List<MavenResolver.RootPom> managedPoms = new ArrayList<>();
         SequencedMap<String, String> mavenPins = new LinkedHashMap<>();
@@ -50,34 +50,52 @@ public class MavenModuleResolver implements Resolver {
                 continue;
             }
             if (pin.getKey().indexOf('/') < 0) {
-                managedPoms.add(toRootPom(executor, repository, pin.getKey(), pin.getValue()));
+                managedPoms.add(toRootPom(executor, repository, pin.getKey(), pin.getValue(), null));
             } else {
                 mavenPins.put(pin.getKey(), pin.getValue());
             }
         }
         MavenRepository mavenRepo = MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty()));
+        MavenResolver.Resolution resolution = delegate.dependencies(
+                executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE, mavenPrefix, listener);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> closure = resolution.dependencies();
         SequencedMap<String, String> result = new LinkedHashMap<>();
-        delegate.dependencies(executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE, mavenPrefix, listener)
-                .forEach((key, value) -> {
-                    String checksum = value.checksum();
-                    if (checksum == null) {
-                        String pinned = mavenPins.get(key.coordinate(null, null));
-                        if (pinned != null) {
-                            int space = pinned.indexOf(' ');
-                            if (space > 0 && pinned.substring(0, space).equals(value.version())) {
-                                checksum = pinned.substring(space + 1).trim();
-                            }
-                        }
+        closure.forEach((key, value) -> {
+            String checksum = value.checksum();
+            if (checksum == null) {
+                String pinned = mavenPins.get(key.coordinate(null, null));
+                if (pinned != null) {
+                    int space = pinned.indexOf(' ');
+                    if (space > 0 && pinned.substring(0, space).equals(value.version())) {
+                        checksum = pinned.substring(space + 1).trim();
                     }
-                    result.put(key.coordinate(mavenPrefix, value.version()), checksum == null ? "" : checksum);
-                });
-        return Resolver.materializeAll(executor, repositories, mavenPrefix, result);
+                }
+            }
+            result.put(key.coordinate(mavenPrefix, value.version()), checksum == null ? "" : checksum);
+        });
+        SequencedMap<String, Resolver.Resolved> materialized = new LinkedHashMap<>(
+                Resolver.materializeAll(executor, repositories, mavenPrefix, result));
+        resolution.roots().forEach((module, key) -> {
+            MavenDependencyValue value = closure.get(key);
+            if (value == null) {
+                return;
+            }
+            Resolver.Resolved root = materialized.get(key.coordinate(mavenPrefix, value.version()));
+            // Internal siblings are built locally and resolved by coordinate, not pinned to a
+            // version, so they get no module root entry (and no versioned discovery fetch).
+            if (root != null && !root.internal()) {
+                materialized.putIfAbsent("module/" + module + "/" + value.version(),
+                        new Resolver.Resolved(root.file(), "", root.internal()));
+            }
+        });
+        return materialized;
     }
 
     private MavenResolver.RootPom toRootPom(Executor executor,
                                             Repository repository,
                                             String coordinate,
-                                            String pinned) throws IOException {
+                                            String pinned,
+                                            String identifier) throws IOException {
         String fetchCoord;
         String checksum;
         if (pinned == null || pinned.isEmpty()) {
@@ -91,6 +109,6 @@ public class MavenModuleResolver implements Resolver {
         }
         RepositoryItem item = repository.fetch(executor, fetchCoord)
                 .orElseThrow(() -> new IllegalArgumentException("No POM found for " + coordinate));
-        return new MavenResolver.RootPom(item.toInputStream(), checksum);
+        return new MavenResolver.RootPom(item.toInputStream(), checksum, identifier);
     }
 }

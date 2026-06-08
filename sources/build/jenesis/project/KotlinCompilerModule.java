@@ -78,11 +78,11 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers).pinning(pinning),
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> compileInputs = new LinkedHashSet<>();
-        compileInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+        compileInputs.add(DEPENDENCIES);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
                 factory == null ? new Compile(includeResources, qualifier) : new Compile(includeResources, qualifier, factory),
@@ -97,7 +97,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         if (path.equals(CLASSES)) {
             return Optional.of(CLASSES);
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(ARTIFACTS);
         }
         return Optional.empty();

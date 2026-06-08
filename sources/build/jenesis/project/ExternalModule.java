@@ -16,7 +16,6 @@ import build.jenesis.step.Dependencies;
 public class ExternalModule implements BuildExecutorModule {
 
     public static final String COORDINATE = "coordinate", DEPENDENCIES = "dependencies", DELEGATE = "delegate";
-    private static final String EXTERNAL_ARTIFACTS = DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS;
 
     private final String coordinate;
     private final Map<String, Repository> repositories;
@@ -25,12 +24,13 @@ public class ExternalModule implements BuildExecutorModule {
     private final String buildModuleName;
     private final String qualifier;
     private final Pinning pinning;
+    private final String group;
 
     public ExternalModule(String coordinate,
                           String qualifier,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier, null);
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier, null, "main");
     }
 
     private ExternalModule(String coordinate,
@@ -39,7 +39,8 @@ public class ExternalModule implements BuildExecutorModule {
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
                            String qualifier,
-                           Pinning pinning) {
+                           Pinning pinning,
+                           String group) {
         this.coordinate = coordinate;
         this.repositories = repositories;
         this.resolvers = resolvers;
@@ -47,6 +48,7 @@ public class ExternalModule implements BuildExecutorModule {
         this.buildModuleName = buildModuleName;
         this.qualifier = qualifier;
         this.pinning = pinning;
+        this.group = group;
     }
 
     public ExternalModule dependencies(String... dependencies) {
@@ -60,7 +62,8 @@ public class ExternalModule implements BuildExecutorModule {
                 dependencies,
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public ExternalModule buildModuleName(String name) {
@@ -70,7 +73,8 @@ public class ExternalModule implements BuildExecutorModule {
                 additionalDependencies,
                 name,
                 qualifier,
-                pinning);
+                pinning,
+                group);
     }
 
     public ExternalModule pinning(Pinning pinning) {
@@ -80,7 +84,19 @@ public class ExternalModule implements BuildExecutorModule {
                 additionalDependencies,
                 buildModuleName,
                 qualifier,
-                pinning);
+                pinning,
+                group);
+    }
+
+    public ExternalModule group(String group) {
+        return new ExternalModule(coordinate,
+                repositories,
+                resolvers,
+                additionalDependencies,
+                buildModuleName,
+                qualifier,
+                pinning,
+                group);
     }
 
     @Override
@@ -91,7 +107,7 @@ public class ExternalModule implements BuildExecutorModule {
         if (path.startsWith(DELEGATE + "/")) {
             return Optional.of(path.substring(DELEGATE.length() + 1));
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(path);
         }
         return Optional.empty();
@@ -103,15 +119,15 @@ public class ExternalModule implements BuildExecutorModule {
         coordinates.add(coordinate);
         coordinates.addAll(additionalDependencies);
         buildExecutor.addStep(COORDINATE,
-                new WriteCoordinates(coordinates),
+                new WriteCoordinates(group, coordinates),
                 inherited.sequencedKeySet().stream());
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers)
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers)
                         .pinning(pinning),
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             List<Path> artifacts = new ArrayList<>(
-                    Dependencies.select(delegated.get(PREVIOUS + EXTERNAL_ARTIFACTS), "runtime"));
+                    Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;
@@ -122,12 +138,12 @@ public class ExternalModule implements BuildExecutorModule {
                 throw new IllegalStateException("Failed to resolve external build execution module " + coordinate, e);
             }
             SequencedMap<String, Path> forwarded = new LinkedHashMap<>(delegated);
-            forwarded.remove(PREVIOUS + EXTERNAL_ARTIFACTS);
+            forwarded.remove(PREVIOUS + DEPENDENCIES);
             bridge.accept(foreignModule, delegateExecutor, forwarded);
-        }, Stream.concat(Stream.of(EXTERNAL_ARTIFACTS), inherited.sequencedKeySet().stream()));
+        }, Stream.concat(Stream.of(DEPENDENCIES), inherited.sequencedKeySet().stream()));
     }
 
-    private record WriteCoordinates(List<String> coordinates) implements BuildStep {
+    private record WriteCoordinates(String group, List<String> coordinates) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -136,8 +152,8 @@ public class ExternalModule implements BuildExecutorModule {
                 throws IOException {
             SequencedProperties properties = new SequencedProperties();
             for (String coordinate : coordinates) {
-                properties.setProperty("main/compile/" + coordinate, "");
-                properties.setProperty("main/runtime/" + coordinate, "");
+                properties.setProperty(group + "/compile/" + coordinate, "");
+                properties.setProperty(group + "/runtime/" + coordinate, "");
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedProperties versions = new SequencedProperties();

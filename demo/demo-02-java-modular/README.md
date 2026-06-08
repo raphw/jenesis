@@ -78,7 +78,7 @@ The version is required to resolve the module (the overlay serves
 `org.slf4j/<version>/org.slf4j.jar`). Running `java build/jenesis/Project.java
 pin` rewrites the resolved version back into the tag and is idempotent. The tag
 may also carry a content checksum (`@jenesis.pin compile/module/org.slf4j 2.0.16
-SHA-256/<hex>`), which `Resolve` then verifies on every fetch.
+SHA-256/<hex>`), which `Dependencies` then verifies on every fetch.
 
 A scope-first key is always `<scope>/<repository>/<coordinate>`. An ordinary
 application dependency lives in the `compile` scope and the `module` repository,

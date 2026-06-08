@@ -45,7 +45,7 @@ public class MavenModuleResolverTest {
                 new LinkedHashMap<>(),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.2.3");
+        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.2.3", "module/foo.bar/1.2.3");
         assertThat(resolved.get("maven/org.example/example-core/1.2.3").checksum()).isEmpty();
         assertThat(fetched).containsOnlyKeys("foo.bar:pom");
     }
@@ -69,7 +69,7 @@ public class MavenModuleResolverTest {
                 new LinkedHashMap<>(Map.of("foo.bar", "9.9")),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/9.9");
+        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/9.9", "module/foo.bar/9.9");
         assertThat(fetched).containsOnlyKeys("foo.bar/9.9:pom");
     }
 
@@ -91,7 +91,7 @@ public class MavenModuleResolverTest {
                 new LinkedHashMap<>(Map.of("foo.bar", "1.0 " + checksum)),
                 DependencyScope.COMPILE);
 
-        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.0");
+        assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.0", "module/foo.bar/1.0");
         assertThat(resolved.get("maven/org.example/example-core/1.0").checksum()).isEqualTo(checksum);
     }
 
@@ -129,7 +129,8 @@ public class MavenModuleResolverTest {
 
         assertThat(resolved).containsOnlyKeys(
                 "maven/org.example/example-core/1.0",
-                "maven/org.transitive/lib/2.0");
+                "maven/org.transitive/lib/2.0",
+                "module/foo.bar/1.0");
     }
 
     @Test
@@ -242,7 +243,8 @@ public class MavenModuleResolverTest {
         assertThat(resolved).containsOnlyKeys(
                 "maven/org.example/example-core/1.0",
                 "maven/org.mid/mid/1.0",
-                "maven/org.transitive/lib/2.0");
+                "maven/org.transitive/lib/2.0",
+                "module/foo.bar/1.0");
     }
 
     @Test
@@ -302,7 +304,8 @@ public class MavenModuleResolverTest {
         assertThat(resolved).containsOnlyKeys(
                 "maven/org.example/example-core/1.0",
                 "maven/org.mid/mid/1.0",
-                "maven/org.transitive/lib/2.0");
+                "maven/org.transitive/lib/2.0",
+                "module/foo.bar/1.0");
         assertThat(fetched).containsOnlyKeys("foo.bar:pom", "lib.module/2.0:pom");
     }
 

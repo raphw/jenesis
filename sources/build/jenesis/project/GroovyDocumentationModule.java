@@ -85,11 +85,11 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers).pinning(pinning),
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> documentInputs = new LinkedHashSet<>();
-        documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+        documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
                 factory == null ? new Document(within, includeJava, qualifier) : new Document(within, includeJava, qualifier, factory),
@@ -101,7 +101,7 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         if (path.equals(DOCUMENTED)) {
             return Optional.of(DOCUMENTED);
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(ARTIFACTS);
         }
         return Optional.empty();
@@ -126,45 +126,15 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                         "No suitable resolver for Groovy documentation. Available prefixes: " + prefixes
                                 + ". Expected one of: " + PREFERRED_PREFIXES);
             }
-            String version = resolvedGroovyVersion(arguments);
             String coordinate = switch (selectedPrefix) {
                 case "module" -> selectedPrefix + "/" + MODULE_NAME;
-                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/" + version;
+                case "maven" -> selectedPrefix + "/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE";
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
             requires.setProperty(qualifier + "/" + qualifier + "/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
-        }
-
-        private static String resolvedGroovyVersion(SequencedMap<String, BuildStepArgument> arguments) throws IOException {
-            String marker = MAVEN_GROUP + "-" + MAVEN_GROUP.substring(MAVEN_GROUP.lastIndexOf('.') + 1) + "-";
-            String[] found = new String[1];
-            for (BuildStepArgument argument : arguments.values()) {
-                for (String jarFolder : List.of(BuildStep.DEPENDENCIES, BuildStep.ARTIFACTS)) {
-                    Path jarRoot = argument.folder().resolve(jarFolder);
-                    if (!Files.exists(jarRoot)) {
-                        continue;
-                    }
-                    Files.walkFileTree(jarRoot, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            String name = file.getFileName().toString();
-                            int at = name.indexOf(marker);
-                            if (at >= 0 && name.indexOf('@') < 0 && name.endsWith(".jar")) {
-                                String candidate = name.substring(at + marker.length(), name.length() - ".jar".length());
-                                if (!candidate.isEmpty() && Character.isDigit(candidate.charAt(0))) {
-                                    found[0] = candidate;
-                                    return FileVisitResult.TERMINATE;
-                                }
-                            }
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
-                }
-            }
-            return found[0] == null ? "RELEASE" : found[0];
         }
     }
 

@@ -105,7 +105,7 @@ public class MavenPomResolver implements MavenResolver {
     }
 
     @Override
-    public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
+    public MavenResolver.Resolution dependencies(
             Executor executor,
             MavenRepository repository,
             List<RootPom> rootPoms,
@@ -117,6 +117,7 @@ public class MavenPomResolver implements MavenResolver {
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
+        SequencedMap<String, MavenDependencyKey> roots = new LinkedHashMap<>();
         for (RootPom managedPom : managedPoms) {
             UnresolvedPom assembled;
             try (InputStream stream = managedPom.pom()) {
@@ -149,13 +150,15 @@ public class MavenPomResolver implements MavenResolver {
             DependencyCoordinate coordinate = new DependencyCoordinate(groupId, artifactId, version);
             unresolved.putIfAbsent(coordinate, assembled);
             resolved.putIfAbsent(coordinate, resolvedRoot);
-            dependencies.put(
-                    new MavenDependencyKey(groupId, artifactId, "jar", null),
-                    new MavenDependencyValue(version, scope, null, null, null, rootPom.checksum()));
+            MavenDependencyKey key = new MavenDependencyKey(groupId, artifactId, "jar", null);
+            dependencies.put(key, new MavenDependencyValue(version, scope, null, null, null, rootPom.checksum()));
+            if (rootPom.identifier() != null) {
+                roots.put(rootPom.identifier(), key);
+            }
         }
-        return dependencies(executor, repository,
+        return new MavenResolver.Resolution(dependencies(executor, repository,
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of(), null, null),
-                unresolved, resolved, prefix, listener);
+                unresolved, resolved, prefix, listener), roots);
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,

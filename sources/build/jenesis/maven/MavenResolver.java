@@ -9,13 +9,17 @@ public interface MavenResolver extends Resolver {
 
     SequencedMap<Path, MavenLocalPom> local(Executor executor, Repository repository, Path root) throws IOException;
 
-    SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
-                                                                        MavenRepository repository,
-                                                                        List<RootPom> rootPoms,
-                                                                        List<RootPom> managedPoms,
-                                                                        MavenDependencyScope scope,
-                                                                        String prefix,
-                                                                        ResolutionListener listener) throws IOException;
+    Resolution dependencies(Executor executor,
+                            MavenRepository repository,
+                            List<RootPom> rootPoms,
+                            List<RootPom> managedPoms,
+                            MavenDependencyScope scope,
+                            String prefix,
+                            ResolutionListener listener) throws IOException;
+
+    record Resolution(SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
+                      SequencedMap<String, MavenDependencyKey> roots) {
+    }
 
     static MavenResolver of(Resolver resolver) {
         if (resolver instanceof MavenResolver mavenResolver) {
@@ -26,10 +30,14 @@ public interface MavenResolver extends Resolver {
                 + " is not a MavenResolver");
     }
 
-    record RootPom(InputStream pom, String checksum) {
+    record RootPom(InputStream pom, String checksum, String identifier) {
 
         public RootPom(InputStream pom) {
-            this(pom, null);
+            this(pom, null, null);
+        }
+
+        public RootPom(InputStream pom, String checksum) {
+            this(pom, checksum, null);
         }
     }
 }

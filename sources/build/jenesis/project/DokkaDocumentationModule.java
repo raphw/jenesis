@@ -76,11 +76,11 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
-        buildExecutor.addModule(DEPENDENCIES,
-                new DependenciesModule(repositories, resolvers).pinning(pinning),
+        buildExecutor.addStep(DEPENDENCIES,
+                new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> documentInputs = new LinkedHashSet<>();
-        documentInputs.add(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS);
+        documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
                 factory == null ? new Document(within, qualifier) : new Document(within, qualifier, factory),
@@ -92,7 +92,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         if (path.equals(DOCUMENTED)) {
             return Optional.of(DOCUMENTED);
         }
-        if (path.equals(DEPENDENCIES + "/" + DependenciesModule.ARTIFACTS)) {
+        if (path.equals(DEPENDENCIES)) {
             return Optional.of(ARTIFACTS);
         }
         return Optional.empty();
