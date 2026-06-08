@@ -368,6 +368,27 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   The chain is best-effort: every tool tolerates a non-zero exit so a documentation tool that fails never fails the
   build, and `aggregate` always guarantees a root `index.html` (linking to any per-language subfolders that
   rendered) so the produced `-javadoc.jar`, a Maven Central prerequisite, is never empty.
+- The **inferred code-quality chains** bring the same zero-config activation to static-analysis and formatting
+  tools, split by what they inspect. `InferredByteCodeQualityModule` covers tools that read compiled **class
+  files** (SpotBugs), and `InferredSourceCodeQualityModule` covers tools that read **source files** (Checkstyle,
+  PMD, detekt, ktlint, Scalastyle, scalafmt, CodeNarc). Activation is **config-file-only**: a tool is wired if,
+  and only if, its conventional configuration file is present in the project. Each module checks its inherited
+  input folders for the trigger file, so no extra wiring or source-tree knowledge is needed. The triggers are
+  `spotbugs-exclude.xml` (or `spotbugs.xml`) for SpotBugs, `checkstyle.xml` for Checkstyle, `pmd.xml` for PMD,
+  `detekt.yml` for detekt, `.editorconfig` for ktlint, `scalastyle-config.xml` for Scalastyle, `.scalafmt.conf`
+  for scalafmt, and `codenarc.xml` for CodeNarc. Like the compilers, each tool resolves in its **own dependency
+  group** (named after the tool) so its runtime never mixes with the project's compile classpath, floats
+  `RELEASE` (pinnable through the usual `@jenesis.pin` tags), and runs in a forked JVM against the compiled
+  `classes/` or the bound `sources/`. Each tool **writes its report and does not fail the build by default**
+  (report-only); calling `.strict()` on a tool makes a non-zero tool exit fail the build, gated through
+  `acceptableExitCode`. A tool whose language is absent self-skips (detekt does nothing when a project has no
+  `.kt` sources), so an unrelated trigger file never forces analysis. Each tool is a self-contained
+  `BuildExecutorModule` following the compiler-module shape (`required` -> `dependencies` -> `check`). Wiring
+  these chains into the default layouts is deferred; today they are added explicitly in a build script or
+  exercised directly in tests. Java source formatting (Spotless, google-java-format) is intentionally left out
+  for now because neither exposes a project-root configuration file to infer from. The detekt runner targets the
+  1.x main class (`io.gitlab.arturbosch.detekt.cli.Main`); detekt 2.x relocates it to `dev.detekt.cli.Main`, so
+  the floated `RELEASE` and runner main class want confirming against the resolved jar.
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, a chained
 Jenesis module repository for `MODULAR`) with any user-provided ones. The merged map then has each sub-module's `assign`

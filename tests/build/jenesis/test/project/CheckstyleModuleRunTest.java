@@ -1,0 +1,96 @@
+package build.jenesis.test.project;
+
+import module java.base;
+import module org.junit.jupiter.api;
+import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildStep;
+import build.jenesis.BuildStepHashFunction;
+import build.jenesis.HashDigestFunction;
+import build.jenesis.Repository;
+import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenPomResolver;
+import build.jenesis.project.CheckstyleModule;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+public class CheckstyleModuleRunTest {
+
+    private static final String CONFIG = """
+            <?xml version="1.0"?>
+            <!DOCTYPE module PUBLIC
+                "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+                "https://checkstyle.org/dtds/configuration_1_3.dtd">
+            <module name="Checker">
+                <property name="severity" value="error"/>
+                <module name="TreeWalker">
+                    <module name="TypeName"/>
+                </module>
+            </module>
+            """;
+
+    @TempDir
+    private Path root, project;
+
+    @BeforeEach
+    public void writeProject() throws IOException {
+        Files.writeString(project.resolve("checkstyle.xml"), CONFIG);
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("badName.java"), """
+                package sample;
+                public class badName {
+                }
+                """);
+    }
+
+    @Test
+    public void writes_a_report_without_failing_the_build_in_report_only_mode() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "checkstyle",
+                new CheckstyleModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver())),
+                "project");
+        executor.execute();
+
+        Path report = root.resolve("checkstyle").resolve("check").resolve("output").resolve("checkstyle-report.xml");
+        assertThat(report)
+                .as("report-only run still produces the Checkstyle XML report")
+                .isNotEmptyFile();
+        assertThat(report).content().contains("badName");
+    }
+
+    @Test
+    public void strict_mode_fails_the_build_on_a_violation() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule(
+                "checkstyle",
+                new CheckstyleModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver()))
+                        .strict(true),
+                "project");
+
+        assertThatThrownBy(executor::execute)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
+                .hasMessageContaining("Unexpected exit code");
+    }
+
+    private BuildExecutor newExecutor() throws IOException {
+        return BuildExecutor.of(root,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+    }
+
+    private static Repository mavenCentral() {
+        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
+        return new MavenDefaultRepository(
+                URI.create("https://repo1.maven.org/maven2/"),
+                Files.isDirectory(local) ? local : null,
+                Map.of(),
+                _ -> {});
+    }
+}
