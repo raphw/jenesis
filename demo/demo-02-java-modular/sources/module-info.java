@@ -6,7 +6,8 @@
  * alongside a generated POM.
  *
  * @jenesis.release 25
- * @jenesis.pin org.slf4j 2.0.16 SHA-256/a12578dde1ba00bd9b816d388a0b879928d00bab3c83c240f7013bf4196c579a
+ * @jenesis.pin main/maven/org.slf4j/slf4j-api 2.0.16 SHA-256/a12578dde1ba00bd9b816d388a0b879928d00bab3c83c240f7013bf4196c579a
+ * @jenesis.pin org.slf4j 2.0.16
  */
 module demo.modular {
     requires org.slf4j;
