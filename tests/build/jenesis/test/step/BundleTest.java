@@ -31,7 +31,7 @@ public class BundleTest {
         writePlainJar(Files.createDirectory(input.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"));
         writePlainJar(Files.createDirectory(input.resolve("resolved")).resolve("lib.jar"));
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("runtime/maven/lib", "resolved/lib.jar");
+        index.setProperty("main/runtime/maven/lib", "resolved/lib.jar");
         index.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("--main-jar", "app.jar");

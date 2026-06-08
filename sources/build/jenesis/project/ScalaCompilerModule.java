@@ -172,10 +172,10 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                     plugins = new ArrayList<>();
             String release = null;
             for (BuildStepArgument argument : arguments.values()) {
-                for (Path jar : Dependencies.select(argument.folder(), qualifier)) {
+                for (Path jar : Dependencies.select(argument.folder(), qualifier, qualifier)) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "plugin:" + qualifier)) {
+                for (Path jar : Dependencies.select(argument.folder(), "plugin:" + qualifier, "plugin:" + qualifier)) {
                     plugins.add(jar.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {

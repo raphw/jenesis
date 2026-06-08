@@ -160,7 +160,7 @@ public class JPackageTest {
         Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"), "one");
         Files.writeString(Files.createDirectory(bundle.resolve("resolved")).resolve("app.jar"), "two");
         SequencedProperties index = new SequencedProperties();
-        index.setProperty("runtime/maven/app", "resolved/app.jar");
+        index.setProperty("main/runtime/maven/app", "resolved/app.jar");
         index.store(bundle.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties configuration = new SequencedProperties();
         configuration.setProperty("--main-jar", "app.jar");

@@ -82,10 +82,10 @@ public class DependenciesResolutionTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
-                "compile/foo/transitive/qux",
-                "compile/foo/baz",
-                "compile/foo/transitive/baz");
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("main/compile/foo/qux",
+                "main/compile/foo/transitive/qux",
+                "main/compile/foo/baz",
+                "main/compile/foo/transitive/baz");
         for (String property : dependencies.stringPropertyNames()) {
             assertThat(dependencies.getProperty(property)).doesNotContain("SHA");
         }
@@ -110,7 +110,7 @@ public class DependenciesResolutionTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
-        assertThat(resolved.stringPropertyNames()).containsExactly("plugin:kotlin/maven/org.jetbrains/something");
+        assertThat(resolved.stringPropertyNames()).containsExactly("plugin:kotlin/plugin:kotlin/maven/org.jetbrains/something");
     }
 
     @Test
@@ -136,14 +136,14 @@ public class DependenciesResolutionTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
-                "compile/foo/transitive/qux",
-                "compile/foo/baz",
-                "compile/foo/transitive/baz");
-        assertThat(dependencies.getProperty("compile/foo/qux")).endsWith(" bar");
-        assertThat(dependencies.getProperty("compile/foo/transitive/qux")).doesNotContain("SHA");
-        assertThat(dependencies.getProperty("compile/foo/baz")).doesNotContain("SHA");
-        assertThat(dependencies.getProperty("compile/foo/transitive/baz")).doesNotContain("SHA");
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("main/compile/foo/qux",
+                "main/compile/foo/transitive/qux",
+                "main/compile/foo/baz",
+                "main/compile/foo/transitive/baz");
+        assertThat(dependencies.getProperty("main/compile/foo/qux")).endsWith(" bar");
+        assertThat(dependencies.getProperty("main/compile/foo/transitive/qux")).doesNotContain("SHA");
+        assertThat(dependencies.getProperty("main/compile/foo/baz")).doesNotContain("SHA");
+        assertThat(dependencies.getProperty("main/compile/foo/transitive/baz")).doesNotContain("SHA");
     }
 
     @Test
@@ -169,14 +169,14 @@ public class DependenciesResolutionTest {
                                 ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
-        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("compile/foo/qux",
-                "compile/foo/transitive/qux",
-                "compile/foo/baz",
-                "compile/foo/transitive/baz");
-        assertThat(dependencies.getProperty("compile/foo/qux")).endsWith(" bar");
-        assertThat(dependencies.getProperty("compile/foo/transitive/qux")).endsWith(" " + sha256("transitive/qux"));
-        assertThat(dependencies.getProperty("compile/foo/baz")).endsWith(" " + sha256("baz"));
-        assertThat(dependencies.getProperty("compile/foo/transitive/baz")).endsWith(" " + sha256("transitive/baz"));
+        assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("main/compile/foo/qux",
+                "main/compile/foo/transitive/qux",
+                "main/compile/foo/baz",
+                "main/compile/foo/transitive/baz");
+        assertThat(dependencies.getProperty("main/compile/foo/qux")).endsWith(" bar");
+        assertThat(dependencies.getProperty("main/compile/foo/transitive/qux")).endsWith(" " + sha256("transitive/qux"));
+        assertThat(dependencies.getProperty("main/compile/foo/baz")).endsWith(" " + sha256("baz"));
+        assertThat(dependencies.getProperty("main/compile/foo/transitive/baz")).endsWith(" " + sha256("transitive/baz"));
     }
 
     @Test
@@ -208,7 +208,7 @@ public class DependenciesResolutionTest {
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames())
-                .containsExactlyInAnyOrder("compile/foo/lib/1.0", "runtime/foo/lib/1.0");
+                .containsExactlyInAnyOrder("main/compile/foo/lib/1.0", "main/runtime/foo/lib/1.0");
     }
 
     @Test
@@ -240,7 +240,7 @@ public class DependenciesResolutionTest {
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames())
-                .containsExactlyInAnyOrder("compile/foo/lib/1.0", "extra/foo/lib/1.0");
+                .containsExactlyInAnyOrder("custom/compile/foo/lib/1.0", "custom/extra/foo/lib/1.0");
     }
 
     @Test
@@ -273,7 +273,7 @@ public class DependenciesResolutionTest {
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames())
-                .containsExactlyInAnyOrder("compile/foo/lib/1.0", "extra/foo/lib/1.0", "extra/foo/lib/FLOAT");
+                .containsExactlyInAnyOrder("main/compile/foo/lib/1.0", "main/extra/foo/lib/1.0", "other/extra/foo/lib/FLOAT");
     }
 
     @Test
@@ -353,7 +353,7 @@ public class DependenciesResolutionTest {
                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
-        assertThat(index.getProperty("compile/foo/bar")).isEqualTo("resolved/bar.jar");
+        assertThat(index.getProperty("main/compile/foo/bar")).isEqualTo("resolved/bar.jar");
         assertThat(next.resolve("resolved/bar.jar")).content().isEqualTo("bar");
     }
 

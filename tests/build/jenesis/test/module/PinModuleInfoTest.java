@@ -43,6 +43,10 @@ public class PinModuleInfoTest {
     }
 
     private void writeResolved(String scope, Map<String, String> entries) throws IOException {
+        writeResolved(scope.equals("compile") || scope.equals("runtime") ? "main" : scope, scope, entries);
+    }
+
+    private void writeResolved(String group, String scope, Map<String, String> entries) throws IOException {
         SequencedProperties properties = loadInventory();
         int index = count(properties, "module.dependency.");
         for (Map.Entry<String, String> entry : entries.entrySet()) {
@@ -55,6 +59,7 @@ public class PinModuleInfoTest {
             properties.setProperty("module.dependency." + index,
                     coordinate + " " + jar + (checksum.isEmpty() ? "" : " " + checksum));
             properties.setProperty("module.dependency." + index + ".scope", scope);
+            properties.setProperty("module.dependency." + index + ".group", group);
             index++;
         }
         properties.store(input.resolve(Inventory.INVENTORY));
@@ -81,24 +86,16 @@ public class PinModuleInfoTest {
     }
 
     @Test
-    public void renders_default_group_dependencies_under_an_overridden_group() throws IOException {
+    public void renders_dependencies_under_their_resolved_group() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """
                 module foo {
                 }
                 """);
-        writeResolved(Map.of("maven/org.example/lib/tests", "1.0 SHA-256/cafebabe"));
-        new PinModuleInfo("tool", "module", "", file, new HashDigestFunction("SHA-256"))
-                .apply(Runnable::run,
-                        new BuildStepContext(previous, next, supplement),
-                        new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
-                                input,
-                                Map.of(Path.of(Inventory.INVENTORY), ChecksumStatus.ADDED)))))
-                .toCompletableFuture()
-                .join();
-        String result = Files.readString(file);
-        assertThat(result).contains("@jenesis.pin tool/maven/org.example/lib/tests 1.0 SHA-256/cafebabe");
-        assertThat(result).doesNotContain("main/maven/org.example/lib/tests");
+        writeResolved("tool", "runtime", Map.of("maven/org.example/lib", "1.0 SHA-256/cafebabe"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin tool/maven/org.example/lib 1.0 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("main/maven/org.example/lib");
     }
 
     @Test

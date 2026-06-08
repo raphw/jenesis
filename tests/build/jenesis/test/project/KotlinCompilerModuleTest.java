@@ -344,7 +344,7 @@ public class KotlinCompilerModuleTest {
         Path resolvedOutput = root.resolve("kotlin").resolve("dependencies").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(resolvedOutput.resolve(BuildStep.DEPENDENCIES));
         assertThat(requires.stringPropertyNames())
-                .containsExactly("kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
+                .containsExactly("kotlin/kotlin/maven/org.jetbrains.kotlin/kotlin-compiler-embeddable/RELEASE");
     }
 
     @Test

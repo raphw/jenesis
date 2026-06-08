@@ -161,7 +161,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), qualifierTrail)) {
+                for (Path jar : Dependencies.select(argument.folder(), qualifierTrail, qualifierTrail)) {
                     jars.add(jar.toString());
                 }
                 for (Path jar : Dependencies.select(argument.folder(), "compile")) {
