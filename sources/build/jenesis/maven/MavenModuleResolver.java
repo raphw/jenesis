@@ -81,7 +81,9 @@ public class MavenModuleResolver implements Resolver {
                 return;
             }
             Resolver.Resolved root = materialized.get(key.coordinate(mavenPrefix, value.version()));
-            if (root != null) {
+            // Internal siblings are built locally and resolved by coordinate, not pinned to a
+            // version, so they get no module root entry (and no versioned discovery fetch).
+            if (root != null && !root.internal()) {
                 materialized.putIfAbsent("module/" + module + "/" + value.version(),
                         new Resolver.Resolved(root.file(), "", root.internal()));
             }
