@@ -34,43 +34,33 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        SequencedSet<String> upstream = inherited.sequencedKeySet();
-        if (hasFile(inherited, "checkstyle.xml")) {
+        if (CheckstyleModule.isConfigured(inherited)) {
             buildExecutor.addModule(CHECKSTYLE,
-                    new CheckstyleModule(repositories, resolvers).pinning(pinning), upstream);
+                    new CheckstyleModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-        if (hasFile(inherited, "pmd.xml")) {
+        if (PmdModule.isConfigured(inherited)) {
             buildExecutor.addModule(PMD,
-                    new PmdModule(repositories, resolvers).pinning(pinning), upstream);
+                    new PmdModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-        if (hasFile(inherited, "detekt.yml")) {
+        if (DetektModule.isConfigured(inherited)) {
             buildExecutor.addModule(DETEKT,
-                    new DetektModule(repositories, resolvers).pinning(pinning), upstream);
+                    new DetektModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-        if (hasFile(inherited, ".editorconfig")) {
+        if (KtlintModule.isConfigured(inherited)) {
             buildExecutor.addModule(KTLINT,
-                    new KtlintModule(repositories, resolvers).pinning(pinning), upstream);
+                    new KtlintModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-        if (hasFile(inherited, "scalastyle-config.xml")) {
+        if (ScalastyleModule.isConfigured(inherited)) {
             buildExecutor.addModule(SCALASTYLE,
-                    new ScalastyleModule(repositories, resolvers).pinning(pinning), upstream);
+                    new ScalastyleModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-        if (hasFile(inherited, ".scalafmt.conf")) {
+        if (ScalafmtModule.isConfigured(inherited)) {
             buildExecutor.addModule(SCALAFMT,
-                    new ScalafmtModule(repositories, resolvers).pinning(pinning), upstream);
+                    new ScalafmtModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-        if (hasFile(inherited, "codenarc.xml")) {
+        if (CodeNarcModule.isConfigured(inherited)) {
             buildExecutor.addModule(CODENARC,
-                    new CodeNarcModule(repositories, resolvers).pinning(pinning), upstream);
+                    new CodeNarcModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-    }
-
-    private static boolean hasFile(SequencedMap<String, Path> inherited, String fileName) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve(fileName))) {
-                return true;
-            }
-        }
-        return false;
     }
 }
