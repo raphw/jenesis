@@ -264,6 +264,51 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void undefined_property_in_unconsumed_managed_dependency_is_tolerated() throws IOException {
+        // Mirrors log4j-core 2.25.1, whose POM manages error_prone_annotations at ${error-prone.version}
+        // but only defines error-prone-annotations.version. Maven leaves the unresolved managed version in
+        // place because nothing consumes that entry; resolution must not fail with "Property not defined".
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>unused</groupId>
+                                <artifactId>managed</artifactId>
+                                <version>${undefined.property}</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+        addToRepository("other", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("other", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
     public void can_resolve_dependencies_with_nested_property() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>

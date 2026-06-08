@@ -953,7 +953,9 @@ public class MavenPomResolver implements MavenResolver {
                     replacement = System.getProperty(property);
                 }
                 if (replacement == null) {
-                    throw new IllegalStateException("Property not defined: " + property);
+                    // Maven leaves an undefined property as a literal rather than failing model assembly;
+                    // it only errors if the value is actually used to fetch an artifact.
+                    matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));
                 } else {
                     HashSet<String> duplicates = new HashSet<>(previous);
                     if (!duplicates.add(property)) {
