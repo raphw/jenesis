@@ -29,10 +29,9 @@ public class SpotBugsModule implements BuildExecutorModule {
     private final String group;
     private final String configFile;
     private final boolean strict;
-    private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public SpotBugsModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "spotbugs", "spotbugs-exclude.xml", false, null);
+        this(repositories, resolvers, null, "spotbugs", "spotbugs-exclude.xml", false);
     }
 
     private SpotBugsModule(Map<String, Repository> repositories,
@@ -40,55 +39,54 @@ public class SpotBugsModule implements BuildExecutorModule {
                            Pinning pinning,
                            String group,
                            String configFile,
-                           boolean strict,
-                           Function<List<String>, ? extends ProcessHandler> factory) {
+                           boolean strict) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.group = group;
         this.configFile = configFile;
         this.strict = strict;
-        this.factory = factory;
+    }
+
+    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
+        for (Path folder : inherited.values()) {
+            if (Files.isRegularFile(folder.resolve("spotbugs-exclude.xml"))
+                    || Files.isRegularFile(folder.resolve("spotbugs.xml"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public SpotBugsModule pinning(Pinning pinning) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict, factory);
+        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
     }
 
     public SpotBugsModule group(String group) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict, factory);
+        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
     }
 
     public SpotBugsModule configFile(String configFile) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict, factory);
+        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
     }
 
     public SpotBugsModule strict(boolean strict) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict, factory);
-    }
-
-    public SpotBugsModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict, factory);
+        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(group), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(group), inherited.sequencedKeySet());
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
-        resolveInputs.addAll(upstream);
+        resolveInputs.addAll(inherited.sequencedKeySet());
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
-        checkInputs.addAll(upstream);
-        buildExecutor.addStep(CHECK,
-                factory == null
-                        ? new Check(group, configFile, strict)
-                        : new Check(group, configFile, strict, factory),
-                checkInputs);
+        checkInputs.addAll(inherited.sequencedKeySet());
+        buildExecutor.addStep(CHECK, new Check(group, configFile, strict), checkInputs);
     }
 
     private record Requires(String group) implements BuildStep {
@@ -117,14 +115,7 @@ public class SpotBugsModule implements BuildExecutorModule {
         private final boolean strict;
 
         private Check(String group, String configFile, boolean strict) {
-            this(group, configFile, strict, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        }
-
-        private Check(String group,
-                      String configFile,
-                      boolean strict,
-                      Function<List<String>, ? extends ProcessHandler> factory) {
-            super("spotbugs", factory);
+            super("spotbugs", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
             this.group = group;
             this.configFile = configFile;
             this.strict = strict;

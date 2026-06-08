@@ -33,19 +33,9 @@ public class InferredByteCodeQualityModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        SequencedSet<String> upstream = inherited.sequencedKeySet();
-        if (hasFile(inherited, "spotbugs-exclude.xml") || hasFile(inherited, "spotbugs.xml")) {
+        if (SpotBugsModule.isConfigured(inherited)) {
             buildExecutor.addModule(SPOTBUGS,
-                    new SpotBugsModule(repositories, resolvers).pinning(pinning), upstream);
+                    new SpotBugsModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
         }
-    }
-
-    private static boolean hasFile(SequencedMap<String, Path> inherited, String fileName) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve(fileName))) {
-                return true;
-            }
-        }
-        return false;
     }
 }

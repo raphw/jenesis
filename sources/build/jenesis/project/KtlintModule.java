@@ -29,58 +29,57 @@ public class KtlintModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final String group;
     private final boolean strict;
-    private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public KtlintModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "ktlint", false, null);
+        this(repositories, resolvers, null, "ktlint", false);
     }
 
     private KtlintModule(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
                          String group,
-                         boolean strict,
-                         Function<List<String>, ? extends ProcessHandler> factory) {
+                         boolean strict) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.group = group;
         this.strict = strict;
-        this.factory = factory;
+    }
+
+    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
+        for (Path folder : inherited.values()) {
+            if (Files.isRegularFile(folder.resolve(".editorconfig"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public KtlintModule pinning(Pinning pinning) {
-        return new KtlintModule(repositories, resolvers, pinning, group, strict, factory);
+        return new KtlintModule(repositories, resolvers, pinning, group, strict);
     }
 
     public KtlintModule group(String group) {
-        return new KtlintModule(repositories, resolvers, pinning, group, strict, factory);
+        return new KtlintModule(repositories, resolvers, pinning, group, strict);
     }
 
     public KtlintModule strict(boolean strict) {
-        return new KtlintModule(repositories, resolvers, pinning, group, strict, factory);
-    }
-
-    public KtlintModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new KtlintModule(repositories, resolvers, pinning, group, strict, factory);
+        return new KtlintModule(repositories, resolvers, pinning, group, strict);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(group), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(group), inherited.sequencedKeySet());
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
-        resolveInputs.addAll(upstream);
+        resolveInputs.addAll(inherited.sequencedKeySet());
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
-        checkInputs.addAll(upstream);
-        buildExecutor.addStep(CHECK,
-                factory == null ? new Check(group, strict) : new Check(group, strict, factory),
-                checkInputs);
+        checkInputs.addAll(inherited.sequencedKeySet());
+        buildExecutor.addStep(CHECK, new Check(group, strict), checkInputs);
     }
 
     private record Requires(String group) implements BuildStep {
@@ -108,11 +107,7 @@ public class KtlintModule implements BuildExecutorModule {
         private final boolean strict;
 
         private Check(String group, boolean strict) {
-            this(group, strict, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        }
-
-        private Check(String group, boolean strict, Function<List<String>, ? extends ProcessHandler> factory) {
-            super("ktlint", factory);
+            super("ktlint", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
             this.group = group;
             this.strict = strict;
         }
