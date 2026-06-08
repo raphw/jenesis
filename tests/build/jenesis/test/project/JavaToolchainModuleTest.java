@@ -57,7 +57,7 @@ public class JavaToolchainModuleTest {
             inputStream.transferTo(outputStream);
         }
         SequencedProperties dependencies = new SequencedProperties();
-        dependencies.setProperty("compile/local/sample", BuildStep.ARTIFACTS + "dependency.jar");
+        dependencies.setProperty("main/compile/local/sample", BuildStep.ARTIFACTS + "dependency.jar");
         dependencies.store(input.resolve(BuildStep.DEPENDENCIES));
         buildExecutor.addSource("input", input);
         buildExecutor.addModule("output", new JavaToolchainModule(), "input");
@@ -183,7 +183,7 @@ public class JavaToolchainModuleTest {
             }
             String jarName = URLEncoder.encode(UUID.randomUUID().toString(), StandardCharsets.UTF_8) + ".jar";
             Files.copy(path, artifacts.resolve(jarName));
-            dependencies.setProperty("compile/boot/jar" + index++, BuildStep.ARTIFACTS + jarName);
+            dependencies.setProperty("main/compile/boot/jar" + index++, BuildStep.ARTIFACTS + jarName);
         }
         dependencies.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties versions = new SequencedProperties();
