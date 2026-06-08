@@ -67,7 +67,7 @@ public class Demo {
             return (sub, inherited) -> {
                 InternalModule preprocess = new InternalModule(
                         "module",                           // resolution prefix for the plugin's requires
-                        "tool",                             // namespacing qualifier (currently unused)
+                        "tool",                             // dependency group for the plugin's resolved closure
                         pluginSource);
                 // Forward the project's sources (to preprocess) and its manifests (the
                 // pin map): InternalModule reads the pins from the manifests and

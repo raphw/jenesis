@@ -22,15 +22,14 @@ public class ExternalModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
-    private final String qualifier;
     private final Pinning pinning;
     private final String group;
 
     public ExternalModule(String coordinate,
-                          String qualifier,
+                          String group,
                           Map<String, Repository> repositories,
                           Map<String, Resolver> resolvers) {
-        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, qualifier, null, "main");
+        this(coordinate, repositories, resolvers, Collections.emptyNavigableSet(), null, null, group == null ? "main" : group);
     }
 
     private ExternalModule(String coordinate,
@@ -38,7 +37,6 @@ public class ExternalModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
-                           String qualifier,
                            Pinning pinning,
                            String group) {
         this.coordinate = coordinate;
@@ -46,7 +44,6 @@ public class ExternalModule implements BuildExecutorModule {
         this.resolvers = resolvers;
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
-        this.qualifier = qualifier;
         this.pinning = pinning;
         this.group = group;
     }
@@ -61,7 +58,6 @@ public class ExternalModule implements BuildExecutorModule {
                 resolvers,
                 dependencies,
                 buildModuleName,
-                qualifier,
                 pinning,
                 group);
     }
@@ -72,7 +68,6 @@ public class ExternalModule implements BuildExecutorModule {
                 resolvers,
                 additionalDependencies,
                 name,
-                qualifier,
                 pinning,
                 group);
     }
@@ -83,7 +78,6 @@ public class ExternalModule implements BuildExecutorModule {
                 resolvers,
                 additionalDependencies,
                 buildModuleName,
-                qualifier,
                 pinning,
                 group);
     }
@@ -94,7 +88,6 @@ public class ExternalModule implements BuildExecutorModule {
                 resolvers,
                 additionalDependencies,
                 buildModuleName,
-                qualifier,
                 pinning,
                 group);
     }
@@ -127,7 +120,7 @@ public class ExternalModule implements BuildExecutorModule {
                 COORDINATE);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             List<Path> artifacts = new ArrayList<>(
-                    Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), "runtime"));
+                    Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), group, "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;

@@ -33,12 +33,11 @@ public class InternalModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final SequencedSet<String> additionalDependencies;
     private final String buildModuleName;
-    private final String qualifier;
     private final Pinning pinning;
     private final String group;
 
     public InternalModule(String prefix,
-                          String qualifier,
+                          String group,
                           Path source) {
         this(prefix,
                 source,
@@ -46,21 +45,20 @@ public class InternalModule implements BuildExecutorModule {
                 Map.of(prefix, new ModularJarResolver(true)),
                 Collections.emptyNavigableSet(),
                 null,
-                qualifier,
                 null,
-                "main");
+                group == null ? "main" : group);
     }
 
     public InternalModule repositories(Map<String, Repository> repositories) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning, group);
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, pinning, group);
     }
 
     public InternalModule resolvers(Map<String, Resolver> resolvers) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning, group);
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, pinning, group);
     }
 
     public InternalModule group(String group) {
-        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, qualifier, pinning, group);
+        return new InternalModule(prefix, source, repositories, resolvers, additionalDependencies, buildModuleName, pinning, group);
     }
 
     private InternalModule(String prefix,
@@ -69,7 +67,6 @@ public class InternalModule implements BuildExecutorModule {
                            Map<String, Resolver> resolvers,
                            SequencedSet<String> additionalDependencies,
                            String buildModuleName,
-                           String qualifier,
                            Pinning pinning,
                            String group) {
         this.prefix = prefix;
@@ -78,7 +75,6 @@ public class InternalModule implements BuildExecutorModule {
         this.resolvers = resolvers;
         this.additionalDependencies = additionalDependencies;
         this.buildModuleName = buildModuleName;
-        this.qualifier = qualifier;
         this.pinning = pinning;
         this.group = group;
     }
@@ -90,7 +86,6 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 new LinkedHashSet<>(List.of(dependencies)),
                 buildModuleName,
-                qualifier,
                 pinning,
                 group);
     }
@@ -102,7 +97,6 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 new LinkedHashSet<>(dependencies),
                 buildModuleName,
-                qualifier,
                 pinning,
                 group);
     }
@@ -114,7 +108,6 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 additionalDependencies,
                 name,
-                qualifier,
                 pinning,
                 group);
     }
@@ -126,7 +119,6 @@ public class InternalModule implements BuildExecutorModule {
                 resolvers,
                 additionalDependencies,
                 buildModuleName,
-                qualifier,
                 pinning,
                 group);
     }
@@ -154,7 +146,7 @@ public class InternalModule implements BuildExecutorModule {
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
                 REQUIRES);
-        buildExecutor.addModule(JAVA, new JavaToolchainModule(), SOURCE, DEPENDENCIES);
+        buildExecutor.addModule(JAVA, new JavaToolchainModule().group(group), SOURCE, DEPENDENCIES);
         buildExecutor.addModule(DELEGATE, (delegateExecutor, delegated) -> {
             Path mainArtifacts = delegated.get(PREVIOUS + MAIN_ARTIFACTS).resolve(BuildStep.ARTIFACTS);
             List<Path> artifacts = new ArrayList<>();
@@ -163,7 +155,7 @@ public class InternalModule implements BuildExecutorModule {
                     artifacts.add(file);
                 }
             }
-            artifacts.addAll(Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), "runtime"));
+            artifacts.addAll(Dependencies.select(delegated.get(PREVIOUS + DEPENDENCIES), group, "runtime"));
             artifacts.sort(null);
             JenesisClassLoaderBridge bridge;
             Object foreignModule;

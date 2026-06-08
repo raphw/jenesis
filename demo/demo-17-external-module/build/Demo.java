@@ -99,7 +99,7 @@ public class Demo {
             return (sub, inherited) -> {
                 ExternalModule preprocess = new ExternalModule(
                         "module/demo.plugin",               // the coordinate to resolve
-                        "tool",                             // namespacing qualifier (currently unused)
+                        "tool",                             // dependency group for the plugin's resolved closure
                         pluginRepositories,
                         pluginResolvers);
                 // Forward the project's sources (to preprocess) and its manifests (the
