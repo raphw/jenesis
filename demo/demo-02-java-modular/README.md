@@ -63,11 +63,14 @@ Pinned dependency
 -----------------
 
 This demo ships **already pinned**. In a module-info layout a dependency is pinned
-with an `@jenesis.pin <scope>/<repository>/<coordinate> <version>` Javadoc tag on
-the module declaration:
+with an `@jenesis.pin <token> <version>` Javadoc tag on the module declaration,
+where the token's slash count selects its form (0 slashes is a Java module name,
+short for `<group>/module/<name>` with the default group `main`; 1 slash is a Maven
+`<groupId>/<artifactId>`; 2+ slashes is an explicit `<group>/<repository>/<coordinate>`):
 
     /**
-     * @jenesis.pin compile/module/org.slf4j 2.0.16
+     * @jenesis.pin org.slf4j 2.0.16
+     * @jenesis.pin org.slf4j/slf4j-api 2.0.16 SHA-256/a12578dde1ba00bd9b816d388a0b879928d00bab3c83c240f7013bf4196c579a
      */
     module demo.modular {
         requires org.slf4j;
@@ -76,16 +79,16 @@ the module declaration:
 
 The version is required to resolve the module (the overlay serves
 `org.slf4j/<version>/org.slf4j.jar`). Running `java build/jenesis/Project.java
-pin` rewrites the resolved version back into the tag and is idempotent. The tag
-may also carry a content checksum (`@jenesis.pin compile/module/org.slf4j 2.0.16
+pin` rewrites the resolved version back into the tag and is idempotent. A pin may
+also carry a content checksum (`@jenesis.pin org.slf4j/slf4j-api 2.0.16
 SHA-256/<hex>`), which `Dependencies` then verifies on every fetch.
 
-A scope-first key is always `<scope>/<repository>/<coordinate>`. An ordinary
-application dependency lives in the `compile` scope and the `module` repository,
-so it pins as `compile/module/org.slf4j`; runtime inherits the compile pin, so a
-dependency that is both compile and runtime is pinned once under `compile/...`.
-The compiler-specific scopes (`kotlin`, `scala`, `groovy`) are reserved for the
-language toolchains, as shown in the `kotlin` / `scala` and
+The group is the top isolation axis; scope sits beneath it. A project's own
+dependency belongs to group `main` (the default), where `compile` and `runtime`
+are scopes within that group: runtime inherits the compile pin, so a dependency
+that is both compile and runtime is pinned once. Separate resolver groups
+(`kotlin`, `scala`, `groovy`, `plugin`) are reserved for the language toolchains
+and plugin closures, as shown in the `kotlin` / `scala` and
 `internal-module` / `external-module` demos.
 
 Printing the dependency tree

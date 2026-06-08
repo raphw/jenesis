@@ -99,11 +99,11 @@ public class Demo {
             return (sub, inherited) -> {
                 ExternalModule preprocess = new ExternalModule(
                         "module/demo.plugin",               // the coordinate to resolve
-                        "tool",                             // qualifier: an independent trail
+                        "tool",                             // namespacing qualifier (currently unused)
                         pluginRepositories,
                         pluginResolvers);
                 // Forward the project's sources (to preprocess) and its manifests (the
-                // @tool/ pin map): ExternalModule reads the pins from the manifests and
+                // pin map): ExternalModule reads the pins from the manifests and
                 // resolves the plugin's build.jenesis/org.json closure against them.
                 sub.addModule("preprocess", preprocess, Stream.concat(original.stream(), manifests.stream()));
                 inner.accept(sub, inherited);

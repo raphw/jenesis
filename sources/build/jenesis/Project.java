@@ -581,14 +581,16 @@ public record Project(
                                             (conventionally `project.properties`).
                       module.properties     Graph-state only (`path`, `module`,
                                             `test`, `main`). Framework-managed.
-                      identity.properties   `<prefix>/<coordinate>` -> path-or-empty.
-                      requires.properties   `<prefix>/<coordinate>` -> empty or
-                                            `<algo>/<hex>` checksum (pinned).
-                      versions.properties   `<prefix>/<version-less coord>` ->
+                      identity.properties   `<repository>/<coordinate>` ->
+                                            path-or-empty.
+                      requires.properties   `<group>/<scope>/<repository>/<coordinate>`
+                                            -> empty or `<algo>/<hex>` checksum
+                                            (pinned); scope rides in the key.
+                      versions.properties   `<group>/<repository>/<coordinate>` ->
                                             `<version>[ <algo>/<hex>]`. Bill of
                                             materials for the resolution pass.
-                      scopes.properties     `<prefix>/<coord>` -> COMPILE,RUNTIME.
-                      exclusions.properties `<prefix>/<coord>` -> comma-separated
+                      exclusions.properties `<group>/<scope>/<repository>/<coordinate>`
+                                            -> comma-separated
                                             `<groupId>/<artifactId>` exclusions.
                       inventory.properties  Per-module summary used by staging
                                             (artifacts/sources/documentation/pom/
@@ -800,8 +802,8 @@ public record Project(
                                         and a consumer requiring it plus an
                                         external named module).
                       kotlin/scala/     Mixed-language compiler chains; the
-                      groovy            compiler closure is pinned on a qualified
-                                        trail.
+                      groovy            compiler closure resolves in its own
+                                        group, isolated from the project's.
                       custom-assembler  Wrap `JavaMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,

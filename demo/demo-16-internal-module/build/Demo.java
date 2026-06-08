@@ -67,10 +67,10 @@ public class Demo {
             return (sub, inherited) -> {
                 InternalModule preprocess = new InternalModule(
                         "module",                           // resolution prefix for the plugin's requires
-                        "tool",                             // qualifier: an independent trail
+                        "tool",                             // namespacing qualifier (currently unused)
                         pluginSource);
                 // Forward the project's sources (to preprocess) and its manifests (the
-                // @tool/ pin map): InternalModule reads the pins from the manifests and
+                // pin map): InternalModule reads the pins from the manifests and
                 // resolves the plugin's build.jenesis/org.json closure against them.
                 sub.addModule("preprocess", preprocess, Stream.concat(original.stream(), manifests.stream()));
                 inner.accept(sub, inherited);

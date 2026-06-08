@@ -45,7 +45,7 @@ Layout
 
 Like `internal-module`, the build module's `build.jenesis` dependency resolves
 from the default Jenesis repository as the published `0.3.0` artifact (pinned via
-the `@jenesis.pin compile/module/build.jenesis 0.3.0 ...` tag in
+the `@jenesis.pin build.jenesis 0.3.0 ...` tag in
 `sources/module-info.java`), whose API matches
 the local sources the host runs against, so the class-loader bridge loads it
 without complaint.

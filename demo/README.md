@@ -112,11 +112,15 @@ What is new here:
   because it is a genuine named module; many libraries ship only as *automatic*
   modules and cannot be required by module name.
 - **Pinning in source, the modular way.** Instead of `<dependencyManagement>`,
-  a dependency is pinned with an
-  `@jenesis.pin compile/module/org.slf4j 2.0.16 [SHA-256/...]`
-  Javadoc tag on the module declaration. Every pin key is
-  `<scope>/<repository>/<coordinate>`; an ordinary application dependency lives in
-  the `compile` scope and the `module` repository.
+  a dependency is pinned with
+  `@jenesis.pin org.slf4j 2.0.16` and
+  `@jenesis.pin org.slf4j/slf4j-api 2.0.16 SHA-256/...`
+  Javadoc tags on the module declaration. A pin key is GROUP-first: a bare token
+  such as `org.slf4j` is a Java module name (short for `main/module/org.slf4j`),
+  a single-slash token such as `org.slf4j/slf4j-api` is a Maven
+  `<groupId>/<artifactId>` (short for `main/maven/...`), and the fully explicit
+  form is `<group>/<repository>/<coordinate>`. An ordinary application dependency
+  lives in the default `main` group.
 - **Staging.** `stage` lays the output out as both a module repository and a
   Maven repository, and `export` publishes them locally.
 
@@ -239,17 +243,17 @@ dependency (`requires static`), so the very same jar sits on the compile module
 path - yet delete the `@jenesis.plugin` line and the processor no longer
 runs, `ImmutableAnimal` is never generated, and the build fails to compile `Zoo`.
 The version is pinned the usual way, with the `pin` step writing back a
-`@jenesis.pin plugin/module/org.immutables.value ...` line (and, since the same
-module is also a compile dependency, a separate
-`@jenesis.pin compile/module/org.immutables.value ...` line).
+`@jenesis.pin org.immutables.value 2.12.2` line (the bare Java module name) and a
+`@jenesis.pin org.immutables/value 2.12.2 SHA-256/...` line (the Maven
+`<groupId>/<artifactId>`), both in the default `main` group.
 
 ## 7. Other JVM languages - [`kotlin`](demo-09-kotlin/README.md), [`scala`](demo-10-scala/README.md), [`groovy`](demo-11-groovy/README.md)
 
 Jenesis drives non-Java compilers through the same inferred compiler chain, with
 no language-specific configuration beyond the sources. A *resolved* compiler
-(Kotlin, Scala, Groovy) is pinned in its own **scope** - `kotlin/...`,
+(Kotlin, Scala, Groovy) is pinned in its own **group** - `kotlin/...`,
 `scala/...`, `groovy/...` - so the compiler's own closure never
-collides with the project's dependencies (which live in `compile/...`).
+collides with the project's dependencies (which live in the `main` group).
 
 - `kotlin` and `scala` are MODULAR_TO_MAVEN modules (a `module-info.java`, no
   `pom.xml`) that each mix a `.java` source with their language source. The chain
@@ -265,8 +269,8 @@ collides with the project's dependencies (which live in `compile/...`).
   `README.md` explains why this is permanent for Groovy but not for Kotlin/Scala.
 
 These three are quick reads; each `README.md` has the detail. (Each pins its
-library dependency in the `compile` scope and its compiler toolchain in the
-language scope; see "Pinning" below.)
+library dependency in the `main` group and its compiler toolchain in the
+language group; see "Pinning" below.)
 
 ## 8. Excluding a transitive dependency - [`maven-exclusions`](demo-12-maven-exclusions/README.md)
 ----------------------------------------------------
@@ -351,8 +355,8 @@ for a second project module.
 `external-module` is identical except for *where the build module comes from*:
 instead of compiling it from source, it stages the plugin to a jar and resolves
 it as a published repository **coordinate** through `ExternalModule`. The
-build-module bridge dependencies (`build.jenesis`, `org.json`) are pinned in the
-`compile` scope (`compile/module/...`).
+build-module bridge dependencies (`build.jenesis`, `org.json`) are pinned by bare
+Java module name in the default `main` group.
 
 Together these show that build logic itself is just another module - it can be
 authored inline, loaded from source, or consumed as a versioned artifact.
@@ -435,8 +439,8 @@ fails to build: an **`unpinned`** module whose dependency carries a version but 
 checksum, and a **`tampered`** module whose dependency is pinned to a wrong
 `SHA-256`. The unpinned one builds by default but is rejected under
 `pinning(Pinning.STRICT)` (a hardened environment can refuse any unverified
-dependency); the tampered one fails **regardless** of strict pinning, because
-`Resolve` checks every fetched artifact against its pin and rejects a mismatch -
+dependency); the tampered one fails **regardless** of strict pinning, because the
+`Dependencies` step checks every fetched artifact against its pin and rejects a mismatch -
 exactly what would catch a swapped or compromised artifact.
 
 The new idea is **strict pinning vs. checksum verification**: the former decides
@@ -511,21 +515,26 @@ native application image with `-Djenesis.java.jpackage` (the value is the `jpack
 **Pinning, checksums, and scopes.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
 `module-info.java`'s
-`@jenesis.pin <scope>/<repository>/<coordinate> <version> [<algorithm>/<hex>]`
-Javadoc tags. `Resolve` verifies every fetch against a pinned checksum, and
-strict pinning (`-Djenesis.dependency.pin=strict`) fails the build on any
-unpinned coordinate. The scope is the single isolation axis: an application
-dependency lives in `compile` (runtime inherits it), a test-only dependency in
-`runtime`, and a *resolved compiler* in its own language scope (`kotlin`, `scala`,
-`groovy`), so it never mixes with the project's own dependencies.
+`@jenesis.pin <token> <version> [<algorithm>/<hex>]`
+Javadoc tags. The pin token is GROUP-first and reads by slash count: a bare token
+is a Java module name (short for `main/module/<name>`), one slash is a Maven
+`<groupId>/<artifactId>` (short for `main/maven/...`), and two or more slashes are
+the fully explicit `<group>/<repository>/<coordinate>`. The `Dependencies` step
+verifies every fetch against a pinned checksum, and strict pinning
+(`-Djenesis.dependency.pin=strict`) fails the build on any unpinned coordinate.
+The group is the top isolation axis: a project's own dependencies live in the
+`main` group (where `compile` and `runtime` are scopes within it, runtime
+inheriting compile), and a *resolved compiler* lives in its own group (`kotlin`,
+`scala`, `groovy`), so it never mixes with the project's own dependencies.
 
 Current pin state of the demos: every demo is committed pinned with checksums.
 `java-pom`, `java-pom-multi`, `java-modular`, and `java-modular-multi` pin their
 dependency closures (per module, so a dependency of one module never lands in a
 sibling's dependency management). The MODULAR_TO_MAVEN language demos - `kotlin`,
-`scala`, and `groovy` - pin both their library dependency (in the `compile`
-scope) and
-their compiler toolchain in its own scope (`kotlin`, `scala`,
+`scala`, and `groovy` - pin both their library dependency (in the `main` group)
+and
+their compiler toolchain in its own group (`kotlin`, `scala`,
 `groovy`), each `@jenesis.pin` tag carrying a version and SHA-256 checksum.
-`groovy` is pinned to the stable `5.0.6`; `kotlin` and `scala` track whatever
+`groovy` pins its `org.apache.groovy` library to the stable `5.0.6` and its
+`groovy`-group compiler to `6.0.0-alpha-1`; `kotlin` and `scala` track whatever
 their compilers resolve (for `scala` that is often a release candidate).

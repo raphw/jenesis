@@ -38,10 +38,13 @@ the `plugin` scope; Jenesis resolves it alongside
 the module's other dependencies, and the Java compiler picks the `plugin`-scope
 jars and passes them to `javac` as `--processor-module-path`.
 The version is pinned the usual way - the `pin` step writes back a
-`@jenesis.pin plugin/module/org.immutables.value ...` line automatically. Because
-the same module is also a compile dependency, the module additionally carries a
-`@jenesis.pin compile/module/org.immutables.value ...` line; the two scopes are
-pinned independently.
+`@jenesis.pin org.immutables.value 2.12.2` line automatically. A bare token with
+no slash is a Java module name, short for `<group>/module/<name>`; here it pins
+the processor by module name. Because the same module is also a compile
+dependency in the `main` group, the module additionally carries a
+`@jenesis.pin org.immutables/value 2.12.2 SHA-256/...` line, a one-slash Maven
+`<groupId>/<artifactId>` token short for `<group>/maven/<groupId>/<artifactId>`;
+the two are pinned independently.
 
 No implicit discovery
 ---------------------

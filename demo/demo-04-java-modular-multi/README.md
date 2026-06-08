@@ -61,7 +61,8 @@ The `greeter-test/` directory is a separate module marked as the test variant of
 
     /**
      * @jenesis.test demo.greeter
-     * @jenesis.pin runtime/module/org.junit.jupiter 5.11.3 SHA-256/...
+     * @jenesis.pin org.junit.jupiter 5.11.3
+     * @jenesis.pin org.junit.jupiter/junit-jupiter 5.11.3 SHA-256/...
      * ... (the rest of the JUnit closure)
      */
     open module demo.greeter.test {
@@ -75,11 +76,12 @@ can reflect over the test classes, and its test lives in its own package
 (`greetertest`) rather than `sample.greeter`: a test module cannot share a package
 with the module it tests, since the Java module system forbids two modules from
 exporting the same package. The JUnit closure is a test-only dependency, so it is
-pinned in the `runtime` scope (`runtime/module/...`), and the JUnit Platform
+pinned on the plain module trail (a bare module name such as `org.junit.jupiter`
+is short for `main/module/org.junit.jupiter`), and the JUnit Platform
 console launcher that runs the tests is added
 automatically, with its version defaulting to the one derived from the discovered
 `org.junit.platform.engine` module (`1.11.3`) so it matches the JUnit Platform
-line the tests compile against - though the `@jenesis.pin runtime/module/org.junit.platform.console`
+line the tests compile against - though the `@jenesis.pin org.junit.platform.console`
 tag overrides that default, so the pinned version always wins. Unlike the `pin` runs of the other demos, the JUnit closure is kept on
 the test module alone rather than propagated project-wide, to keep `greeter` and
 `app` focused on their own dependencies.
@@ -148,16 +150,22 @@ Pinned dependency
 -----------------
 
 `app` pins its external `org.slf4j` dependency with an `@jenesis.pin
-<scope>/<repository>/<coordinate> <version> [<algorithm>/<hex>]` Javadoc tag on
+<group>/<repository>/<coordinate> <version> [<algorithm>/<hex>]` Javadoc tag on
 the module declaration, exactly as
-the single-module `../demo-02-java-modular` demo does:
+the single-module `../demo-02-java-modular` demo does. A token's slash count
+selects a shorthand: no slash is a Java module name (`org.slf4j`, short for
+`main/module/org.slf4j`), one slash is a Maven `<groupId>/<artifactId>`
+(`org.slf4j/slf4j-api`, short for `main/maven/org.slf4j/slf4j-api`), and two or
+more slashes spell out an explicit `<group>/<repository>/<coordinate>`. The
+group is the top isolation axis (defaulting to `main` for a project's own
+dependencies); compile and runtime are scopes within that group, not groups
+themselves:
 
     /**
-     * @jenesis.pin compile/module/org.slf4j 2.0.16 SHA-256/...
+     * @jenesis.pin org.slf4j/slf4j-api 2.0.16 SHA-256/...
      */
     module demo.app {
         requires demo.greeter;
-        requires org.slf4j;
     }
 
 Running `java build/jenesis/Project.java pin` records the resolved external
