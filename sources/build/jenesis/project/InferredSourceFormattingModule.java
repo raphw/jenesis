@@ -10,7 +10,7 @@ import build.jenesis.Resolver;
 public class InferredSourceFormattingModule implements BuildExecutorModule {
 
     public enum JavaFormatter {
-        NONE, GOOGLE, PALANTIR
+        GOOGLE, PALANTIR
     }
 
     public static final String GOOGLE_JAVA_FORMAT = "google-java-format", PALANTIR_JAVA_FORMAT = "palantir-java-format",
@@ -23,7 +23,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     private final boolean verify;
 
     public InferredSourceFormattingModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, JavaFormatter.NONE, false);
+        this(repositories, resolvers, null, null, false);
     }
 
     private InferredSourceFormattingModule(Map<String, Repository> repositories,
@@ -52,14 +52,14 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        switch (javaFormatter) {
-            case GOOGLE -> buildExecutor.addModule(GOOGLE_JAVA_FORMAT,
-                    new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
-                    inherited.sequencedKeySet());
-            case PALANTIR -> buildExecutor.addModule(PALANTIR_JAVA_FORMAT,
-                    new PalantirJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
-                    inherited.sequencedKeySet());
-            case NONE -> {
+        if (javaFormatter != null) {
+            switch (javaFormatter) {
+                case GOOGLE -> buildExecutor.addModule(GOOGLE_JAVA_FORMAT,
+                        new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
+                        inherited.sequencedKeySet());
+                case PALANTIR -> buildExecutor.addModule(PALANTIR_JAVA_FORMAT,
+                        new PalantirJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
+                        inherited.sequencedKeySet());
             }
         }
         if (KtlintFormatModule.isConfigured(inherited)) {
