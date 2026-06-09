@@ -36,6 +36,7 @@ public class TestModule implements BuildExecutorModule {
     private final boolean parallel;
     private final boolean reporting;
     private final String dependencyGroup;
+    private final List<ObservabilityEngine> observers;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(
@@ -58,7 +59,8 @@ public class TestModule implements BuildExecutorModule {
                 System.getProperty("jenesis.test.group"),
                 Boolean.getBoolean("jenesis.test.parallel"),
                 Boolean.getBoolean("jenesis.test.reporting"),
-                "main");
+                "main",
+                List.of());
     }
 
     private TestModule(TestEngine engine,
@@ -75,7 +77,8 @@ public class TestModule implements BuildExecutorModule {
                        String group,
                        boolean parallel,
                        boolean reporting,
-                       String dependencyGroup) {
+                       String dependencyGroup,
+                       List<ObservabilityEngine> observers) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -91,6 +94,7 @@ public class TestModule implements BuildExecutorModule {
         this.parallel = parallel;
         this.reporting = reporting;
         this.dependencyGroup = dependencyGroup;
+        this.observers = observers;
     }
 
     public TestModule engine(TestEngine engine) {
@@ -108,7 +112,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
@@ -126,7 +131,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
@@ -144,7 +150,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule filter(String filter) {
@@ -162,7 +169,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
@@ -180,7 +188,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
@@ -198,7 +207,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule pinning(Pinning pinning) {
@@ -216,7 +226,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule modulePath(PathPlacement modulePath) {
@@ -234,7 +245,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule moduleName(String moduleName) {
@@ -252,7 +264,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule group(String group) {
@@ -270,7 +283,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule dependencyGroup(String dependencyGroup) {
@@ -288,7 +302,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule parallel(boolean parallel) {
@@ -306,7 +321,8 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
     }
 
     public TestModule reporting(boolean reporting) {
@@ -324,7 +340,27 @@ public class TestModule implements BuildExecutorModule {
                 group,
                 parallel,
                 reporting,
-                dependencyGroup);
+                dependencyGroup,
+                observers);
+    }
+
+    public TestModule observe(ObservabilityEngine... observers) {
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                pinning,
+                modulePath,
+                moduleName,
+                filter,
+                group,
+                parallel,
+                reporting,
+                dependencyGroup,
+                List.of(observers));
     }
 
     @Override
@@ -342,7 +378,7 @@ public class TestModule implements BuildExecutorModule {
             }
         }
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(RESOLVED, new Requires(dependencyGroup, resolved, Set.copyOf(resolvers.keySet())), upstream);
+        buildExecutor.addStep(RESOLVED, new Requires(dependencyGroup, resolved, Set.copyOf(resolvers.keySet()), observers), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
@@ -359,7 +395,8 @@ public class TestModule implements BuildExecutorModule {
                         filter,
                         group,
                         parallel,
-                        reporting),
+                        reporting,
+                        observers),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
     }
 
@@ -374,7 +411,7 @@ public class TestModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(String group, TestEngine engine, Set<String> prefixes) implements BuildStep {
+    private record Requires(String group, TestEngine engine, Set<String> prefixes, List<ObservabilityEngine> observers) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -422,6 +459,11 @@ public class TestModule implements BuildExecutorModule {
                     }
                 }
             }
+            for (ObservabilityEngine observer : observers) {
+                for (Map.Entry<String, String> entry : observer.coordinates().entrySet()) {
+                    properties.setProperty(observer.name() + "/runtime/" + entry.getKey() + "/" + entry.getValue(), "");
+                }
+            }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
             if (!versions.isEmpty()) {
                 versions.store(context.next().resolve(BuildStep.VERSIONS));
@@ -439,6 +481,7 @@ public class TestModule implements BuildExecutorModule {
         private final String group;
         private final transient boolean parallel;
         private final boolean reporting;
+        private final List<ObservabilityEngine> observers;
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
                     TestEngine engine,
@@ -449,7 +492,8 @@ public class TestModule implements BuildExecutorModule {
                     String filter,
                     String group,
                     boolean parallel,
-                    boolean reporting) {
+                    boolean reporting,
+                    List<ObservabilityEngine> observers) {
             super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
@@ -458,6 +502,7 @@ public class TestModule implements BuildExecutorModule {
             this.group = group;
             this.parallel = parallel;
             this.reporting = reporting;
+            this.observers = observers;
         }
 
         @Override
@@ -477,6 +522,9 @@ public class TestModule implements BuildExecutorModule {
             List<TestSpec> specs = TestSpec.parse(filter);
             SequencedSet<String> groups = groups(group);
             List<String> commands = new ArrayList<>();
+            for (ObservabilityEngine observer : observers) {
+                commands.addAll(observer.commands(agentJars(arguments, observer), context.next()));
+            }
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
             }
@@ -545,6 +593,32 @@ public class TestModule implements BuildExecutorModule {
                     parallel,
                     reporting));
             return CompletableFuture.completedFuture(commands);
+        }
+
+        private static SequencedMap<String, Path> agentJars(SequencedMap<String, BuildStepArgument> arguments,
+                                                            ObservabilityEngine observer) throws IOException {
+            SequencedMap<String, Path> resolved = new LinkedHashMap<>();
+            for (BuildStepArgument argument : arguments.values()) {
+                Path file = argument.folder().resolve(BuildStep.DEPENDENCIES);
+                if (!Files.exists(file)) {
+                    continue;
+                }
+                SequencedProperties properties = SequencedProperties.ofFiles(file);
+                for (String coordinate : observer.coordinates().sequencedKeySet()) {
+                    String prefix = observer.name() + "/runtime/" + coordinate + "/";
+                    for (String key : properties.stringPropertyNames()) {
+                        if (key.startsWith(prefix)) {
+                            String value = properties.getProperty(key);
+                            int space = value.indexOf(' ');
+                            Path jar = argument.folder().resolve(space < 0 ? value : value.substring(0, space)).normalize();
+                            if (Files.exists(jar)) {
+                                resolved.putIfAbsent(coordinate, jar);
+                            }
+                        }
+                    }
+                }
+            }
+            return resolved;
         }
 
         private static SequencedSet<String> groups(String group) {

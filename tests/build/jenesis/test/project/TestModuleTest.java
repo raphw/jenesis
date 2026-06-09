@@ -15,6 +15,7 @@ import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.project.TestModule;
 import build.jenesis.project.JUnit4;
 import build.jenesis.project.JUnitPlatform;
+import build.jenesis.project.JaCoCo;
 import build.jenesis.step.Javac;
 import build.jenesis.project.TestEngine;
 import build.jenesis.project.TestNG;
@@ -416,6 +417,27 @@ public class TestModuleTest {
                 .containsExactly("main/runtime/maven/org.junit.platform/junit-platform-console");
         assertThat(readVersions(stepFolder).getProperty("main/maven/org.junit.platform/junit-platform-console"))
                 .isEqualTo("RELEASE");
+    }
+
+    @Test
+    public void requires_step_emits_observability_agent_coordinate() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("dependencies", emptyDependencies);
+        executor.addSource("classes", classes);
+        executor.addModule(
+                "test",
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        .engine(new JUnitPlatform())
+                        .observe(new JaCoCo())
+                        .isTest(candidate -> candidate.endsWith("TestSample"))
+                        .jarsOnly(false),
+                "dependencies", "classes");
+        executor.execute("test/" + "resolved");
+
+        assertThat(readRequires(root.resolve("test").resolve("resolved")).stringPropertyNames())
+                .containsExactlyInAnyOrder(
+                        "main/runtime/maven/org.junit.platform/junit-platform-console",
+                        "jacoco/runtime/maven/org.jacoco/org.jacoco.agent/jar/runtime/RELEASE");
     }
 
     @Test
