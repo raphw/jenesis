@@ -3,6 +3,7 @@ package build.jenesis.test.maven;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.DependencyScope;
+import build.jenesis.License;
 import build.jenesis.ResolutionContext;
 import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
@@ -3866,6 +3867,94 @@ public class MavenPomResolverTest {
         assertThatThrownBy(() -> mavenPomResolver.local(Runnable::run, mavenRepository, project))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Circular POM module reference to ");
+    }
+
+    @Test
+    public void captures_declared_and_parent_inherited_licenses() throws IOException {
+        addToRepository("parentgroup", "parentlib", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parentgroup</groupId>
+                    <artifactId>parentlib</artifactId>
+                    <version>1</version>
+                    <licenses>
+                        <license>
+                            <name>Apache-2.0</name>
+                            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+                        </license>
+                    </licenses>
+                </project>
+                """);
+        addToRepository("leafgroup", "leaflib", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parentgroup</groupId>
+                        <artifactId>parentlib</artifactId>
+                        <version>1</version>
+                    </parent>
+                    <artifactId>leaflib</artifactId>
+                </project>
+                """);
+        addToRepository("dirgroup", "dirlib", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>dirgroup</groupId>
+                    <artifactId>dirlib</artifactId>
+                    <version>1</version>
+                    <licenses>
+                        <license>
+                            <name>MIT</name>
+                            <url>https://opensource.org/license/mit</url>
+                        </license>
+                    </licenses>
+                </project>
+                """);
+        addToRepository("rootgroup", "rootlib", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>rootgroup</groupId>
+                    <artifactId>rootlib</artifactId>
+                    <version>1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>leafgroup</groupId>
+                            <artifactId>leaflib</artifactId>
+                            <version>1</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>dirgroup</groupId>
+                            <artifactId>dirlib</artifactId>
+                            <version>1</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """);
+
+        SequencedMap<String, List<License>> captured = new LinkedHashMap<>();
+        mavenPomResolver.dependencies(Runnable::run, mavenRepository, "rootgroup", "rootlib", "1", null,
+                new ResolutionListener() {
+                    @Override
+                    public void onDependency(String prefix, String parent, String coordinate, String version,
+                                             String scope, boolean followed, Supplier<ResolutionContext> context) {
+                    }
+
+                    @Override
+                    public void onLicenses(String prefix, String coordinate, String version, List<License> licenses) {
+                        captured.put(coordinate, licenses);
+                    }
+                });
+
+        assertThat(captured.get("leafgroup/leaflib/1"))
+                .as("a dependency inherits its parent POM's license")
+                .containsExactly(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"));
+        assertThat(captured.get("dirgroup/dirlib/1"))
+                .as("a dependency's own declared license is captured")
+                .containsExactly(new License("MIT", "https://opensource.org/license/mit"));
     }
 
     private void addToRepository(String groupId, String artifactId, String version, String pom) throws IOException {
