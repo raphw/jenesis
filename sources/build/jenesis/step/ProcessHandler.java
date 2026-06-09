@@ -98,6 +98,43 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
             }
         }
 
+        public static Function<List<String>, OfProcess> ofCommand(String command) {
+            return arguments -> new OfProcess(Stream.concat(
+                    Stream.of(locate(command)),
+                    arguments.stream()).toList());
+        }
+
+        private static String locate(String command) {
+            String name = command + (WINDOWS ? ".exe" : "");
+            List<String> homes = new ArrayList<>();
+            String graalvm = System.getenv("GRAALVM_HOME");
+            if (graalvm != null) {
+                homes.add(graalvm);
+            }
+            String java = System.getProperty("java.home");
+            if (java != null) {
+                homes.add(java);
+            }
+            for (String home : homes) {
+                File program = new File(new File(home, "bin"), name);
+                if (program.isFile()) {
+                    return program.getPath();
+                }
+            }
+            String path = System.getenv("PATH");
+            if (path != null) {
+                for (String entry : path.split(File.pathSeparator)) {
+                    File program = new File(entry, name);
+                    if (program.isFile() && program.canExecute()) {
+                        return program.getPath();
+                    }
+                }
+            }
+            throw new IllegalStateException("Could not locate '"
+                    + command
+                    + "' in GRAALVM_HOME, java.home/bin, or PATH");
+        }
+
         public static Function<List<String>, OfProcess> of(List<String> program) {
             return arguments -> new OfProcess(Stream.concat(program.stream(), arguments.stream()).toList());
         }

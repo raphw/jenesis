@@ -38,30 +38,30 @@ public class JaCoCoModuleRunTest {
             Files.copy(path, artifacts.resolve(fileName + "-" + UUID.randomUUID() + ".jar"));
         }
 
-        Path samplePackage = Files.createDirectories(sources.resolve(BuildStep.SOURCES).resolve("sample"));
-        Files.writeString(samplePackage.resolve("Sample.java"), """
-                package sample;
-                public class Sample {
+        Path sourcePackage = Files.createDirectories(sources.resolve(BuildStep.SOURCES).resolve("coverage"));
+        Files.writeString(sourcePackage.resolve("Covered.java"), """
+                package coverage;
+                public class Covered {
                     public int add(int left, int right) {
                         return left + right;
                     }
                 }
                 """);
-        compileSources(classes.resolve(Javac.CLASSES + "sample"), bootModuleJars(), Map.of(
-                "Sample", """
-                        package sample;
-                        public class Sample {
+        compileSources(classes.resolve(Javac.CLASSES + "coverage"), bootModuleJars(), Map.of(
+                "Covered", """
+                        package coverage;
+                        public class Covered {
                             public int add(int left, int right) {
                                 return left + right;
                             }
                         }
                         """,
-                "SampleTest", """
-                        package sample;
-                        public class SampleTest {
+                "CoveredTest", """
+                        package coverage;
+                        public class CoveredTest {
                             @org.junit.jupiter.api.Test
                             public void adds() {
-                                if (new Sample().add(2, 3) != 5) {
+                                if (new Covered().add(2, 3) != 5) {
                                     throw new AssertionError();
                                 }
                             }
@@ -95,7 +95,7 @@ public class JaCoCoModuleRunTest {
                 "test",
                 new TestModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver()))
                         .observe(new JaCoCo())
-                        .isTest(candidate -> candidate.endsWith("SampleTest"))
+                        .isTest(candidate -> candidate.endsWith("CoveredTest"))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.addModule(
@@ -107,13 +107,13 @@ public class JaCoCoModuleRunTest {
         Path exec = root.resolve("test").resolve("executed").resolve("output").resolve("jacoco.exec");
         assertThat(exec).as("the agent wrote its execution data into the test step output").isNotEmptyFile();
         assertThat(Files.readString(exec, StandardCharsets.ISO_8859_1))
-                .as("the agent instrumented and recorded the sample class")
-                .contains("sample/Sample");
+                .as("the agent instrumented and recorded the covered class")
+                .contains("coverage/Covered");
 
         Path xml = root.resolve("coverage").resolve("report").resolve("output").resolve("coverage").resolve("jacoco.xml");
         assertThat(xml).as("the report processor rendered an XML report").isNotEmptyFile();
         assertThat(xml).content()
-                .contains("name=\"sample/Sample\"")
+                .contains("name=\"coverage/Covered\"")
                 .contains("covered=\"");
     }
 
@@ -145,7 +145,7 @@ public class JaCoCoModuleRunTest {
             for (Map.Entry<String, String> unit : units.entrySet()) {
                 String body = unit.getValue();
                 sources.add(new SimpleJavaFileObject(
-                        URI.create("string:///sample/" + unit.getKey() + ".java"),
+                        URI.create("string:///coverage/" + unit.getKey() + ".java"),
                         JavaFileObject.Kind.SOURCE) {
                     @Override
                     public CharSequence getCharContent(boolean ignoreEncodingErrors) {
