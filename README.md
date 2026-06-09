@@ -385,10 +385,31 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   `.kt` sources), so an unrelated trigger file never forces analysis. Each tool is a self-contained
   `BuildExecutorModule` following the compiler-module shape (`required` -> `dependencies` -> `check`). Wiring
   these chains into the default layouts is deferred; today they are added explicitly in a build script or
-  exercised directly in tests. Java source formatting (Spotless, google-java-format) is intentionally left out
-  for now because neither exposes a project-root configuration file to infer from. The detekt runner targets the
+  exercised directly in tests. Source formatting is covered by the separate inferred formatting chain described
+  below. The detekt runner targets the
   1.x main class (`io.gitlab.arturbosch.detekt.cli.Main`); detekt 2.x relocates it to `dev.detekt.cli.Main`, so
   the floated `RELEASE` and runner main class want confirming against the resolved jar.
+- The **inferred formatting chain** (`InferredSourceFormattingModule`) is the rewriting counterpart to the
+  code-quality chains: where a linter reads sources and writes a report, a formatter reads sources and rewrites
+  them in place. It covers `google-java-format` and `palantir-java-format` for Java (selected with
+  `.javaFormatter(GOOGLE)` / `.javaFormatter(PALANTIR)`), `ktlint -F` for Kotlin, and `scalafmt` for Scala. The
+  chain is opt-in: wiring it in (and choosing a Java formatter) is the feature flag. ktlint and scalafmt then
+  activate from the same config files as their linters (`.editorconfig`, `.scalafmt.conf`), while the chosen Java
+  formatter, which has no project-root config file, runs whenever `.java` sources are present and self-skips
+  otherwise. Each tool resolves in its own dependency group, floats `RELEASE`, and runs in a forked JVM; the two
+  Java formatters pass the `--add-exports jdk.compiler/...` set they need on a modern JDK (palantir additionally
+  exports `com.sun.tools.javac.main`).
+  Because a formatter mutates the developer's source tree, it cannot lean on the build's normal bound-input change
+  detection (which would re-format the whole tree on any edit and never converge). Instead each format step keeps
+  its own `formatted.properties` in its persistent step folder, recording a SHA-256 per source file as of the last
+  format. On each run it re-formats only the files whose content differs from that record and then rewrites it; a
+  file already in formatted state is skipped without forking the tool, and a file the formatter cannot change (a
+  parse error) is recorded as-is and not retried until it next changes. `.verify(true)` turns a formatter into a CI
+  gate instead: google-java-format and palantir use `--dry-run --set-exit-if-changed`, ktlint drops `-F`, and
+  scalafmt uses `--test`, so a file that is not already formatted fails the build while no source file (and no hash
+  state) is written. Groovy formatting is deferred: no `RELEASE`-floatable Maven JAR formatter exists for it
+  (CodeNarc is a linter, npm-groovy-lint is Node-based, and the groovy-eclipse formatter is only a community
+  single-file `-in`/`-out` jar).
 
 Layouts always combine their built-in repositories and resolvers (e.g. a Maven default for `MAVEN`, a chained
 Jenesis module repository for `MODULAR`) with any user-provided ones. The merged map then has each sub-module's `assign`
