@@ -13,7 +13,12 @@ public record HashDigestFunction(String algorithm) implements HashFunction, Seri
             throw new IllegalStateException(e);
         }
         try (FileChannel channel = FileChannel.open(file)) {
-            digest.update(channel.map(FileChannel.MapMode.READ_ONLY, channel.position(), channel.size()));
+            ByteBuffer buffer = ByteBuffer.allocate(1 << 16);
+            while (channel.read(buffer) != -1) {
+                buffer.flip();
+                digest.update(buffer);
+                buffer.clear();
+            }
         }
         return digest.digest();
     }
