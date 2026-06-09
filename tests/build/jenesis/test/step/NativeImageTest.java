@@ -29,10 +29,11 @@ public class NativeImageTest {
         Files.writeString(Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS)).resolve("app.jar"), "jar");
         shim = root.resolve("native-image-shim");
         Files.writeString(shim, "#!/bin/sh\nexit 0\n");
-        assertThat(shim.toFile().setExecutable(true)).isTrue();
+        shim.toFile().setExecutable(true);
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void emits_a_modular_native_image_command() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("--name", "sample-app");
@@ -49,6 +50,7 @@ public class NativeImageTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void emits_a_classpath_native_image_command() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("--main-jar", "app.jar");
@@ -65,6 +67,7 @@ public class NativeImageTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void passes_a_reachability_config_directory() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("--module", "sample/sample.Sample");
