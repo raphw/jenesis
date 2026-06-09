@@ -18,6 +18,12 @@ public interface ResolutionListener {
                               String version) {
     }
 
+    default void onLicenses(String prefix,
+                            String coordinate,
+                            String version,
+                            List<License> licenses) {
+    }
+
     default void onResolved() {
     }
 }

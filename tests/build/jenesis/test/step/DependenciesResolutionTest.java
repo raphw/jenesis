@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.License;
 import build.jenesis.Pinning;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
@@ -89,6 +90,34 @@ public class DependenciesResolutionTest {
         for (String property : dependencies.stringPropertyNames()) {
             assertThat(dependencies.getProperty(property)).doesNotContain("SHA");
         }
+    }
+
+    @Test
+    public void captures_licenses_into_a_sidecar_when_capturing() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())),
+                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope, listener) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    if (listener != null) {
+                        listener.onLicenses(prefix, prefix + "/qux", null,
+                                List.of(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt")));
+                    }
+                    return Resolver.materializeAll(executor, repositories, prefix, resolved);
+                }))
+                .capturing(true)
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                                dependencies,
+                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties licenses = SequencedProperties.ofFiles(next.resolve("licenses.properties"));
+        assertThat(licenses.getProperty("foo/qux#0#name")).isEqualTo("Apache-2.0");
+        assertThat(licenses.getProperty("foo/qux#0#url")).isEqualTo("https://www.apache.org/licenses/LICENSE-2.0.txt");
     }
 
     @Test

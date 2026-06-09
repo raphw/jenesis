@@ -5,6 +5,7 @@ import module java.xml;
 import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.License;
 import build.jenesis.ResolutionContext;
 import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
@@ -75,7 +76,7 @@ public class MavenPomResolver implements MavenResolver {
         SequencedMap<String, String> resolved = new LinkedHashMap<>();
         dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(Resolver.base(prefix), Repository.empty())),
-                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, null, Set.of(), null, null),
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies, List.of()), true, null, Set.of(), null, null),
                 new HashMap<>(),
                 new HashMap<>(),
                 prefix,
@@ -92,7 +93,7 @@ public class MavenPomResolver implements MavenResolver {
             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) throws IOException {
         return dependencies(executor,
                 repository,
-                new ContextualPom(new ResolvedPom(managedDependencies, dependencies),
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies, List.of()),
                         true,
                         null,
                         Set.of(),
@@ -157,7 +158,7 @@ public class MavenPomResolver implements MavenResolver {
             }
         }
         return new MavenResolver.Resolution(dependencies(executor, repository,
-                new ContextualPom(new ResolvedPom(managedDependencies, dependencies), true, scope, Set.of(), null, null),
+                new ContextualPom(new ResolvedPom(managedDependencies, dependencies, List.of()), true, scope, Set.of(), null, null),
                 unresolved, resolved, prefix, listener), roots);
     }
 
@@ -277,9 +278,13 @@ public class MavenPomResolver implements MavenResolver {
                     initial,
                     prefix,
                     listener);
-            results.forEach((key, value) -> listener.onResolution(prefix,
-                    key.coordinate(prefix, null),
-                    value.version()));
+            results.forEach((key, value) -> {
+                listener.onResolution(prefix, key.coordinate(prefix, null), value.version());
+                ResolvedPom pom = resolved.get(new DependencyCoordinate(key.groupId(), key.artifactId(), value.version()));
+                if (pom != null && !pom.licenses().isEmpty()) {
+                    listener.onLicenses(prefix, key.coordinate(prefix, value.version()), value.version(), pom.licenses());
+                }
+            });
         }
         return results;
     }
@@ -513,6 +518,7 @@ public class MavenPomResolver implements MavenResolver {
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
                 SequencedMap<DependencyKey, DependencyValue> dependencies = new LinkedHashMap<>();
+                List<License> parentLicenses = List.of();
                 String groupId = null, artifactId = null, version = null;
                 if (parent != null) {
                     if (!children.add(new DependencyCoordinate(parent.groupId(),
@@ -572,6 +578,7 @@ public class MavenPomResolver implements MavenResolver {
                     }
                     managedDependencies.putAll(resolution.managedDependencies());
                     dependencies.putAll(resolution.dependencies());
+                    parentLicenses = resolution.licenses();
                 }
                 IMPLICITS.forEach(property -> toChildren400(document.getDocumentElement(), property)
                         .findFirst()
@@ -603,6 +610,13 @@ public class MavenPomResolver implements MavenResolver {
                 Node modules = extended
                         ? toChildren400(document.getDocumentElement(), "modules").findFirst().orElse(null)
                         : null;
+                List<License> ownLicenses = toChildren400(document.getDocumentElement(), "licenses")
+                        .limit(1)
+                        .flatMap(node -> toChildren400(node, "license"))
+                        .map(node -> new License(
+                                toTextChild400(node, "name").orElse(null),
+                                toTextChild400(node, "url").orElse(null)))
+                        .toList();
                 yield new UnresolvedPom(
                         toTextChild400(document.getDocumentElement(), "groupId").orElse(groupId),
                         toTextChild400(document.getDocumentElement(), "artifactId").orElse(artifactId),
@@ -630,7 +644,8 @@ public class MavenPomResolver implements MavenResolver {
                         dependencies,
                         extended
                                 ? toQualifiedDependencies(document.getDocumentElement())
-                                : new LinkedHashMap<>());
+                                : new LinkedHashMap<>(),
+                        ownLicenses.isEmpty() ? parentLicenses : ownLicenses);
             }
             default -> throw new IllegalArgumentException("Unknown namespace: " + namespace);
         };
@@ -668,7 +683,8 @@ public class MavenPomResolver implements MavenResolver {
                             Map.of(),
                             Map.of(),
                             Collections.emptyNavigableMap(),
-                            new LinkedHashMap<>());
+                            new LinkedHashMap<>(),
+                            List.of());
                 } else {
                     InputStream stream = candidate.toInputStream();
                     Path localPath = candidate.file().map(Path::getParent).orElse(null);
@@ -748,7 +764,7 @@ public class MavenPomResolver implements MavenResolver {
         pom.dependencies().forEach((key, value) -> dependencies.put(
                 key.resolve(pom.properties()),
                 value.resolve(pom.properties())));
-        return new ResolvedPom(managedDependencies, dependencies);
+        return new ResolvedPom(managedDependencies, dependencies, pom.licenses());
     }
 
     private void flattenImport(Executor executor,
@@ -1050,11 +1066,13 @@ public class MavenPomResolver implements MavenResolver {
                                  Map<String, String> properties,
                                  Map<DependencyKey, DependencyValue> managedDependencies,
                                  SequencedMap<DependencyKey, DependencyValue> dependencies,
-                                 SequencedMap<String, String> qualifiedDependencies) {
+                                 SequencedMap<String, String> qualifiedDependencies,
+                                 List<License> licenses) {
     }
 
     private record ResolvedPom(Map<MavenDependencyKey, MavenDependencyValue> managedDependencies,
-                               SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies) {
+                               SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
+                               List<License> licenses) {
     }
 
     private record ContextualPom(ResolvedPom pom,
