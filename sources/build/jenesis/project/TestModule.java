@@ -38,7 +38,9 @@ public class TestModule implements BuildExecutorModule {
     private final String dependencyGroup;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        List<Pattern> patterns = Stream.of(".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase")
+        List<Pattern> patterns = Stream.of(
+                        ".*\\.Test[a-zA-Z0-9$]*", ".*\\..*Test", ".*\\..*Tests", ".*\\..*TestCase",
+                        ".*\\.IT[a-zA-Z0-9$]*", ".*\\..*IT", ".*\\..*ITCase")
                 .map(Pattern::compile)
                 .toList();
         this(null,
