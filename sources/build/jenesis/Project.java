@@ -407,6 +407,9 @@ public record Project(
                     
                     %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
                       %{name}skip%{reset}                             Skip executing tests
+                      %{name}engine%{reset} <name>                    Force the test engine (%{name}junit-platform%{reset},
+                                                      %{name}junit4%{reset}, %{name}testng%{reset}); unset auto-detects it
+                                                      from the resolved test dependencies
                       %{name}filter%{reset} <patterns>                Comma-separated %{name}<classRegex>[#<method>]%{reset} entries
                                                       restricting which tests run; changing the value
                                                       invalidates the test step's cache and forces a re-run
