@@ -217,12 +217,12 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
-        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> (name, dependencies, identifiers) -> switch (name) {
-            case "1" -> (module, inherited) -> module.addStep("step", (_, context, _) -> {
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), _ -> (name, _, _) -> switch (name) {
+            case "1" -> (module, _) -> module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), "1");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             });
-            case "2" -> (module, inherited) -> module.addStep("step", (_, context, _) -> {
+            case "2" -> (module, _) -> module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), "2");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             });
@@ -265,8 +265,8 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("3-module", module3);
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
-        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), modules -> (name, dependencies, identifiers) -> switch (name) {
-            case "1" -> (module, inherited) -> module.addStep("step", (_, context, _) -> {
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), _ -> (name, _, _) -> switch (name) {
+            case "1" -> (module, _) -> module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), "1");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             });
@@ -336,7 +336,7 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("5-source", Files.writeString(Files.createDirectory(source5
                     .resolve(BuildStep.SOURCES)).resolve("source"), "e"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
-                modules -> (name, dependencies, identifiers) -> (module, inherited) -> {
+                _ -> (name, _, _) -> (module, _) -> {
             built.add(name);
             module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), name);
@@ -365,7 +365,7 @@ public class MultiProjectModuleTest {
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
-                modules -> (name, dependencies, identifiers) -> (module, inherited) -> {
+                _ -> (name, _, _) -> (module, _) -> {
             throw new AssertionError("Unexpected module: " + name);
         }));
         assertThatThrownBy(buildExecutor::execute)
