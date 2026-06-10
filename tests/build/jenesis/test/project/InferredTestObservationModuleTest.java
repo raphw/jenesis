@@ -27,7 +27,7 @@ public class InferredTestObservationModuleTest {
         executor.addSource("project", project);
         executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
-            return (BuildExecutorModule) (module, inherited) -> {};
+            return (_, _) -> {};
         }).observe(Observation.JACOCO), "project");
         executor.execute("observed/jacoco/required");
 
@@ -45,8 +45,8 @@ public class InferredTestObservationModuleTest {
         executor.addSource("project", project);
         executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
-            return (BuildExecutorModule) (module, inherited) -> {};
-        }).observe(null), "project");
+            return (_, _) -> {};
+        }).observe(), "project");
         executor.execute();
 
         assertThat(observed).isEmpty();

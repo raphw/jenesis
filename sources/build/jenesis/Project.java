@@ -827,8 +827,8 @@ public record Project(
                                         kotlin/scala/groovy-quality demos do the
                                         same per language.
                       code-coverage     Inferred test observation: JaCoCo records
-                                        coverage during the test run, selected
-                                        with -Djenesis.test.observe=jacoco.
+                                        coverage during the test run, enabled
+                                        with -Djenesis.observe.jacoco=true.
                       custom-assembler  Wrap `InferredMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,
