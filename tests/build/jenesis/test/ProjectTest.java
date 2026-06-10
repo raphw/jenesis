@@ -78,7 +78,7 @@ public class ProjectTest {
     @Test
     public void layout_setter_round_trips_each_concrete_layout() {
         for (Project.Layout layout : List.of(Project.Layout.MAVEN, Project.Layout.MODULAR, Project.Layout.MODULAR_TO_MAVEN)) {
-            assertThat(new Project().layout(layout).resolveProperties().layout()).isSameAs(layout);
+            assertThat(new Project().layout(layout).layout()).isSameAs(layout);
         }
     }
 
@@ -90,23 +90,23 @@ public class ProjectTest {
                 "modular_to_maven", Project.Layout.MODULAR_TO_MAVEN);
         cases.forEach((name, layout) -> {
             System.setProperty("jenesis.project.layout", name);
-            assertThat(new Project().resolveProperties().layout())
+            assertThat(new Project().layout())
                     .as("layout=%s", name)
                     .isSameAs(layout);
         });
     }
 
     @Test
-    public void system_property_overrides_an_explicit_layout() {
+    public void explicit_layout_overrides_system_property() {
         System.setProperty("jenesis.project.layout", "maven");
-        assertThat(new Project().layout(Project.Layout.MODULAR).resolveProperties().layout())
-                .isSameAs(Project.Layout.MAVEN);
+        assertThat(new Project().layout(Project.Layout.MODULAR).layout())
+                .isSameAs(Project.Layout.MODULAR);
     }
 
     @Test
     public void system_property_rejects_unknown_layout() {
         System.setProperty("jenesis.project.layout", "nonsense");
-        assertThatThrownBy(() -> new Project().resolveProperties())
+        assertThatThrownBy(() -> new Project())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown layout");
     }
@@ -114,7 +114,7 @@ public class ProjectTest {
     @Test
     public void system_property_disables_tests() {
         System.setProperty("jenesis.test.skip", "");
-        assertThat(new Project().resolveProperties().tests()).isFalse();
+        assertThat(new Project().tests()).isFalse();
     }
 
     @Test
@@ -142,19 +142,19 @@ public class ProjectTest {
     @Test
     public void system_property_overrides_root() {
         System.setProperty("jenesis.project.root", root.toString());
-        assertThat(new Project().resolveProperties().root()).isEqualTo(Path.of(root.toString()));
+        assertThat(new Project().root()).isEqualTo(Path.of(root.toString()));
     }
 
     @Test
     public void system_property_overrides_target() {
         System.setProperty("jenesis.project.target", "custom-target");
-        assertThat(new Project().resolveProperties().target()).isEqualTo(Path.of("custom-target"));
+        assertThat(new Project().target()).isEqualTo(Path.of("custom-target"));
     }
 
     @Test
     public void system_property_overrides_cache() {
         System.setProperty("jenesis.project.cache", "custom-cache");
-        assertThat(new Project().resolveProperties().cache()).isEqualTo(Path.of("custom-cache"));
+        assertThat(new Project().cache()).isEqualTo(Path.of("custom-cache"));
     }
 
     @Test
@@ -165,7 +165,7 @@ public class ProjectTest {
     @Test
     public void system_property_overrides_digest() {
         System.setProperty("jenesis.project.digest", "SHA-512");
-        assertThat(new Project().resolveProperties().hashFunction())
+        assertThat(new Project().hashFunction())
                 .isEqualTo(new HashDigestFunction("SHA-512"));
     }
 

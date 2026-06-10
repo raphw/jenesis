@@ -17,16 +17,30 @@ public class InferredTestObservationModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget;
 
-    public InferredTestObservationModule(Observation observation,
-                                         Map<String, Repository> repositories,
+    public InferredTestObservationModule(Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers,
                                          Pinning pinning,
                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
+        this(switch (System.getProperty("jenesis.test.observe", "")) {
+                    case "jacoco" -> Observation.JACOCO;
+                    default -> null;
+                }, repositories, resolvers, pinning, toTarget);
+    }
+
+    private InferredTestObservationModule(Observation observation,
+                                          Map<String, Repository> repositories,
+                                          Map<String, Resolver> resolvers,
+                                          Pinning pinning,
+                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
         this.observation = observation;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.toTarget = toTarget;
+    }
+
+    public InferredTestObservationModule observe(Observation observation) {
+        return new InferredTestObservationModule(observation, repositories, resolvers, pinning, toTarget);
     }
 
     @Override

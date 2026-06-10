@@ -25,10 +25,10 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(Observation.JACOCO, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (BuildExecutorModule) (module, inherited) -> {};
-        }), "project");
+        }).observe(Observation.JACOCO), "project");
         executor.execute("observed/jacoco/required");
 
         assertThat(observed).extracting(ObservabilityEngine::name).containsExactly("jacoco");
@@ -43,10 +43,10 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(null, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (BuildExecutorModule) (module, inherited) -> {};
-        }), "project");
+        }).observe(null), "project");
         executor.execute();
 
         assertThat(observed).isEmpty();

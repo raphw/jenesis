@@ -46,25 +46,26 @@ public class ExecuteTest {
     }
 
     @Test
-    public void resolve_properties_picks_up_main_class() {
+    public void system_property_picks_up_main_class() {
         System.setProperty("jenesis.execute.mainClass", "foo.Bar");
-        Execute execute = new Execute(new Project()).resolveProperties();
+        Execute execute = new Execute(new Project());
         assertThat(execute.mainClass()).isEqualTo("foo.Bar");
     }
 
     @Test
-    public void resolve_properties_picks_up_module() {
+    public void system_property_picks_up_module() {
         System.setProperty("jenesis.execute.module", "sub");
-        Execute execute = new Execute(new Project()).resolveProperties();
+        Execute execute = new Execute(new Project());
         assertThat(execute.module()).isEqualTo("sub");
     }
 
     @Test
-    public void resolve_properties_keeps_existing_overrides_when_unset() {
+    public void explicit_overrides_win_over_system_properties() {
+        System.setProperty("jenesis.execute.mainClass", "ignored.Main");
+        System.setProperty("jenesis.execute.module", "ignored");
         Execute execute = new Execute(new Project())
                 .mainClass("a.B")
-                .module("sub")
-                .resolveProperties();
+                .module("sub");
         assertThat(execute.mainClass()).isEqualTo("a.B");
         assertThat(execute.module()).isEqualTo("sub");
     }

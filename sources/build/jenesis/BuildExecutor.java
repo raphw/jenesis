@@ -7,13 +7,16 @@ public interface BuildExecutor {
     String SKIP_MARKER = ".jenesis.skip";
 
     static BuildExecutor of(Path target) throws IOException {
-        return new Configuration().resolveProperties().of(target);
+        return new Configuration().of(target);
     }
 
     record Configuration(Duration timeout, String digest, boolean verbose, boolean rebuild) {
 
         public Configuration() {
-            this(Duration.ZERO, "MD5", false, false);
+            this(Duration.parse(System.getProperty("jenesis.executor.timeout", Duration.ZERO.toString())),
+                    System.getProperty("jenesis.executor.digest", "MD5"),
+                    Boolean.getBoolean("jenesis.print.checksum"),
+                    Boolean.getBoolean("jenesis.executor.rebuild"));
         }
 
         public Configuration timeout(Duration timeout) {
@@ -30,14 +33,6 @@ public interface BuildExecutor {
 
         public Configuration rebuild(boolean rebuild) {
             return new Configuration(timeout, digest, verbose, rebuild);
-        }
-
-        public Configuration resolveProperties() {
-            return new Configuration(
-                    Duration.parse(System.getProperty("jenesis.executor.timeout", timeout.toString())),
-                    System.getProperty("jenesis.executor.digest", digest),
-                    verbose || Boolean.getBoolean("jenesis.print.checksum"),
-                    rebuild || Boolean.getBoolean("jenesis.executor.rebuild"));
         }
 
         public BuildExecutor of(Path target) throws IOException {
