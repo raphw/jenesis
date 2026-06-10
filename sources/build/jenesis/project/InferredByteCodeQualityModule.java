@@ -11,31 +11,35 @@ public class InferredByteCodeQualityModule implements BuildExecutorModule {
 
     public static final String SPOTBUGS = "spotbugs";
 
+    private final Path configuration;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
 
-    public InferredByteCodeQualityModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null);
+    public InferredByteCodeQualityModule(Path configuration,
+                                         Map<String, Repository> repositories,
+                                         Map<String, Resolver> resolvers) {
+        this(configuration, repositories, resolvers, null);
     }
 
-    private InferredByteCodeQualityModule(Map<String, Repository> repositories,
+    private InferredByteCodeQualityModule(Path configuration,
+                                          Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers,
                                           Pinning pinning) {
+        this.configuration = configuration;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
     }
 
     public InferredByteCodeQualityModule pinning(Pinning pinning) {
-        return new InferredByteCodeQualityModule(repositories, resolvers, pinning);
+        return new InferredByteCodeQualityModule(configuration, repositories, resolvers, pinning);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        if (SpotBugsModule.isConfigured(inherited)) {
-            buildExecutor.addModule(SPOTBUGS,
-                    new SpotBugsModule(repositories, resolvers).pinning(pinning), inherited.sequencedKeySet());
-        }
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, SPOTBUGS,
+                SpotBugsModule.configurationFile(configuration),
+                new SpotBugsModule(repositories, resolvers).pinning(pinning));
     }
 }

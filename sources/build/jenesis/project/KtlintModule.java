@@ -46,13 +46,9 @@ public class KtlintModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve(".editorconfig"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve(".editorconfig");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public KtlintModule pinning(Pinning pinning) {

@@ -3,10 +3,10 @@ package build.jenesis;
 import module java.base;
 import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenDefaultRepository;
+import build.jenesis.maven.MavenModuleResolver;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepositoryExport;
-import build.jenesis.maven.MavenModuleResolver;
 import build.jenesis.maven.MavenRepositoryStaging;
 import build.jenesis.maven.MavenResolver;
 import build.jenesis.maven.PinPom;
@@ -14,8 +14,8 @@ import build.jenesis.maven.Pom;
 import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.JenesisModuleRepositoryExport;
 import build.jenesis.module.ModularJarResolver;
-import build.jenesis.module.ModularStaging;
 import build.jenesis.module.ModularProject;
+import build.jenesis.module.ModularStaging;
 import build.jenesis.module.PinModuleInfo;
 import build.jenesis.project.JavaMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
@@ -30,6 +30,7 @@ import build.jenesis.step.Tree;
 
 public record Project(
         Path root,
+        Path configuration,
         Path target,
         Path cache,
         HashDigestFunction hashFunction,
@@ -89,12 +90,14 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
+                                                project.configuration(),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
                                                 project.pinning(),
                                                 PathPlacement.CLASS_PATH),
-                                        mergedRepos, mergedResolvers)),
+                                        mergedRepos,
+                                        mergedResolvers)),
                         mavenDeps);
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
@@ -115,7 +118,7 @@ public record Project(
                 return slash == -1
                         ? prefix + "/module-" + BuildExecutorModule.encode(name)
                         : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
-                                + "/" + name.substring(slash + 1);
+                          + "/" + name.substring(slash + 1);
             };
         };
 
@@ -136,24 +139,25 @@ public record Project(
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
                         .forEach(modulesDeps::add);
                 sub.addModule("modules", ModularProject.make(project.root(),
-                        "main",
-                        "module",
-                        _ -> true,
-                        Collections.unmodifiableMap(repositories),
-                        Collections.unmodifiableMap(resolvers),
-                        project.pinning(),
-                        true,
-                        project.hashFunction(),
-                        printDependencies,
-                        (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
-                                new ProjectModuleDescriptor(descriptor,
-                                        project.tests(),
-                                        project.sources(),
-                                        project.documentation(),
-                                        project.pinning(),
-                                        PathPlacement.MODULE_PATH),
-                                mergedRepos,
-                                mergedResolvers)),
+                                "main",
+                                "module",
+                                _ -> true,
+                                Collections.unmodifiableMap(repositories),
+                                Collections.unmodifiableMap(resolvers),
+                                project.pinning(),
+                                true,
+                                project.hashFunction(),
+                                printDependencies,
+                                (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
+                                        new ProjectModuleDescriptor(descriptor,
+                                                project.configuration(),
+                                                project.tests(),
+                                                project.sources(),
+                                                project.documentation(),
+                                                project.pinning(),
+                                                PathPlacement.MODULE_PATH),
+                                        mergedRepos,
+                                        mergedResolvers)),
                         modulesDeps);
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
@@ -174,7 +178,7 @@ public record Project(
                 return slash == -1
                         ? prefix + "/module-" + BuildExecutorModule.encode(name)
                         : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
-                                + "/" + name.substring(slash + 1);
+                          + "/" + name.substring(slash + 1);
             };
         };
 
@@ -214,12 +218,14 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
+                                                project.configuration(),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
                                                 project.pinning(),
                                                 PathPlacement.INFERRED),
-                                        mergedRepos, mergedResolvers)),
+                                        mergedRepos,
+                                        mergedResolvers)),
                         modulesDeps);
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
@@ -234,16 +240,18 @@ public record Project(
                 export.addStep("modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular");
             }, STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
-            executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
-            executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
-                    "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
+            executor.addModule(PIN,
+                    new PinModule(project.root(),
+                            "module-info.java",
+                            (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())),
+                    BUILD);
+            executor.addStep(DEPENDENCIES, new Tree(), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
                         ? prefix + "/module-" + BuildExecutorModule.encode(name)
                         : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
-                                + "/" + name.substring(slash + 1);
+                          + "/" + name.substring(slash + 1);
             };
         };
 
@@ -327,19 +335,19 @@ public record Project(
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
             System.out.println(("""
                     %{title}Jenesis%{reset} - a Java build tool, written and configured in Java.
-
+                    
                     %{header}Active configuration:%{reset}
                       layout      %{name}%{layout}%{reset}
                       assembler   %{name}%{assembler}%{reset}
-
+                    
                     %{header}Usage:%{reset}
                       Pass selectors as command-line arguments to the build launcher
                       (the installed %{name}jenesis%{reset} CLI, a source-mode
                       %{name}Project.java%{reset} script, or a programmatic
                       %{name}Project.build(...)%{reset} call from Java code).
-
+                    
                     Without selectors, the default target (%{name}build%{reset}) is executed.
-
+                    
                     %{header}Selectors (available in every layout):%{reset}
                       %{name}build%{reset}        Resolve, compile, package, and test every module
                       %{name}stage%{reset}        Stage produced artifacts into a local repository
@@ -349,7 +357,7 @@ public record Project(
                       %{name}metadata%{reset}     Refresh the metadata module outputs
                       %{name}help%{reset}         Print this message
                       %{name}skill%{reset}        Print an agent-oriented onboarding briefing (plain text)
-
+                    
                     %{header}Module-scoped selector:%{reset}
                       A selector starting with %{name}+%{reset} is shorthand for a single project module:
                       %{name}+<module>%{reset} resolves to the module's subgraph inside %{name}build%{reset} (it does
@@ -359,7 +367,7 @@ public record Project(
                       <module> matches the source folder that holds the module's pom.xml
                       or module-info.java. Run %{name}build%{reset} once and look at the printed
                       module-* lines to discover available module names.
-
+                    
                     %{header}Wildcards in selectors:%{reset}
                       %{name}:%{reset}   matches a single path segment, e.g. %{name}build/:/java%{reset} matches
                           the %{name}java%{reset} step of every direct child of %{name}build%{reset}.
@@ -367,7 +375,7 @@ public record Project(
                           matches every %{name}test%{reset} step anywhere in the tree.
                       Both wildcards are lenient: branches that fail to match are silently
                       skipped, so a typo in the tail of a %{name}::%{reset} selector produces no error.
-
+                    
                     %{header}System properties (-Djenesis.project.<key>=<value>):%{reset}
                       Honored only when the project goes through Project.resolveProperties()
                       (the default main(...) does). A custom Project.java that wires its own
@@ -383,7 +391,7 @@ public record Project(
                       %{name}docker.mount%{reset} <h[:c],...>         Extra read-only container mounts (host or host:container)
                       %{name}docker.mountWritable%{reset} <h[:c],...> Extra writable container mounts
                       %{name}docker.env%{reset} <N[=V],...>           Forward host env vars (name) or set them (name=value)
-
+                    
                     %{header}Printing (-Djenesis.print.<key>=<value>):%{reset}
                       %{name}progress%{reset}                         Print the build progress lines (default: true)
                       %{name}checksum%{reset}                         Print each step's input/output file checksums
@@ -391,20 +399,20 @@ public record Project(
                       %{name}fetch%{reset}                            Print each artifact downloaded from a repository
                       %{name}docker%{reset}                           Print the Docker image when a build/run is wrapped (default: true)
                       %{name}dependencies%{reset}                     Print each module's dependency tree as it resolves
-
+                    
                     %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
                       versions to the latest and skips checksum verification (refresh the
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
                       but tolerates missing ones.
-
+                    
                     %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
                       %{name}skip%{reset}                             Skip executing tests
                       %{name}stage%{reset}                            Stage test artifacts alongside main artifacts
                       %{name}filter%{reset} <patterns>                Comma-separated %{name}<classRegex>[#<method>]%{reset} entries
                                                       restricting which tests run; changing the value
                                                       invalidates the test step's cache and forces a re-run
-
+                    
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
                       detected. When working on the build itself, in-code-only changes
@@ -412,7 +420,7 @@ public record Project(
                       cache keys each step by its serialized form; bump the step class's
                       %{name}serialVersionUID%{reset} to force re-execution of such steps, or pass
                       %{name}-Djenesis.executor.rebuild=true%{reset} for a full rebuild.
-
+                    
                     %{header}Custom Javadoc tags in module-info.java:%{reset}
                       %{name}@jenesis.release%{reset} <V>             Java release target
                       %{name}@jenesis.main%{reset} <class>            Main class for the module
@@ -421,7 +429,7 @@ public record Project(
                                                        Pin a dependency version and checksum
                                                        (<module> is short for <group>/module/<module>,
                                                        <groupId>/<artifactId> for <group>/maven/<groupId>/<artifactId>)
-
+                    
                     See README.md for the full reference.
                     """)
                     .replace("%{layout}", layout)
@@ -440,34 +448,34 @@ public record Project(
             System.out.println(("""
                     Jenesis - operating instructions for coding agents
                     ==================================================
-
+                    
                     You are operating inside a Jenesis-built Java project. This
                     briefing tells you how to drive the build, inspect intermediate
                     state, and avoid the cache pitfalls that catch agents most
                     often. README.md at the project root is the full reference;
                     use this document as the working minimum.
-
+                    
                     1. Invoke the build
                     -------------------
                     Pick whichever launcher fits the situation; all three are
                     equivalent and forward your selectors to a `BuildExecutor`
                     wired to the configured layout:
-
+                    
                       - run the installed `jenesis` CLI (release zip / SDKMAN);
                       - run `java <Project.java> [selectors...]` on a source-mode
                         `Project.java` script in the project tree;
                       - call `Project.build(selectors...)` from Java code when
                         embedding the build.
-
+                    
                     Pass no selectors to run the default target (`build`). Pass
                     multiple selectors space-separated to run several entry points
                     in one invocation.
-
+                    
                     When the build ships as source files, the source-mode
                     launcher recompiles the build's own engine and `Project.java`
                     on every invocation. While the build code is unchanged, skip
                     that recompile to launch faster:
-
+                    
                       - Precompile the build once with `javac`, then run the
                         compiled launcher directly:
                           javac -d .jenesis/launcher \\
@@ -491,17 +499,17 @@ public record Project(
                         and steps you use. Loading foreign build modules (the
                         class-loader bridge) needs a full JVM and is not supported
                         on this path.
-
+                    
                     Rebuild the precompiled or native launcher whenever the build
                     sources change. This only accelerates launching the build;
                     the project being built is still recompiled by the build graph
                     whenever its own sources change.
-
+                    
                     2. Choose a layout when needed
                     ------------------------------
                     The layout decides how modules are discovered and what gets
                     staged:
-
+                    
                       maven             pom.xml per module; emits a classic jar
                                         plus pom.xml.
                       modular           module-info.java per module; emits a
@@ -509,21 +517,21 @@ public record Project(
                       modular_to_maven  module-info.java per module; emits a
                                         modular jar plus a generated pom.xml,
                                         staged as both a module and a Maven repo.
-
+                    
                     Trust the default: `auto` inspects the project root and picks
                     `maven` when a root `pom.xml` is present, otherwise
                     `modular_to_maven` for a `module-info.java` project (it never
                     picks the plain `modular` layout, which you must force).
                     Override with `-Djenesis.project.layout=<name>` only when you
                     need a layout other than what `auto` would select.
-
+                    
                     3. Inspect target/
                     ------------------
                     Every build output lives under the project's target folder. For
                     this build the absolute path is:
-
+                    
                       %{target}
-
+                    
                     Shape under target/:
                       build/                   Per-step output trees mirroring the
                                                build graph 1:1. Walk this when you
@@ -541,7 +549,7 @@ public record Project(
                                                stage/modular/output; MODULAR_TO_MAVEN
                                                stages both, and `export` publishes
                                                each.
-
+                    
                     Do not delete target/ and do not pass
                     `-Djenesis.executor.rebuild=true` to wipe it. Jenesis tracks
                     source changes and predecessor checksums on every step and
@@ -550,13 +558,13 @@ public record Project(
                     repeat work it would otherwise skip. Browse this path when
                     debugging a selector or diffing a behaviour change, but
                     leave its contents in place.
-
+                    
                     4. Derive a selector from target/ for minimal recreation
                     --------------------------------------------------------
                     Because target/build/ mirrors the build graph 1:1, any folder
                     under it doubles as a selector. To rebuild a single artifact
                     after a source edit without re-running the whole graph:
-
+                    
                       1. Find the step folder under target/build/ (e.g.
                          `target/build/maven/compose/module/<m>/produce/
                          assemble/binary/artifacts/`).
@@ -565,19 +573,19 @@ public record Project(
                       3. Pass what remains to the launcher as a selector (e.g.
                          `build/maven/compose/module/<m>/produce/assemble/binary/
                          artifacts`).
-
+                    
                     The executor walks that selector's subgraph and re-runs only
                     steps whose serialized form or predecessor checksums changed.
                     Combine with wildcards (`:`, `::`) to scope to multiple
                     modules, or use the `+<module>` shorthand to address a module
                     by its source-folder name without typing the full path.
-
+                    
                     5. Read per-module state from properties files
                     ----------------------------------------------
                     Every per-module step writes properties files into its output
                     folder. Read these to learn what a step decided; never invent
                     a side channel. Names are constants on `BuildStep`:
-
+                    
                       metadata.properties   POM-style descriptive metadata
                                             (`project`, `artifact`, `version`,
                                             `name`, `description`, `url`,
@@ -604,14 +612,14 @@ public record Project(
                       inventory.properties  Per-module summary used by staging
                                             (artifacts/sources/documentation/pom/
                                             runtime classpath, prefixed).
-
+                    
                     Consult README's "Conventional folders and files" table for
                     the full schema.
-
+                    
                     6. Address the graph with selectors
                     -----------------------------------
                     Selectors address points in the build graph:
-
+                    
                       build, stage, export, pin, metadata, help, skill
                                             Top-level entry points.
                       +<module>             Module subgraph inside `build` (does
@@ -628,7 +636,7 @@ public record Project(
                                             in a `::` tail silently match nothing,
                                             so verify selectors before assuming
                                             they ran something.
-
+                    
                     7. Respect the cache model when editing build steps
                     ---------------------------------------------------
                     Every `BuildStep` is `Serializable`. The incremental cache
@@ -636,7 +644,7 @@ public record Project(
                       1. the digest of its serialized form (fields plus the
                          class's `serialVersionUID`), AND
                       2. the checksums of every predecessor folder's contents.
-
+                    
                     Project source changes are always detected. Changes to a
                     build step's *code* (the body of `apply(...)`, switched tool
                     flags, etc.) do NOT alter the serialized form, so cached
@@ -650,7 +658,7 @@ public record Project(
                     iterating on the build itself and a step's code change is
                     not yet reflected by a `serialVersionUID` bump, not as a
                     routine clean slate.
-
+                    
                     8. Write Javadoc tags on module-info.java when configuring a
                        module
                     ------------------------------------------------------------
@@ -667,7 +675,7 @@ public record Project(
                                                         and <groupId>/<artifactId>
                                                         abbreviates
                                                         <group>/maven/<groupId>/<artifactId>.
-
+                    
                     9. Set system properties for one-off overrides
                     ----------------------------------------------
                     Project-level (-Djenesis.project.<key>=<value>):
@@ -685,14 +693,14 @@ public record Project(
                       watch                       Rebuild the selected target
                                                   whenever a source file changes
                                                   (Ctrl+C to stop).
-
+                    
                     Pinning:
                       -Djenesis.dependency.pin=strict|ignore  strict fails on
                                                   any unpinned artifact; ignore
                                                   floats to the latest and skips
                                                   checksums (refresh pins via
                                                   the pin step).
-
+                    
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
                                                         Avoid setting this; rely
@@ -704,7 +712,7 @@ public record Project(
                                                         for content and
                                                         serialization hashes
                                                         (default MD5).
-
+                    
                     Printing (-Djenesis.print.<key>=<value>):
                       -Djenesis.print.progress=false      Suppress the build
                                                         progress lines
@@ -725,7 +733,7 @@ public record Project(
                       -Djenesis.print.dependencies=true   Print each module's
                                                         dependency tree as it
                                                         resolves.
-
+                    
                     Test execution (-Djenesis.test.<key>=<value>):
                       -Djenesis.test.skip=true            Skip wiring test
                                                         execution.
@@ -740,7 +748,7 @@ public record Project(
                                                         value invalidates the test
                                                         step's cache and forces a
                                                         re-run.
-
+                    
                     Tool execution:
                       -Djenesis.process.factory=fork      Fork JDK tools (jar,
                                                         javadoc, ...) into
@@ -748,15 +756,15 @@ public record Project(
                                                         of invoking them
                                                         in-process. Use under
                                                         stricter sandboxes.
-
+                    
                     10. Launch a built main class with the Execute companion
                     --------------------------------------------------------
                     To run a module's main class against the built artifacts, use
                     the companion launcher rather than wiring `java` yourself:
-
+                    
                       java build/jenesis/Execute.java [args...]
                       jenesis-exec [args...]                    (installed CLI)
-
+                    
                     Execute runs the build, scans inventories for a module with a
                     main class, and launches it on the resolved runtime
                     classpath / module path. If exactly one module declares a
@@ -774,7 +782,7 @@ public record Project(
                     separate entry point: Project's `build`/`stage`/... selectors
                     do NOT apply to it, and its `jenesis.execute.*` properties do
                     NOT apply to plain `Project` invocations.
-
+                    
                     11. Recommend pinning dependencies
                     ----------------------------------
                     Recommend pinning external dependencies so the build resolves
@@ -782,9 +790,9 @@ public record Project(
                     image). When you add or change a dependency, offer to pin it.
                     The `pin` selector records resolved versions and content
                     checksums back into the build descriptor, idempotently:
-
+                    
                       java build/jenesis/Project.java pin
-
+                    
                     It writes pom.xml (`<dependencyManagement>` versions with
                     `<!--Checksum/<algo>/<hex>-->`, and qualified compiler closures
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
@@ -793,13 +801,13 @@ public record Project(
                     `-Djenesis.dependency.pin=strict`, which fails the build on
                     any unpinned artifact, or refresh them with
                     `-Djenesis.dependency.pin=ignore` and the `pin` step.
-
+                    
                     12. Study a demo for a worked example
                     -------------------------------------
                     Before writing build configuration, read the demo that matches
                     the scenario; each is a minimal, self-contained, runnable
                     project, so copy its shape rather than inventing one:
-
+                    
                       java-pom          POM layout: plain javac plus a pinned
                                         Maven dependency.
                       java-pom-multi    Multi-module POM (a library and a consumer
@@ -813,22 +821,27 @@ public record Project(
                       kotlin/scala/     Mixed-language compiler chains; the
                       groovy            compiler closure resolves in its own
                                         group, isolated from the project's.
+                      java-quality      Inferred code-quality tools turned on by
+                                        a config file: Checkstyle, PMD, SpotBugs
+                                        and a verifying formatter; the
+                                        kotlin/scala/groovy-quality demos do the
+                                        same per language.
                       custom-assembler  Wrap `JavaMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,
                                         layout, or assembler (code generation step).
                       internal-module/  Load a build module (a `BuildExecutorModule`
                       external-module   plugin) from local source or a coordinate.
-
+                    
                     They live under `demo/` in the repository, indexed by
                     `demo/README.md`, and online at
                     https://github.com/raphw/jenesis/tree/main/demo.
-
+                    
                     13. Read further when stuck
                     ---------------------------
                     README.md (project root, and on the public repo) is the full
                     reference. Useful sections:
-
+                    
                       "Layouts and assemblers"            How the three layouts
                                                           wire modules.
                       "Conventional folders and files"    Exact schema of every
@@ -841,7 +854,7 @@ public record Project(
                                                           merge.
                       "Releasing to Maven Central"        Stage / export / pin and
                                                           handoff to JReleaser.
-
+                    
                     Online resources:
                       Source repository
                         https://github.com/raphw/jenesis
@@ -852,12 +865,12 @@ public record Project(
                       Releases (changelog, downloads, the matching git tag for
                       each published version)
                         https://github.com/raphw/jenesis/releases
-
+                    
                     When stuck, read the source: every public type lives under
                     `sources/build/jenesis/` and is small enough to read
                     end-to-end. Tests under `tests/` double as executable
                     documentation for the public API.
-
+                    
                     Run `help` for the same material with color, oriented at
                     humans.
                     """).replace("%{target}", target.toAbsolutePath().normalize().toString()));
@@ -943,6 +956,7 @@ public record Project(
 
     public Project() {
         this(Path.of("."),
+                Path.of("."),
                 Path.of("target"),
                 Path.of(".jenesis", "cache"),
                 new HashDigestFunction("SHA-256"),
@@ -962,6 +976,7 @@ public record Project(
 
     public Project root(Path root) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -981,6 +996,7 @@ public record Project(
 
     public Project target(Path target) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1000,6 +1016,7 @@ public record Project(
 
     public Project cache(Path cache) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1019,6 +1036,7 @@ public record Project(
 
     public Project hashFunction(HashDigestFunction hashFunction) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1038,6 +1056,7 @@ public record Project(
 
     public Project layout(Layout layout) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1057,6 +1076,7 @@ public record Project(
 
     public Project tests(boolean tests) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1076,6 +1096,7 @@ public record Project(
 
     public Project sources(boolean sources) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1095,6 +1116,7 @@ public record Project(
 
     public Project documentation(boolean documentation) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1114,6 +1136,7 @@ public record Project(
 
     public Project stageTests(boolean stageTests) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1133,6 +1156,7 @@ public record Project(
 
     public Project pinning(Pinning pinning) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1152,6 +1176,7 @@ public record Project(
 
     public Project metadata(Path... metadata) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1171,6 +1196,7 @@ public record Project(
 
     public Project version(String version) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1190,6 +1216,7 @@ public record Project(
 
     public Project defaultTarget(String... defaultTarget) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1209,6 +1236,7 @@ public record Project(
 
     public Project assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1228,6 +1256,7 @@ public record Project(
 
     public Project repositories(Map<String, Repository> repositories) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1247,6 +1276,7 @@ public record Project(
 
     public Project resolvers(Map<String, Resolver> resolvers) {
         return new Project(root,
+                configuration,
                 target,
                 cache,
                 hashFunction,
@@ -1266,6 +1296,7 @@ public record Project(
 
     public Project resolveProperties() {
         Path resolvedRoot = root;
+        Path resolvedConfiguration;
         Path resolvedTarget = target;
         Path resolvedCache = cache;
         HashDigestFunction resolvedHashDigest = hashFunction;
@@ -1274,12 +1305,19 @@ public record Project(
         boolean resolvedSources = sources;
         boolean resolvedDocumentation = documentation;
         boolean resolvedStageTests = stageTests;
-        Pinning resolvedPinning = pinning;
         List<Path> resolvedMetadata = metadata;
         String resolvedVersion = version;
         String rootOverride = System.getProperty("jenesis.project.root");
         if (rootOverride != null) {
             resolvedRoot = Path.of(rootOverride);
+        }
+        String configurationOverride = System.getProperty("jenesis.project.configuration");
+        if (configurationOverride != null) {
+            resolvedConfiguration = resolvedRoot.resolve(Path.of(configurationOverride));
+        } else if (rootOverride != null) {
+            resolvedConfiguration = resolvedRoot.resolve(configuration.relativize(root));
+        } else {
+            resolvedConfiguration = resolvedRoot;
         }
         String targetOverride = System.getProperty("jenesis.project.target");
         if (targetOverride != null) {
@@ -1337,6 +1375,7 @@ public record Project(
             }
         }
         return new Project(resolvedRoot,
+                resolvedConfiguration,
                 resolvedTarget,
                 resolvedCache,
                 resolvedHashDigest,
@@ -1345,11 +1384,11 @@ public record Project(
                 resolvedSources,
                 resolvedDocumentation,
                 resolvedStageTests,
-                resolvedPinning,
+                pinning,
                 resolvedMetadata,
                 resolvedVersion,
                 defaultTarget,
-                assembler.resolveProperties(),
+                assembler,
                 repositories,
                 resolvers);
     }
@@ -1366,7 +1405,7 @@ public record Project(
                 .toArray(String[]::new));
     }
 
-    private void watch(String... selectors) throws IOException, InterruptedException {
+    private void watch(String... selectors) throws IOException {
         Path absoluteRoot = root().toAbsolutePath().normalize();
         Set<Path> excluded = new LinkedHashSet<>();
         excluded.add((target().isAbsolute() ? target() : absoluteRoot.resolve(target())).normalize());
@@ -1473,7 +1512,7 @@ public record Project(
 
         private UsageHint(Throwable cause) {
             super("Pass `help` as the only argument on the command line to receive"
-                    + " usage information, or `skill` for an agent-oriented briefing.",
+                            + " usage information, or `skill` for an agent-oriented briefing.",
                     cause);
         }
     }

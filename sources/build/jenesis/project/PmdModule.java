@@ -49,13 +49,9 @@ public class PmdModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve("pmd.xml"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve("pmd.xml");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public PmdModule pinning(Pinning pinning) {

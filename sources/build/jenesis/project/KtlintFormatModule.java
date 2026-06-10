@@ -44,13 +44,9 @@ public class KtlintFormatModule implements BuildExecutorModule {
         this.verify = verify;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve(".editorconfig"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve(".editorconfig");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public KtlintFormatModule pinning(Pinning pinning) {

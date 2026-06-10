@@ -49,13 +49,9 @@ public class ScalafmtModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve(".scalafmt.conf"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve(".scalafmt.conf");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public ScalafmtModule pinning(Pinning pinning) {

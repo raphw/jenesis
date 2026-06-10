@@ -8,6 +8,7 @@ import build.jenesis.PathPlacement;
 public class ProjectModuleDescriptor implements ProjectModule {
 
     private final String name;
+    private final Path configuration;
     private final SequencedSet<String> dependencies;
     private final SequencedSet<String> sources;
     private final SequencedSet<String> resources;
@@ -22,12 +23,14 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final PathPlacement modulePath;
 
     public ProjectModuleDescriptor(ProjectModule base,
+                                   Path configuration,
                                    boolean test,
                                    boolean source,
                                    boolean documentation,
                                    Pinning pinning,
                                    PathPlacement modulePath) {
         this(base.name(),
+                configuration,
                 immutable(base.dependencies()),
                 immutable(base.sources()),
                 immutable(base.resources()),
@@ -42,6 +45,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     private ProjectModuleDescriptor(String name,
+                                    Path configuration,
                                     SequencedSet<String> dependencies,
                                     SequencedSet<String> sources,
                                     SequencedSet<String> resources,
@@ -55,6 +59,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                                     Pinning pinning,
                                     PathPlacement modulePath) {
         this.name = name;
+        this.configuration = configuration;
         this.dependencies = dependencies;
         this.sources = sources;
         this.resources = resources;
@@ -69,8 +74,13 @@ public class ProjectModuleDescriptor implements ProjectModule {
         this.modulePath = modulePath;
     }
 
+    public Path configuration() {
+        return configuration;
+    }
+
     public ProjectModuleDescriptor toInherited() {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 prefix(sources),
                 prefix(resources),
@@ -91,6 +101,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor name(String name) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -112,6 +123,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor dependencies(SequencedSet<String> dependencies) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 immutable(dependencies),
                 sources,
                 resources,
@@ -137,6 +149,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor sources(SequencedSet<String> sources) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 immutable(sources),
                 resources,
@@ -162,6 +175,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor resources(SequencedSet<String> resources) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 immutable(resources),
@@ -187,6 +201,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor manifests(SequencedSet<String> manifests) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -212,6 +227,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor coordinates(SequencedSet<String> coordinates) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -237,6 +253,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor artifacts(SequencedSet<String> artifacts) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -261,6 +278,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor content(SequencedSet<String> content) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -285,6 +303,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor test(boolean test) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -305,6 +324,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor source(boolean source) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -325,6 +345,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor documentation(boolean documentation) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -345,6 +366,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor pinning(Pinning pinning) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,
@@ -365,6 +387,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
 
     public ProjectModuleDescriptor modulePath(PathPlacement modulePath) {
         return new ProjectModuleDescriptor(name,
+                configuration,
                 dependencies,
                 sources,
                 resources,

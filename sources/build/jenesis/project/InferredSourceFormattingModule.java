@@ -16,21 +16,26 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     public static final String GOOGLE_JAVA_FORMAT = "google-java-format", PALANTIR_JAVA_FORMAT = "palantir-java-format",
             KTLINT = "ktlint-format", SCALAFMT = "scalafmt-format";
 
+    private final Path configuration;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final JavaFormatter javaFormatter;
     private final boolean verify;
 
-    public InferredSourceFormattingModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, null, false);
+    public InferredSourceFormattingModule(Path configuration,
+                                          Map<String, Repository> repositories,
+                                          Map<String, Resolver> resolvers) {
+        this(configuration, repositories, resolvers, null, null, false);
     }
 
-    private InferredSourceFormattingModule(Map<String, Repository> repositories,
+    private InferredSourceFormattingModule(Path configuration,
+                                           Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
                                            JavaFormatter javaFormatter,
                                            boolean verify) {
+        this.configuration = configuration;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
@@ -39,15 +44,15 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     }
 
     public InferredSourceFormattingModule pinning(Pinning pinning) {
-        return new InferredSourceFormattingModule(repositories, resolvers, pinning, javaFormatter, verify);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify);
     }
 
     public InferredSourceFormattingModule javaFormatter(JavaFormatter javaFormatter) {
-        return new InferredSourceFormattingModule(repositories, resolvers, pinning, javaFormatter, verify);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify);
     }
 
     public InferredSourceFormattingModule verify(boolean verify) {
-        return new InferredSourceFormattingModule(repositories, resolvers, pinning, javaFormatter, verify);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify);
     }
 
     @Override
@@ -62,15 +67,11 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                         inherited.sequencedKeySet());
             }
         }
-        if (KtlintFormatModule.isConfigured(inherited)) {
-            buildExecutor.addModule(KTLINT,
-                    new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
-                    inherited.sequencedKeySet());
-        }
-        if (ScalafmtFormatModule.isConfigured(inherited)) {
-            buildExecutor.addModule(SCALAFMT,
-                    new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
-                    inherited.sequencedKeySet());
-        }
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, KTLINT,
+                KtlintFormatModule.configurationFile(configuration),
+                new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, SCALAFMT,
+                ScalafmtFormatModule.configurationFile(configuration),
+                new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
     }
 }

@@ -24,7 +24,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
         executor.execute("format/ktlint-format/required");
 
         assertThat(coordinates("ktlint-format"))
@@ -37,7 +37,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
         executor.execute("format/scalafmt-format/required");
 
         assertThat(coordinates("scalafmt-format"))
@@ -49,7 +49,7 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format",
-                new InferredSourceFormattingModule(Map.of(), Map.of()).javaFormatter(JavaFormatter.GOOGLE),
+                new InferredSourceFormattingModule(project, Map.of(), Map.of()).javaFormatter(JavaFormatter.GOOGLE),
                 "project");
         executor.execute("format/google-java-format/required");
 
@@ -62,7 +62,7 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format",
-                new InferredSourceFormattingModule(Map.of(), Map.of()).javaFormatter(JavaFormatter.PALANTIR),
+                new InferredSourceFormattingModule(project, Map.of(), Map.of()).javaFormatter(JavaFormatter.PALANTIR),
                 "project");
         executor.execute("format/palantir-java-format/required");
 
@@ -77,7 +77,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("format").resolve("google-java-format"))
@@ -90,7 +90,7 @@ public class InferredSourceFormattingModuleTest {
     public void does_not_wire_ktlint_format_when_editorconfig_is_absent() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("format").resolve("ktlint-format")).doesNotExist();
