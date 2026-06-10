@@ -6,8 +6,6 @@ import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.License;
-import build.jenesis.ResolutionContext;
-import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public class MavenPomResolver implements MavenResolver {
@@ -29,13 +27,12 @@ public class MavenPomResolver implements MavenResolver {
     }
 
     @Override
-    public SequencedMap<String, Resolver.Resolved> dependencies(Executor executor,
-                                                     String prefix,
-                                                     Map<String, Repository> repositories,
-                                                     SequencedMap<String, SequencedSet<String>> coordinates,
-                                                     SequencedMap<String, String> versions,
-                                                     DependencyScope scope,
-                                                     ResolutionListener listener) throws IOException {
+    public Resolver.Resolution dependencies(Executor executor,
+                                            String prefix,
+                                            Map<String, Repository> repositories,
+                                            SequencedMap<String, SequencedSet<String>> coordinates,
+                                            SequencedMap<String, String> versions,
+                                            DependencyScope scope) throws IOException {
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
         versions.forEach((coordinate, value) -> {
             MavenDependencyKey key = MavenDependencyKey.parseKey(coordinate);
@@ -73,17 +70,28 @@ public class MavenPomResolver implements MavenResolver {
                         "No version pinned for " + coordinate + " (add to dependencyManagement)");
             }
         });
-        SequencedMap<String, String> resolved = new LinkedHashMap<>();
-        dependencies(executor,
+        Traversal traversal = dependencies(executor,
                 MavenRepository.of(repositories.getOrDefault(Resolver.base(prefix), Repository.empty())),
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies, List.of()), true, null, Set.of(), null, null),
                 new HashMap<>(),
                 new HashMap<>(),
-                prefix,
-                listener).forEach((key, value) -> resolved.put(
-                        key.coordinate(prefix, value.version()),
-                        value.checksum() == null ? "" : value.checksum()));
-        return Resolver.materializeAll(executor, repositories, prefix, resolved);
+                prefix);
+        SequencedMap<String, String> resolved = new LinkedHashMap<>();
+        traversal.dependencies().forEach((key, value) -> resolved.put(
+                key.coordinate(prefix, value.version()),
+                value.checksum() == null ? "" : value.checksum()));
+        SequencedMap<String, Resolver.Resolved> artifacts = Resolver.materializeAll(executor, repositories, prefix, resolved);
+        SequencedMap<String, Resolver.Vertex> nodes = new LinkedHashMap<>();
+        traversal.dependencies().forEach((key, value) -> {
+            String withVersion = key.coordinate(prefix, value.version());
+            Resolver.Resolved artifact = artifacts.get(withVersion);
+            nodes.put(key.coordinate(prefix, null), new Resolver.Vertex(
+                    value.version(),
+                    artifact == null ? null : Resolver.moduleName(artifact.file()),
+                    artifact != null && Resolver.automaticModule(artifact.file()),
+                    traversal.licenses().getOrDefault(withVersion, List.of())));
+        });
+        return new Resolver.Resolution(artifacts, traversal.edges(), nodes);
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
@@ -101,19 +109,17 @@ public class MavenPomResolver implements MavenResolver {
                         null),
                 new HashMap<>(),
                 new HashMap<>(),
-                null,
-                null);
+                null).dependencies();
     }
 
     @Override
-    public MavenResolver.Resolution dependencies(
+    public MavenResolver.Closure dependencies(
             Executor executor,
             MavenRepository repository,
             List<RootPom> rootPoms,
             List<RootPom> managedPoms,
             MavenDependencyScope scope,
-            String prefix,
-            ResolutionListener listener) throws IOException {
+            String prefix) throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
         Map<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
@@ -157,9 +163,10 @@ public class MavenPomResolver implements MavenResolver {
                 roots.put(rootPom.identifier(), key);
             }
         }
-        return new MavenResolver.Resolution(dependencies(executor, repository,
+        Traversal traversal = dependencies(executor, repository,
                 new ContextualPom(new ResolvedPom(managedDependencies, dependencies, List.of()), true, scope, Set.of(), null, null),
-                unresolved, resolved, prefix, listener), roots);
+                unresolved, resolved, prefix);
+        return new MavenResolver.Closure(traversal.dependencies(), roots, traversal.edges(), traversal.licenses());
     }
 
     public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
@@ -168,23 +175,6 @@ public class MavenPomResolver implements MavenResolver {
                                                                                String artifactId,
                                                                                String version,
                                                                                MavenDependencyScope scope)
-            throws IOException {
-        return dependencies(executor,
-                repository,
-                groupId,
-                artifactId,
-                version,
-                scope,
-                null);
-    }
-
-    public SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(Executor executor,
-                                                                               MavenRepository repository,
-                                                                               String groupId,
-                                                                               String artifactId,
-                                                                               String version,
-                                                                               MavenDependencyScope scope,
-                                                                               ResolutionListener listener)
             throws IOException {
         Map<DependencyCoordinate, UnresolvedPom> unresolved = new HashMap<>();
         Map<DependencyCoordinate, ResolvedPom> resolved = new HashMap<>();
@@ -199,18 +189,16 @@ public class MavenPomResolver implements MavenResolver {
                         unresolved), true, scope, Set.of(), null, null),
                 unresolved,
                 resolved,
-                null,
-                listener);
+                null).dependencies();
     }
 
-    private SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies(
+    private Traversal dependencies(
             Executor executor,
             MavenRepository repository,
             ContextualPom initial,
             Map<DependencyCoordinate, UnresolvedPom> unresolved,
             Map<DependencyCoordinate, ResolvedPom> resolved,
-            String prefix,
-            ResolutionListener listener) throws IOException {
+            String prefix) throws IOException {
         Map<MavenDependencyKey, DependencyResolution> resolutions = new HashMap<>();
         SequencedSet<MavenDependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
         MavenVersionNegotiator negotiator = negotiatorSupplier.get();
@@ -265,28 +253,27 @@ public class MavenPomResolver implements MavenResolver {
                     resolution.optional,
                     selectChecksum(resolution)));
         });
-        if (listener != null) {
-            dependencies.clear();
-            traverse(executor,
-                    repository,
-                    negotiator,
-                    resolved,
-                    unresolved,
-                    resolutions,
-                    initial.pom().managedDependencies(),
-                    dependencies,
-                    initial,
-                    prefix,
-                    listener);
-            results.forEach((key, value) -> {
-                listener.onResolution(prefix, key.coordinate(prefix, null), value.version());
-                ResolvedPom pom = resolved.get(new DependencyCoordinate(key.groupId(), key.artifactId(), value.version()));
-                if (pom != null && !pom.licenses().isEmpty()) {
-                    listener.onLicenses(prefix, key.coordinate(prefix, value.version()), value.version(), pom.licenses());
-                }
-            });
-        }
-        return results;
+        List<Resolver.Edge> edges = new ArrayList<>();
+        dependencies.clear();
+        traverse(executor,
+                repository,
+                negotiator,
+                resolved,
+                unresolved,
+                resolutions,
+                initial.pom().managedDependencies(),
+                dependencies,
+                initial,
+                prefix,
+                edges);
+        SequencedMap<String, List<License>> licenses = new LinkedHashMap<>();
+        results.forEach((key, value) -> {
+            ResolvedPom pom = resolved.get(new DependencyCoordinate(key.groupId(), key.artifactId(), value.version()));
+            if (pom != null && !pom.licenses().isEmpty()) {
+                licenses.put(key.coordinate(prefix, value.version()), pom.licenses());
+            }
+        });
+        return new Traversal(results, edges, licenses);
     }
 
     private SequencedSet<MavenDependencyKey> traverse(Executor executor,
@@ -299,7 +286,7 @@ public class MavenPomResolver implements MavenResolver {
                                                       SequencedSet<MavenDependencyKey> dependencies,
                                                       ContextualPom current,
                                                       String prefix,
-                                                      ResolutionListener listener) throws IOException {
+                                                      List<Resolver.Edge> edges) throws IOException {
         SequencedSet<MavenDependencyKey> conflicting = new LinkedHashSet<>();
         Queue<ContextualPom> queue = new ArrayDeque<>();
         do {
@@ -364,16 +351,15 @@ public class MavenPomResolver implements MavenResolver {
                     }
                 }
                 boolean followed = dependencies.add(entry.getKey());
-                if (listener != null) {
-                    listener.onDependency(prefix,
+                if (edges != null) {
+                    edges.add(new Resolver.Edge(
                             current.origin() == null
                                     ? null
                                     : current.origin().coordinate(prefix, current.originVersion()),
                             entry.getKey().coordinate(prefix, value.version()),
                             value.version(),
                             scope.name().toLowerCase(Locale.ROOT),
-                            followed,
-                            () -> null);
+                            followed));
                 }
                 if (followed) {
                     ResolvedPom pom = resolveOrCached(executor,
@@ -1081,6 +1067,11 @@ public class MavenPomResolver implements MavenResolver {
                                  Set<MavenDependencyName> exclusions,
                                  MavenDependencyKey origin,
                                  String originVersion) {
+    }
+
+    private record Traversal(SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
+                             List<Resolver.Edge> edges,
+                             SequencedMap<String, List<License>> licenses) {
     }
 
     private static class DependencyResolution {

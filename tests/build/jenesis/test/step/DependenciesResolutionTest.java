@@ -66,13 +66,13 @@ public class DependenciesResolutionTest {
         properties.setProperty("main/compile/foo/qux", "");
         properties.setProperty("main/compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.sequencedKeySet().forEach(descriptor -> {
                         resolved.put(prefix + "/" +descriptor, "");
                         resolved.put(prefix + "/transitive/" + descriptor, "");
                     });
-                    return Resolver.materializeAll(executor, repositories, prefix, resolved);
+                    return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
                 })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -93,21 +93,22 @@ public class DependenciesResolutionTest {
     }
 
     @Test
-    public void captures_licenses_into_a_sidecar_when_capturing() throws IOException {
+    public void writes_resolved_licenses_into_a_sidecar() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/qux", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
         BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())),
-                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope, listener) -> {
+                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
-                    if (listener != null) {
-                        listener.onLicenses(prefix, prefix + "/qux", null,
-                                List.of(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt")));
-                    }
-                    return Resolver.materializeAll(executor, repositories, prefix, resolved);
+                    SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
+                    vertices.put(prefix + "/qux", new Resolver.Vertex(null, null, false,
+                            List.of(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"))));
+                    return new Resolver.Resolution(
+                            Resolver.materializeAll(executor, repositories, prefix, resolved),
+                            List.of(),
+                            vertices);
                 }))
-                .capturing(true)
                 .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
@@ -121,14 +122,42 @@ public class DependenciesResolutionTest {
     }
 
     @Test
+    public void writes_the_resolution_graph_to_a_sidecar() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())),
+                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
+                    vertices.put("foo/qux", new Resolver.Vertex("1", "qux.module", false, List.of()));
+                    return new Resolver.Resolution(
+                            Resolver.materializeAll(executor, repositories, prefix, resolved),
+                            List.of(new Resolver.Edge(null, "foo/qux/1", "1", "compile", true)),
+                            vertices);
+                }))
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                                dependencies,
+                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties graph = SequencedProperties.ofFiles(next.resolve("graph.properties"));
+        assertThat(graph.getProperty("edge/0")).isEqualTo("main\tcompile\tfoo\ttrue\tcompile\t1\t\tfoo/qux/1");
+        assertThat(graph.getProperty("vertex/main/compile/foo/qux")).isEqualTo("1\tqux.module\tfalse");
+    }
+
+    @Test
     public void resolves_a_non_main_scope_through_its_base_resolver() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("kotlinc/plugin/maven/org.jetbrains/something", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Dependencies(Map.of("maven", files(Map.of())), Map.of("maven", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("maven", files(Map.of())), Map.of("maven", (executor, prefix, repositories, descriptors, _, _) -> {
                     SequencedMap<String, String> resolved = new LinkedHashMap<>();
                     descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
-                    return Resolver.materializeAll(executor, repositories, prefix, resolved);
+                    return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
                 })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -148,13 +177,13 @@ public class DependenciesResolutionTest {
         properties.setProperty("main/compile/foo/qux", "bar");
         properties.setProperty("main/compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, "");
                 resolved.put(prefix + "/transitive/" + descriptor, "");
             });
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -181,13 +210,13 @@ public class DependenciesResolutionTest {
         properties.setProperty("main/compile/foo/qux", "bar");
         properties.setProperty("main/compile/foo/baz", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 resolved.put(prefix + "/" + descriptor, checksum(descriptor));
                 resolved.put(prefix + "/" + "transitive/" + descriptor, checksum("transitive/" + descriptor));
             });
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -217,13 +246,13 @@ public class DependenciesResolutionTest {
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("main/foo/lib", "1.0");
         versions.store(dependencies.resolve(BuildStep.VERSIONS));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 String version = bom.getOrDefault(descriptor, "FLOAT");
                 resolved.put(prefix + "/" + descriptor + "/" + version, "");
             });
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -249,13 +278,13 @@ public class DependenciesResolutionTest {
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("custom/foo/lib", "1.0");
         versions.store(dependencies.resolve(BuildStep.VERSIONS));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 String version = bom.getOrDefault(descriptor, "FLOAT");
                 resolved.put(prefix + "/" + descriptor + "/" + version, "");
             });
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -282,13 +311,13 @@ public class DependenciesResolutionTest {
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("main/foo/lib", "1.0");
         versions.store(dependencies.resolve(BuildStep.VERSIONS));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> {
                 String version = bom.getOrDefault(descriptor, "FLOAT");
                 resolved.put(prefix + "/" + descriptor + "/" + version, "");
             });
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -311,7 +340,7 @@ public class DependenciesResolutionTest {
         versions.setProperty("bar", "1.0");
         versions.store(dependencies.resolve(BuildStep.VERSIONS));
         Dependencies resolve = new Dependencies(Map.of("foo", Repository.empty()),
-                Map.of("foo", (_, _, _, _, _, _, _) -> new LinkedHashMap<String, Resolver.Resolved>()));
+                Map.of("foo", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())));
         assertThatThrownBy(() -> resolve.apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -330,10 +359,10 @@ public class DependenciesResolutionTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        Dependencies resolve = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        Dependencies resolve = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, checksum("other")));
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         }));
         assertThatThrownBy(() -> resolve.apply(
                 Runnable::run,
@@ -349,10 +378,10 @@ public class DependenciesResolutionTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        Dependencies resolve = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        Dependencies resolve = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).pinning(Pinning.STRICT);
         assertThatThrownBy(() -> resolve.apply(
                 Runnable::run,
@@ -370,10 +399,10 @@ public class DependenciesResolutionTest {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/bar", "");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         })).pinning(Pinning.IGNORE).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -392,10 +421,10 @@ public class DependenciesResolutionTest {
         properties.setProperty("main/compile/foo/bar", "SHA-256/aaaa");
         properties.setProperty("main/runtime/foo/bar", "SHA-256/bbbb");
         properties.store(dependencies.resolve(BuildStep.REQUIRES));
-        Dependencies resolve = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _, _) -> {
+        Dependencies resolve = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
-            return Resolver.materializeAll(executor, repositories, prefix, resolved);
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
         }));
         assertThatThrownBy(() -> resolve.apply(
                 Runnable::run,

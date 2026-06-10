@@ -202,7 +202,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler(), null);
+                new JavaMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/maven/compose/module/module-");
     }
@@ -218,7 +218,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler(), null);
+                new JavaMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }
@@ -234,7 +234,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler(), null);
+                new JavaMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
                 .isEqualTo("build/maven/compose/module/module-sources/compile/dependencies/artifacts");
         assertThat(resolver.apply("/compile"))
@@ -252,7 +252,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler(), null);
+                new JavaMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
                 .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/artifacts");
         assertThat(resolver.apply("/compile"))
@@ -270,7 +270,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler(), null);
+                new JavaMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
                 .isEqualTo("build/modules/compose/module/module-sources/compile/dependencies/artifacts");
         assertThat(resolver.apply("/compile"))
@@ -287,7 +287,7 @@ public class ProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
 
-        Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler(), null);
+        Project.Layout.MODULAR.apply(executor, project, new JavaMultiProjectAssembler(), false);
 
         // replaceStep throws when nothing is registered at the identity, so a no-throw call proves
         // the layout wired the `export` registration.
@@ -305,7 +305,7 @@ public class ProjectTest {
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
                         BuildExecutorCallback.nop(), false),
                 project,
-                new JavaMultiProjectAssembler(), null);
+                new JavaMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
         assertThat(resolver.apply("")).isEqualTo("build/modules/compose/module/module-");
     }

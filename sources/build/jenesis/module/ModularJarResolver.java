@@ -4,7 +4,6 @@ import module java.base;
 import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
-import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public class ModularJarResolver implements Resolver {
@@ -24,13 +23,12 @@ public class ModularJarResolver implements Resolver {
     }
 
     @Override
-    public SequencedMap<String, Resolver.Resolved> dependencies(Executor executor,
-                                                     String prefix,
-                                                     Map<String, Repository> repositories,
-                                                     SequencedMap<String, SequencedSet<String>> coordinates,
-                                                     SequencedMap<String, String> versions,
-                                                     DependencyScope scope,
-                                                     ResolutionListener listener) throws IOException {
+    public Resolver.Resolution dependencies(Executor executor,
+                                            String prefix,
+                                            Map<String, Repository> repositories,
+                                            SequencedMap<String, SequencedSet<String>> coordinates,
+                                            SequencedMap<String, String> versions,
+                                            DependencyScope scope) throws IOException {
         coordinates.forEach((coordinate, exclusions) -> {
             if (!exclusions.isEmpty()) {
                 throw new IllegalArgumentException(
@@ -42,9 +40,10 @@ public class ModularJarResolver implements Resolver {
         SequencedSet<String> unresolved = new LinkedHashSet<>();
         SequencedMap<String, String> propagated = new LinkedHashMap<>();
         SequencedMap<String, String> hints = new LinkedHashMap<>(versions);
-        boolean observes = listener != null;
-        Map<String, String> parents = observes ? new HashMap<>() : null;
-        Map<String, String> moduleCoordinates = observes ? new HashMap<>() : null;
+        List<Resolver.Edge> edges = new ArrayList<>();
+        SequencedMap<String, Resolver.Vertex> nodes = new LinkedHashMap<>();
+        Map<String, String> parents = new HashMap<>();
+        Map<String, String> moduleCoordinates = new HashMap<>();
         Queue<String> queue = new ArrayDeque<>(coordinates.sequencedKeySet());
         int runtime = Runtime.version().feature();
         while (!queue.isEmpty()) {
@@ -152,17 +151,15 @@ public class ModularJarResolver implements Resolver {
                 }
                 dependencies.put(currentCoordinate, new Resolver.Resolved(jar, checksum == null ? "" : checksum, item.internal()));
                 resolved.add(current);
-                if (observes) {
-                    moduleCoordinates.put(current, currentCoordinate);
-                    String parent = parents.get(current);
-                    listener.onDependency(prefix,
-                            parent == null ? null : moduleCoordinates.get(parent),
-                            currentCoordinate,
-                            version,
-                            null,
-                            true,
-                            () -> null);
-                }
+                moduleCoordinates.put(current, currentCoordinate);
+                nodes.put(prefix + "/" + current, new Resolver.Vertex(version, descriptor.name(), descriptor.isAutomatic(), List.of()));
+                String parent = parents.get(current);
+                edges.add(new Resolver.Edge(
+                        parent == null ? null : moduleCoordinates.get(parent),
+                        currentCoordinate,
+                        version,
+                        null,
+                        true));
                 descriptor.requires().stream()
                         .filter(requires -> !requires.accessFlags().contains(AccessFlag.STATIC_PHASE)
                                 || scope == DependencyScope.COMPILE && requires.accessFlags().contains(AccessFlag.TRANSITIVE))
@@ -177,19 +174,16 @@ public class ModularJarResolver implements Resolver {
                                 }
                                 propagated.putIfAbsent(name, v);
                             });
-                            if (observes) {
-                                parents.putIfAbsent(name, current);
-                            }
+                            parents.putIfAbsent(name, current);
                             if (!unresolved.contains(name) && !resolved.contains(name)) {
                                 queue.add(name);
-                            } else if (observes && resolved.contains(name)) {
-                                listener.onDependency(prefix,
+                            } else if (resolved.contains(name)) {
+                                edges.add(new Resolver.Edge(
                                         currentCoordinate,
                                         moduleCoordinates.get(name),
                                         null,
                                         null,
-                                        false,
-                                        () -> null);
+                                        false));
                             }
                         });
             }
@@ -199,10 +193,13 @@ public class ModularJarResolver implements Resolver {
             for (String coordinate : unresolved) {
                 unresolvedCoordinates.put(coordinate, Collections.emptyNavigableSet());
             }
-            fallback.dependencies(executor, prefix, repositories, unresolvedCoordinates, hints, scope, listener)
-                    .forEach(dependencies::putIfAbsent);
+            Resolver.Resolution fallbackResolution = fallback.dependencies(
+                    executor, prefix, repositories, unresolvedCoordinates, hints, scope);
+            fallbackResolution.artifacts().forEach(dependencies::putIfAbsent);
+            edges.addAll(fallbackResolution.edges());
+            fallbackResolution.vertices().forEach(nodes::putIfAbsent);
         }
-        return dependencies;
+        return new Resolver.Resolution(dependencies, edges, nodes);
     }
 
 }

@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Resolver;
 import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
@@ -170,7 +171,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("module", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>()))),
                 "project");
         executor.execute("groovy/" + "required");
 
@@ -189,7 +190,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("maven", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>()))),
                 "project");
         executor.execute("groovy/" + "required");
 
@@ -208,7 +209,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("vendor", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("vendor", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>()))),
                 "project");
 
         assertThatThrownBy(() -> executor.execute("groovy/" + "required"))
@@ -225,7 +226,7 @@ public class GroovyCompilerModuleTest {
                 "groovy",
                 new GroovyCompilerModule(
                         Map.of(),
-                        Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>())),
+                        Map.of("maven", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>()))),
                 "project");
         SequencedMap<String, Path> outputs = executor.execute();
 

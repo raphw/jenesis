@@ -508,23 +508,22 @@ the way `mvn dependency:tree` / `gradle dependencies` do:
 
     java -Djenesis.print.dependencies=true build/jenesis/Project.java
 
-Unlike a separate "resolve" goal, this captures the **actual** resolution the build performs. It works by
-passing an optional `ResolutionListener` into the resolver (`Resolver.dependencies(..., listener)`, which
-defaults to `null`, so nothing changes and nothing is allocated when the flag is off): the resolver reports
-each discovered parent -> child edge - with the property-file key, the discovered version and scope, and a
-`followed` flag that is `false` on a dedup re-encounter - and announces each negotiated version through
-`onResolution`. A `DependencyTreeReport` implements `ResolutionListener` directly; the flag wires a fresh one
-per resolve (through the `Dependencies` step, which forces a re-run so the tree always prints), and on
-the completion callback (`onResolved`) it renders and prints that resolve's tree to a `PrintStream` (defaulting
-to `System.out`) - the printing happens on the callback, not as a build step. Each node shows the version each
-parent requested, the negotiated version inline when it differs (`[1,2] -> 2`), the Maven scope, and any module
-metadata; not-followed duplicates are dimmed and marked `(*)`, and a per-declared-dependency colour gradient
-tints the tree connectors. A `Resolved dependencies` list of negotiated versions follows each tree. The
-resolution tree itself is never persisted or hashed - only the flat closure remains the build's product - and the
-report never reads or downloads anything the build did not already fetch. For `MODULAR_TO_MAVEN`, each module's
-resolved Maven coordinate is what the tree shows (e.g. the `org.slf4j` module resolves to
-`maven/org.slf4j/slf4j-api/2.0.16`). The listener is reusable, so the same hook can later report trees for other
-resolution (e.g. plugins).
+Unlike a separate "resolve" goal, this captures the **actual** resolution the build performs. The resolver
+returns a `Resolution` in a single pass: the flat materialized artifacts, the parent -> child resolution graph
+(each `Edge` carries the property-file key, the discovered version and scope, and a `followed` flag that is
+`false` on a dedup re-encounter), and a `Vertex` per resolved coordinate (its negotiated version, module name and
+automatic flag, and declared licenses). The `Dependencies` step flattens the artifacts into the unchanged
+`dependencies.properties` and writes the graph to `graph.properties` and the dependency licenses to
+`licenses.properties` beside it on every resolve. When the flag is set, the step renders the returned
+`Resolution` through a `DependencyTreeReport` to a `PrintStream` (defaulting to `System.out`); the printing
+happens after the resolve, not as a separate build step, and adds nothing to the cache hash. Each node shows the
+version each parent requested, the negotiated version inline when it differs (`[1,2] -> 2`), the Maven scope, and
+any module metadata; not-followed duplicates are dimmed and marked `(*)`, and a per-declared-dependency colour
+gradient tints the tree connectors. A `Resolved dependencies` list of negotiated versions follows each tree. For
+`MODULAR_TO_MAVEN`, each module's resolved Maven coordinate is what the tree shows (e.g. the `org.slf4j` module
+resolves to `maven/org.slf4j/slf4j-api/2.0.16`). Because printing rides on the resolve rather than forcing one,
+an up-to-date (cached) `Dependencies` step prints nothing; the tree appears whenever the dependencies are
+actually resolved.
 
 ### Running inside Docker
 
@@ -1538,7 +1537,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
 | `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `jenesis.project.watch`         | system property | When `true`, `Project.doMain(...)` does not return after one build: it registers a `java.nio` `WatchService` over the project root (via `ProjectWatch`) and re-runs the requested target on every file change, excluding the output folders (`target/`, the configured cache) and dot-directories so the build's own writes do not re-trigger. Each rebuild reuses the incremental cache, so only changed steps re-execute; module selectors are honored. See *Watching for changes*. Default `false` (single build). |
-| `jenesis.print.dependencies`    | system property | When `true`, `Project.doMain(...)` runs the build with a fresh `DependencyTreeReport` (which implements `ResolutionListener`) per resolve, threaded in through the `Dependencies` step (forced to re-run so it always fires). Each report prints its tree to `System.out` on its `onResolved` callback as the module is resolved - printing happens on the callback, not as a build step. The listener argument defaults to `null`, so a normal build is byte-identical and allocates nothing extra; the tree is never persisted or hashed and the report reads/downloads nothing extra. Each node shows the property-file key, the requested version (with the negotiated version inline when it differs), and (Maven) scope; `MODULAR_TO_MAVEN` shows each module's resolved Maven coordinate. See *Printing the dependency tree*. Default `false`. |
+| `jenesis.print.dependencies`    | system property | When `true`, `Project.doMain(...)` threads a `printDependencies` flag through the layout into the `Dependencies` step, which renders the resolver's returned `Resolution` through a fresh `DependencyTreeReport` to `System.out` after each resolve - printing rides on the resolve, not as a separate build step, so the tree is never persisted or hashed and a cached (un-rerun) resolve prints nothing. Each node shows the property-file key, the requested version (with the negotiated version inline when it differs), and (Maven) scope; `MODULAR_TO_MAVEN` shows each module's resolved Maven coordinate. See *Printing the dependency tree*. Default `false`. |
 | `jenesis.project.sources`       | system property | When `true` (bare flag accepted), resolves the project-level `source` flag to `true`, so `JavaMultiProjectAssembler` also assembles a per-module sources jar. |
 | `jenesis.project.documentation` | system property | When `true` (bare flag accepted), resolves the project-level `documentation` flag to `true`, so `JavaMultiProjectAssembler` also assembles a per-module javadoc jar. |
 | `jenesis.project.metadata`      | system property | Path to a project-level metadata override file (conventionally `project.properties`) whose entries are merged into every module's `metadata.properties` between the framework defaults and `jenesis.project.version`. |
@@ -1753,10 +1752,12 @@ build.
 
 `Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
 `Map<String, Repository>` to fetch from, a `versions` pin map (with optional space-separated `<algorithm>/<hex>`
-checksum suffix), a `DependencyScope` (`COMPILE` or `RUNTIME`), and an optional `ResolutionListener`, and
-returns the resolved closure as a
-`SequencedMap<String, String>`. The value carries the chosen version and/or checksum that the downstream
-`Dependencies` step validates against. `MODULAR_TO_MAVEN` wires `MavenModuleResolver` directly under the
+checksum suffix), and a `DependencyScope` (`COMPILE` or `RUNTIME`), and returns a `Resolution`: the materialized
+`artifacts` (`SequencedMap<String, Resolved>`, each `Resolved` carrying the file, chosen checksum, and an
+internal flag), the parent -> child `edges`, and a `Vertex` per resolved coordinate (negotiated version, module
+name and automatic flag, and declared licenses). The downstream `Dependencies` step flattens the artifacts into
+`dependencies.properties` (validating the checksums), and writes the graph and licenses to `graph.properties` and
+`licenses.properties`. `MODULAR_TO_MAVEN` wires `MavenModuleResolver` directly under the
 `module` prefix (no `ModularJarResolver`, so no `module-info.class` is read), fetching each `module/<name>`
 coordinate's `:pom` from a `JenesisModuleRepository(false)` to learn its Maven coordinate and handing the bytes to
 `MavenPomResolver`'s pre-fetched-root entry point. Declared modules become the synthetic project's direct

@@ -7,12 +7,11 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.DependencyScope;
+import build.jenesis.DependencyTreeReport;
 import build.jenesis.License;
 import build.jenesis.Pinning;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
-import build.jenesis.ResolutionContext;
-import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 
@@ -25,42 +24,32 @@ public class Dependencies implements BuildStep {
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
-    private final transient Supplier<ResolutionListener> listener;
-    private final boolean capturing;
+    private final transient boolean printing;
 
     public Dependencies(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, null, false);
+        this(repositories, resolvers, null, false);
     }
 
     private Dependencies(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
-                         Supplier<ResolutionListener> listener,
-                         boolean capturing) {
+                         boolean printing) {
         this.repositories = repositories;
         this.resolvers = new LinkedHashMap<>(resolvers);
         this.pinning = pinning;
-        this.listener = listener;
-        this.capturing = capturing;
+        this.printing = printing;
     }
 
     public Dependencies pinning(Pinning pinning) {
-        return new Dependencies(repositories, resolvers, pinning, listener, capturing);
+        return new Dependencies(repositories, resolvers, pinning, printing);
     }
 
-    public Dependencies listening(Supplier<ResolutionListener> listener) {
-        return new Dependencies(repositories, resolvers, pinning, listener, capturing);
-    }
-
-    public Dependencies capturing(boolean capturing) {
-        return new Dependencies(repositories, resolvers, pinning, listener, capturing);
+    public Dependencies printing(boolean printing) {
+        return new Dependencies(repositories, resolvers, pinning, printing);
     }
 
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-        if (listener != null || capturing) {
-            return true;
-        }
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
@@ -146,7 +135,9 @@ public class Dependencies implements BuildStep {
         });
         SequencedProperties resolved = new SequencedProperties();
         SequencedMap<String, Resolver.Resolved> materialized = new LinkedHashMap<>();
-        SequencedMap<String, List<License>> capturedLicenses = capturing ? new LinkedHashMap<>() : null;
+        SequencedProperties graph = new SequencedProperties();
+        SequencedProperties licenses = new SequencedProperties();
+        int edge = 0;
         for (Map.Entry<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> groupEntry : requires.entrySet()) {
             String group = groupEntry.getKey();
             for (String scope : groupEntry.getValue().sequencedKeySet()) {
@@ -171,24 +162,49 @@ public class Dependencies implements BuildStep {
                             groupVersions.getOrDefault(managed, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
                         }
                     }
-                    SequencedMap<String, Resolver.Resolved> result;
-                    ResolutionListener external = listener == null ? null : listener.get();
-                    ResolutionListener current = capturedLicenses == null
-                            ? external
-                            : new LicenseCapture(external, capturedLicenses);
-                    if (current == null) {
-                        result = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
-                    } else {
-                        result = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent, current);
-                        current.onResolved();
+                    Resolver.Resolution resolution = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
+                    if (printing) {
+                        new DependencyTreeReport().render(resolution);
                     }
-                    for (Map.Entry<String, Resolver.Resolved> entry : result.entrySet()) {
+                    for (Map.Entry<String, Resolver.Resolved> entry : resolution.artifacts().entrySet()) {
                         String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
                         String declared = repoEntry.getValue().get(coordinate);
                         String value = declared != null && !declared.isEmpty() ? declared : entry.getValue().checksum();
                         String transitiveKey = group + "/" + scope + "/" + entry.getKey();
                         resolved.setProperty(transitiveKey, value);
                         materialized.putIfAbsent(transitiveKey, entry.getValue());
+                    }
+                    for (Resolver.Edge dependency : resolution.edges()) {
+                        graph.setProperty("edge/" + edge++, String.join("\t",
+                                group,
+                                scope,
+                                repo,
+                                Boolean.toString(dependency.followed()),
+                                text(dependency.scope()),
+                                text(dependency.version()),
+                                text(dependency.parent()),
+                                dependency.coordinate()));
+                    }
+                    for (Map.Entry<String, Resolver.Vertex> entry : resolution.vertices().entrySet()) {
+                        Resolver.Vertex node = entry.getValue();
+                        graph.setProperty("vertex/" + group + "/" + scope + "/" + entry.getKey(), String.join("\t",
+                                text(node.resolvedVersion()),
+                                text(node.module()),
+                                Boolean.toString(node.automatic())));
+                        if (!node.licenses().isEmpty()) {
+                            String licenseKey = node.resolvedVersion() == null
+                                    ? entry.getKey()
+                                    : entry.getKey() + "/" + node.resolvedVersion();
+                            for (int i = 0; i < node.licenses().size(); i++) {
+                                License license = node.licenses().get(i);
+                                if (license.name() != null) {
+                                    licenses.setProperty(licenseKey + "#" + i + "#name", license.name());
+                                }
+                                if (license.url() != null) {
+                                    licenses.setProperty(licenseKey + "#" + i + "#url", license.url());
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -247,62 +263,13 @@ public class Dependencies implements BuildStep {
             }
         }
         index.store(context.next().resolve(DEPENDENCIES));
-        if (capturedLicenses != null) {
-            SequencedProperties licenses = new SequencedProperties();
-            for (Map.Entry<String, List<License>> entry : capturedLicenses.entrySet()) {
-                List<License> list = entry.getValue();
-                for (int index2 = 0; index2 < list.size(); index2++) {
-                    License license = list.get(index2);
-                    if (license.name() != null) {
-                        licenses.setProperty(entry.getKey() + "#" + index2 + "#name", license.name());
-                    }
-                    if (license.url() != null) {
-                        licenses.setProperty(entry.getKey() + "#" + index2 + "#url", license.url());
-                    }
-                }
-            }
-            licenses.store(context.next().resolve("licenses.properties"));
-        }
+        graph.store(context.next().resolve("graph.properties"));
+        licenses.store(context.next().resolve("licenses.properties"));
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private record LicenseCapture(ResolutionListener delegate,
-                                  SequencedMap<String, List<License>> licenses) implements ResolutionListener {
-
-        @Override
-        public void onDependency(String prefix,
-                                 String parent,
-                                 String coordinate,
-                                 String version,
-                                 String scope,
-                                 boolean followed,
-                                 Supplier<ResolutionContext> context) {
-            if (delegate != null) {
-                delegate.onDependency(prefix, parent, coordinate, version, scope, followed, context);
-            }
-        }
-
-        @Override
-        public void onResolution(String prefix, String coordinate, String version) {
-            if (delegate != null) {
-                delegate.onResolution(prefix, coordinate, version);
-            }
-        }
-
-        @Override
-        public void onLicenses(String prefix, String coordinate, String version, List<License> licenses) {
-            this.licenses.putIfAbsent(coordinate, licenses);
-            if (delegate != null) {
-                delegate.onLicenses(prefix, coordinate, version, licenses);
-            }
-        }
-
-        @Override
-        public void onResolved() {
-            if (delegate != null) {
-                delegate.onResolved();
-            }
-        }
+    private static String text(String value) {
+        return value == null ? "" : value;
     }
 
     public static List<Path> select(Path folder, String scope) throws IOException {

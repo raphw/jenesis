@@ -1,24 +1,25 @@
 package build.jenesis.maven;
 
 import module java.base;
+import build.jenesis.License;
 import build.jenesis.Repository;
-import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public interface MavenResolver extends Resolver {
 
     SequencedMap<Path, MavenLocalPom> local(Executor executor, Repository repository, Path root) throws IOException;
 
-    Resolution dependencies(Executor executor,
-                            MavenRepository repository,
-                            List<RootPom> rootPoms,
-                            List<RootPom> managedPoms,
-                            MavenDependencyScope scope,
-                            String prefix,
-                            ResolutionListener listener) throws IOException;
+    Closure dependencies(Executor executor,
+                         MavenRepository repository,
+                         List<RootPom> rootPoms,
+                         List<RootPom> managedPoms,
+                         MavenDependencyScope scope,
+                         String prefix) throws IOException;
 
-    record Resolution(SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
-                      SequencedMap<String, MavenDependencyKey> roots) {
+    record Closure(SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies,
+                   SequencedMap<String, MavenDependencyKey> roots,
+                   List<Resolver.Edge> edges,
+                   SequencedMap<String, List<License>> licenses) {
     }
 
     static MavenResolver of(Resolver resolver) {

@@ -43,7 +43,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
 
         assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.2.3", "module/foo.bar/1.2.3");
         assertThat(resolved.get("maven/org.example/example-core/1.2.3").checksum()).isEmpty();
@@ -67,7 +67,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("foo.bar", "9.9")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
 
         assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/9.9", "module/foo.bar/9.9");
         assertThat(fetched).containsOnlyKeys("foo.bar/9.9:pom");
@@ -89,7 +89,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("foo.bar", "1.0 " + checksum)),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
 
         assertThat(resolved).containsOnlyKeys("maven/org.example/example-core/1.0", "module/foo.bar/1.0");
         assertThat(resolved.get("maven/org.example/example-core/1.0").checksum()).isEqualTo(checksum);
@@ -125,7 +125,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
 
         assertThat(resolved).containsOnlyKeys(
                 "maven/org.example/example-core/1.0",
@@ -238,7 +238,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
 
         assertThat(resolved).containsOnlyKeys(
                 "maven/org.example/example-core/1.0",
@@ -299,7 +299,7 @@ public class MavenModuleResolverTest {
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("foo.bar", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("lib.module", "2.0")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
 
         assertThat(resolved).containsOnlyKeys(
                 "maven/org.example/example-core/1.0",

@@ -9,6 +9,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
@@ -405,7 +406,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .engine(new JUnitPlatform())
                         .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
@@ -426,7 +427,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .engine(new JUnitPlatform())
                         .observe(new JaCoCo())
                         .isTest(candidate -> candidate.endsWith("TestSample"))
@@ -447,7 +448,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .engine(new JUnitPlatform())
                         .isTest(candidate -> candidate.endsWith("TestSample"))
                         .jarsOnly(false),
@@ -552,7 +553,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .engine(new JUnitPlatform())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -577,7 +578,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("module", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .engine(new JUnitPlatform())
                         .jarsOnly(false),
                 "dependencies", "classes");
@@ -595,7 +596,7 @@ public class TestModuleTest {
         executor.addSource("classes", classes);
         executor.addModule(
                 "test",
-                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                new TestModule(Map.of(), Map.of("maven", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .engine(new MultiRunnerEngine())
                         .jarsOnly(false),
                 "dependencies", "classes");
