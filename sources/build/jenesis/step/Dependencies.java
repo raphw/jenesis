@@ -315,6 +315,95 @@ public class Dependencies implements BuildStep {
         return new ArrayList<>(selected);
     }
 
+    public static SequencedMap<String, Resolver.Resolution> graph(Iterable<Path> graphFiles,
+                                                                  Iterable<Path> licenseFiles) throws IOException {
+        SequencedMap<String, SequencedMap<Integer, String[]>> licenseEntries = new LinkedHashMap<>();
+        for (Path file : licenseFiles) {
+            if (!Files.isRegularFile(file)) {
+                continue;
+            }
+            SequencedProperties properties = SequencedProperties.ofFiles(file);
+            for (String key : properties.stringPropertyNames()) {
+                int last = key.lastIndexOf('#');
+                int prior = last < 1 ? -1 : key.lastIndexOf('#', last - 1);
+                if (prior < 1) {
+                    continue;
+                }
+                int index;
+                try {
+                    index = Integer.parseInt(key.substring(prior + 1, last));
+                } catch (NumberFormatException _) {
+                    continue;
+                }
+                String[] entry = licenseEntries
+                        .computeIfAbsent(key.substring(0, prior), _ -> new TreeMap<>())
+                        .computeIfAbsent(index, _ -> new String[2]);
+                if (key.substring(last + 1).equals("name")) {
+                    entry[0] = properties.getProperty(key);
+                } else if (key.substring(last + 1).equals("url")) {
+                    entry[1] = properties.getProperty(key);
+                }
+            }
+        }
+        SequencedMap<String, List<License>> licenses = new LinkedHashMap<>();
+        licenseEntries.forEach((coordinate, byIndex) -> licenses.put(coordinate,
+                byIndex.values().stream().map(entry -> new License(entry[0], entry[1])).toList()));
+        SequencedMap<String, SequencedSet<Resolver.Edge>> edges = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, Resolver.Vertex>> vertices = new LinkedHashMap<>();
+        for (Path file : graphFiles) {
+            if (!Files.isRegularFile(file)) {
+                continue;
+            }
+            SequencedProperties properties = SequencedProperties.ofFiles(file);
+            for (String key : properties.stringPropertyNames()) {
+                String value = properties.getProperty(key);
+                if (key.startsWith("edge/")) {
+                    String[] parts = value.split("\t", -1);
+                    if (parts.length != 8) {
+                        continue;
+                    }
+                    edges.computeIfAbsent(parts[0] + "/" + parts[1], _ -> new LinkedHashSet<>())
+                            .add(new Resolver.Edge(
+                                    parts[6].isEmpty() ? null : parts[6],
+                                    parts[7],
+                                    parts[5].isEmpty() ? null : parts[5],
+                                    parts[4].isEmpty() ? null : parts[4],
+                                    Boolean.parseBoolean(parts[3])));
+                } else if (key.startsWith("vertex/")) {
+                    String rest = key.substring("vertex/".length());
+                    int first = rest.indexOf('/');
+                    int second = first < 0 ? -1 : rest.indexOf('/', first + 1);
+                    if (second < 0) {
+                        continue;
+                    }
+                    String groupScope = rest.substring(0, second);
+                    String coordinate = rest.substring(second + 1);
+                    String[] parts = value.split("\t", -1);
+                    String resolvedVersion = parts[0].isEmpty() ? null : parts[0];
+                    List<License> declared = resolvedVersion == null
+                            ? List.of()
+                            : licenses.getOrDefault(coordinate + "/" + resolvedVersion, List.of());
+                    vertices.computeIfAbsent(groupScope, _ -> new LinkedHashMap<>())
+                            .putIfAbsent(coordinate, new Resolver.Vertex(
+                                    resolvedVersion,
+                                    parts.length > 1 && !parts[1].isEmpty() ? parts[1] : null,
+                                    parts.length > 2 && Boolean.parseBoolean(parts[2]),
+                                    declared));
+                }
+            }
+        }
+        SequencedMap<String, Resolver.Resolution> result = new LinkedHashMap<>();
+        SequencedSet<String> groupScopes = new LinkedHashSet<>(edges.sequencedKeySet());
+        groupScopes.addAll(vertices.sequencedKeySet());
+        for (String groupScope : groupScopes) {
+            result.put(groupScope, new Resolver.Resolution(
+                    new LinkedHashMap<>(),
+                    new ArrayList<>(edges.getOrDefault(groupScope, new LinkedHashSet<>())),
+                    vertices.getOrDefault(groupScope, new LinkedHashMap<>())));
+        }
+        return result;
+    }
+
     private static String[] split(String key) {
         int first = key.indexOf('/');
         if (first < 1) {

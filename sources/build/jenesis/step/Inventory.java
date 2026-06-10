@@ -22,6 +22,8 @@ public class Inventory implements BuildStep {
                 Path.of(SOURCES),
                 Path.of(DOCUMENTATION),
                 Path.of(DEPENDENCIES),
+                Path.of("graph.properties"),
+                Path.of("licenses.properties"),
                 Path.of(JPackage.PACKAGES),
                 Path.of(JMod.JMODS),
                 Path.of(JLink.RUNTIME),
@@ -47,6 +49,8 @@ public class Inventory implements BuildStep {
         SequencedSet<Path> documentation = new LinkedHashSet<>();
         SequencedSet<Path> jmods = new LinkedHashSet<>();
         SequencedSet<Path> testReports = new LinkedHashSet<>();
+        SequencedSet<Path> graphs = new LinkedHashSet<>();
+        SequencedSet<Path> dependencyLicenses = new LinkedHashSet<>();
         SequencedMap<String, Path> closureJars = new LinkedHashMap<>();
         SequencedMap<String, String> closureScopes = new LinkedHashMap<>();
         SequencedMap<String, String> closureChecksums = new LinkedHashMap<>();
@@ -94,6 +98,14 @@ public class Inventory implements BuildStep {
             }
             collect(folder.resolve(JMod.JMODS), jmods);
             collect(folder.resolve(TEST_REPORT), testReports);
+            Path graphFile = folder.resolve("graph.properties");
+            if (Files.isRegularFile(graphFile)) {
+                graphs.add(graphFile);
+            }
+            Path licensesFile = folder.resolve("licenses.properties");
+            if (Files.isRegularFile(licensesFile)) {
+                dependencyLicenses.add(licensesFile);
+            }
             Path runtime = folder.resolve(JLink.RUNTIME);
             if (runtimeImage == null && Files.isDirectory(runtime)) {
                 runtimeImage = runtime;
@@ -135,6 +147,8 @@ public class Inventory implements BuildStep {
         writePaths(inventory, context, prefix + "documentation", documentation);
         writePaths(inventory, context, prefix + "jmod", jmods);
         writePaths(inventory, context, prefix + "testreport", testReports);
+        writePaths(inventory, context, prefix + "graph", graphs);
+        writePaths(inventory, context, prefix + "licenses", dependencyLicenses);
         if (image != null) {
             inventory.setProperty(prefix + "package", relativize(context, image));
         }

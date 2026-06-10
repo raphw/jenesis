@@ -7,6 +7,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.License;
+import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDependencyKey;
 
@@ -50,7 +51,12 @@ public class Sbom implements BuildStep {
         }
         HashDigestFunction hash = new HashDigestFunction("SHA-256");
         SequencedMap<String, CycloneDxEmitter.Component> components = new LinkedHashMap<>();
+        List<Path> graphFiles = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
+            Path graphFile = argument.folder().resolve("graph.properties");
+            if (Files.isRegularFile(graphFile)) {
+                graphFiles.add(graphFile);
+            }
             Path index = argument.folder().resolve(DEPENDENCIES);
             if (!Files.exists(index)) {
                 continue;
@@ -77,13 +83,16 @@ public class Sbom implements BuildStep {
                         readLicenses(licenses, licenseKey)));
             }
         }
-        CycloneDxEmitter.Component project = new CycloneDxEmitter.Component(groupId,
+        String projectRef = groupId + "/" + artifactId + "/" + version;
+        CycloneDxEmitter.Component project = new CycloneDxEmitter.Component(projectRef,
+                groupId,
                 artifactId,
                 version,
                 "pkg:maven/" + groupId + "/" + artifactId + "@" + version,
                 null,
                 ownLicenses(metadata));
-        String document = new CycloneDxEmitter().emit(format, project, new ArrayList<>(components.values()));
+        List<CycloneDxEmitter.Dependency> dependencies = relationships(projectRef, components.keySet(), graphFiles);
+        String document = new CycloneDxEmitter().emit(format, project, new ArrayList<>(components.values()), dependencies);
 
         Path embedded = Files.createDirectories(context.next()
                 .resolve(RESOURCES).resolve("META-INF").resolve("sbom"));
@@ -116,18 +125,77 @@ public class Sbom implements BuildStep {
                 if (!qualifiers.isEmpty()) {
                     purl.append("?").append(String.join("&", qualifiers));
                 }
-                return new CycloneDxEmitter.Component(key.groupId(), key.artifactId(), parsed.version(),
+                return new CycloneDxEmitter.Component(coordinate, key.groupId(), key.artifactId(), parsed.version(),
                         purl.toString(), sha256, licenses);
             }
         } catch (RuntimeException _) {
         }
         int last = coordinate.lastIndexOf('/');
-        return new CycloneDxEmitter.Component(null,
+        return new CycloneDxEmitter.Component(coordinate,
+                null,
                 last < 0 ? coordinate : coordinate.substring(0, last),
                 last < 0 ? "" : coordinate.substring(last + 1),
                 null,
                 sha256,
                 licenses);
+    }
+
+    private static List<CycloneDxEmitter.Dependency> relationships(String projectRef,
+                                                                   Set<String> componentRefs,
+                                                                   List<Path> graphFiles) throws IOException {
+        if (graphFiles.isEmpty()) {
+            return List.of();
+        }
+        SequencedMap<String, SequencedSet<String>> dependsOn = new LinkedHashMap<>();
+        dependsOn.put(projectRef, new LinkedHashSet<>());
+        for (String ref : componentRefs) {
+            dependsOn.put(ref, new LinkedHashSet<>());
+        }
+        for (Resolver.Resolution resolution : Dependencies.graph(graphFiles, List.of()).values()) {
+            SequencedMap<String, Resolver.Vertex> vertices = resolution.vertices();
+            Map<String, String> vertexKeyByCoordinate = new HashMap<>();
+            for (Resolver.Edge edge : resolution.edges()) {
+                vertexKeyByCoordinate.put(edge.coordinate(), stripVersion(edge.coordinate(), edge.version()));
+            }
+            for (Resolver.Edge edge : resolution.edges()) {
+                if (!edge.followed()) {
+                    continue;
+                }
+                String childRef = ref(stripVersion(edge.coordinate(), edge.version()), vertices);
+                if (childRef == null || !componentRefs.contains(childRef)) {
+                    continue;
+                }
+                String parentRef;
+                if (edge.parent() == null) {
+                    parentRef = projectRef;
+                } else {
+                    String parentKey = vertexKeyByCoordinate.get(edge.parent());
+                    parentRef = parentKey == null ? null : ref(parentKey, vertices);
+                    if (parentRef == null || !dependsOn.containsKey(parentRef)) {
+                        continue;
+                    }
+                }
+                dependsOn.get(parentRef).add(childRef);
+            }
+        }
+        List<CycloneDxEmitter.Dependency> result = new ArrayList<>();
+        dependsOn.forEach((ref, on) -> result.add(new CycloneDxEmitter.Dependency(ref, new ArrayList<>(on))));
+        return result;
+    }
+
+    private static String ref(String vertexKey, SequencedMap<String, Resolver.Vertex> vertices) {
+        Resolver.Vertex vertex = vertices.get(vertexKey);
+        if (vertex == null || vertex.resolvedVersion() == null) {
+            return null;
+        }
+        int slash = vertexKey.indexOf('/');
+        return (slash < 0 ? vertexKey : vertexKey.substring(slash + 1)) + "/" + vertex.resolvedVersion();
+    }
+
+    private static String stripVersion(String coordinate, String version) {
+        return version != null && !version.isEmpty() && coordinate.endsWith("/" + version)
+                ? coordinate.substring(0, coordinate.length() - version.length() - 1)
+                : coordinate;
     }
 
     private static List<License> readLicenses(SequencedProperties licenses, String licenseKey) {

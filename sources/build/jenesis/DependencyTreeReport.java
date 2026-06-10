@@ -18,6 +18,10 @@ public final class DependencyTreeReport {
     }
 
     public void render(Resolver.Resolution resolution) {
+        render(resolution, "Dependency tree:");
+    }
+
+    public void render(Resolver.Resolution resolution, String title) {
         List<Resolver.Edge> edges = resolution.edges();
         if (edges.isEmpty()) {
             return;
@@ -25,7 +29,7 @@ public final class DependencyTreeReport {
         SequencedMap<String, Resolver.Vertex> nodes = resolution.vertices();
         StringBuilder builder = new StringBuilder();
         builder.append(System.lineSeparator())
-                .append(BuildExecutorCallback.YELLOW).append("Dependency tree:").append(BuildExecutorCallback.RESET)
+                .append(BuildExecutorCallback.YELLOW).append(title).append(BuildExecutorCallback.RESET)
                 .append(System.lineSeparator())
                 .append(render(edges, nodes));
         if (!nodes.isEmpty()) {
@@ -122,6 +126,13 @@ public final class DependencyTreeReport {
             }
             if (!meta.isEmpty()) {
                 line.append(' ').append(paint(109, "(" + meta + ")"));
+            }
+            String names = node.licenses().stream()
+                    .map(license -> license.name() != null ? license.name() : license.url())
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.joining(", "));
+            if (!names.isEmpty()) {
+                line.append(' ').append(paint(142, "{" + names + "}"));
             }
         }
         if (!edge.followed()) {
