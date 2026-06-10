@@ -157,6 +157,7 @@ public class MavenRepositoryExport implements BuildStep {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
             factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             NodeList nodes = factory.newDocumentBuilder().parse(stream).getElementsByTagName("version");
             for (int index = 0; index < nodes.getLength(); index++) {
                 String text = nodes.item(index).getTextContent().trim();
@@ -275,6 +276,7 @@ public class MavenRepositoryExport implements BuildStep {
                 DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                 factory.setNamespaceAware(true);
                 factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
                 Element project = factory.newDocumentBuilder().parse(stream).getDocumentElement();
                 NodeList children = project.getChildNodes();
                 for (int index = 0; index < children.getLength(); index++) {
