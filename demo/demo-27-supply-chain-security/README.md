@@ -52,7 +52,7 @@ modules get one guarantee wrong each:
 Layout
 ------
 
-    demo-26-supply-chain-security
+    demo-27-supply-chain-security
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          asserts both modules fail to build
     |-- pom.xml                  aggregator over the two modules

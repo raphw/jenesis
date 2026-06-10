@@ -39,7 +39,7 @@ does that on the `Project` builder (the in-code equivalent of
 Layout
 ------
 
-    demo-17-module-layout
+    demo-18-module-layout
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          builds with Project.Layout.MODULAR
     `-- sources

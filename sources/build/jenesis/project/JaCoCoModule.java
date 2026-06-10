@@ -47,10 +47,6 @@ public class JaCoCoModule implements BuildExecutorModule {
         return new JaCoCoModule(repositories, resolvers, pinning, group);
     }
 
-    public ObservabilityEngine engine() {
-        return new JaCoCo();
-    }
-
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addStep(REQUIRED, new Requires(group), inherited.sequencedKeySet());
@@ -101,7 +97,9 @@ public class JaCoCoModule implements BuildExecutorModule {
                                                      SequencedMap<String, SequencedMap<String, String>> properties)
                 throws IOException {
             List<String> jars = new ArrayList<>(), classes = new ArrayList<>(), sources = new ArrayList<>();
+            List<Path> resolved = new ArrayList<>();
             Path data = null;
+            String artifact = null, version = null;
             for (BuildStepArgument argument : arguments.values()) {
                 for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
                     jars.add(jar.toString());
@@ -117,6 +115,30 @@ public class JaCoCoModule implements BuildExecutorModule {
                 Path source = argument.folder().resolve(BuildStep.SOURCES);
                 if (Files.isDirectory(source)) {
                     sources.add(source.toString());
+                }
+                Path metadata = argument.folder().resolve(BuildStep.METADATA);
+                if (Files.isRegularFile(metadata)) {
+                    SequencedProperties descriptor = SequencedProperties.ofFiles(metadata);
+                    if (artifact == null) {
+                        artifact = descriptor.getProperty("artifact");
+                    }
+                    if (version == null) {
+                        version = descriptor.getProperty("version");
+                    }
+                }
+                Path folder = argument.folder().resolve("resolved");
+                if (Files.isDirectory(folder)) {
+                    try (Stream<Path> files = Files.list(folder)) {
+                        files.filter(file -> file.getFileName().toString().endsWith(".jar")).forEach(resolved::add);
+                    }
+                }
+            }
+            if (artifact != null && version != null) {
+                String suffix = artifact + "-" + version + ".jar";
+                for (Path jar : resolved) {
+                    if (jar.getFileName().toString().endsWith(suffix)) {
+                        classes.add(jar.toString());
+                    }
                 }
             }
             if (data == null || classes.isEmpty()) {

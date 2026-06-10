@@ -65,7 +65,7 @@ from a `module-info.java` and a `project.properties`.
 Layout
 ------
 
-    demo/demo-27-publishing
+    demo/demo-28-publishing
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          stages the release bundle, then resolves it back to prove it is consumable
     |-- project.properties       only what a module declaration cannot express: url, license, developer, scm

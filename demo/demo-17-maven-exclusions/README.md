@@ -36,7 +36,7 @@ Layout
 A single Maven-layout project: a `pom.xml`, the sources, and the test that proves
 the exclusion took effect.
 
-    demo-16-maven-exclusions
+    demo-17-maven-exclusions
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- pom.xml                  depends on commons-text, excluding its commons-lang3 transitive; ships pinned
     |-- sources/sample/Sample.java

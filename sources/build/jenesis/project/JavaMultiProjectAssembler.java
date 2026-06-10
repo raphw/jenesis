@@ -100,13 +100,17 @@ public record JavaMultiProjectAssembler(String packaging,
                 if (module != null) {
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
-                        sub.addModule("test",
-                                new TestModule(repositories, resolvers)
+                        sub.addModule("observed", new InferredTestObservationModule(
+                                repositories,
+                                resolvers,
+                                descriptor.pinning(),
+                                engines -> new TestModule(repositories, resolvers)
                                         .engine(testEngine)
+                                        .observe(engines)
                                         .pinning(descriptor.pinning())
                                         .modulePath(descriptor.modulePath())
-                                        .moduleName(properties.getProperty("module")),
-                                Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
+                                        .moduleName(properties.getProperty("module"))
+                                ), Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
                     }
                 }
             }
