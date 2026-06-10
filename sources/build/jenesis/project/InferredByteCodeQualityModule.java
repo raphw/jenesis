@@ -6,7 +6,6 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
-import build.jenesis.step.Bind;
 
 public class InferredByteCodeQualityModule implements BuildExecutorModule {
 
@@ -47,31 +46,11 @@ public class InferredByteCodeQualityModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        wire(buildExecutor,
+        InferredSourceCodeQualityModule.wire(buildExecutor,
                 inherited,
                 SPOTBUGS,
                 spotbugs,
                 SpotBugsModule.configurationFile(configuration),
                 new SpotBugsModule(repositories, resolvers).pinning(pinning));
-    }
-
-    private static void wire(BuildExecutor buildExecutor,
-                             SequencedMap<String, Path> dependencies,
-                             String name,
-                             boolean enabled,
-                             Path configurationFile,
-                             BuildExecutorModule module) {
-        if (!enabled || configurationFile == null) {
-            return;
-        }
-        buildExecutor.addModule(name, (nested, inherited) -> {
-            nested.addSource("configuration",
-                    new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
-                    configurationFile);
-            SequencedSet<String> inputs = new LinkedHashSet<>();
-            inputs.add("configuration");
-            inputs.addAll(inherited.sequencedKeySet());
-            nested.addModule("execution", module, inputs);
-        }, dependencies.sequencedKeySet());
     }
 }

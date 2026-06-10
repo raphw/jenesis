@@ -83,9 +83,9 @@ a *validator* in the Java toolchain: it runs once the classes exist. Each tool
 writes an XML report into a `reports/<tool>/` subfolder of its step's output, for
 example:
 
-    target/build/.../assemble/check/checkstyle/execution/check/output/reports/checkstyle/checkstyle-report.xml
-    target/build/.../assemble/check/pmd/execution/check/output/reports/pmd/pmd-report.xml
-    target/build/.../assemble/binary/validate/spotbugs/execution/check/output/reports/spotbugs/spotbugs-report.xml
+    target/build/.../assemble/check/checkstyle/check/output/reports/checkstyle/checkstyle-report.xml
+    target/build/.../assemble/check/pmd/check/output/reports/pmd/pmd-report.xml
+    target/build/.../assemble/binary/validate/spotbugs/check/output/reports/spotbugs/spotbugs-report.xml
 
 A `stage` build collects every report from every module into one place, each kind
 in its own subfolder: `target/stage/reports/<kind>/<module>/`, for example

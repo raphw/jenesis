@@ -132,23 +132,22 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
                 new CodeNarcModule(repositories, resolvers).pinning(pinning));
     }
 
-    private static void wire(BuildExecutor buildExecutor,
-                             SequencedMap<String, Path> dependencies,
-                             String name,
-                             boolean enabled,
-                             Path configurationFile,
-                             BuildExecutorModule module) {
+    static void wire(BuildExecutor buildExecutor,
+                     SequencedMap<String, Path> inherited,
+                     String name,
+                     boolean enabled,
+                     Path configurationFile,
+                     BuildExecutorModule module) {
         if (!enabled || configurationFile == null) {
             return;
         }
-        buildExecutor.addModule(name, (nested, inherited) -> {
-            nested.addSource("configuration",
-                    new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
-                    configurationFile);
-            SequencedSet<String> inputs = new LinkedHashSet<>();
-            inputs.add("configuration");
-            inputs.addAll(inherited.sequencedKeySet());
-            nested.addModule("execution", module, inputs);
-        }, dependencies.sequencedKeySet());
+        String configuration = name + "-configuration";
+        buildExecutor.addSource(configuration,
+                new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
+                configurationFile);
+        SequencedSet<String> inputs = new LinkedHashSet<>();
+        inputs.add(configuration);
+        inputs.addAll(inherited.sequencedKeySet());
+        buildExecutor.addModule(name, module, inputs);
     }
 }

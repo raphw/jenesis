@@ -6,7 +6,6 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
-import build.jenesis.step.Bind;
 
 public class InferredSourceFormattingModule implements BuildExecutorModule {
 
@@ -16,8 +15,8 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
 
     public static final String GOOGLE_JAVA_FORMAT = "google-java-format",
             PALANTIR_JAVA_FORMAT = "palantir-java-format",
-            KTLINT = "ktlint",
-            SCALAFMT = "scalafmt";
+            KTLINT = "ktlint-format",
+            SCALAFMT = "scalafmt-format";
 
     private final Path configuration;
     private final Map<String, Repository> repositories;
@@ -92,31 +91,11 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                         inherited.sequencedKeySet());
             }
         }
-        wire(buildExecutor, inherited, KTLINT, ktlint,
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, KTLINT, ktlint,
                 KtlintFormatModule.configurationFile(configuration),
                 new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
-        wire(buildExecutor, inherited, SCALAFMT, scalafmt,
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
                 new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
-    }
-
-    private static void wire(BuildExecutor buildExecutor,
-                             SequencedMap<String, Path> dependencies,
-                             String name,
-                             boolean enabled,
-                             Path configurationFile,
-                             BuildExecutorModule module) {
-        if (!enabled || configurationFile == null) {
-            return;
-        }
-        buildExecutor.addModule(name, (nested, inherited) -> {
-            nested.addSource("configuration",
-                    new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
-                    configurationFile);
-            SequencedSet<String> inputs = new LinkedHashSet<>();
-            inputs.add("configuration");
-            inputs.addAll(inherited.sequencedKeySet());
-            nested.addModule("execution", module, inputs);
-        }, dependencies.sequencedKeySet());
     }
 }
