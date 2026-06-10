@@ -29,7 +29,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
-                switch (System.getProperty("jenesis.java.format", "")) {
+                switch (System.getProperty("jenesis.format.java", "")) {
                     case "google" -> JavaFormatter.GOOGLE;
                     case "palantir" -> JavaFormatter.PALANTIR;
                     default -> null;

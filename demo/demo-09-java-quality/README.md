@@ -59,7 +59,7 @@ SpotBugs, which runs *after* `javac` and so only ever sees compiled classes, not
 the project root. The Java formatter has no configuration file of its own, so it
 is selected explicitly instead, here through `jenesis.properties`:
 
-    jenesis.java.format=google
+    jenesis.format.java=google
 
 `palantir` selects the Palantir formatter instead; omitting the key runs no Java
 formatter at all.
