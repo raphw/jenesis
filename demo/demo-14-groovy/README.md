@@ -36,7 +36,7 @@ How Jenesis builds it
 ---------------------
 
 Jenesis drives the Groovy compiler through the default
-`JavaMultiProjectAssembler`, with the module participating in the Java module
+`InferredMultiProjectAssembler`, with the module participating in the Java module
 system and emitting a modular jar alongside a generated POM.
 
 How Groovy fits the inferred compiler chain

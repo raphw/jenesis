@@ -51,7 +51,7 @@ How the convenience make is wired
 
     BuildExecutor root = BuildExecutor.of(Path.of("target"));
     root.addModule("modules", ModularProject.make(Path.of("."),
-            (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
+            (descriptor, repositories, resolvers) -> new InferredMultiProjectAssembler().apply(
                     new ProjectModuleDescriptor(descriptor, true, false, false, null, PathPlacement.MODULE_PATH),
                     repositories,
                     resolvers)));
@@ -60,7 +60,7 @@ How the convenience make is wired
 The two-argument `make` is the convenience form: it discovers the modules under
 the root and fills in the Jenesis module repository, a modular jar resolver, and
 a digest, so the only thing left to provide is the assembler. The assembler here
-is the stock `JavaMultiProjectAssembler`; each discovered module arrives as a
+is the stock `InferredMultiProjectAssembler`; each discovered module arrives as a
 `ModularModuleDescriptor`, which is wrapped in a `ProjectModuleDescriptor` -
 with `PathPlacement.MODULE_PATH`, since these are genuine modules - so the
 standard compile/jar/test flow runs unchanged.

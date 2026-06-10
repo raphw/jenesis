@@ -184,7 +184,7 @@ module's `packages` step into `stage/packages/`, the staging analogue of `stage/
 and `stage/modular`.
 
 Rather than set that property on the command line, `build/Demo.java` configures it
-**explicitly on the assembler** - `new JavaMultiProjectAssembler().packaging("app-image")`,
+**explicitly on the assembler** - `new InferredMultiProjectAssembler().packaging("app-image")`,
 no `System.setProperty` - then builds the fixed `stage` target and launches the produced
 image, forwarding its own arguments to the packaged app's `main`:
 
@@ -366,12 +366,12 @@ in the pipeline; keep the default when you also need a `pom.xml`.
 ## 13. Customizing the build - [`custom-assembler`](demo-19-custom-assembler/README.md)
 
 The remaining demos open up the template. `custom-assembler` keeps the standard
-MODULAR_TO_MAVEN flow but **wraps** the stock `JavaMultiProjectAssembler` so each
+MODULAR_TO_MAVEN flow but **wraps** the stock `InferredMultiProjectAssembler` so each
 module's sources pass through a preprocessing step (a `${greeting}` substitution)
 before compile, jar, and test run unchanged:
 
     new Project()
-            .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler()))
+            .assembler(new PreprocessingAssembler(new InferredMultiProjectAssembler()))
 
 The trick is small and reusable: the wrapper adds a `preprocess` step that
 rewrites the sources, then redirects the descriptor at it with
@@ -383,7 +383,7 @@ same shape. This demo is launched with `java build/Demo.java`.
 
 [`custom-jmod`](demo-20-custom-jmod/README.md) is a sibling example of the same wrapping technique, applied to a
 different extension point. It enables the stock `jmod`, `jlink`, and `jpackage`
-steps (`new JavaMultiProjectAssembler().jmod(true).jlink(true).packaging("app-image")`)
+steps (`new InferredMultiProjectAssembler().jmod(true).jlink(true).packaging("app-image")`)
 and only *contributes an extra input*: a `config` step that emits a `jmodconfig/`
 directory, declared as the module's `content` with `descriptor.content("config")`.
 The stock `jmod` step depends on every step named in `content`, routes
@@ -437,7 +437,7 @@ whole standard toolchain is reused through one call:
 `java-modular-multi`). The two-argument `make` discovers the modules under the
 root and supplies sane defaults for the repositories, resolvers, and digest - the
 values a normal build would configure - so a quick trial build needs nothing but
-a root and an assembler. The assembler is the stock `JavaMultiProjectAssembler`,
+a root and an assembler. The assembler is the stock `InferredMultiProjectAssembler`,
 adapted with a one-line wrapper so each discovered descriptor becomes a
 `ProjectModuleDescriptor`. Reach for the full `make(...)` overload (the one
 `Project` itself uses) when you need a custom repository, strict pinning, or a

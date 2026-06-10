@@ -2,7 +2,7 @@ package build;
 
 import module java.base;
 import build.jenesis.Project;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 
 /**
  * Builds this project's {@code stage} goal with jpackage packaging enabled, then
@@ -23,10 +23,10 @@ public class Demo {
     static void main(String[] args) throws Exception {
         // Configure packaging explicitly on the assembler instead of through the
         // -Djenesis.java.jpackage system property: hand the Project a stock
-        // JavaMultiProjectAssembler with its packaging type set, via the wither, to a
+        // InferredMultiProjectAssembler with its packaging type set, via the wither, to a
         // self-contained app-image.
         Project project = new Project()
-                .assembler(new JavaMultiProjectAssembler().packaging("app-image"));
+                .assembler(new InferredMultiProjectAssembler().packaging("app-image"));
 
         // `stage/packages` is a fixed build target: building `stage` returns a map keyed
         // by the steps that ran, so the image folder is read straight from that map under

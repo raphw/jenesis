@@ -15,42 +15,49 @@ import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
 import build.jenesis.step.Jar;
+import build.jenesis.step.NativeImage;
 import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
-public record JavaMultiProjectAssembler(String packaging,
-                                        boolean jmod,
-                                        boolean jlink,
-                                        boolean bundle,
-                                        TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+public record InferredMultiProjectAssembler(String packaging,
+                                            boolean jmod,
+                                            boolean jlink,
+                                            boolean bundle,
+                                            boolean nativeImage,
+                                            TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
-    public JavaMultiProjectAssembler() {
+    public InferredMultiProjectAssembler() {
         String packagingOverride = System.getProperty("jenesis.java.jpackage");
         this(packagingOverride == null ? null : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 Boolean.getBoolean("jenesis.java.jmod"),
                 Boolean.getBoolean("jenesis.java.jlink"),
                 Boolean.getBoolean("jenesis.java.bundle"),
+                Boolean.getBoolean("jenesis.java.native"),
                 null);
     }
 
-    public JavaMultiProjectAssembler packaging(String packaging) {
-        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
+    public InferredMultiProjectAssembler packaging(String packaging) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
     }
 
-    public JavaMultiProjectAssembler jmod(boolean jmod) {
-        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
+    public InferredMultiProjectAssembler jmod(boolean jmod) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
     }
 
-    public JavaMultiProjectAssembler jlink(boolean jlink) {
-        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
+    public InferredMultiProjectAssembler jlink(boolean jlink) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
     }
 
-    public JavaMultiProjectAssembler bundle(boolean bundle) {
-        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
+    public InferredMultiProjectAssembler bundle(boolean bundle) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
     }
 
-    public JavaMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new JavaMultiProjectAssembler(packaging, jmod, jlink, bundle, testEngine);
+    public InferredMultiProjectAssembler nativeImage(boolean nativeImage) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+    }
+
+    public InferredMultiProjectAssembler testEngine(TestEngine testEngine) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
     }
 
     @Override
@@ -159,6 +166,13 @@ public record JavaMultiProjectAssembler(String packaging,
             if (bundle) {
                 sub.addStep("bundle",
                         new Bundle(),
+                        Stream.concat(
+                                Stream.of("prepare", "binary"),
+                                descriptor.artifacts().stream()));
+            }
+            if (nativeImage) {
+                sub.addStep("native-image",
+                        new NativeImage(descriptor.modulePath()),
                         Stream.concat(
                                 Stream.of("prepare", "binary"),
                                 descriptor.artifacts().stream()));

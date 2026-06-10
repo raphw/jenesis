@@ -9,7 +9,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.JMod;
@@ -38,7 +38,7 @@ public class Demo {
 
     static void main(String[] args) throws Exception {
         Project project = new Project()
-                .assembler(new ConfigJmodAssembler(new JavaMultiProjectAssembler()
+                .assembler(new ConfigJmodAssembler(new InferredMultiProjectAssembler()
                         .jmod(true)
                         .jlink(true)
                         .packaging("app-image")));

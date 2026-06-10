@@ -10,13 +10,13 @@ import build.jenesis.Resolver;
 import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.project.ExternalModule;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 
 /**
  * The {@code ExternalModule} counterpart of the {@code ../internal-module} demo.
- * It does exactly the same thing - wraps the stock {@code JavaMultiProjectAssembler}
+ * It does exactly the same thing - wraps the stock {@code InferredMultiProjectAssembler}
  * so a build module preprocesses the project's sources (a {@code ${greeting}}
  * substitution driven by the {@code org.json} dependency) before the regular
  * flow - but the build module is consumed as a published artifact rather than
@@ -71,7 +71,7 @@ public class Demo {
         // launch the produced module so its main prints the substituted greeting.
         Project project = new Project()
                 .assembler(new PreprocessingAssembler(
-                        new JavaMultiProjectAssembler(),
+                        new InferredMultiProjectAssembler(),
                         Map.of("module", repository),
                         Map.of("module", new ModularJarResolver(true))));
         System.exit(new Execute(project).execute(args));

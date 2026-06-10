@@ -27,7 +27,7 @@ Layout
 
 `Sample.java` uses `org.apache.commons.lang3.StringUtils`, which is what makes
 the build resolve the real dependency. Under the hood Jenesis drives plain
-`javac` through the default `JavaMultiProjectAssembler`.
+`javac` through the default `InferredMultiProjectAssembler`.
 
 Printing the dependency tree
 ----------------------------

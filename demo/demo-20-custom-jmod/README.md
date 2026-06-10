@@ -81,9 +81,9 @@ How the wrapping works
 ----------------------
 
 `Demo.java` hands `Project` a `ConfigJmodAssembler` that wraps a stock
-`JavaMultiProjectAssembler` with `jmod`, `jlink`, and packaging enabled:
+`InferredMultiProjectAssembler` with `jmod`, `jlink`, and packaging enabled:
 
-    new ConfigJmodAssembler(new JavaMultiProjectAssembler()
+    new ConfigJmodAssembler(new InferredMultiProjectAssembler()
             .jmod(true).jlink(true).packaging("app-image"))
 
 With those flags the stock assembler already adds the `jmod`, `jlink`, and
