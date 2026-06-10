@@ -160,7 +160,7 @@ public class MavenDefaultRepository implements MavenRepository {
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
                         LazyRepositoryItem item = fetch(
                                 entry.getValue(),
-                                path + "." + entry.getKey().toLowerCase(),
+                                path + "." + entry.getKey().toLowerCase(Locale.ROOT),
                                 false);
                         if (valid) {
                             MessageDigest digest;
@@ -170,7 +170,12 @@ public class MavenDefaultRepository implements MavenRepository {
                                 throw new IllegalStateException(e);
                             }
                             try (FileChannel channel = FileChannel.open(cached)) {
-                                digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+                                ByteBuffer buffer = ByteBuffer.allocate(1 << 16);
+                                while (channel.read(buffer) != -1) {
+                                    buffer.flip();
+                                    digest.update(buffer);
+                                    buffer.clear();
+                                }
                             }
                             Optional<InputStream> candidate = item.toLazyInputStream();
                             if (candidate.isPresent()) {
@@ -225,7 +230,7 @@ public class MavenDefaultRepository implements MavenRepository {
         if (validate) {
             for (Map.Entry<String, URI> entry : validations.entrySet()) {
                 LazyRepositoryItem item = fetch(entry.getValue(),
-                        path + "." + entry.getKey().toLowerCase(),
+                        path + "." + entry.getKey().toLowerCase(Locale.ROOT),
                         false);
                 MessageDigest digest;
                 try {
@@ -279,9 +284,15 @@ public class MavenDefaultRepository implements MavenRepository {
             return Optional.of(temporary);
         }
         try {
-            for (MessageDigest digest : digests.values()) {
-                try (FileChannel channel = FileChannel.open(temporary)) {
-                    digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+            try (FileChannel channel = FileChannel.open(temporary)) {
+                ByteBuffer buffer = ByteBuffer.allocate(1 << 16);
+                while (channel.read(buffer) != -1) {
+                    buffer.flip();
+                    for (MessageDigest digest : digests.values()) {
+                        digest.update(buffer);
+                        buffer.rewind();
+                    }
+                    buffer.clear();
                 }
             }
             String invalid = null;
