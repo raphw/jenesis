@@ -40,6 +40,10 @@ public class SbomTest {
         licenses.setProperty("maven/org.example/lib/1.2.3#0#name", "Apache-2.0");
         licenses.setProperty("maven/org.example/lib/1.2.3#0#url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
         licenses.store(argument.resolve("licenses.properties"));
+        SequencedProperties graph = new SequencedProperties();
+        graph.setProperty("edge/0", "main\tcompile\tmaven\ttrue\tcompile\t1.2.3\t\tmaven/org.example/lib/1.2.3");
+        graph.setProperty("vertex/main/compile/maven/org.example/lib", "1.2.3\t\tfalse");
+        graph.store(argument.resolve("graph.properties"));
         SequencedProperties metadata = new SequencedProperties();
         metadata.setProperty("project", "build.jenesis");
         metadata.setProperty("artifact", "demo");
@@ -69,6 +73,10 @@ public class SbomTest {
                 .contains("\"purl\": \"pkg:maven/org.example/lib@1.2.3\"")
                 .contains("\"content\": \"" + sha256 + "\"")
                 .contains("\"id\": \"Apache-2.0\"");
+        assertThat(sbom)
+                .as("the resolved dependency graph is emitted as CycloneDX relationships")
+                .contains("\"bom-ref\": \"org.example/lib/1.2.3\"")
+                .contains("{ \"ref\": \"build.jenesis/demo/1.0.0\", \"dependsOn\": [\"org.example/lib/1.2.3\"] }");
 
         SequencedProperties manifest = SequencedProperties.ofFiles(next.resolve("manifest.mf"));
         assertThat(manifest.getProperty("Sbom-Format")).isEqualTo("CycloneDX");

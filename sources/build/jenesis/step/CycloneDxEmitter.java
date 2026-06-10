@@ -51,18 +51,30 @@ public class CycloneDxEmitter {
             Map.entry("common development and distribution license 1.0", "CDDL-1.0"),
             Map.entry("cddl-1.0", "CDDL-1.0"));
 
-    public record Component(String group, String name, String version, String purl, String sha256, List<License> licenses) {
+    public record Component(String bomRef, String group, String name, String version, String purl, String sha256, List<License> licenses) {
     }
 
-    public String emit(Format format, Component metadata, List<Component> components) {
-        List<Component> sorted = new ArrayList<>(components);
-        sorted.sort(Comparator.comparing(component -> component.purl() == null
+    public record Dependency(String ref, List<String> dependsOn) {
+    }
+
+    public String emit(Format format, Component metadata, List<Component> components, List<Dependency> dependencies) {
+        List<Component> sortedComponents = new ArrayList<>(components);
+        sortedComponents.sort(Comparator.comparing(component -> component.purl() == null
                 ? component.group() + ":" + component.name() + ":" + component.version()
                 : component.purl()));
-        return format == Format.XML ? emitXml(metadata, sorted) : emitJson(metadata, sorted);
+        List<Dependency> sortedDependencies = new ArrayList<>();
+        for (Dependency dependency : dependencies) {
+            List<String> dependsOn = new ArrayList<>(dependency.dependsOn());
+            dependsOn.sort(Comparator.naturalOrder());
+            sortedDependencies.add(new Dependency(dependency.ref(), dependsOn));
+        }
+        sortedDependencies.sort(Comparator.comparing(Dependency::ref));
+        return format == Format.XML
+                ? emitXml(metadata, sortedComponents, sortedDependencies)
+                : emitJson(metadata, sortedComponents, sortedDependencies);
     }
 
-    private String emitJson(Component metadata, List<Component> components) {
+    private String emitJson(Component metadata, List<Component> components, List<Dependency> dependencies) {
         StringBuilder builder = new StringBuilder();
         builder.append("{\n");
         builder.append("  \"bomFormat\": \"CycloneDX\",\n");
@@ -82,6 +94,23 @@ public class CycloneDxEmitter {
             }
             builder.append("  ]");
         }
+        if (!dependencies.isEmpty()) {
+            builder.append(",\n  \"dependencies\": [\n");
+            for (int index = 0; index < dependencies.size(); index++) {
+                Dependency dependency = dependencies.get(index);
+                builder.append("    { \"ref\": \"").append(escapeJson(dependency.ref())).append("\"");
+                if (!dependency.dependsOn().isEmpty()) {
+                    builder.append(", \"dependsOn\": [");
+                    for (int on = 0; on < dependency.dependsOn().size(); on++) {
+                        builder.append(on > 0 ? ", " : "")
+                                .append("\"").append(escapeJson(dependency.dependsOn().get(on))).append("\"");
+                    }
+                    builder.append("]");
+                }
+                builder.append(" }").append(index + 1 < dependencies.size() ? ",\n" : "\n");
+            }
+            builder.append("  ]");
+        }
         builder.append("\n}\n");
         return builder.toString();
     }
@@ -90,6 +119,9 @@ public class CycloneDxEmitter {
         String pad = " ".repeat(indent);
         builder.append("{\n");
         builder.append(pad).append("  \"type\": \"library\",\n");
+        if (component.bomRef() != null) {
+            builder.append(pad).append("  \"bom-ref\": \"").append(escapeJson(component.bomRef())).append("\",\n");
+        }
         if (component.group() != null) {
             builder.append(pad).append("  \"group\": \"").append(escapeJson(component.group())).append("\",\n");
         }
@@ -125,7 +157,7 @@ public class CycloneDxEmitter {
         builder.append("\n").append(pad).append("}");
     }
 
-    private String emitXml(Component metadata, List<Component> components) {
+    private String emitXml(Component metadata, List<Component> components, List<Dependency> dependencies) {
         Document document;
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -145,6 +177,17 @@ public class CycloneDxEmitter {
             Element wrapper = (Element) bom.appendChild(document.createElementNS(NAMESPACE, "components"));
             for (Component component : components) {
                 appendXmlComponent(document, wrapper, component);
+            }
+        }
+        if (!dependencies.isEmpty()) {
+            Element wrapper = (Element) bom.appendChild(document.createElementNS(NAMESPACE, "dependencies"));
+            for (Dependency dependency : dependencies) {
+                Element node = (Element) wrapper.appendChild(document.createElementNS(NAMESPACE, "dependency"));
+                node.setAttribute("ref", dependency.ref());
+                for (String on : dependency.dependsOn()) {
+                    Element child = (Element) node.appendChild(document.createElementNS(NAMESPACE, "dependency"));
+                    child.setAttribute("ref", on);
+                }
             }
         }
         Transformer transformer;
@@ -167,6 +210,9 @@ public class CycloneDxEmitter {
     private void appendXmlComponent(Document document, Node parent, Component component) {
         Element node = (Element) parent.appendChild(document.createElementNS(NAMESPACE, "component"));
         node.setAttribute("type", "library");
+        if (component.bomRef() != null) {
+            node.setAttribute("bom-ref", component.bomRef());
+        }
         if (component.group() != null) {
             appendXmlText(document, node, "group", component.group());
         }

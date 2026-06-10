@@ -26,6 +26,7 @@ import build.jenesis.step.Bind;
 import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.TestReportStaging;
+import build.jenesis.step.Tree;
 
 public record Project(
         Path root,
@@ -49,6 +50,7 @@ public record Project(
             STAGE = "stage",
             EXPORT = "export",
             PIN = "pin",
+            DEPENDENCIES = "dependencies",
             METADATA = "metadata",
             HELP = "help",
             SKILL = "skill";
@@ -106,6 +108,8 @@ public record Project(
             executor.addModule(PIN, new PinModule(project.root(),
                     "pom.xml",
                     (path, file) -> new PinPom("maven", path, file, project.hashFunction())), BUILD);
+            executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
+                    "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -163,6 +167,8 @@ public record Project(
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
                     (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
+            executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
+                    "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -230,6 +236,8 @@ public record Project(
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
                     (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
+            executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
+                    "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -333,13 +341,14 @@ public record Project(
                     Without selectors, the default target (%{name}build%{reset}) is executed.
 
                     %{header}Selectors (available in every layout):%{reset}
-                      %{name}build%{reset}       Resolve, compile, package, and test every module
-                      %{name}stage%{reset}       Stage produced artifacts into a local repository
-                      %{name}export%{reset}      Export the staged repository as the build deliverable
-                      %{name}pin%{reset}         Rewrite version/checksum pins into pom.xml or module-info.java
-                      %{name}metadata%{reset}    Refresh the metadata module outputs
-                      %{name}help%{reset}        Print this message
-                      %{name}skill%{reset}       Print an agent-oriented onboarding briefing (plain text)
+                      %{name}build%{reset}        Resolve, compile, package, and test every module
+                      %{name}stage%{reset}        Stage produced artifacts into a local repository
+                      %{name}export%{reset}       Export the staged repository as the build deliverable
+                      %{name}pin%{reset}          Rewrite version/checksum pins into pom.xml or module-info.java
+                      %{name}dependencies%{reset} Print each module's resolved dependency graph (with licenses)
+                      %{name}metadata%{reset}     Refresh the metadata module outputs
+                      %{name}help%{reset}         Print this message
+                      %{name}skill%{reset}        Print an agent-oriented onboarding briefing (plain text)
 
                     %{header}Module-scoped selector:%{reset}
                       A selector starting with %{name}+%{reset} is shorthand for a single project module:

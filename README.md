@@ -244,8 +244,9 @@ which compiles and packages every discovered module but stops short of the downs
 `Project.defaultTarget(...)` changes the default (there is no matching system property). The other
 top-level targets the shipped layouts register are `export` (on `MAVEN`, `MODULAR`, and `MODULAR_TO_MAVEN`;
 `MAVEN` publishes the staged tree into the local Maven repository, `MODULAR` into the local Jenesis module
-repository, and `MODULAR_TO_MAVEN` into both) and `pin` (rewrite every `pom.xml` / `module-info.java` so
-the full transitive closure is pinned at source level).
+repository, and `MODULAR_TO_MAVEN` into both), `pin` (rewrite every `pom.xml` / `module-info.java` so
+the full transitive closure is pinned at source level), and `dependencies` (print each module's resolved
+dependency graph, with licenses, from the persisted `graph.properties`; see *Printing the dependency tree*).
 
 **Module selectors.** Selectors that start with `+` are rewritten by the active layout into the per-project
 module path of that name, so a single module can be built without dragging its siblings in. The shipped
@@ -524,6 +525,21 @@ gradient tints the tree connectors. A `Resolved dependencies` list of negotiated
 resolves to `maven/org.slf4j/slf4j-api/2.0.16`). Because printing rides on the resolve rather than forcing one,
 an up-to-date (cached) `Dependencies` step prints nothing; the tree appears whenever the dependencies are
 actually resolved.
+
+To print the tree from **persisted** data instead - so it renders even when the resolve was cached - run the
+`dependencies` selector:
+
+    java build/jenesis/Project.java dependencies
+
+`dependencies` is a top-level selector (a sibling of `stage`/`export`/`pin`) that always runs when requested. The
+`Inventory` step surfaces each module's `graph.properties` and `licenses.properties`, and the `dependencies` step
+reads them back, reconstructs the graph per `<group>/<scope>`, and renders it with the same `DependencyTreeReport`
+- now with each dependency's license shown inline (`{Apache-2.0}`) next to its module name. Unlike the
+`jenesis.print.dependencies` flag, it does not depend on the resolve running in this invocation.
+
+The same `graph.properties` feeds the SBOM: the `Sbom` step reads it and emits the CycloneDX `dependencies`
+array (`ref`/`dependsOn`, each component carrying a `bom-ref`) alongside the components and licenses, so the
+emitted bill of materials records the resolved dependency relationships, not just a flat component list.
 
 ### Running inside Docker
 
