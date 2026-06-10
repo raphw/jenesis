@@ -826,6 +826,9 @@ public record Project(
                                         and a verifying formatter; the
                                         kotlin/scala/groovy-quality demos do the
                                         same per language.
+                      code-coverage     Inferred test observation: JaCoCo records
+                                        coverage during the test run, selected
+                                        with -Djenesis.test.observe=jacoco.
                       custom-assembler  Wrap `JavaMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,

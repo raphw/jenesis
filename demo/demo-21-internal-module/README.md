@@ -6,7 +6,7 @@ its own project, loaded straight from local source - instead of an inline build
 step. The plugin performs a `${greeting}` substitution over the project's Java
 sources before the regular compile, jar, and test flow runs, and it leans on an
 external dependency (`org.json`) to do so. The companion
-`../demo-21-external-module` runs the identical plugin, but resolves it as a
+`../demo-22-external-module` runs the identical plugin, but resolves it as a
 published artifact rather than compiling it from source.
 
 Run it
@@ -26,7 +26,7 @@ Built without the plugin the literal `${greeting}` would print instead.
 Layout
 ------
 
-    demo/demo-20-internal-module
+    demo/demo-21-internal-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (Project + wrapping assembler)
     |-- plugin/
@@ -114,7 +114,7 @@ from the Jenesis module repository (and `org.json` here is itself a named module
 but `InternalModule` takes arbitrary resolvers - wire a Maven resolver and the
 closure is fetched by coordinate, which is how an automatic-module or otherwise
 non-modular dependency is brought in and loaded into the layer. (The pure MODULAR
-*layout* in `../demo-17-module-layout` is the stricter case: it resolves only by
+*layout* in `../demo-18-module-layout` is the stricter case: it resolves only by
 module name and so rejects automatic modules outright.)
 
 Because the two `build.jenesis` copies are isolated rather than merged, a build

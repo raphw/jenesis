@@ -345,6 +345,10 @@ public class TestModule implements BuildExecutorModule {
     }
 
     public TestModule observe(ObservabilityEngine... observers) {
+        return observe(List.of(observers));
+    }
+
+    public TestModule observe(List<ObservabilityEngine> observers) {
         return new TestModule(engine,
                 isTest,
                 factory,
@@ -360,7 +364,7 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 dependencyGroup,
-                List.of(observers));
+                observers);
     }
 
     @Override

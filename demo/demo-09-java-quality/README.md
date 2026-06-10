@@ -77,7 +77,7 @@ writes an XML report under its step's output folder, for example:
 
 By default the linters are report-only: they record findings but do not fail the
 build. Pass `.strict(true)` when wiring a tool yourself (see
-`../demo-18-custom-assembler`) to turn a finding into a build failure.
+`../demo-19-custom-assembler`) to turn a finding into a build failure.
 
 Formatting: verify, and how to reformat
 ---------------------------------------

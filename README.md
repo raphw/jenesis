@@ -1284,7 +1284,7 @@ path, the Kotlin compiler (its `kotlinc`-group scope `plugin` jars) to `-Xplugin
 `scalac`-group scope `plugin` jars) to `-Xplugin:<jar>`. Each compile step matches
 only its own module's plugin artifacts (never a sibling module's), so a processor or plugin is loaded only by the
 compiler it was declared for. `demo/demo-08-annotations` runs a Java annotation processor (Immutables) and
-`demo/demo-28-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
+`demo/demo-29-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
 is not run until it is declared; the Scala path is wired identically.
 
 An optional space-separated `<algorithm>/<hex>` after the version on a `@jenesis.pin` Javadoc tag

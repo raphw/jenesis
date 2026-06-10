@@ -105,4 +105,4 @@ dependency tree as the module resolves (a verbose toggle, not a build step):
 Because this is the default MODULAR_TO_MAVEN layout, `requires org.slf4j` is shown
 as the Maven coordinate it resolves to, with a Maven scope. Under the pure MODULAR
 layout the same dependency shows as a Java module name (`module/org.slf4j`) instead
-- see `../demo-17-module-layout`, which contrasts the two.
+- see `../demo-18-module-layout`, which contrasts the two.
