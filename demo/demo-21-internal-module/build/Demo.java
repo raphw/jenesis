@@ -7,13 +7,13 @@ import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.project.InternalModule;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 
 /**
  * Like the {@code custom-assembler} demo, this wraps the stock
- * {@code JavaMultiProjectAssembler} so the project's Java sources are
+ * {@code InferredMultiProjectAssembler} so the project's Java sources are
  * preprocessed (a {@code ${greeting}} substitution) before the regular compile,
  * jar, and test flow runs. The difference: the preprocessing is not an inline
  * build step but a build module loaded from local source with
@@ -36,7 +36,7 @@ public class Demo {
 
     static void main(String[] args) throws Exception {
         Project project = new Project()
-                .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler(), Path.of("plugin")));
+                .assembler(new PreprocessingAssembler(new InferredMultiProjectAssembler(), Path.of("plugin")));
         // Build the project (running the substitution plugin) and launch the
         // produced module so its main prints the rewritten greeting - the result
         // the plugin set out to produce. Execute reads the build's inventory to

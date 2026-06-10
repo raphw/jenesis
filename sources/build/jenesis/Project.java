@@ -17,7 +17,7 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.module.ModularStaging;
 import build.jenesis.module.PinModuleInfo;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -743,7 +743,7 @@ public record Project(
                                                         <classRegex>[#<method>]
                                                         entries restricting which
                                                         tests the default
-                                                        JavaMultiProjectAssembler
+                                                        InferredMultiProjectAssembler
                                                         executes. Changing the
                                                         value invalidates the test
                                                         step's cache and forces a
@@ -829,7 +829,7 @@ public record Project(
                       code-coverage     Inferred test observation: JaCoCo records
                                         coverage during the test run, selected
                                         with -Djenesis.test.observe=jacoco.
-                      custom-assembler  Wrap `JavaMultiProjectAssembler` to
+                      custom-assembler  Wrap `InferredMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,
                                         layout, or assembler (code generation step).
@@ -972,7 +972,7 @@ public record Project(
                 List.of(),
                 null,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
-                new JavaMultiProjectAssembler(),
+                new InferredMultiProjectAssembler(),
                 Map.of(),
                 Map.of());
     }

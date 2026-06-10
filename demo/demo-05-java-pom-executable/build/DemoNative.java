@@ -2,7 +2,7 @@ package build;
 
 import module java.base;
 import build.jenesis.Project;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 
 /**
  * Sibling of {@link Demo} that builds a <em>fully bundled native installer</em>
@@ -41,7 +41,7 @@ public class DemoNative {
             type = "deb";
         }
         Project project = new Project()
-                .assembler(new JavaMultiProjectAssembler().packaging(type));
+                .assembler(new InferredMultiProjectAssembler().packaging(type));
 
         // Same fixed target as Demo: building `stage` returns a map keyed by the steps that
         // ran, and `stage/packages` holds whatever jpackage produced - here a single native

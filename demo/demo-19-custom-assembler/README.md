@@ -55,11 +55,11 @@ How the wrapping works
 The preprocessing is delivered by a custom assembler that wraps the stock one.
 `Project.assembler(...)` accepts any
 `MultiProjectAssembler<? super ProjectModuleDescriptor>`. The default is
-`JavaMultiProjectAssembler`; this demo passes a `PreprocessingAssembler` that
+`InferredMultiProjectAssembler`; this demo passes a `PreprocessingAssembler` that
 holds the stock assembler as a delegate:
 
         new Project()
-                .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler()))
+                .assembler(new PreprocessingAssembler(new InferredMultiProjectAssembler()))
 
 For each module the wrapper does three things:
 

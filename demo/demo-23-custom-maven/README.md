@@ -51,7 +51,7 @@ How the convenience make is wired
 
     BuildExecutor root = BuildExecutor.of(Path.of("target"));
     root.addModule("maven", MavenProject.make(Path.of("."),
-            (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
+            (descriptor, repositories, resolvers) -> new InferredMultiProjectAssembler().apply(
                     new ProjectModuleDescriptor(descriptor, true, false, false, null, PathPlacement.CLASS_PATH),
                     repositories,
                     resolvers)));
@@ -60,7 +60,7 @@ How the convenience make is wired
 The two-argument `make` is the convenience form: it discovers the Maven modules
 under the root and fills in a Maven Central repository, a Maven POM resolver, and
 a digest, so the only thing left to provide is the assembler. The assembler here
-is the stock `JavaMultiProjectAssembler`; each discovered module arrives as a
+is the stock `InferredMultiProjectAssembler`; each discovered module arrives as a
 `MavenModuleDescriptor`, which is wrapped in a `ProjectModuleDescriptor` (tests
 on, no sources or javadoc jar, lenient pinning, class-path compilation) so the
 standard compile/jar/test flow runs unchanged.

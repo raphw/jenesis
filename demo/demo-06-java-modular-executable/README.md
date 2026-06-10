@@ -18,7 +18,7 @@ receive on its command line:
     java build/Demo.java Ada Lovelace
 
 `Demo.java` configures packaging directly on the assembler -
-`new JavaMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
+`new InferredMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
 `-Djenesis.java.jpackage=app-image` with no system property - builds the `stage` goal,
 then reads the image folder from the `stage/packages` entry of the map that
 `build("stage")` returns (a fixed build target) and launches the produced platform
@@ -77,7 +77,7 @@ How packaging fits the build
 ----------------------------
 
 Packaging is opt-in through a single system property, `-Djenesis.java.jpackage`.
-When it is set, `JavaMultiProjectAssembler` wires a per-module `package` step that
+When it is set, `InferredMultiProjectAssembler` wires a per-module `package` step that
 runs `jpackage` for every module declaring a main class (modules without one are
 skipped). The property's value is the `jpackage --type`; a bare flag defaults to
 `app-image`, a self-contained launcher plus bundled runtime that needs no

@@ -4,7 +4,7 @@ import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.PathPlacement;
 import build.jenesis.maven.MavenProject;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 
 /**
@@ -17,7 +17,7 @@ import build.jenesis.project.ProjectModuleDescriptor;
  *
  * The only glue is the assembler: {@code make} hands each discovered module a
  * {@code MavenModuleDescriptor}, which is wrapped in a {@code ProjectModuleDescriptor}
- * so the stock {@code JavaMultiProjectAssembler} can wire the regular
+ * so the stock {@code InferredMultiProjectAssembler} can wire the regular
  * compile/jar(/test) flow. This is the same toolchain {@code Project} uses, just
  * assembled directly here so you can see and adjust the wiring.
  *
@@ -33,7 +33,7 @@ public class Demo {
     static void main(String[] args) throws Exception {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addModule("maven", MavenProject.make(Path.of("."),
-                (descriptor, repositories, resolvers) -> new JavaMultiProjectAssembler().apply(
+                (descriptor, repositories, resolvers) -> new InferredMultiProjectAssembler().apply(
                         new ProjectModuleDescriptor(descriptor, true, false, false, null, PathPlacement.CLASS_PATH),
                         repositories,
                         resolvers)));

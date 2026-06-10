@@ -10,7 +10,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.step.JPackage;
@@ -19,7 +19,7 @@ import build.jenesis.step.ProcessBuildStep;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class JavaMultiProjectAssemblerTest {
+public class InferredMultiProjectAssemblerTest {
 
     @TempDir
     private Path root;
@@ -156,6 +156,14 @@ public class JavaMultiProjectAssemblerTest {
     }
 
     @Test
+    public void native_image_flag_disabled_omits_native_image_step() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false);
+        assertThatThrownBy(() -> fixture.execute("sub/native-image"))
+                .rootCause()
+                .hasMessage("Unknown selector: native-image");
+    }
+
+    @Test
     public void source_flag_enabled_adds_sources_jar_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, true, false);
         Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES));
@@ -275,7 +283,7 @@ public class JavaMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, sources, tests, source, documentation, null, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new JavaMultiProjectAssembler(packageType, jmod, jlink, false, null).apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new InferredMultiProjectAssembler(packageType, jmod, jlink, false, false, null).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),

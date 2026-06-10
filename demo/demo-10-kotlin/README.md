@@ -37,7 +37,7 @@ How Jenesis builds it
 ---------------------
 
 Jenesis detects the `.kt` sources and drives the Kotlin compiler through the
-default `JavaMultiProjectAssembler`, with `javac` participating for
+default `InferredMultiProjectAssembler`, with `javac` participating for
 `module-info.java` and the companion `.java` file. The module exports both a
 mixed package and a package that holds only Kotlin.
 
