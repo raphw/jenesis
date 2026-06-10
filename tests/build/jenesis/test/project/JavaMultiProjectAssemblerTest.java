@@ -198,7 +198,7 @@ public class JavaMultiProjectAssemblerTest {
         Files.writeString(
                 Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES)).resolve("Sample.java"),
                 "public class Sample {}");
-        assertThatThrownBy(() -> fixture.execute("sub/test/resolved"))
+        assertThatThrownBy(() -> fixture.execute("sub/observed/test/resolved"))
                 .rootCause()
                 .hasMessageContaining("No test engine could be resolved");
     }
