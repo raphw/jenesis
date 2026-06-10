@@ -1369,18 +1369,42 @@ public record Project(
     }
 
     public static void loadJenesisProperties(Path path) throws IOException {
-        Path file = path.resolve("jenesis.properties");
-        if (!Files.isRegularFile(file)) {
+        Set<Path> loaded = new LinkedHashSet<>();
+        Deque<Path> pending = new ArrayDeque<>();
+        Path base = path.resolve("jenesis.properties");
+        if (Files.isRegularFile(base)) {
+            pending.add(base);
+        }
+        addProfiles(pending, path, System.getProperty("jenesis.project.properties"));
+        while (!pending.isEmpty()) {
+            Path file = pending.removeFirst().normalize();
+            if (!loaded.add(file)) {
+                continue;
+            }
+            if (!Files.isRegularFile(file)) {
+                throw new IllegalArgumentException("Profile properties file not found: " + file);
+            }
+            SequencedProperties properties = SequencedProperties.ofFiles(file);
+            addProfiles(pending, path, properties.getProperty("jenesis.project.properties"));
+            for (String name : properties.stringPropertyNames()) {
+                System.getProperties().putIfAbsent(name, properties.getProperty(name));
+            }
+        }
+    }
+
+    private static void addProfiles(Deque<Path> pending, Path base, String list) {
+        if (list == null) {
             return;
         }
-        SequencedProperties properties = SequencedProperties.ofFiles(file);
-        for (String name : properties.stringPropertyNames()) {
-            System.getProperties().putIfAbsent(name, properties.getProperty(name));
+        for (String name : list.split(",")) {
+            String trimmed = name.trim();
+            if (!trimmed.isEmpty()) {
+                pending.add(base.resolve(trimmed.endsWith(".properties") ? trimmed : trimmed + ".properties"));
+            }
         }
     }
 
     SequencedMap<String, Path> doMain(String... selectors) throws IOException, InterruptedException {
-        loadJenesisProperties(root());
         if (Boolean.getBoolean("jenesis.project.watch")) {
             watch(selectors);
             return new LinkedHashMap<>();
@@ -1446,6 +1470,7 @@ public record Project(
 
     public static void main(String... selectors) {
         try {
+            loadJenesisProperties(Path.of(System.getProperty("jenesis.project.root", ".")));
             new Project().doMain(selectors);
         } catch (Throwable t) {
             if (t instanceof InterruptedException) {

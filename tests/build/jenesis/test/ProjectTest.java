@@ -28,7 +28,12 @@ public class ProjectTest {
         System.clearProperty("jenesis.project.target");
         System.clearProperty("jenesis.project.cache");
         System.clearProperty("jenesis.project.digest");
+        System.clearProperty("jenesis.project.properties");
         System.clearProperty("jenesis.test.sample.key");
+        System.clearProperty("jenesis.test.sample.a");
+        System.clearProperty("jenesis.test.sample.b");
+        System.clearProperty("jenesis.test.sample.c");
+        System.clearProperty("jenesis.test.sample.d");
     }
 
     @Test
@@ -379,5 +384,28 @@ public class ProjectTest {
     public void load_jenesis_properties_is_a_no_op_when_absent() throws IOException {
         Project.loadJenesisProperties(root);
         assertThat(System.getProperty("jenesis.test.sample.key")).isNull();
+    }
+
+    @Test
+    public void load_jenesis_properties_chains_profile_files() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"),
+                "jenesis.project.properties=profile-a, profile-b\njenesis.test.sample.a=fromBase\n");
+        Files.writeString(root.resolve("profile-a.properties"),
+                "jenesis.project.properties=profile-c\njenesis.test.sample.b=fromA\n");
+        Files.writeString(root.resolve("profile-b.properties"), "jenesis.test.sample.c=fromB\n");
+        Files.writeString(root.resolve("profile-c.properties"), "jenesis.test.sample.d=fromC\n");
+        Project.loadJenesisProperties(root);
+        assertThat(System.getProperty("jenesis.test.sample.a")).isEqualTo("fromBase");
+        assertThat(System.getProperty("jenesis.test.sample.b")).isEqualTo("fromA");
+        assertThat(System.getProperty("jenesis.test.sample.c")).isEqualTo("fromB");
+        assertThat(System.getProperty("jenesis.test.sample.d")).isEqualTo("fromC");
+    }
+
+    @Test
+    public void load_jenesis_properties_fails_on_a_missing_profile() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.properties=absent\n");
+        assertThatThrownBy(() -> Project.loadJenesisProperties(root))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("absent.properties");
     }
 }
