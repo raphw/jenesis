@@ -9,18 +9,18 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
-import build.jenesis.project.JavaMultiProjectAssembler;
+import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
 
 public class Demo {
 
     static void main(String[] args) throws Exception {
-        // Wrap the stock JavaMultiProjectAssembler so that every module's Java
+        // Wrap the stock InferredMultiProjectAssembler so that every module's Java
         // sources pass through a preprocessing step before the regular compile,
         // jar, and test flow runs unchanged.
         new Project()
-                .assembler(new PreprocessingAssembler(new JavaMultiProjectAssembler()))
+                .assembler(new PreprocessingAssembler(new InferredMultiProjectAssembler()))
                 .build(args);
     }
 

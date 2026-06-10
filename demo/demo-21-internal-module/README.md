@@ -56,7 +56,7 @@ How it works
 ------------
 
 `Demo.java` builds a `Project` whose assembler is a `PreprocessingAssembler`
-wrapping the stock `JavaMultiProjectAssembler`, then hands that project to
+wrapping the stock `InferredMultiProjectAssembler`, then hands that project to
 `Execute`, which builds it and launches the produced module's `main` so the
 substituted greeting is shown. `Execute` reads the build's inventory to find the
 module and its runtime classpath, so nothing is located by hand. For each module

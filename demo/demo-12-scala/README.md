@@ -39,7 +39,7 @@ How Jenesis builds it
 ---------------------
 
 Jenesis detects the `.scala` sources and drives the Scala compiler through the
-default `JavaMultiProjectAssembler`, with `javac` participating for
+default `InferredMultiProjectAssembler`, with `javac` participating for
 `module-info.java` and the companion `.java` file. The module exports both a
 mixed package and a package that holds only Scala.
 
