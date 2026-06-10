@@ -64,6 +64,17 @@ is selected explicitly instead, here through `jenesis.properties`:
 `palantir` selects the Palantir formatter instead; omitting the key runs no Java
 formatter at all.
 
+A discovered tool can be switched off without deleting its configuration file by
+setting its property to `false`. By default every property is `true`, so file
+discovery alone decides; the property is an opt-out:
+
+    jenesis.source.<tool>        Checkstyle, PMD, Detekt, Ktlint, Scalastyle, Scalafmt, CodeNarc
+    jenesis.validator.spotbugs   SpotBugs
+    jenesis.format.<tool>        the Ktlint / Scalafmt formatters
+
+For example `-Djenesis.source.checkstyle=false` keeps `checkstyle.xml` in place
+but skips Checkstyle, while PMD and SpotBugs still run.
+
 Where the tools run and what they produce
 -----------------------------------------
 
@@ -72,9 +83,9 @@ a *validator* in the Java toolchain: it runs once the classes exist. Each tool
 writes an XML report into a `reports/<tool>/` subfolder of its step's output, for
 example:
 
-    target/build/.../assemble/check/checkstyle/check/output/reports/checkstyle/checkstyle-report.xml
-    target/build/.../assemble/check/pmd/check/output/reports/pmd/pmd-report.xml
-    target/build/.../assemble/binary/validate/spotbugs/check/output/reports/spotbugs/spotbugs-report.xml
+    target/build/.../assemble/check/checkstyle/execution/check/output/reports/checkstyle/checkstyle-report.xml
+    target/build/.../assemble/check/pmd/execution/check/output/reports/pmd/pmd-report.xml
+    target/build/.../assemble/binary/validate/spotbugs/execution/check/output/reports/spotbugs/spotbugs-report.xml
 
 A `stage` build collects every report from every module into one place, each kind
 in its own subfolder: `target/stage/reports/<kind>/<module>/`, for example
