@@ -174,20 +174,22 @@ intra-project `demo.greeter` dependency is never pinned, since coordinates
 produced within the project are resolved from the build itself rather than
 downloaded.
 
-Printing the dependency tree
-----------------------------
+Printing the dependency graph
+-----------------------------
 
-To see what each module resolves, `-Djenesis.print.dependencies=true` prints each
-module's resolved tree as it resolves (a verbose toggle, not a build step), one
-block per module and scope:
+To see what each module resolves, run the `dependencies` selector. It prints each
+module's resolved dependency graph, one block per module and scope, with every
+node carrying its resolved module name and declared license:
 
-    java -Djenesis.print.dependencies=true build/jenesis/Project.java
+    java build/jenesis/Project.java dependencies
 
-    Dependency tree:
-    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
-    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
-    │  └─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
-    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
+    main/compile (module-greeter-test)
+    maven/demo.greeter/demo.greeter 1-SNAPSHOT [compile] (module demo.greeter)
+    └─ maven/org.slf4j/slf4j-api 2.0.16 [compile] (module org.slf4j) {MIT License}
+    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile] (module org.junit.jupiter) {Eclipse Public License v2.0}
+    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile] (module org.junit.jupiter.api) {Eclipse Public License v2.0}
+    │  └─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile] (module org.junit.platform.commons) {Eclipse Public License v2.0}
+    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime] (module org.junit.jupiter.engine) {Eclipse Public License v2.0}
 
 Even though every descriptor here is a `module-info.java`, the default
 MODULAR_TO_MAVEN layout resolves each `requires` through Maven, so the tree shows

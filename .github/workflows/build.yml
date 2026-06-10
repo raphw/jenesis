@@ -30,6 +30,7 @@ jobs:
         # .jmod and chains jmod -> jlink -> jpackage, then launches the produced app.
         demo:
           - { name: java-pom, dir: demo-01-java-pom, entry: build/jenesis/Project.java }
+          - { name: java-pom-dependencies, dir: demo-01-java-pom, entry: build/jenesis/Project.java dependencies }
           - { name: java-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java }
           - { name: java-modular-as-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
           - { name: java-pom-multi, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java }

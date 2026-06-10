@@ -29,20 +29,21 @@ Layout
 the build resolve the real dependency. Under the hood Jenesis drives plain
 `javac` through the default `InferredMultiProjectAssembler`.
 
-Printing the dependency tree
-----------------------------
+Printing the dependency graph
+-----------------------------
 
-To see what the build resolves, `-Djenesis.print.dependencies=true` prints the
-dependency tree as the module resolves (a verbose toggle, not a build step):
+To see what the build resolves, run the `dependencies` selector. It prints each
+module's resolved dependency graph, annotated with the resolved module name and
+the declared license:
 
-    java -Djenesis.print.dependencies=true build/jenesis/Project.java
+    java build/jenesis/Project.java dependencies
 
-    Dependency tree:
-    maven/org.apache.commons/commons-lang3 3.14.0 [compile]
+    main/compile (module)
+    maven/org.apache.commons/commons-lang3 3.14.0 [compile] (module org.apache.commons.lang3) {Apache-2.0}
 
 Each node shows the property-file key, the requested version (with the negotiated
-version inline when it differs), and the Maven scope; transitive dependencies nest
-underneath and duplicates are dimmed and marked `(*)`.
+version inline when it differs), the Maven scope, the resolved module name, and
+the declared license.
 
 Pinned dependency
 -----------------

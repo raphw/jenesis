@@ -91,16 +91,17 @@ that is both compile and runtime is pinned once. Separate resolver groups
 and plugin closures, as shown in the `kotlin` / `scala` and
 `internal-module` / `external-module` demos.
 
-Printing the dependency tree
-----------------------------
+Printing the dependency graph
+-----------------------------
 
-To see what the build resolves, `-Djenesis.print.dependencies=true` prints the resolved
-dependency tree as the module resolves (a verbose toggle, not a build step):
+To see what the build resolves, run the `dependencies` selector. It prints each
+module's resolved dependency graph, annotated with the resolved module name and
+the declared license:
 
-    java -Djenesis.print.dependencies=true build/jenesis/Project.java
+    java build/jenesis/Project.java dependencies
 
-    Dependency tree:
-    maven/org.slf4j/slf4j-api 2.0.16 [compile]
+    main/compile (module)
+    maven/org.slf4j/slf4j-api 2.0.16 [compile] (module org.slf4j) {MIT License}
 
 Because this is the default MODULAR_TO_MAVEN layout, `requires org.slf4j` is shown
 as the Maven coordinate it resolves to, with a Maven scope. Under the pure MODULAR
