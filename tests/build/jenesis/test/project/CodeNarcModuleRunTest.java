@@ -58,7 +58,7 @@ public class CodeNarcModuleRunTest {
                     .as("the pinned CodeNarc version resolves")
                     .anyMatch(name -> name.contains("CodeNarc") && name.contains("3.5.0"));
         }
-        Path report = root.resolve("codenarc").resolve("check").resolve("output").resolve("codenarc-report.xml");
+        Path report = root.resolve("codenarc").resolve("check").resolve("output").resolve("reports").resolve("codenarc").resolve("codenarc-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("EmptyIfStatement");
     }
@@ -72,11 +72,6 @@ public class CodeNarcModuleRunTest {
     }
 
     private static Repository mavenCentral() {
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        return new MavenDefaultRepository(
-                URI.create("https://repo1.maven.org/maven2/"),
-                Files.isDirectory(local) ? local : null,
-                Map.of(),
-                _ -> {});
+        return new MavenDefaultRepository();
     }
 }

@@ -116,7 +116,7 @@ public abstract class ProcessBuildStep implements BuildStep {
             }
             return future;
         }).toCompletableFuture();
-        result.whenComplete((processed, throwable) -> {
+        result.whenComplete((_, throwable) -> {
             if (throwable != null) {
                 Thread running = worker.get();
                 if (running != null && running != Thread.currentThread()) {

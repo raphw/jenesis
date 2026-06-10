@@ -165,7 +165,7 @@ public class CheckstyleModule implements BuildExecutorModule {
                 throw new IllegalStateException("No " + configFile + " found among the inputs of the Checkstyle step");
             }
             files.sort(null);
-            Path report = context.next().resolve("checkstyle-report.xml");
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "checkstyle")).resolve("checkstyle-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "com.puppycrawl.tools.checkstyle.Main",

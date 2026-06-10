@@ -326,7 +326,7 @@ public class VersionsTest {
 
     private void writeRequires(Map<String, String> entries) throws IOException {
         SequencedProperties properties = new SequencedProperties();
-        entries.forEach((key, value) -> properties.setProperty(key, "dependencies/x.jar"));
+        entries.forEach((key, _) -> properties.setProperty(key, "dependencies/x.jar"));
         properties.store(requiresInput.resolve(BuildStep.DEPENDENCIES));
     }
 

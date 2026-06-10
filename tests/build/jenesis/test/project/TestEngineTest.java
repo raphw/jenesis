@@ -184,7 +184,7 @@ public class TestEngineTest {
                 false,
                 true))
                 .contains("--config=junit.platform.reporting.open.xml.enabled=true",
-                        "--config=junit.platform.reporting.output.dir=" + root.resolve(BuildStep.TEST_REPORT));
+                        "--config=junit.platform.reporting.output.dir=" + root.resolve(BuildStep.REPORTS + "tests"));
         assertThat(new JUnitPlatform().commands(root,
                 root,
                 Collections.emptyNavigableSet(),

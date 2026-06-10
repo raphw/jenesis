@@ -66,7 +66,7 @@ public class CheckstyleModuleRunTest {
                     .as("the pinned Checkstyle version is the one that resolves, not a floated RELEASE")
                     .anyMatch(name -> name.contains("checkstyle") && name.contains(VERSION));
         }
-        Path report = root.resolve("checkstyle").resolve("check").resolve("output").resolve("checkstyle-report.xml");
+        Path report = root.resolve("checkstyle").resolve("check").resolve("output").resolve("reports").resolve("checkstyle").resolve("checkstyle-report.xml");
         assertThat(report)
                 .as("report-only run still produces the Checkstyle XML report")
                 .isNotEmptyFile();
@@ -98,11 +98,6 @@ public class CheckstyleModuleRunTest {
     }
 
     private static Repository mavenCentral() {
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        return new MavenDefaultRepository(
-                URI.create("https://repo1.maven.org/maven2/"),
-                Files.isDirectory(local) ? local : null,
-                Map.of(),
-                _ -> {});
+        return new MavenDefaultRepository();
     }
 }

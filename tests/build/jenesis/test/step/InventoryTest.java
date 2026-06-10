@@ -165,15 +165,13 @@ public class InventoryTest {
         module.setProperty("path", "foo");
         module.store(manifests.resolve(BuildStep.MODULE));
         Path produce = Files.createDirectory(root.resolve("produce"));
-        Path reports = Files.createDirectory(produce.resolve("testreport"));
-        Path first = Files.writeString(reports.resolve("junit-platform-events-1.xml"), "<events/>");
-        Path second = Files.writeString(reports.resolve("junit-platform-events-2.xml"), "<events/>");
+        Path reports = Files.createDirectories(produce.resolve("reports").resolve("tests"));
+        Files.writeString(reports.resolve("junit-platform-events-1.xml"), "<events/>");
 
         run(args("manifests", manifests, "produce", produce));
 
         SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
-        assertThat(inventory.getProperty("module-foo.testreport.0")).isEqualTo(relativize(first));
-        assertThat(inventory.getProperty("module-foo.testreport.1")).isEqualTo(relativize(second));
+        assertThat(inventory.getProperty("module-foo.report.tests")).isEqualTo(relativize(reports));
     }
 
     @Test

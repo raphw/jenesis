@@ -159,7 +159,7 @@ public class ScalastyleModule implements BuildExecutorModule {
             if (config == null) {
                 throw new IllegalStateException("No " + configFile + " found among the inputs of the Scalastyle step");
             }
-            Path report = context.next().resolve("scalastyle-report.xml");
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "scalastyle")).resolve("scalastyle-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "org.scalastyle.Main",

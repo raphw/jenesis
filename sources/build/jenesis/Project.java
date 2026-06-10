@@ -25,7 +25,7 @@ import build.jenesis.project.ProjectWatch;
 import build.jenesis.step.Bind;
 import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
-import build.jenesis.step.TestReportStaging;
+import build.jenesis.step.ReportStaging;
 import build.jenesis.step.Tree;
 
 public record Project(
@@ -103,7 +103,7 @@ public record Project(
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
-                stage.addStep("reports", new TestReportStaging(), inherited.sequencedKeySet());
+                stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven"), STAGE);
@@ -164,7 +164,7 @@ public record Project(
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
-                stage.addStep("reports", new TestReportStaging(), inherited.sequencedKeySet());
+                stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
                     "modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular"), STAGE);
@@ -233,7 +233,7 @@ public record Project(
                 stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
-                stage.addStep("reports", new TestReportStaging(), inherited.sequencedKeySet());
+                stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> {
                 export.addStep("maven", new MavenRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/maven");
@@ -377,9 +377,9 @@ public record Project(
                       skipped, so a typo in the tail of a %{name}::%{reset} selector produces no error.
                     
                     %{header}System properties (-Djenesis.project.<key>=<value>):%{reset}
-                      Honored only when the project goes through Project.resolveProperties()
-                      (the default main(...) does). A custom Project.java that wires its own
-                      values, or sets fields after resolveProperties(), may ignore them.
+                      Read by the default %{name}new Project()%{reset} constructor as the starting
+                      defaults, so they apply unless a wired value overrides them
+                      (an explicit %{name}.layout(...)%{reset}, %{name}.target(...)%{reset}, and so on wins).
                       %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
@@ -827,8 +827,8 @@ public record Project(
                                         kotlin/scala/groovy-quality demos do the
                                         same per language.
                       code-coverage     Inferred test observation: JaCoCo records
-                                        coverage during the test run, selected
-                                        with -Djenesis.test.observe=jacoco.
+                                        coverage during the test run, enabled
+                                        with -Djenesis.observe.jacoco=true.
                       custom-assembler  Wrap `InferredMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,
@@ -958,19 +958,62 @@ public record Project(
     }
 
     public Project() {
-        this(Path.of("."),
-                Path.of("."),
-                Path.of("target"),
-                Path.of(".jenesis", "cache"),
-                new HashDigestFunction("SHA-256"),
-                Layout.AUTO,
-                true,
-                false,
-                false,
-                false,
+        Path resolvedRoot = Path.of(".");
+        String rootOverride = System.getProperty("jenesis.project.root");
+        if (rootOverride != null) {
+            resolvedRoot = Path.of(rootOverride);
+        }
+        if (resolvedRoot.isAbsolute()) {
+            Path absoluteCwd = Path.of("").toAbsolutePath().normalize();
+            Path absoluteRoot = resolvedRoot.normalize();
+            if (absoluteRoot.startsWith(absoluteCwd)) {
+                Path relative = absoluteCwd.relativize(absoluteRoot);
+                resolvedRoot = relative.toString().isEmpty() ? Path.of(".") : relative;
+            }
+        }
+        String configurationOverride = System.getProperty("jenesis.project.configuration");
+        Path resolvedConfiguration = configurationOverride == null
+                ? resolvedRoot
+                : resolvedRoot.resolve(Path.of(configurationOverride));
+        Path resolvedTarget = Path.of("target");
+        String targetOverride = System.getProperty("jenesis.project.target");
+        if (targetOverride != null) {
+            resolvedTarget = Path.of(targetOverride);
+        }
+        Path resolvedCache = Path.of(".jenesis", "cache");
+        String cacheOverride = System.getProperty("jenesis.project.cache");
+        if (cacheOverride != null) {
+            resolvedCache = Path.of(cacheOverride);
+        }
+        String layoutOverride = System.getProperty("jenesis.project.layout");
+        Layout resolvedLayout = layoutOverride == null ? Layout.AUTO : switch (layoutOverride.toLowerCase(Locale.ROOT)) {
+            case "auto" -> Layout.AUTO;
+            case "maven" -> Layout.MAVEN;
+            case "modular" -> Layout.MODULAR;
+            case "modular_to_maven" -> Layout.MODULAR_TO_MAVEN;
+            default -> throw new IllegalArgumentException(
+                    "Unknown layout: " + layoutOverride + " (expected auto, maven, modular, or modular_to_maven)");
+        };
+        String metadataOverride = System.getProperty("jenesis.project.metadata");
+        List<Path> resolvedMetadata = metadataOverride == null ? List.of() : Arrays.stream(
+                        metadataOverride.split(Pattern.quote(File.pathSeparator)))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .map(Path::of)
+                .toList();
+        this(resolvedRoot,
+                resolvedConfiguration,
+                resolvedTarget,
+                resolvedCache,
+                new HashDigestFunction(System.getProperty("jenesis.project.digest", "SHA-256")),
+                resolvedLayout,
+                System.getProperty("jenesis.test.skip") == null,
+                Boolean.getBoolean("jenesis.project.sources"),
+                Boolean.getBoolean("jenesis.project.documentation"),
+                Boolean.getBoolean("jenesis.test.stage"),
                 Pinning.fromProperty(),
-                List.of(),
-                null,
+                resolvedMetadata,
+                System.getProperty("jenesis.project.version"),
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 new InferredMultiProjectAssembler(),
                 Map.of(),
@@ -1297,105 +1340,6 @@ public record Project(
                 resolvers);
     }
 
-    public Project resolveProperties() {
-        Path resolvedRoot = root;
-        Path resolvedConfiguration;
-        Path resolvedTarget = target;
-        Path resolvedCache = cache;
-        HashDigestFunction resolvedHashDigest = hashFunction;
-        Layout resolvedLayout = layout;
-        boolean resolvedTests = tests;
-        boolean resolvedSources = sources;
-        boolean resolvedDocumentation = documentation;
-        boolean resolvedStageTests = stageTests;
-        List<Path> resolvedMetadata = metadata;
-        String resolvedVersion = version;
-        String rootOverride = System.getProperty("jenesis.project.root");
-        if (rootOverride != null) {
-            resolvedRoot = Path.of(rootOverride);
-        }
-        String configurationOverride = System.getProperty("jenesis.project.configuration");
-        if (configurationOverride != null) {
-            resolvedConfiguration = resolvedRoot.resolve(Path.of(configurationOverride));
-        } else if (rootOverride != null) {
-            resolvedConfiguration = resolvedRoot.resolve(configuration.relativize(root));
-        } else {
-            resolvedConfiguration = resolvedRoot;
-        }
-        String targetOverride = System.getProperty("jenesis.project.target");
-        if (targetOverride != null) {
-            resolvedTarget = Path.of(targetOverride);
-        }
-        String cacheOverride = System.getProperty("jenesis.project.cache");
-        if (cacheOverride != null) {
-            resolvedCache = Path.of(cacheOverride);
-        }
-        String hashDigestOverride = System.getProperty("jenesis.project.digest");
-        if (hashDigestOverride != null) {
-            resolvedHashDigest = new HashDigestFunction(hashDigestOverride);
-        }
-        String forced = System.getProperty("jenesis.project.layout");
-        if (forced != null) {
-            resolvedLayout = switch (forced.toLowerCase(Locale.ROOT)) {
-                case "auto" -> Layout.AUTO;
-                case "maven" -> Layout.MAVEN;
-                case "modular" -> Layout.MODULAR;
-                case "modular_to_maven" -> Layout.MODULAR_TO_MAVEN;
-                default -> throw new IllegalArgumentException(
-                        "Unknown layout: " + forced + " (expected auto, maven, modular, or modular_to_maven)");
-            };
-        }
-        if (System.getProperty("jenesis.test.skip") != null) {
-            resolvedTests = false;
-        }
-        if (Boolean.getBoolean("jenesis.project.sources")) {
-            resolvedSources = true;
-        }
-        if (Boolean.getBoolean("jenesis.project.documentation")) {
-            resolvedDocumentation = true;
-        }
-        if (Boolean.getBoolean("jenesis.test.stage")) {
-            resolvedStageTests = true;
-        }
-        String metadataOverride = System.getProperty("jenesis.project.metadata");
-        if (metadataOverride != null) {
-            resolvedMetadata = Arrays.stream(metadataOverride.split(Pattern.quote(File.pathSeparator)))
-                    .map(String::trim)
-                    .filter(value -> !value.isEmpty())
-                    .map(Path::of)
-                    .toList();
-        }
-        String versionOverride = System.getProperty("jenesis.project.version");
-        if (versionOverride != null) {
-            resolvedVersion = versionOverride;
-        }
-        if (resolvedRoot.isAbsolute()) {
-            Path absoluteCwd = Path.of("").toAbsolutePath().normalize();
-            Path absoluteRoot = resolvedRoot.normalize();
-            if (absoluteRoot.startsWith(absoluteCwd)) {
-                Path relative = absoluteCwd.relativize(absoluteRoot);
-                resolvedRoot = relative.toString().isEmpty() ? Path.of(".") : relative;
-            }
-        }
-        return new Project(resolvedRoot,
-                resolvedConfiguration,
-                resolvedTarget,
-                resolvedCache,
-                resolvedHashDigest,
-                resolvedLayout,
-                resolvedTests,
-                resolvedSources,
-                resolvedDocumentation,
-                resolvedStageTests,
-                pinning,
-                resolvedMetadata,
-                resolvedVersion,
-                defaultTarget,
-                assembler,
-                repositories,
-                resolvers);
-    }
-
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
         return build(Boolean.getBoolean("jenesis.print.dependencies"), selectors);
     }
@@ -1502,7 +1446,7 @@ public record Project(
 
     public static void main(String... selectors) {
         try {
-            new Project().resolveProperties().doMain(selectors);
+            new Project().doMain(selectors);
         } catch (Throwable t) {
             if (t instanceof InterruptedException) {
                 Thread.currentThread().interrupt();

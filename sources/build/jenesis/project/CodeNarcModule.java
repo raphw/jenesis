@@ -158,7 +158,7 @@ public class CodeNarcModule implements BuildExecutorModule {
             if (config == null) {
                 throw new IllegalStateException("No " + configFile + " found among the inputs of the CodeNarc step");
             }
-            Path report = context.next().resolve("codenarc-report.xml");
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "codenarc")).resolve("codenarc-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "org.codenarc.CodeNarc",

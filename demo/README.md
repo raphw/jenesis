@@ -65,7 +65,7 @@ Quick index
 | 13 | [`scala-quality`](demo-13-scala-quality/README.md)           | Inferred code quality for Scala: Scalastyle and scalafmt, with scalafmt also verifying formatting | `java build/jenesis/Project.java`  |
 | 14 | [`groovy`](demo-14-groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
 | 15 | [`groovy-quality`](demo-15-groovy-quality/README.md)         | Inferred code quality for Groovy: CodeNarc lints the sources          | `java build/jenesis/Project.java`  |
-| 16 | [`code-coverage`](demo-16-code-coverage/README.md)          | Inferred test observation: JaCoCo records coverage during the test run and renders an HTML/XML report, selected with `-Djenesis.test.observe=jacoco` | `java build/jenesis/Project.java`  |
+| 16 | [`code-coverage`](demo-16-code-coverage/README.md)          | Inferred test observation: JaCoCo records coverage during the test run and renders an HTML/XML report, enabled with `-Djenesis.observe.jacoco=true` | `java build/jenesis/Project.java`  |
 | 17 | [`maven-exclusions`](demo-17-maven-exclusions/README.md)     | Maven only: a dependency with an `<exclusions>` block; a test asserts the excluded transitive is absent | `java build/jenesis/Project.java`  |
 | 18 | [`module-layout`](demo-18-module-layout/README.md)           | Explicitly select the pure MODULAR layout: resolve by module name, emit a modular jar with no `pom.xml` | `java build/Demo.java`             |
 | 19 | [`custom-assembler`](demo-19-custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
@@ -257,7 +257,7 @@ The version is pinned the usual way, with the `pin` step writing back a
 `java-quality` turns on a set of code-quality tools without a build script: each
 tool runs because its configuration file is present at the project root. A
 `checkstyle.xml` and a `pmd.xml` lint the sources, a `spotbugs-exclude.xml` brings
-in SpotBugs over the compiled classes, and `jenesis.java.format=google` selects
+in SpotBugs over the compiled classes, and `jenesis.format.java=google` selects
 `google-java-format`.
 
 The new idea is **inference from configuration**. Jenesis binds the matched file
@@ -314,7 +314,7 @@ switch shown for Java.
 ## 10. Test coverage - [`code-coverage`](demo-16-code-coverage/README.md)
 
 `code-coverage` adds the first *test observation* engine: JaCoCo. Pass
-`-Djenesis.test.observe=jacoco` and the test run is wrapped so the JaCoCo agent
+`-Djenesis.observe.jacoco=true` and the test run is wrapped so the JaCoCo agent
 records which lines the tests exercise; a report step then renders an HTML and
 XML coverage report from that data, the compiled classes, and the sources.
 

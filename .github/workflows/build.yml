@@ -50,24 +50,29 @@ jobs:
           - { name: java-modular-bundle, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }
           - { name: java-multi-release, dir: demo-07-java-multi-release, entry: build/jenesis/Execute.java }
           - { name: annotations, dir: demo-08-annotations, entry: build/jenesis/Project.java }
-          - { name: kotlin, dir: demo-09-kotlin, entry: build/jenesis/Project.java }
-          - { name: kotlin-documentation, dir: demo-09-kotlin, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
-          - { name: scala, dir: demo-10-scala, entry: build/jenesis/Project.java }
-          - { name: scala-documentation, dir: demo-10-scala, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
-          - { name: groovy, dir: demo-11-groovy, entry: build/jenesis/Project.java }
-          - { name: groovy-documentation, dir: demo-11-groovy, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
-          - { name: maven-exclusions, dir: demo-12-maven-exclusions, entry: build/jenesis/Project.java }
-          - { name: module-layout, dir: demo-13-module-layout, entry: build/Demo.java }
-          - { name: custom-assembler, dir: demo-14-custom-assembler, entry: build/Demo.java }
-          - { name: custom-jmod, dir: demo-15-custom-jmod, entry: build/Demo.java }
-          - { name: custom-build, dir: demo-20-custom-build, entry: build/Demo.java }
-          - { name: custom-maven, dir: demo-18-custom-maven, entry: build/Demo.java }
-          - { name: custom-modular, dir: demo-19-custom-modular, entry: build/Demo.java }
-          - { name: internal-module, dir: demo-16-internal-module, entry: build/Demo.java }
-          - { name: external-module, dir: demo-17-external-module, entry: build/Demo.java }
-          - { name: supply-chain-security, dir: demo-22-supply-chain-security, entry: build/Demo.java }
-          - { name: publishing, dir: demo-23-publishing, entry: build/Demo.java }
-          - { name: kotlin-plugin, dir: demo-24-kotlin-plugin, entry: build/jenesis/Project.java }
+          - { name: java-quality, dir: demo-09-java-quality, entry: build/jenesis/Project.java }
+          - { name: kotlin, dir: demo-10-kotlin, entry: build/jenesis/Project.java }
+          - { name: kotlin-documentation, dir: demo-10-kotlin, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
+          - { name: kotlin-quality, dir: demo-11-kotlin-quality, entry: build/jenesis/Project.java }
+          - { name: scala, dir: demo-12-scala, entry: build/jenesis/Project.java }
+          - { name: scala-documentation, dir: demo-12-scala, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
+          - { name: scala-quality, dir: demo-13-scala-quality, entry: build/jenesis/Project.java }
+          - { name: groovy, dir: demo-14-groovy, entry: build/jenesis/Project.java }
+          - { name: groovy-documentation, dir: demo-14-groovy, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
+          - { name: groovy-quality, dir: demo-15-groovy-quality, entry: build/jenesis/Project.java }
+          - { name: code-coverage, dir: demo-16-code-coverage, entry: build/jenesis/Project.java }
+          - { name: maven-exclusions, dir: demo-17-maven-exclusions, entry: build/jenesis/Project.java }
+          - { name: module-layout, dir: demo-18-module-layout, entry: build/Demo.java }
+          - { name: custom-assembler, dir: demo-19-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-20-custom-jmod, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-21-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-22-external-module, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-23-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-24-custom-modular, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-25-custom-build, entry: build/Demo.java }
+          - { name: supply-chain-security, dir: demo-27-supply-chain-security, entry: build/Demo.java }
+          - { name: publishing, dir: demo-28-publishing, entry: build/Demo.java }
+          - { name: kotlin-plugin, dir: demo-29-kotlin-plugin, entry: build/jenesis/Project.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

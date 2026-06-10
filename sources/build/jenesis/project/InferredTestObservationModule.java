@@ -11,36 +11,48 @@ public class InferredTestObservationModule implements BuildExecutorModule {
 
     public static final String TEST = "test";
 
-    private final Observation observation;
+    private final Set<Observation> observations;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget;
 
-    public InferredTestObservationModule(Observation observation,
-                                         Map<String, Repository> repositories,
+    public InferredTestObservationModule(Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers,
                                          Pinning pinning,
                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
-        this.observation = observation;
+        boolean jacoco = Boolean.getBoolean("jenesis.observe.jacoco");
+        this(jacoco ? Set.of(Observation.JACOCO) : Set.of(), repositories, resolvers, pinning, toTarget);
+    }
+
+    private InferredTestObservationModule(Set<Observation> observations,
+                                          Map<String, Repository> repositories,
+                                          Map<String, Resolver> resolvers,
+                                          Pinning pinning,
+                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
+        this.observations = observations;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.toTarget = toTarget;
     }
 
+    public InferredTestObservationModule observe(Observation... observations) {
+        return observe(Set.of(observations));
+    }
+
+    public InferredTestObservationModule observe(Set<Observation> observations) {
+        return new InferredTestObservationModule(observations, repositories, resolvers, pinning, toTarget);
+    }
+
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         SequencedMap<String, BuildExecutorModule> reports = new LinkedHashMap<>();
         List<ObservabilityEngine> engines = new ArrayList<>();
-        if (observation != null) {
-            switch (observation) {
-                case JACOCO -> {
-                    JaCoCo jacoco = new JaCoCo();
-                    engines.add(jacoco);
-                    reports.put(jacoco.name(), new JaCoCoModule(repositories, resolvers).pinning(pinning));
-                }
-            }
+        if (observations.contains(Observation.JACOCO)) {
+            JaCoCo jacoco = new JaCoCo();
+            engines.add(jacoco);
+            reports.put(jacoco.name(), new JaCoCoModule(repositories, resolvers).pinning(pinning));
         }
         buildExecutor.addModule(TEST, toTarget.apply(engines), inherited.sequencedKeySet());
         SequencedSet<String> reportInputs = new LinkedHashSet<>();

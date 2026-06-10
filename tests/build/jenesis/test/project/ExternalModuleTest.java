@@ -83,7 +83,7 @@ public class ExternalModuleTest {
                         import java.util.concurrent.CompletableFuture;
                         public class Plugin implements BuildExecutorModule {
                             public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                                executor.addStep("marker", (e, context, args) -> {
+                                executor.addStep("marker", (_, context, _) -> {
                                     Files.writeString(context.next().resolve("out.txt"), "hello");
                                     return CompletableFuture.completedStage(new BuildStepResult(true));
                                 });
@@ -120,11 +120,11 @@ public class ExternalModuleTest {
                         import java.util.concurrent.CompletableFuture;
                         public class Plugin implements BuildExecutorModule {
                             public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                                executor.addStep("first", (e, context, args) -> {
+                                executor.addStep("first", (_, context, _) -> {
                                     Files.writeString(context.next().resolve("payload.txt"), "produced");
                                     return CompletableFuture.completedStage(new BuildStepResult(true));
                                 });
-                                executor.addStep("second", (e, context, args) -> {
+                                executor.addStep("second", (_, context, args) -> {
                                     Path predecessor = args.get("first").folder();
                                     String content = Files.readString(predecessor.resolve("payload.txt"));
                                     Files.writeString(context.next().resolve("out.txt"), "seen:" + content);
@@ -162,8 +162,8 @@ public class ExternalModuleTest {
                         import java.util.concurrent.CompletableFuture;
                         public class Plugin implements BuildExecutorModule {
                             public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                                executor.addModule("inner", (sub, subInherited) -> {
-                                    sub.addStep("marker", (e, context, args) -> {
+                                executor.addModule("inner", (sub, _) -> {
+                                    sub.addStep("marker", (_, context, _) -> {
                                         Files.writeString(context.next().resolve("out.txt"), "nested");
                                         return CompletableFuture.completedStage(new BuildStepResult(true));
                                     });
@@ -202,7 +202,7 @@ public class ExternalModuleTest {
                         @BuildModuleName("foo")
                         public class Plugin implements BuildExecutorModule {
                             public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                                executor.addStep("marker", (e, context, args) -> {
+                                executor.addStep("marker", (_, context, _) -> {
                                     Files.writeString(context.next().resolve("out.txt"), "named");
                                     return CompletableFuture.completedStage(new BuildStepResult(true));
                                 });
@@ -337,7 +337,7 @@ public class ExternalModuleTest {
                         import java.util.concurrent.CompletableFuture;
                         public class Plugin implements BuildExecutorModule {
                             public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                                executor.addStep("marker", (e, context, args) -> {
+                                executor.addStep("marker", (_, context, _) -> {
                                     Files.writeString(context.next().resolve("out.txt"), "hello");
                                     return CompletableFuture.completedStage(new BuildStepResult(true));
                                 });
@@ -345,7 +345,7 @@ public class ExternalModuleTest {
                         }
                         """));
 
-        buildExecutor.addStep("manifests", (e, context, args) -> {
+        buildExecutor.addStep("manifests", (_, context, _) -> {
             Files.writeString(context.next().resolve("versions.properties"),
                     "main/module/build.jenesis=1.0.0 SHA-256/" + sha256(jenesisJar) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -378,7 +378,7 @@ public class ExternalModuleTest {
                         import java.util.concurrent.CompletableFuture;
                         public class Plugin implements BuildExecutorModule {
                             public void accept(BuildExecutor executor, SequencedMap<String, Path> inherited) {
-                                executor.addStep("marker", (e, context, args) -> {
+                                executor.addStep("marker", (_, context, _) -> {
                                     Files.writeString(context.next().resolve("out.txt"), "hello");
                                     return CompletableFuture.completedStage(new BuildStepResult(true));
                                 });
@@ -386,7 +386,7 @@ public class ExternalModuleTest {
                         }
                         """));
 
-        buildExecutor.addStep("manifests", (e, context, args) -> {
+        buildExecutor.addStep("manifests", (_, context, _) -> {
             Files.writeString(context.next().resolve("versions.properties"),
                     "main/module/build.jenesis=1.0.0 SHA-256/" + "00".repeat(32) + "\n");
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -531,7 +531,7 @@ public class ExternalModuleTest {
     }
 
     private static Repository versionInsensitive(Map<String, Path> files) {
-        return (executor, coordinate) -> {
+        return (_, coordinate) -> {
             int slash = coordinate.indexOf('/');
             String name = slash < 0 ? coordinate : coordinate.substring(0, slash);
             Path file = files.get(name);

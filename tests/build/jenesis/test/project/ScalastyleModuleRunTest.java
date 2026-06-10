@@ -61,7 +61,7 @@ public class ScalastyleModuleRunTest {
                     .as("the pinned Scalastyle version resolves")
                     .anyMatch(name -> name.contains("scalastyle") && name.contains(VERSION));
         }
-        Path report = root.resolve("scalastyle").resolve("check").resolve("output").resolve("scalastyle-report.xml");
+        Path report = root.resolve("scalastyle").resolve("check").resolve("output").resolve("reports").resolve("scalastyle").resolve("scalastyle-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("FileLineLengthChecker");
     }
@@ -75,11 +75,6 @@ public class ScalastyleModuleRunTest {
     }
 
     private static Repository mavenCentral() {
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        return new MavenDefaultRepository(
-                URI.create("https://repo1.maven.org/maven2/"),
-                Files.isDirectory(local) ? local : null,
-                Map.of(),
-                _ -> {});
+        return new MavenDefaultRepository();
     }
 }

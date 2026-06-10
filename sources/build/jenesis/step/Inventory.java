@@ -27,7 +27,7 @@ public class Inventory implements BuildStep {
                 Path.of(JPackage.PACKAGES),
                 Path.of(JMod.JMODS),
                 Path.of(JLink.RUNTIME),
-                Path.of(TEST_REPORT)));
+                Path.of(REPORTS)));
     }
 
     @Override
@@ -48,7 +48,7 @@ public class Inventory implements BuildStep {
         SequencedSet<Path> sources = new LinkedHashSet<>();
         SequencedSet<Path> documentation = new LinkedHashSet<>();
         SequencedSet<Path> jmods = new LinkedHashSet<>();
-        SequencedSet<Path> testReports = new LinkedHashSet<>();
+        SequencedMap<String, Path> reports = new LinkedHashMap<>();
         SequencedSet<Path> graphs = new LinkedHashSet<>();
         SequencedSet<Path> dependencyLicenses = new LinkedHashSet<>();
         SequencedMap<String, Path> closureJars = new LinkedHashMap<>();
@@ -97,7 +97,16 @@ public class Inventory implements BuildStep {
                 image = packages;
             }
             collect(folder.resolve(JMod.JMODS), jmods);
-            collect(folder.resolve(TEST_REPORT), testReports);
+            Path reportsFolder = folder.resolve(REPORTS);
+            if (Files.isDirectory(reportsFolder)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(reportsFolder)) {
+                    for (Path kind : stream) {
+                        if (Files.isDirectory(kind)) {
+                            reports.putIfAbsent(kind.getFileName().toString(), kind);
+                        }
+                    }
+                }
+            }
             Path graphFile = folder.resolve("graph.properties");
             if (Files.isRegularFile(graphFile)) {
                 graphs.add(graphFile);
@@ -146,8 +155,13 @@ public class Inventory implements BuildStep {
         writePaths(inventory, context, prefix + "sources", sources);
         writePaths(inventory, context, prefix + "documentation", documentation);
         writePaths(inventory, context, prefix + "jmod", jmods);
-        writePaths(inventory, context, prefix + "testreport", testReports);
+        for (Map.Entry<String, Path> entry : reports.entrySet()) {
+            inventory.setProperty(prefix + "report." + entry.getKey(), relativize(context, entry.getValue()));
+        }
         writePaths(inventory, context, prefix + "graph", graphs);
+        if (!graphs.isEmpty()) {
+            inventory.setProperty(prefix + "report.dependencies", relativize(context, graphs.getFirst()));
+        }
         writePaths(inventory, context, prefix + "licenses", dependencyLicenses);
         if (image != null) {
             inventory.setProperty(prefix + "package", relativize(context, image));

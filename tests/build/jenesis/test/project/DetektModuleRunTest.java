@@ -56,7 +56,7 @@ public class DetektModuleRunTest {
                     .as("the pinned detekt version resolves")
                     .anyMatch(name -> name.contains("detekt-cli") && name.contains(VERSION));
         }
-        Path report = root.resolve("detekt").resolve("check").resolve("output").resolve("detekt-report.xml");
+        Path report = root.resolve("detekt").resolve("check").resolve("output").resolve("reports").resolve("detekt").resolve("detekt-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("MaxLineLength");
     }
@@ -70,11 +70,6 @@ public class DetektModuleRunTest {
     }
 
     private static Repository mavenCentral() {
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        return new MavenDefaultRepository(
-                URI.create("https://repo1.maven.org/maven2/"),
-                Files.isDirectory(local) ? local : null,
-                Map.of(),
-                _ -> {});
+        return new MavenDefaultRepository();
     }
 }

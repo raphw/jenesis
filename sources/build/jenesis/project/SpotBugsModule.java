@@ -154,7 +154,7 @@ public class SpotBugsModule implements BuildExecutorModule {
             if (jars.isEmpty()) {
                 throw new IllegalStateException("No SpotBugs jars resolved upstream of the SpotBugs step");
             }
-            Path report = context.next().resolve("spotbugs-report.xml");
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "spotbugs")).resolve("spotbugs-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "edu.umd.cs.findbugs.LaunchAppropriateUI", "-textui",

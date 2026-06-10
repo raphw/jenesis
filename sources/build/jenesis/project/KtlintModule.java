@@ -147,7 +147,7 @@ public class KtlintModule implements BuildExecutorModule {
                 throw new IllegalStateException("No ktlint jars resolved upstream of the ktlint step");
             }
             files.sort(null);
-            Path report = context.next().resolve("ktlint-report.xml");
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "ktlint")).resolve("ktlint-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "com.pinterest.ktlint.Main",

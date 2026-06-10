@@ -65,16 +65,6 @@ public record InferredMultiProjectAssembler(String packaging,
                                      Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers) {
         ProcessHandler.Factory factory = ProcessHandler.Factory.of();
-        InferredSourceFormattingModule.JavaFormatter javaFormatter = switch (System.getProperty("jenesis.java.format", "")) {
-            case "google" -> InferredSourceFormattingModule.JavaFormatter.GOOGLE;
-            case "palantir" -> InferredSourceFormattingModule.JavaFormatter.PALANTIR;
-            default -> null;
-        };
-        boolean rewrite = Boolean.getBoolean("jenesis.format.rewrite");
-        Observation observation = switch (System.getProperty("jenesis.test.observe", "")) {
-            case "jacoco" -> Observation.JACOCO;
-            default -> null;
-        };
         return (sub, outerInherited) -> {
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
@@ -85,9 +75,7 @@ public record InferredMultiProjectAssembler(String packaging,
                     descriptor.sources());
             sub.addModule("format",
                     new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
-                            .pinning(descriptor.pinning())
-                            .javaFormatter(javaFormatter)
-                            .verify(!rewrite),
+                            .pinning(descriptor.pinning()),
                     descriptor.sources());
             sub.addModule("binary", new JavaToolchainModule()
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)
@@ -112,7 +100,6 @@ public record InferredMultiProjectAssembler(String packaging,
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
                         sub.addModule("observed", new InferredTestObservationModule(
-                                observation,
                                 repositories,
                                 resolvers,
                                 descriptor.pinning(),

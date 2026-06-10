@@ -54,7 +54,7 @@ public class KtlintModuleRunTest {
                     .as("the pinned ktlint version resolves")
                     .anyMatch(name -> name.contains("ktlint-cli") && name.contains(VERSION));
         }
-        Path report = root.resolve("ktlint").resolve("check").resolve("output").resolve("ktlint-report.xml");
+        Path report = root.resolve("ktlint").resolve("check").resolve("output").resolve("reports").resolve("ktlint").resolve("ktlint-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("Sample.kt");
     }
@@ -68,11 +68,6 @@ public class KtlintModuleRunTest {
     }
 
     private static Repository mavenCentral() {
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        return new MavenDefaultRepository(
-                URI.create("https://repo1.maven.org/maven2/"),
-                Files.isDirectory(local) ? local : null,
-                Map.of(),
-                _ -> {});
+        return new MavenDefaultRepository();
     }
 }

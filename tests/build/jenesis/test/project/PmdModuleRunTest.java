@@ -60,7 +60,7 @@ public class PmdModuleRunTest {
                     .as("the pinned PMD version resolves")
                     .anyMatch(name -> name.contains("pmd-core") && name.contains(VERSION));
         }
-        Path report = root.resolve("pmd").resolve("check").resolve("output").resolve("pmd-report.xml");
+        Path report = root.resolve("pmd").resolve("check").resolve("output").resolve("reports").resolve("pmd").resolve("pmd-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("SystemPrintln");
     }
@@ -74,11 +74,6 @@ public class PmdModuleRunTest {
     }
 
     private static Repository mavenCentral() {
-        Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
-        return new MavenDefaultRepository(
-                URI.create("https://repo1.maven.org/maven2/"),
-                Files.isDirectory(local) ? local : null,
-                Map.of(),
-                _ -> {});
+        return new MavenDefaultRepository();
     }
 }

@@ -147,7 +147,7 @@ public class JaCoCoModule implements BuildExecutorModule {
             if (jars.isEmpty()) {
                 throw new IllegalStateException("No JaCoCo CLI jars resolved upstream of the JaCoCo report step");
             }
-            Path report = Files.createDirectories(context.next().resolve("coverage"));
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "jacoco"));
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "org.jacoco.cli.internal.Main", "report", data.toString()));
