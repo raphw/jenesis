@@ -13,8 +13,10 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
         GOOGLE, PALANTIR
     }
 
-    public static final String GOOGLE_JAVA_FORMAT = "google-java-format", PALANTIR_JAVA_FORMAT = "palantir-java-format",
-            KTLINT = "ktlint-format", SCALAFMT = "scalafmt-format";
+    public static final String GOOGLE_JAVA_FORMAT = "google-java-format",
+            PALANTIR_JAVA_FORMAT = "palantir-java-format",
+            KTLINT = "ktlint-format",
+            SCALAFMT = "scalafmt-format";
 
     private final Path configuration;
     private final Map<String, Repository> repositories;
