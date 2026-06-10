@@ -2,10 +2,10 @@ Code-coverage demo
 ===================
 
 Measure test coverage with JaCoCo, inferred as a *test observation* engine. A
-small Maven project has one class and a test that exercises part of it; opting in
-with `-Djenesis.test.coverage=true` wraps the test run so JaCoCo records what the
-tests touch and renders an HTML and XML report. No build script and no JaCoCo
-configuration are needed.
+small Maven project has one class and a test that exercises part of it; selecting
+the engine with `-Djenesis.test.observe=jacoco` wraps the test run so JaCoCo
+records what the tests touch and renders an HTML and XML report. No build script
+and no JaCoCo configuration are needed.
 
 This is the test-observation counterpart to the code-quality demos that precede
 it: where those inspect sources and classes, this one observes the tests as they
@@ -18,7 +18,7 @@ From this directory:
 
     java build/jenesis/Project.java
 
-The project ships a `jenesis.properties` that sets `jenesis.test.coverage=true`,
+The project ships a `jenesis.properties` that sets `jenesis.test.observe=jacoco`,
 so a plain build collects coverage. Jenesis compiles the project, runs the test
 under the JaCoCo agent, and renders the report. The first build downloads JUnit
 and the JaCoCo tooling, so it takes a while.
@@ -29,7 +29,7 @@ Layout
     demo/demo-16-code-coverage
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins JUnit; sources in sources/, tests in test/
-    |-- jenesis.properties         jenesis.test.coverage=true
+    |-- jenesis.properties         jenesis.test.observe=jacoco
     |-- sources
     |   `-- coverage
     |       `-- Calculator.java    add(...) and subtract(...)
@@ -42,9 +42,9 @@ How coverage is inferred
 
 The default Java assembler runs tests through an `InferredTestObservationModule`,
 which bundles the observation engines that are switched on. Today that is JaCoCo,
-enabled by `jenesis.test.coverage`:
+selected by `jenesis.test.observe`:
 
-- With coverage off (the default for most projects), it is a plain test run.
+- With no engine selected (the default for most projects), it is a plain test run.
 - With coverage on, the test step is launched with the JaCoCo agent prepended as
   a `-javaagent`, writing its execution data (`jacoco.exec`) into the test step's
   own output. A downstream report step then runs the JaCoCo CLI over that data,

@@ -64,6 +64,10 @@ public record JavaMultiProjectAssembler(String packaging,
             default -> null;
         };
         boolean rewrite = Boolean.getBoolean("jenesis.format.rewrite");
+        Observation observation = switch (System.getProperty("jenesis.test.observe", "")) {
+            case "jacoco" -> Observation.JACOCO;
+            default -> null;
+        };
         return (sub, outerInherited) -> {
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
@@ -101,6 +105,7 @@ public record JavaMultiProjectAssembler(String packaging,
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
                         sub.addModule("observed", new InferredTestObservationModule(
+                                observation,
                                 repositories,
                                 resolvers,
                                 descriptor.pinning(),
