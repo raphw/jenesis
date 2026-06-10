@@ -49,13 +49,9 @@ public class DetektModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve("detekt.yml"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve("detekt.yml");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public DetektModule pinning(Pinning pinning) {

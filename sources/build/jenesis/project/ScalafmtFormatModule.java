@@ -47,13 +47,9 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
         this.verify = verify;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve(".scalafmt.conf"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve(".scalafmt.conf");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public ScalafmtFormatModule pinning(Pinning pinning) {

@@ -49,13 +49,9 @@ public class ScalastyleModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve("scalastyle-config.xml"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve("scalastyle-config.xml");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public ScalastyleModule pinning(Pinning pinning) {

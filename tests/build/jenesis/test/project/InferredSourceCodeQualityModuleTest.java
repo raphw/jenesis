@@ -23,7 +23,7 @@ public class InferredSourceCodeQualityModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("quality", new InferredSourceCodeQualityModule(Map.of(), Map.of()), "project");
+        executor.addModule("quality", new InferredSourceCodeQualityModule(project, Map.of(), Map.of()), "project");
         executor.execute("quality/checkstyle/required");
 
         Path requiredOutput = root.resolve("quality").resolve("checkstyle").resolve("required").resolve("output");
@@ -36,7 +36,7 @@ public class InferredSourceCodeQualityModuleTest {
     public void skips_checkstyle_when_its_config_file_is_absent() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("quality", new InferredSourceCodeQualityModule(Map.of(), Map.of()), "project");
+        executor.addModule("quality", new InferredSourceCodeQualityModule(project, Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("quality").resolve("checkstyle"))

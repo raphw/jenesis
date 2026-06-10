@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.Pinning;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
@@ -16,7 +15,6 @@ import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
 import build.jenesis.step.Jar;
-import build.jenesis.step.Javadoc;
 import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
@@ -27,7 +25,12 @@ public record JavaMultiProjectAssembler(String packaging,
                                         TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public JavaMultiProjectAssembler() {
-        this(null, false, false, false, null);
+        String packagingOverride = System.getProperty("jenesis.java.jpackage");
+        this(packagingOverride == null ? null : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
+                Boolean.getBoolean("jenesis.java.jmod"),
+                Boolean.getBoolean("jenesis.java.jlink"),
+                Boolean.getBoolean("jenesis.java.bundle"),
+                null);
     }
 
     public JavaMultiProjectAssembler packaging(String packaging) {
@@ -51,30 +54,37 @@ public record JavaMultiProjectAssembler(String packaging,
     }
 
     @Override
-    public JavaMultiProjectAssembler resolveProperties() {
-        String packagingOverride = System.getProperty("jenesis.java.jpackage");
-        return new JavaMultiProjectAssembler(
-                packagingOverride == null ? packaging : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
-                jmod || Boolean.getBoolean("jenesis.java.jmod"),
-                jlink || Boolean.getBoolean("jenesis.java.jlink"),
-                bundle || Boolean.getBoolean("jenesis.java.bundle"),
-                testEngine);
-    }
-
-    @Override
     public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
                                      Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers) {
         ProcessHandler.Factory factory = ProcessHandler.Factory.of();
+        InferredSourceFormattingModule.JavaFormatter javaFormatter = switch (System.getProperty("jenesis.java.format", "")) {
+            case "google" -> InferredSourceFormattingModule.JavaFormatter.GOOGLE;
+            case "palantir" -> InferredSourceFormattingModule.JavaFormatter.PALANTIR;
+            default -> null;
+        };
+        boolean rewrite = Boolean.getBoolean("jenesis.format.rewrite");
         return (sub, outerInherited) -> {
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
-            sub.addModule("binary", new JavaToolchainModule()
-                    .compiler(new InferredCompilerChainModule(repositories, resolvers)
+            sub.addModule("check",
+                    new InferredSourceCodeQualityModule(descriptor.configuration(), repositories, resolvers)
+                            .pinning(descriptor.pinning()),
+                    descriptor.sources());
+            sub.addModule("format",
+                    new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
                             .pinning(descriptor.pinning())
-                            .modulePath(descriptor.modulePath()))
-                    .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
+                            .javaFormatter(javaFormatter)
+                            .verify(!rewrite),
+                    descriptor.sources());
+            sub.addModule("binary", new JavaToolchainModule()
+                            .compiler(new InferredCompilerChainModule(repositories, resolvers)
+                                    .pinning(descriptor.pinning())
+                                    .modulePath(descriptor.modulePath()))
+                            .validator(new InferredByteCodeQualityModule(descriptor.configuration(), repositories, resolvers)
+                                    .pinning(descriptor.pinning()))
+                            .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
                     Stream.concat(
                             Stream.of("prepare"),
                             Stream.concat(inputs(descriptor), descriptor.resources().stream())));
@@ -103,8 +113,8 @@ public record JavaMultiProjectAssembler(String packaging,
             if (descriptor.source()) {
                 sub.addModule("sources", (module, inherited) ->
                         module.addStep("archive",
-                            new Jar(factory, Jar.Sort.SOURCES),
-                            inherited.sequencedKeySet()), descriptor.sources());
+                                new Jar(factory, Jar.Sort.SOURCES),
+                                inherited.sequencedKeySet()), descriptor.sources());
             }
             if (descriptor.documentation()) {
                 sub.addModule("documentation", (module, inherited) -> {
@@ -148,11 +158,9 @@ public record JavaMultiProjectAssembler(String packaging,
     }
 
     private static Stream<String> inputs(ProjectModuleDescriptor descriptor) {
-        return Stream.of(
-                        descriptor.sources(),
-                        descriptor.manifests(),
-                        descriptor.artifacts())
-                .flatMap(SequencedSet::stream);
+        return Stream.of(descriptor.sources(),
+                descriptor.manifests(),
+                descriptor.artifacts()).flatMap(SequencedSet::stream);
     }
 
     private record Prepare(PathPlacement modulePath) implements BuildStep {

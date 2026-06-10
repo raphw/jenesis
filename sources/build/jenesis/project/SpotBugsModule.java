@@ -48,14 +48,9 @@ public class SpotBugsModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static boolean isConfigured(SequencedMap<String, Path> inherited) {
-        for (Path folder : inherited.values()) {
-            if (Files.isRegularFile(folder.resolve("spotbugs-exclude.xml"))
-                    || Files.isRegularFile(folder.resolve("spotbugs.xml"))) {
-                return true;
-            }
-        }
-        return false;
+    public static Path configurationFile(Path configuration) {
+        Path file = configuration.resolve("spotbugs-exclude.xml");
+        return Files.isRegularFile(file) ? file : null;
     }
 
     public SpotBugsModule pinning(Pinning pinning) {

@@ -179,8 +179,13 @@ public class MavenDefaultRepository implements MavenRepository {
                                     expected = inputStream.readAllBytes();
                                 }
                                 results.put(item, expected);
+                                String text = new String(expected, StandardCharsets.UTF_8).strip();
+                                int end = 0;
+                                while (end < text.length() && !Character.isWhitespace(text.charAt(end))) {
+                                    end++;
+                                }
                                 valid = Arrays.equals(
-                                        HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
+                                        HexFormat.of().parseHex(text.substring(0, end)),
                                         digest.digest());
                                 verified = true;
                             }
@@ -290,8 +295,13 @@ public class MavenDefaultRepository implements MavenRepository {
                         expected = inputStream.readAllBytes();
                     }
                     results.put(entry.getKey(), expected);
+                    String text = new String(expected, StandardCharsets.UTF_8).strip();
+                    int end = 0;
+                    while (end < text.length() && !Character.isWhitespace(text.charAt(end))) {
+                        end++;
+                    }
                     if (!Arrays.equals(
-                            HexFormat.of().parseHex(new String(expected, StandardCharsets.UTF_8)),
+                            HexFormat.of().parseHex(text.substring(0, end)),
                             entry.getValue().digest())) {
                         invalid = entry.getValue().getAlgorithm();
                         break;

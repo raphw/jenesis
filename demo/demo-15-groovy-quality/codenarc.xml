@@ -1,0 +1,4 @@
+<ruleset xmlns="http://codenarc.org/ruleset/1.0">
+    <rule class="org.codenarc.rule.basic.EmptyIfStatementRule"/>
+    <rule class="org.codenarc.rule.unused.UnusedVariableRule"/>
+</ruleset>
