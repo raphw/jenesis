@@ -4,8 +4,6 @@ import module java.base;
 import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.RepositoryItem;
-import build.jenesis.ResolutionContext;
-import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 import build.jenesis.module.ModularJarResolver;
 
@@ -33,7 +31,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root",
                 "foo/transitive",
@@ -41,10 +39,8 @@ public class ModularJarResolverTest {
     }
 
     @Test
-    public void emits_followed_and_not_followed_module_edges_to_the_listener() throws IOException {
-        List<String> followedEdges = new ArrayList<>();
-        List<String> notFollowedEdges = new ArrayList<>();
-        new ModularJarResolver(false).dependencies(
+    public void emits_followed_and_not_followed_module_edges() throws IOException {
+        Resolver.Resolution resolution = new ModularJarResolver(false).dependencies(
                 Runnable::run,
                 "foo",
                 Map.of("foo", (_, coordinate) -> {
@@ -58,19 +54,12 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE,
-                new ResolutionListener() {
-                    @Override
-                    public void onDependency(String prefix,
-                                             String parent,
-                                             String coordinate,
-                                             String version,
-                                             String scope,
-                                             boolean followed,
-                                             Supplier<ResolutionContext> context) {
-                        (followed ? followedEdges : notFollowedEdges).add(parent + " -> " + coordinate);
-                    }
-                });
+                DependencyScope.COMPILE);
+        List<String> followedEdges = new ArrayList<>();
+        List<String> notFollowedEdges = new ArrayList<>();
+        for (Resolver.Edge edge : resolution.edges()) {
+            (edge.followed() ? followedEdges : notFollowedEdges).add(edge.parent() + " -> " + edge.coordinate());
+        }
         assertThat(followedEdges).containsExactly(
                 "null -> foo/root",
                 "foo/root -> foo/a",
@@ -93,7 +82,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root");
     }
 
@@ -113,7 +102,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root",
                 "foo/propagated");
@@ -137,7 +126,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root",
                 "foo/alpha",
@@ -161,7 +150,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.RUNTIME);
+                DependencyScope.RUNTIME).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root");
     }
 
@@ -211,7 +200,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/1.2.3");
     }
 
@@ -229,7 +218,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root");
     }
 
@@ -267,7 +256,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "9.9")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/9.9");
     }
 
@@ -327,7 +316,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "9.9")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/9.9");
     }
 
@@ -345,7 +334,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("root", "7.0")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/7.0");
     }
 
@@ -364,7 +353,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
                 "foo/transitive/2.0");
@@ -388,7 +377,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
                 "foo/alpha/2.0",
@@ -412,7 +401,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(fetched).containsOnlyKeys("root", "pinned/1.0");
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
@@ -436,7 +425,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(fetched).containsOnlyKeys("root", "plain");
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
@@ -460,7 +449,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("dep", "9.9")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(fetched).containsOnlyKeys("root", "dep/9.9");
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
@@ -485,7 +474,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(fetched).containsOnlyKeys("root", "middle/1.0", "deep/1.0");
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
@@ -513,7 +502,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(fetched).contains(Map.entry("shared/1.0", ""));
         assertThat(dependencies).containsKey("foo/shared/1.0");
     }
@@ -533,7 +522,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of("transitive", "9.9")),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly(
                 "foo/root/1.0",
                 "foo/transitive/9.9");
@@ -576,7 +565,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/2.0");
     }
 
@@ -597,7 +586,7 @@ public class ModularJarResolverTest {
                 }),
                 new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/1.0");
     }
 

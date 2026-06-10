@@ -4,8 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.DependencyScope;
 import build.jenesis.License;
-import build.jenesis.ResolutionContext;
-import build.jenesis.ResolutionListener;
+import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
@@ -1923,7 +1922,7 @@ public class MavenPomResolverTest {
     }
 
     @Test
-    public void listener_reports_discovered_range_and_negotiated_version() throws IOException {
+    public void reports_discovered_range_and_negotiated_version() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -1958,30 +1957,21 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<String> nodes = new ArrayList<>();
-        List<String> negotiated = new ArrayList<>();
-        mavenPomResolver.dependencies(Runnable::run, mavenRepository, "group", "artifact", "1", null,
-                new ResolutionListener() {
-                    @Override
-                    public void onDependency(String prefix,
-                                             String parent,
-                                             String coordinate,
-                                             String version,
-                                             String scope,
-                                             boolean followed,
-                                             Supplier<ResolutionContext> context) {
-                        if (followed) {
-                            nodes.add(coordinate);
-                        }
-                    }
-
-                    @Override
-                    public void onResolution(String prefix, String coordinate, String version) {
-                        negotiated.add(coordinate + " -> " + version);
-                    }
-                });
-        assertThat(nodes).containsExactly("transitive/artifact/[1,2]");
-        assertThat(negotiated).containsExactly("transitive/artifact -> 2");
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("transitive", "artifact", "2");
+        Resolver.Resolution resolution = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.<String, Repository>of("maven", mavenRepository),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE);
+        List<String> followed = resolution.edges().stream()
+                .filter(Resolver.Edge::followed)
+                .map(Resolver.Edge::coordinate)
+                .toList();
+        assertThat(followed).containsExactly("maven/group/artifact/1", "maven/transitive/artifact/[1,2]");
+        assertThat(resolution.vertices().get("maven/transitive/artifact").resolvedVersion()).isEqualTo("2");
     }
 
     @Test
@@ -2753,7 +2743,7 @@ public class MavenPomResolverTest {
     }
 
     @Test
-    public void listener_only_observes_the_converged_graph() throws IOException {
+    public void only_reports_the_converged_graph() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -2851,24 +2841,24 @@ public class MavenPomResolverTest {
                   </versioning>
                 </metadata>
                 """);
-        List<String> followedCoordinates = new ArrayList<>();
-        mavenPomResolver.dependencies(Runnable::run, mavenRepository, "group", "artifact", "1", null,
-                new ResolutionListener() {
-                    @Override
-                    public void onDependency(String prefix,
-                                             String parent,
-                                             String coordinate,
-                                             String version,
-                                             String scope,
-                                             boolean followed,
-                                             Supplier<ResolutionContext> context) {
-                        if (followed) {
-                            followedCoordinates.add(coordinate);
-                        }
-                    }
-                });
-        assertThat(followedCoordinates).contains("childtwo/artifact/1");
-        assertThat(followedCoordinates).doesNotContain("childone/artifact/1");
+        addJarToRepository("group", "artifact", "1");
+        addJarToRepository("mid", "artifact", "1");
+        addJarToRepository("forcer", "artifact", "1");
+        addJarToRepository("conflict", "artifact", "2");
+        addJarToRepository("childtwo", "artifact", "1");
+        Resolver.Resolution resolution = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.<String, Repository>of("maven", mavenRepository),
+                new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE);
+        List<String> followedCoordinates = resolution.edges().stream()
+                .filter(Resolver.Edge::followed)
+                .map(Resolver.Edge::coordinate)
+                .toList();
+        assertThat(followedCoordinates).contains("maven/childtwo/artifact/1");
+        assertThat(followedCoordinates).doesNotContain("maven/childone/artifact/1");
     }
 
     @Test
@@ -3935,24 +3925,21 @@ public class MavenPomResolverTest {
                 </project>
                 """);
 
-        SequencedMap<String, List<License>> captured = new LinkedHashMap<>();
-        mavenPomResolver.dependencies(Runnable::run, mavenRepository, "rootgroup", "rootlib", "1", null,
-                new ResolutionListener() {
-                    @Override
-                    public void onDependency(String prefix, String parent, String coordinate, String version,
-                                             String scope, boolean followed, Supplier<ResolutionContext> context) {
-                    }
+        addJarToRepository("rootgroup", "rootlib", "1");
+        addJarToRepository("leafgroup", "leaflib", "1");
+        addJarToRepository("dirgroup", "dirlib", "1");
+        Resolver.Resolution resolution = mavenPomResolver.dependencies(
+                Runnable::run,
+                "maven",
+                Map.<String, Repository>of("maven", mavenRepository),
+                new LinkedHashMap<>(Map.of("rootgroup/rootlib/1", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE);
 
-                    @Override
-                    public void onLicenses(String prefix, String coordinate, String version, List<License> licenses) {
-                        captured.put(coordinate, licenses);
-                    }
-                });
-
-        assertThat(captured.get("leafgroup/leaflib/1"))
+        assertThat(resolution.vertices().get("maven/leafgroup/leaflib").licenses())
                 .as("a dependency inherits its parent POM's license")
                 .containsExactly(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"));
-        assertThat(captured.get("dirgroup/dirlib/1"))
+        assertThat(resolution.vertices().get("maven/dirgroup/dirlib").licenses())
                 .as("a dependency's own declared license is captured")
                 .containsExactly(new License("MIT", "https://opensource.org/license/mit"));
     }
@@ -4224,7 +4211,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/other/artifact/1",
@@ -4268,7 +4255,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/pinned/artifact/5");
@@ -4312,7 +4299,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/pinned/artifact/jar/sources/3");
@@ -4347,7 +4334,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(),
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/other/artifact/1");
@@ -4404,7 +4391,7 @@ public class MavenPomResolverTest {
                 Map.of("maven", mavenRepository),
                 new LinkedHashMap<>(Map.of("group/artifact/1", Collections.emptyNavigableSet())),
                 versions,
-                DependencyScope.COMPILE);
+                DependencyScope.COMPILE).artifacts();
         assertThat(resolved).containsOnlyKeys(
                 "maven/group/artifact/1",
                 "maven/middle/artifact/1",

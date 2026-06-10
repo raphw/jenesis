@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.ScalaDocumentationModule;
 import build.jenesis.step.ProcessHandler;
@@ -42,7 +43,7 @@ public class ScalaDocumentationModuleTest {
         executor.addModule("scaladoc",
                 new ScalaDocumentationModule(
                         Map.of(),
-                        Map.of("module", (_, _, _, _, _, _, _) -> new LinkedHashMap<>()))
+                        Map.of("module", (_, _, _, _, _, _) -> new Resolver.Resolution(new LinkedHashMap<>(), List.of(), new LinkedHashMap<>())))
                         .factory(commands -> {
                             captured[0] = commands;
                             return ProcessHandler.OfTool.of(new ToolProvider() {

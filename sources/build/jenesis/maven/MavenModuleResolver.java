@@ -4,7 +4,6 @@ import module java.base;
 import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
-import build.jenesis.ResolutionListener;
 import build.jenesis.Resolver;
 
 public class MavenModuleResolver implements Resolver {
@@ -25,13 +24,12 @@ public class MavenModuleResolver implements Resolver {
     }
 
     @Override
-    public SequencedMap<String, Resolver.Resolved> dependencies(Executor executor,
-                                                     String prefix,
-                                                     Map<String, Repository> repositories,
-                                                     SequencedMap<String, SequencedSet<String>> coordinates,
-                                                     SequencedMap<String, String> versions,
-                                                     DependencyScope scope,
-                                                     ResolutionListener listener) throws IOException {
+    public Resolver.Resolution dependencies(Executor executor,
+                                            String prefix,
+                                            Map<String, Repository> repositories,
+                                            SequencedMap<String, SequencedSet<String>> coordinates,
+                                            SequencedMap<String, String> versions,
+                                            DependencyScope scope) throws IOException {
         coordinates.forEach((coordinate, exclusions) -> {
             if (!exclusions.isEmpty()) {
                 throw new IllegalArgumentException(
@@ -56,8 +54,8 @@ public class MavenModuleResolver implements Resolver {
             }
         }
         MavenRepository mavenRepo = MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty()));
-        MavenResolver.Resolution resolution = delegate.dependencies(
-                executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE, mavenPrefix, listener);
+        MavenResolver.Closure resolution = delegate.dependencies(
+                executor, mavenRepo, rootPoms, managedPoms, MavenDependencyScope.COMPILE, mavenPrefix);
         SequencedMap<MavenDependencyKey, MavenDependencyValue> closure = resolution.dependencies();
         SequencedMap<String, String> result = new LinkedHashMap<>();
         closure.forEach((key, value) -> {
@@ -88,7 +86,17 @@ public class MavenModuleResolver implements Resolver {
                         new Resolver.Resolved(root.file(), "", root.internal()));
             }
         });
-        return materialized;
+        SequencedMap<String, Resolver.Vertex> nodes = new LinkedHashMap<>();
+        closure.forEach((key, value) -> {
+            String withVersion = key.coordinate(mavenPrefix, value.version());
+            Resolver.Resolved artifact = materialized.get(withVersion);
+            nodes.put(key.coordinate(mavenPrefix, null), new Resolver.Vertex(
+                    value.version(),
+                    artifact == null ? null : Resolver.moduleName(artifact.file()),
+                    artifact != null && Resolver.automaticModule(artifact.file()),
+                    resolution.licenses().getOrDefault(withVersion, List.of())));
+        });
+        return new Resolver.Resolution(materialized, resolution.edges(), nodes);
     }
 
     private MavenResolver.RootPom toRootPom(Executor executor,

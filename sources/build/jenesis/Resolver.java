@@ -8,22 +8,23 @@ public interface Resolver extends Serializable {
     record Resolved(Path file, String checksum, boolean internal) implements Serializable {
     }
 
-    SequencedMap<String, Resolved> dependencies(Executor executor,
-                                                String prefix,
-                                                Map<String, Repository> repositories,
-                                                SequencedMap<String, SequencedSet<String>> coordinates,
-                                                SequencedMap<String, String> versions,
-                                                DependencyScope scope,
-                                                ResolutionListener listener) throws IOException;
-
-    default SequencedMap<String, Resolved> dependencies(Executor executor,
-                                                        String prefix,
-                                                        Map<String, Repository> repositories,
-                                                        SequencedMap<String, SequencedSet<String>> coordinates,
-                                                        SequencedMap<String, String> versions,
-                                                        DependencyScope scope) throws IOException {
-        return dependencies(executor, prefix, repositories, coordinates, versions, scope, null);
+    record Resolution(SequencedMap<String, Resolved> artifacts,
+                      List<Edge> edges,
+                      SequencedMap<String, Vertex> vertices) {
     }
+
+    record Edge(String parent, String coordinate, String version, String scope, boolean followed) {
+    }
+
+    record Vertex(String resolvedVersion, String module, boolean automatic, List<License> licenses) {
+    }
+
+    Resolution dependencies(Executor executor,
+                            String prefix,
+                            Map<String, Repository> repositories,
+                            SequencedMap<String, SequencedSet<String>> coordinates,
+                            SequencedMap<String, String> versions,
+                            DependencyScope scope) throws IOException;
 
     default SequencedSet<String> managedPrefixes() {
         return Collections.emptyNavigableSet();
@@ -102,11 +103,40 @@ public interface Resolver extends Serializable {
         return materialized;
     }
 
+    static String moduleName(Path jar) {
+        try {
+            return ModuleFinder.of(jar).findAll().stream()
+                    .findFirst()
+                    .map(reference -> reference.descriptor().name())
+                    .orElse(null);
+        } catch (RuntimeException _) {
+            return null;
+        }
+    }
+
+    static boolean automaticModule(Path jar) {
+        try {
+            return ModuleFinder.of(jar).findAll().stream()
+                    .findFirst()
+                    .map(reference -> reference.descriptor().isAutomatic())
+                    .orElse(false);
+        } catch (RuntimeException _) {
+            return false;
+        }
+    }
+
     static Resolver identity() {
-        return (executor, prefix, repositories, coordinates, _, _, _) -> {
+        return (executor, prefix, repositories, coordinates, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();
             coordinates.sequencedKeySet().forEach(coordinate -> resolved.put(prefix + "/" + coordinate, ""));
-            return materializeAll(executor, repositories, prefix, resolved);
+            SequencedMap<String, Resolved> artifacts = materializeAll(executor, repositories, prefix, resolved);
+            List<Edge> edges = new ArrayList<>();
+            SequencedMap<String, Vertex> vertices = new LinkedHashMap<>();
+            artifacts.sequencedKeySet().forEach(coordinate -> {
+                edges.add(new Edge(null, coordinate, null, null, true));
+                vertices.put(coordinate, new Vertex(null, null, false, List.of()));
+            });
+            return new Resolution(artifacts, edges, vertices);
         };
     }
 }

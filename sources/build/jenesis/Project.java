@@ -59,9 +59,9 @@ public record Project(
         Function<String, String> apply(BuildExecutor executor,
                                        Project project,
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
-                                       Supplier<ResolutionListener> listener) throws IOException;
+                                       boolean printDependencies) throws IOException;
 
-        Layout MAVEN = (executor, project, assembler, listener) -> {
+        Layout MAVEN = (executor, project, assembler, printDependencies) -> {
             executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
@@ -84,7 +84,7 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
                                 project.hashFunction(),
-                                listener,
+                                printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
@@ -115,7 +115,7 @@ public record Project(
             };
         };
 
-        Layout MODULAR = (executor, project, assembler, listener) -> {
+        Layout MODULAR = (executor, project, assembler, printDependencies) -> {
             executor.addModule(HELP, new HelpModule("modular", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
@@ -140,7 +140,7 @@ public record Project(
                         project.pinning(),
                         true,
                         project.hashFunction(),
-                        listener,
+                        printDependencies,
                         (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                 new ProjectModuleDescriptor(descriptor,
                                         project.tests(),
@@ -172,7 +172,7 @@ public record Project(
             };
         };
 
-        Layout MODULAR_TO_MAVEN = (executor, project, assembler, listener) -> {
+        Layout MODULAR_TO_MAVEN = (executor, project, assembler, printDependencies) -> {
             executor.addModule(HELP, new HelpModule("modular_to_maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
@@ -205,7 +205,7 @@ public record Project(
                                 project.pinning(),
                                 true,
                                 project.hashFunction(),
-                                listener,
+                                printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 project.tests(),
@@ -239,7 +239,7 @@ public record Project(
             };
         };
 
-        Layout AUTO = (executor, project, assembler, listener) -> of(project.root()).apply(executor, project, assembler, listener);
+        Layout AUTO = (executor, project, assembler, printDependencies) -> of(project.root()).apply(executor, project, assembler, printDependencies);
 
         static Layout of(Path root) throws IOException {
             if (Files.isRegularFile(root.resolve("pom.xml"))) {
@@ -1346,15 +1346,12 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
-        if (Boolean.getBoolean("jenesis.print.dependencies")) {
-            return build(DependencyTreeReport::new, selectors);
-        }
-        return build((Supplier<ResolutionListener>) null, selectors);
+        return build(Boolean.getBoolean("jenesis.print.dependencies"), selectors);
     }
 
-    public SequencedMap<String, Path> build(Supplier<ResolutionListener> listener, String... selectors) throws IOException {
+    public SequencedMap<String, Path> build(boolean printDependencies, String... selectors) throws IOException {
         BuildExecutor executor = BuildExecutor.of(target);
-        Function<String, String> resolver = layout.apply(executor, this, assembler, listener);
+        Function<String, String> resolver = layout.apply(executor, this, assembler, printDependencies);
         return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
                 .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
                 .toArray(String[]::new));
