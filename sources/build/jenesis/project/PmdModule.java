@@ -159,7 +159,7 @@ public class PmdModule implements BuildExecutorModule {
             if (config == null) {
                 throw new IllegalStateException("No " + configFile + " found among the inputs of the PMD step");
             }
-            Path report = context.next().resolve("pmd-report.xml");
+            Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "pmd")).resolve("pmd-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "net.sourceforge.pmd.cli.PmdCli", "check",

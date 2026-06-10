@@ -57,7 +57,7 @@ public class SpotBugsModuleRunTest {
                     .as("the pinned SpotBugs version resolves")
                     .anyMatch(name -> name.contains("spotbugs") && name.contains(VERSION));
         }
-        Path report = root.resolve("spotbugs").resolve("check").resolve("output").resolve("spotbugs-report.xml");
+        Path report = root.resolve("spotbugs").resolve("check").resolve("output").resolve("reports").resolve("spotbugs").resolve("spotbugs-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("ES_COMPARING");
     }

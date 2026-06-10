@@ -58,8 +58,12 @@ Where the report lands
 ----------------------
 
     target/build/.../assemble/observed/test/executed/output/jacoco.exec
-    target/build/.../assemble/observed/jacoco/report/output/coverage/index.html
-    target/build/.../assemble/observed/jacoco/report/output/coverage/jacoco.xml
+    target/build/.../assemble/observed/jacoco/report/output/reports/jacoco/index.html
+    target/build/.../assemble/observed/jacoco/report/output/reports/jacoco/jacoco.xml
+
+A `stage` build collects the report, like every other report kind, under
+`target/stage/reports/jacoco/<module>/`, and each module's `inventory.properties`
+records a `<module>.report.jacoco` entry pointing at it.
 
 Open `index.html` to browse coverage. Because `CalculatorTest` exercises
 `add(...)` but not `subtract(...)`, the report shows the project as partially

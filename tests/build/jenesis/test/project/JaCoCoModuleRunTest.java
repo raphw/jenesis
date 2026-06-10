@@ -110,7 +110,8 @@ public class JaCoCoModuleRunTest {
                 .as("the agent instrumented and recorded the covered class")
                 .contains("coverage/Covered");
 
-        Path xml = root.resolve("coverage").resolve("report").resolve("output").resolve("coverage").resolve("jacoco.xml");
+        Path xml = root.resolve("coverage").resolve("report").resolve("output")
+                .resolve("reports").resolve("jacoco").resolve("jacoco.xml");
         assertThat(xml).as("the report processor rendered an XML report").isNotEmptyFile();
         assertThat(xml).content()
                 .contains("name=\"coverage/Covered\"")

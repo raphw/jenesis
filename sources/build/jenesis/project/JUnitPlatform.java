@@ -57,7 +57,7 @@ public record JUnitPlatform() implements TestEngine {
         }
         if (reporting) {
             commands.add("--config=junit.platform.reporting.open.xml.enabled=true");
-            commands.add("--config=junit.platform.reporting.output.dir=" + output.resolve(BuildStep.TEST_REPORT));
+            commands.add("--config=junit.platform.reporting.output.dir=" + output.resolve(BuildStep.REPORTS + "tests"));
         }
         for (String className : classes) {
             commands.add("--select-class=" + className);

@@ -60,7 +60,7 @@ public class PmdModuleRunTest {
                     .as("the pinned PMD version resolves")
                     .anyMatch(name -> name.contains("pmd-core") && name.contains(VERSION));
         }
-        Path report = root.resolve("pmd").resolve("check").resolve("output").resolve("pmd-report.xml");
+        Path report = root.resolve("pmd").resolve("check").resolve("output").resolve("reports").resolve("pmd").resolve("pmd-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("SystemPrintln");
     }

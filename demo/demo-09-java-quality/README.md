@@ -69,11 +69,18 @@ Where the tools run and what they produce
 
 Checkstyle and PMD run on the sources, in parallel with compilation. SpotBugs is
 a *validator* in the Java toolchain: it runs once the classes exist. Each tool
-writes an XML report under its step's output folder, for example:
+writes an XML report into a `reports/<tool>/` subfolder of its step's output, for
+example:
 
-    target/build/.../assemble/check/checkstyle/check/output/checkstyle-report.xml
-    target/build/.../assemble/check/pmd/check/output/pmd-report.xml
-    target/build/.../assemble/binary/validate/spotbugs/check/output/spotbugs-report.xml
+    target/build/.../assemble/check/checkstyle/check/output/reports/checkstyle/checkstyle-report.xml
+    target/build/.../assemble/check/pmd/check/output/reports/pmd/pmd-report.xml
+    target/build/.../assemble/binary/validate/spotbugs/check/output/reports/spotbugs/spotbugs-report.xml
+
+A `stage` build collects every report from every module into one place, each kind
+in its own subfolder: `target/stage/reports/<kind>/<module>/`, for example
+`target/stage/reports/checkstyle/sources/checkstyle-report.xml`. Each module's
+`inventory.properties` also records a `<module>.report.<kind>` entry pointing at
+the report, so other tools can find it.
 
 By default the linters are report-only: they record findings but do not fail the
 build. Pass `.strict(true)` when wiring a tool yourself (see

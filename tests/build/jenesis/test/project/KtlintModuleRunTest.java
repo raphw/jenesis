@@ -54,7 +54,7 @@ public class KtlintModuleRunTest {
                     .as("the pinned ktlint version resolves")
                     .anyMatch(name -> name.contains("ktlint-cli") && name.contains(VERSION));
         }
-        Path report = root.resolve("ktlint").resolve("check").resolve("output").resolve("ktlint-report.xml");
+        Path report = root.resolve("ktlint").resolve("check").resolve("output").resolve("reports").resolve("ktlint").resolve("ktlint-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("Sample.kt");
     }

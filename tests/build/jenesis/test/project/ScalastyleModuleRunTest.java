@@ -61,7 +61,7 @@ public class ScalastyleModuleRunTest {
                     .as("the pinned Scalastyle version resolves")
                     .anyMatch(name -> name.contains("scalastyle") && name.contains(VERSION));
         }
-        Path report = root.resolve("scalastyle").resolve("check").resolve("output").resolve("scalastyle-report.xml");
+        Path report = root.resolve("scalastyle").resolve("check").resolve("output").resolve("reports").resolve("scalastyle").resolve("scalastyle-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("FileLineLengthChecker");
     }

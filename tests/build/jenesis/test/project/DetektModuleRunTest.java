@@ -56,7 +56,7 @@ public class DetektModuleRunTest {
                     .as("the pinned detekt version resolves")
                     .anyMatch(name -> name.contains("detekt-cli") && name.contains(VERSION));
         }
-        Path report = root.resolve("detekt").resolve("check").resolve("output").resolve("detekt-report.xml");
+        Path report = root.resolve("detekt").resolve("check").resolve("output").resolve("reports").resolve("detekt").resolve("detekt-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("MaxLineLength");
     }
