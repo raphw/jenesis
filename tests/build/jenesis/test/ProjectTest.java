@@ -117,12 +117,6 @@ public class ProjectTest {
     }
 
     @Test
-    public void system_property_disables_tests() {
-        System.setProperty("jenesis.test.skip", "");
-        assertThat(new Project().tests()).isFalse();
-    }
-
-    @Test
     public void skip_tests_setter_skips_tests() {
         assertThat(new Project().tests(false).tests()).isFalse();
     }

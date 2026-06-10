@@ -13,7 +13,7 @@ public class ModularStaging implements BuildStep {
     private final boolean includeTests;
 
     public ModularStaging() {
-        this(false);
+        this(Boolean.getBoolean("jenesis.stage.tests"));
     }
 
     public ModularStaging(boolean includeTests) {

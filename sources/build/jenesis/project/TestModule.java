@@ -369,6 +369,9 @@ public class TestModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        if (System.getProperty("jenesis.test.skip") != null) {
+            return;
+        }
         TestEngine resolved = engine;
         if (resolved == null) {
             resolved = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);
