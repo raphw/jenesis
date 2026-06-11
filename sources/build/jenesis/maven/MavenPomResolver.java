@@ -128,7 +128,7 @@ public class MavenPomResolver implements MavenResolver {
         for (RootPom managedPom : managedPoms) {
             UnresolvedPom assembled;
             try (InputStream stream = managedPom.pom()) {
-                assembled = assemble(executor, repository, stream, false, null, null, new HashSet<>(), unresolved);
+                assembled = assemble(executor, repository, stream, false, true, null, null, new HashSet<>(), unresolved);
             } catch (SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to parse provided managed POM", e);
             }
@@ -146,7 +146,7 @@ public class MavenPomResolver implements MavenResolver {
         for (RootPom rootPom : rootPoms) {
             UnresolvedPom assembled;
             try (InputStream stream = rootPom.pom()) {
-                assembled = assemble(executor, repository, stream, false, null, null, new HashSet<>(), unresolved);
+                assembled = assemble(executor, repository, stream, false, true, null, null, new HashSet<>(), unresolved);
             } catch (SAXException | ParserConfigurationException e) {
                 throw new IllegalStateException("Failed to parse provided root POM", e);
             }
@@ -423,6 +423,7 @@ public class MavenPomResolver implements MavenResolver {
                             MavenRepository.of(repository),
                             Files.newInputStream(current.resolve("pom.xml")),
                             true,
+                            true,
                             current,
                             paths,
                             new HashSet<>(),
@@ -478,6 +479,7 @@ public class MavenPomResolver implements MavenResolver {
                                    MavenRepository repository,
                                    InputStream inputStream,
                                    boolean extended,
+                                   boolean trusted,
                                    Path path,
                                    Map<Path, UnresolvedPom> paths,
                                    Set<DependencyCoordinate> children,
@@ -499,7 +501,7 @@ public class MavenPomResolver implements MavenResolver {
                                 path != null ? toTextChild400(node, "relativePath").map(value -> value.endsWith("/pom.xml")
                                         ? value.substring(0, value.length() - 7)
                                         : value).orElse("../") : null,
-                                toCommentChecksum(node).orElse(null)))
+                                trusted ? toCommentChecksum(node).orElse(null) : null))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
@@ -523,6 +525,7 @@ public class MavenPomResolver implements MavenResolver {
                                         repository,
                                         Files.newInputStream(pom),
                                         false,
+                                        trusted,
                                         candidate,
                                         paths,
                                         children,
@@ -583,12 +586,12 @@ public class MavenPomResolver implements MavenResolver {
                         .flatMap(node -> toChildren400(node, "dependencies"))
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
-                        .map(MavenPomResolver::toDependency400)
+                        .map(node -> toDependency400(node, trusted))
                         .forEach(entry -> managedDependencies.put(entry.getKey(), entry.getValue()));
                 toChildren400(document.getDocumentElement(), "dependencies")
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
-                        .map(MavenPomResolver::toDependency400)
+                        .map(node -> toDependency400(node, trusted))
                         .forEach(entry -> dependencies.putLast(entry.getKey(), entry.getValue()));
                 Node build = extended
                         ? toChildren400(document.getDocumentElement(), "build").findFirst().orElse(null)
@@ -692,9 +695,9 @@ public class MavenPomResolver implements MavenResolver {
                         }
                         DigestInputStream digestStream = new DigestInputStream(stream, digest);
                         pom = assemble(executor, repository, drainAndValidate(digestStream, digest, expected,
-                                groupId, artifactId, version), false, localPath, localPaths, children, poms);
+                                groupId, artifactId, version), false, false, localPath, localPaths, children, poms);
                     } else {
-                        pom = assemble(executor, repository, stream, false, localPath, localPaths, children, poms);
+                        pom = assemble(executor, repository, stream, false, false, localPath, localPaths, children, poms);
                     }
                 }
             } catch (RuntimeException | SAXException | ParserConfigurationException e) {
@@ -837,7 +840,7 @@ public class MavenPomResolver implements MavenResolver {
         return toChildren400(node, localName).map(child -> child.getTextContent().trim()).findFirst();
     }
 
-    private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node) {
+    private static Map.Entry<DependencyKey, DependencyValue> toDependency400(Node node, boolean trusted) {
         String type = toTextChild400(node, "type").orElse("jar");
         String classifier = toTextChild400(node, "classifier").orElse(null);
         String aliased = switch (type) {
@@ -872,7 +875,7 @@ public class MavenPomResolver implements MavenResolver {
                                         .toList())
                                 .orElse(null),
                         toTextChild400(node, "optional").orElse(null),
-                        toCommentChecksum(node).orElse(null)));
+                        trusted ? toCommentChecksum(node).orElse(null) : null));
     }
 
     private static Optional<String> toCommentChecksum(Node node) {

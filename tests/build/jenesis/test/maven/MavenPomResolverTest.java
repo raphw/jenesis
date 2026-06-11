@@ -15,6 +15,7 @@ import build.jenesis.maven.MavenDependencyValue;
 import build.jenesis.maven.MavenLocalPom;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenRepository;
+import build.jenesis.maven.MavenResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -3966,7 +3967,7 @@ public class MavenPomResolverTest {
     }
 
     @Test
-    public void managed_dep_checksum_propagates_to_resolved_value() throws IOException {
+    public void external_managed_dep_checksum_is_ignored() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -4002,40 +4003,54 @@ public class MavenPomResolverTest {
                 Runnable::run, mavenRepository, "group", "artifact", "1", null);
         assertThat(deps).containsExactly(Map.entry(
                 new MavenDependencyKey("other", "artifact", "jar", null),
-                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null, "SHA256/cafebabe")));
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null, null)));
     }
 
     @Test
-    public void parent_pom_checksum_validates_downloaded_bytes() throws Exception {
-        String parentPom = """
+    public void first_party_managed_dep_checksum_propagates_to_resolved_value() throws IOException {
+        addToRepository("other", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                     <modelVersion>4.0.0</modelVersion>
-                    <groupId>parent</groupId>
+                </project>
+                """);
+        String rootPom = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
                     <artifactId>artifact</artifactId>
                     <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>other</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <!--Checksum/SHA256/cafebabe-->
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>other</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
                 </project>
                 """;
-        addToRepository("parent", "artifact", "1", parentPom);
-        addToRepository("group", "artifact", "1", """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                    <parent>
-                        <groupId>parent</groupId>
-                        <artifactId>artifact</artifactId>
-                        <version>1</version>
-                        <!--Checksum/SHA-256/%s-->
-                    </parent>
-                    <artifactId>artifact</artifactId>
-                </project>
-                """.formatted(sha256Hex(parentPom)));
-        assertThatCode(() -> mavenPomResolver.dependencies(
-                Runnable::run, mavenRepository, "group", "artifact", "1", null)).doesNotThrowAnyException();
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> deps = mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository,
+                List.of(new MavenResolver.RootPom(new ByteArrayInputStream(rootPom.getBytes(StandardCharsets.UTF_8)))),
+                List.of(),
+                MavenDependencyScope.COMPILE,
+                "main").dependencies();
+        assertThat(deps.get(new MavenDependencyKey("other", "artifact", "jar", null)).checksum())
+                .isEqualTo("SHA256/cafebabe");
     }
 
     @Test
-    public void parent_pom_checksum_mismatch_fails_resolution() throws IOException {
+    public void external_parent_pom_checksum_is_ignored() throws IOException {
         addToRepository("parent", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -4058,69 +4073,73 @@ public class MavenPomResolverTest {
                     <artifactId>artifact</artifactId>
                 </project>
                 """);
-        assertThatThrownBy(() -> mavenPomResolver.dependencies(
-                Runnable::run, mavenRepository, "group", "artifact", "1", null))
-                .isInstanceOf(IllegalStateException.class)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .hasStackTraceContaining("Mismatched POM checksum")
-                .hasStackTraceContaining("parent:artifact:1");
-    }
-
-    @Test
-    public void bom_import_checksum_validates_downloaded_bytes() throws Exception {
-        String bomPom = """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                    <groupId>bom</groupId>
-                    <artifactId>artifact</artifactId>
-                    <version>1</version>
-                    <packaging>pom</packaging>
-                    <dependencyManagement>
-                        <dependencies>
-                            <dependency>
-                                <groupId>other</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1</version>
-                            </dependency>
-                        </dependencies>
-                    </dependencyManagement>
-                </project>
-                """;
-        addToRepository("bom", "artifact", "1", bomPom);
-        addToRepository("group", "artifact", "1", """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                    <groupId>group</groupId>
-                    <artifactId>artifact</artifactId>
-                    <version>1</version>
-                    <dependencyManagement>
-                        <dependencies>
-                            <dependency>
-                                <groupId>bom</groupId>
-                                <artifactId>artifact</artifactId>
-                                <version>1</version>
-                                <type>pom</type>
-                                <scope>import</scope>
-                                <!--Checksum/SHA-256/%s-->
-                            </dependency>
-                        </dependencies>
-                    </dependencyManagement>
-                </project>
-                """.formatted(sha256Hex(bomPom)));
-        addToRepository("other", "artifact", "1", """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                </project>
-                """);
         assertThatCode(() -> mavenPomResolver.dependencies(
                 Runnable::run, mavenRepository, "group", "artifact", "1", null)).doesNotThrowAnyException();
     }
 
     @Test
-    public void bom_import_checksum_mismatch_fails_resolution() throws IOException {
+    public void local_pom_parent_checksum_validates_downloaded_bytes() throws Exception {
+        String parentPom = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """;
+        addToRepository("parent", "artifact", "1", parentPom);
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                        <relativePath/>
+                        <!--Checksum/SHA-256/%s-->
+                    </parent>
+                    <artifactId>child</artifactId>
+                </project>
+                """.formatted(sha256Hex(parentPom)));
+        assertThatCode(() -> mavenPomResolver.local(
+                Runnable::run, mavenRepository, project)).doesNotThrowAnyException();
+    }
+
+    @Test
+    public void local_pom_parent_checksum_mismatch_fails_resolution() throws IOException {
+        addToRepository("parent", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>parent</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                </project>
+                """);
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <parent>
+                        <groupId>parent</groupId>
+                        <artifactId>artifact</artifactId>
+                        <version>1</version>
+                        <relativePath/>
+                        <!--Checksum/SHA-256/deadbeef-->
+                    </parent>
+                    <artifactId>child</artifactId>
+                </project>
+                """);
+        assertThatThrownBy(() -> mavenPomResolver.local(
+                Runnable::run, mavenRepository, project))
+                .hasStackTraceContaining("Mismatched POM checksum")
+                .hasStackTraceContaining("parent:artifact:1");
+    }
+
+    @Test
+    public void external_bom_import_checksum_is_ignored() throws IOException {
         addToRepository("bom", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -4152,10 +4171,49 @@ public class MavenPomResolverTest {
                     </dependencyManagement>
                 </project>
                 """);
+        assertThatCode(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null)).doesNotThrowAnyException();
+    }
+
+    @Test
+    public void first_party_bom_import_checksum_mismatch_fails_resolution() throws IOException {
+        addToRepository("bom", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>bom</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <packaging>pom</packaging>
+                </project>
+                """);
+        String rootPom = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>bom</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                                <!--Checksum/SHA-256/cafebabe-->
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """;
         assertThatThrownBy(() -> mavenPomResolver.dependencies(
-                Runnable::run, mavenRepository, "group", "artifact", "1", null))
-                .isInstanceOf(IllegalStateException.class)
-                .hasRootCauseInstanceOf(IllegalStateException.class)
+                Runnable::run, mavenRepository,
+                List.of(new MavenResolver.RootPom(new ByteArrayInputStream(rootPom.getBytes(StandardCharsets.UTF_8)))),
+                List.of(),
+                MavenDependencyScope.COMPILE,
+                "main"))
                 .hasStackTraceContaining("Mismatched POM checksum")
                 .hasStackTraceContaining("bom:artifact:1");
     }
@@ -4441,7 +4499,7 @@ public class MavenPomResolverTest {
     }
 
     @Test
-    public void conflicting_checksums_for_same_version_fail_resolution() throws IOException {
+    public void external_conflicting_checksums_are_ignored() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -4494,8 +4552,7 @@ public class MavenPomResolverTest {
                     <modelVersion>4.0.0</modelVersion>
                 </project>
                 """);
-        assertThatThrownBy(() -> mavenPomResolver.dependencies(
-                Runnable::run, mavenRepository, "group", "artifact", "1", null))
-                .hasStackTraceContaining("Conflicting checksums for shared:artifact:1");
+        assertThatCode(() -> mavenPomResolver.dependencies(
+                Runnable::run, mavenRepository, "group", "artifact", "1", null)).doesNotThrowAnyException();
     }
 }
