@@ -202,8 +202,10 @@ public class MavenPomResolver implements MavenResolver {
         Map<MavenDependencyKey, DependencyResolution> resolutions = new HashMap<>();
         SequencedSet<MavenDependencyKey> dependencies = new LinkedHashSet<>(), conflicts;
         MavenVersionNegotiator negotiator = negotiatorSupplier.get();
+        List<Resolver.Edge> edges = new ArrayList<>();
         do {
             dependencies.clear();
+            edges.clear();
             conflicts = traverse(executor,
                     repository,
                     negotiator,
@@ -214,7 +216,7 @@ public class MavenPomResolver implements MavenResolver {
                     dependencies,
                     initial,
                     prefix,
-                    null);
+                    edges);
             Iterator<MavenDependencyKey> it = conflicts.iterator();
             while (it.hasNext()) {
                 MavenDependencyKey key = it.next();
@@ -253,19 +255,6 @@ public class MavenPomResolver implements MavenResolver {
                     resolution.optional,
                     selectChecksum(resolution)));
         });
-        List<Resolver.Edge> edges = new ArrayList<>();
-        dependencies.clear();
-        traverse(executor,
-                repository,
-                negotiator,
-                resolved,
-                unresolved,
-                resolutions,
-                initial.pom().managedDependencies(),
-                dependencies,
-                initial,
-                prefix,
-                edges);
         SequencedMap<String, List<License>> licenses = new LinkedHashMap<>();
         results.forEach((key, value) -> {
             ResolvedPom pom = resolved.get(new DependencyCoordinate(key.groupId(), key.artifactId(), value.version()));
@@ -351,16 +340,14 @@ public class MavenPomResolver implements MavenResolver {
                     }
                 }
                 boolean followed = dependencies.add(entry.getKey());
-                if (edges != null) {
-                    edges.add(new Resolver.Edge(
-                            current.origin() == null
-                                    ? null
-                                    : current.origin().coordinate(prefix, current.originVersion()),
-                            entry.getKey().coordinate(prefix, value.version()),
-                            value.version(),
-                            scope.name().toLowerCase(Locale.ROOT),
-                            followed));
-                }
+                edges.add(new Resolver.Edge(
+                        current.origin() == null
+                                ? null
+                                : current.origin().coordinate(prefix, current.originVersion()),
+                        entry.getKey().coordinate(prefix, value.version()),
+                        value.version(),
+                        scope.name().toLowerCase(Locale.ROOT),
+                        followed));
                 if (followed) {
                     ResolvedPom pom = resolveOrCached(executor,
                             repository,
