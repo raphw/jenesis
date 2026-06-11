@@ -476,12 +476,6 @@ Java module name in the default `main` group.
 Together these show that build logic itself is just another module - it can be
 authored inline, loaded from source, or consumed as a versioned artifact.
 
-> Status: both `internal-module` and `external-module` currently fail at the
-> build-module load step, because the plugin's `build.jenesis` dependency
-> resolves to a published version that lags the local sources the host runs
-> against. They will work once a matching `build.jenesis` is released; see their
-> `README.md`s.
-
 ## 18. Driving the build without `Project` - [`custom-maven`](demo-26-custom-maven/README.md), [`custom-modular`](demo-27-custom-modular/README.md)
 
 The previous customizations still went through `Project`. These two go a step
