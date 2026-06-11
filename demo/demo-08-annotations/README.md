@@ -31,9 +31,9 @@ A single Javadoc tag on the module declaration turns the processor on:
 The processor is named the same way `requires` names a dependency - by module
 name. The tag is generic: `@jenesis.plugin <repository>/<coordinate>` (or a bare
 module name) resolves to the `plugin` scope, a Java annotation processor;
-`@jenesis.plugin <compiler> <repository>/<coordinate>` resolves to the
-`plugin:<compiler>` scope for a language compiler plugin (`@jenesis.plugin kotlin
-maven/...` for a Kotlin compiler plugin). Here the bare module name resolves to
+`@jenesis.plugin <compiler> <repository>/<coordinate>` resolves to the `plugin`
+scope of that compiler's own group for a language compiler plugin (`@jenesis.plugin
+kotlinc maven/...` for a Kotlin compiler plugin). Here the bare module name resolves to
 the `plugin` scope; Jenesis resolves it alongside
 the module's other dependencies, and the Java compiler picks the `plugin`-scope
 jars and passes them to `javac` as `--processor-module-path`.

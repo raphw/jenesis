@@ -253,6 +253,8 @@ top-level targets the shipped layouts register are `export` (on `MAVEN`, `MODULA
 repository, and `MODULAR_TO_MAVEN` into both), `pin` (rewrite every `pom.xml` / `module-info.java` so
 the full transitive closure is pinned at source level), and `dependencies` (print each module's resolved
 dependency graph, with licenses, from the persisted `graph.properties`; see *Printing the dependency tree*).
+Three further selectors print or refresh without building artifacts: `help` (the human usage screen),
+`skill` (an agent-oriented briefing of the same material), and `metadata` (refresh the metadata module outputs).
 
 **Module selectors.** Selectors that start with `+` are rewritten by the active layout into the per-project
 module path of that name, so a single module can be built without dragging its siblings in. The shipped
@@ -1305,7 +1307,7 @@ path, the Kotlin compiler (its `kotlinc`-group scope `plugin` jars) to `-Xplugin
 `scalac`-group scope `plugin` jars) to `-Xplugin:<jar>`. Each compile step matches
 only its own module's plugin artifacts (never a sibling module's), so a processor or plugin is loaded only by the
 compiler it was declared for. `demo/demo-08-annotations` runs a Java annotation processor (Immutables) and
-`demo/demo-29-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
+`demo/demo-14-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
 is not run until it is declared; the Scala path is wired identically.
 
 An optional space-separated `<algorithm>/<hex>` after the version on a `@jenesis.pin` Javadoc tag
@@ -1586,6 +1588,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.sources`       | system property | When `true` (bare flag accepted), resolves the project-level `source` flag to `true`, so `InferredMultiProjectAssembler` also assembles a per-module sources jar. |
 | `jenesis.project.documentation` | system property | When `true` (bare flag accepted), resolves the project-level `documentation` flag to `true`, so `InferredMultiProjectAssembler` also assembles a per-module javadoc jar. |
 | `jenesis.project.metadata`      | system property | Path to a project-level metadata override file (conventionally `project.properties`) whose entries are merged into every module's `metadata.properties` between the framework defaults and `jenesis.project.version`. |
+| `jenesis.project.configuration` | system property | Directory (relative to the project root) the inferred quality and formatting tools search for their configuration files (`checkstyle.xml`, `pmd.xml`, `spotbugs-exclude.xml`, `.editorconfig`, `.scalafmt.conf`, and so on). Read by the `new Project()` constructor and threaded into every `ProjectModuleDescriptor` as the configuration directory; defaults to the project root. |
 | `MAVEN_REPOSITORY_URI`  | environment variable| Overrides the default `MavenDefaultRepository` upstream URL (`https://repo1.maven.org/maven2/`). Useful for pointing at an internal mirror; a trailing slash is added automatically if missing.                                       |
 | `MAVEN_REPOSITORY_LOCAL`| environment variable| Overrides the local Maven repository directory (default `~/.m2/repository`) for both reads and writes: `MavenDefaultRepository` reads from and hardlinks downloaded jars into it; `MavenRepositoryExport` publishes the staged tree into it. On the read side, an explicit override must point at an existing directory or `MavenDefaultRepository` throws on construction (unset is permissive: a missing default silently disables the local cache and every fetch streams from upstream). On the write side, the directory is created on demand. |
 | `MAVEN_REPOSITORY_TOKEN`| environment variable| When set, `MavenDefaultRepository` sends the value verbatim as an `Authorization` header on every HTTP fetch (artifact bytes and `.sha1` sidecars). Useful for upstreams that require token-based auth: set the full header value, e.g. `Bearer <token>` for OAuth-style endpoints or `Basic <base64(user:pass)>` for HTTP Basic. Ignored for `file://` URIs and any non-HTTP scheme. |
@@ -1740,7 +1743,11 @@ the local cache layer when absent. For upstreams that require authentication, `M
 sent verbatim as the `Authorization` header on every HTTP fetch (set the full value including the scheme,
 e.g. `Bearer <token>` or `Basic <base64(user:pass)>`); the token is also threaded through to `.sha1` sidecar
 fetches and ignored for `file://` URIs. Each download is validated against its `.sha1` sidecar; a mismatch
-deletes the cached file and any cached digests so the next request re-downloads from upstream.
+deletes the cached file and any cached digests so the next request re-downloads from upstream. Transient
+fetch failures - a connection reset or an HTTP status other than 404 - are retried up to four times with
+exponential backoff (0.5s, 1s, 2s) before the build fails; a `FileNotFoundException` (a 404, e.g. an absent
+optional `.sha1` sidecar) is a clean miss and is never retried. `JenesisModuleRepository` retries its own
+fetches the same way.
 
 `JenesisModuleRepository` is the read-side counterpart to `JenesisModuleRepositoryExport`: it fetches module
 jars (or other artifacts) from a tree shaped by the export step (`<root>/<module>[/<version>]/<module>.<ext>`).

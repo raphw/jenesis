@@ -195,4 +195,4 @@ Even though every descriptor here is a `module-info.java`, the default
 MODULAR_TO_MAVEN layout resolves each `requires` through Maven, so the tree shows
 Maven coordinates and their transitive Maven closure - the same shape as the
 POM-based `../demo-03-java-pom-multi`. The pure MODULAR layout
-(`../demo-18-module-layout`) shows the same dependencies as Java module names.
+(`../demo-21-module-layout`) shows the same dependencies as Java module names.
