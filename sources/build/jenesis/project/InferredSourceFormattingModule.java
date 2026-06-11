@@ -24,6 +24,8 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final JavaFormatter javaFormatter;
     private final boolean verify;
+    private final boolean ktlint;
+    private final boolean scalafmt;
 
     public InferredSourceFormattingModule(Path configuration,
                                           Map<String, Repository> repositories,
@@ -34,7 +36,9 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                     case "palantir" -> JavaFormatter.PALANTIR;
                     default -> null;
                 },
-                !Boolean.getBoolean("jenesis.format.rewrite"));
+                !Boolean.getBoolean("jenesis.format.rewrite"),
+                Boolean.parseBoolean(System.getProperty("jenesis.format.ktlint", "true")),
+                Boolean.parseBoolean(System.getProperty("jenesis.format.scalafmt", "true")));
     }
 
     private InferredSourceFormattingModule(Path configuration,
@@ -42,25 +46,37 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
                                            JavaFormatter javaFormatter,
-                                           boolean verify) {
+                                           boolean verify,
+                                           boolean ktlint,
+                                           boolean scalafmt) {
         this.configuration = configuration;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.javaFormatter = javaFormatter;
         this.verify = verify;
+        this.ktlint = ktlint;
+        this.scalafmt = scalafmt;
     }
 
     public InferredSourceFormattingModule pinning(Pinning pinning) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
     }
 
     public InferredSourceFormattingModule javaFormatter(JavaFormatter javaFormatter) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
     }
 
     public InferredSourceFormattingModule verify(boolean verify) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
+    }
+
+    public InferredSourceFormattingModule ktlint(boolean ktlint) {
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
+    }
+
+    public InferredSourceFormattingModule scalafmt(boolean scalafmt) {
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
     }
 
     @Override
@@ -75,10 +91,10 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                         inherited.sequencedKeySet());
             }
         }
-        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, KTLINT,
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, KTLINT, ktlint,
                 KtlintFormatModule.configurationFile(configuration),
                 new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
-        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, SCALAFMT,
+        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
                 new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
     }

@@ -11,6 +11,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bundle;
+import build.jenesis.step.CycloneDxEmitter;
 import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
@@ -18,46 +19,59 @@ import build.jenesis.step.Jar;
 import build.jenesis.step.NativeImage;
 import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
+import build.jenesis.step.Sbom;
 
 public record InferredMultiProjectAssembler(String packaging,
                                             boolean jmod,
                                             boolean jlink,
                                             boolean bundle,
                                             boolean nativeImage,
+                                            CycloneDxEmitter.Format sbom,
                                             TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public InferredMultiProjectAssembler() {
         String packagingOverride = System.getProperty("jenesis.java.jpackage");
+        String sbomFormat = System.getProperty("jenesis.sbom.cyclonedx");
         this(packagingOverride == null ? null : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 Boolean.getBoolean("jenesis.java.jmod"),
                 Boolean.getBoolean("jenesis.java.jlink"),
                 Boolean.getBoolean("jenesis.java.bundle"),
                 Boolean.getBoolean("jenesis.java.native"),
+                sbomFormat == null ? null : switch (sbomFormat) {
+                    case "", "json" -> CycloneDxEmitter.Format.JSON;
+                    case "xml" -> CycloneDxEmitter.Format.XML;
+                    default -> throw new IllegalArgumentException(
+                            "Unknown SBOM format: " + sbomFormat + " (expected json or xml)");
+                },
                 null);
     }
 
     public InferredMultiProjectAssembler packaging(String packaging) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
     }
 
     public InferredMultiProjectAssembler jmod(boolean jmod) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
     }
 
     public InferredMultiProjectAssembler jlink(boolean jlink) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
     }
 
     public InferredMultiProjectAssembler bundle(boolean bundle) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
     }
 
     public InferredMultiProjectAssembler nativeImage(boolean nativeImage) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+    }
+
+    public InferredMultiProjectAssembler sbom(CycloneDxEmitter.Format sbom) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
     }
 
     public InferredMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
     }
 
     @Override
@@ -77,6 +91,10 @@ public record InferredMultiProjectAssembler(String packaging,
                     new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
                             .pinning(descriptor.pinning()),
                     descriptor.sources());
+            if (sbom != null) {
+                sub.addStep("sbom", new Sbom().format(sbom),
+                        Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
+            }
             sub.addModule("binary", new JavaToolchainModule()
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)
                                     .pinning(descriptor.pinning())
@@ -84,9 +102,12 @@ public record InferredMultiProjectAssembler(String packaging,
                             .validator(new InferredByteCodeQualityModule(descriptor.configuration(), repositories, resolvers)
                                     .pinning(descriptor.pinning()))
                             .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
-                    Stream.concat(
+                    Stream.of(
                             Stream.of("prepare"),
-                            Stream.concat(inputs(descriptor), descriptor.resources().stream())));
+                            inputs(descriptor),
+                            descriptor.resources().stream(),
+                            sbom == null ? Stream.<String>empty() : Stream.of("sbom"))
+                            .flatMap(Function.identity()));
             if (descriptor.test()) {
                 Path module = null;
                 for (String manifest : descriptor.manifests()) {

@@ -64,6 +64,17 @@ is selected explicitly instead, here through `jenesis.properties`:
 `palantir` selects the Palantir formatter instead; omitting the key runs no Java
 formatter at all.
 
+A discovered tool can be switched off without deleting its configuration file by
+setting its property to `false`. By default every property is `true`, so file
+discovery alone decides; the property is an opt-out:
+
+    jenesis.source.<tool>        Checkstyle, PMD, Detekt, Ktlint, Scalastyle, Scalafmt, CodeNarc
+    jenesis.validator.spotbugs   SpotBugs
+    jenesis.format.<tool>        the Ktlint / Scalafmt formatters
+
+For example `-Djenesis.source.checkstyle=false` keeps `checkstyle.xml` in place
+but skips Checkstyle, while PMD and SpotBugs still run.
+
 Where the tools run and what they produce
 -----------------------------------------
 

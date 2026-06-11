@@ -283,7 +283,7 @@ public class InferredMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, sources, tests, source, documentation, null, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new InferredMultiProjectAssembler(packageType, jmod, jlink, false, false, null).apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new InferredMultiProjectAssembler(packageType, jmod, jlink, false, false, null, null).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),

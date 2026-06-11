@@ -14,7 +14,7 @@ public class MavenRepositoryStaging implements BuildStep {
     private final boolean includeTests;
 
     public MavenRepositoryStaging() {
-        this(false);
+        this(Boolean.getBoolean("jenesis.stage.tests"));
     }
 
     public MavenRepositoryStaging(boolean includeTests) {
@@ -53,8 +53,9 @@ public class MavenRepositoryStaging implements BuildStep {
                     prefix, "sources", false, inventoryFile);
             Path javadoc = singleJar(Inventory.paths(inventory, argument.folder(), prefix + ".documentation"),
                     prefix, "documentation", false, inventoryFile);
+            Path sbom = sbomReport(inventory, argument.folder(), prefix);
             String testsOf = inventory.getProperty(prefix + ".test");
-            Module module = new Module(prefix, coordinates, artifact, sources, javadoc, pom, testsOf);
+            Module module = new Module(prefix, coordinates, artifact, sources, javadoc, pom, testsOf, sbom);
             if (testsOf == null) {
                 Module previous = mainsByArtifactId.putIfAbsent(coordinates.artifactId(), module);
                 if (previous != null) {
@@ -160,6 +161,11 @@ public class MavenRepositoryStaging implements BuildStep {
                     writeMergedPom(main.pom(), deps, stagedPom);
                 }
             }
+            if (main.sbom() != null) {
+                String name = main.sbom().getFileName().toString();
+                int dot = name.lastIndexOf('.');
+                link(main.sbom(), baseDir.resolve(prefix + "-cyclonedx" + (dot < 0 ? "" : name.substring(dot))));
+            }
             Module test = pairings.testByMain().get(coordinates.artifactId());
             if (test != null) {
                 link(test.artifact(), baseDir.resolve(prefix + "-tests.jar"));
@@ -182,7 +188,8 @@ public class MavenRepositoryStaging implements BuildStep {
                           Path sources,
                           Path javadoc,
                           Path pom,
-                          String testsOf) {
+                          String testsOf,
+                          Path sbom) {
     }
 
     private record Coordinates(String groupId, String artifactId, String version) {
@@ -207,6 +214,25 @@ public class MavenRepositoryStaging implements BuildStep {
         }
         Path resolved = base.resolve(relative).normalize();
         return Files.isRegularFile(resolved) ? resolved : null;
+    }
+
+    private static Path sbomReport(SequencedProperties inventory, Path base, String prefix) throws IOException {
+        String value = inventory.getProperty(prefix + ".report.sbom");
+        if (value == null) {
+            return null;
+        }
+        Path folder = base.resolve(value).normalize();
+        if (!Files.isDirectory(folder)) {
+            return null;
+        }
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder)) {
+            for (Path file : stream) {
+                if (Files.isRegularFile(file)) {
+                    return file;
+                }
+            }
+        }
+        return null;
     }
 
     private static Path singleJar(List<Path> entries,
@@ -361,6 +387,7 @@ public class MavenRepositoryStaging implements BuildStep {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
             factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             return factory.newDocumentBuilder().parse(in);
         } catch (ParserConfigurationException | SAXException e) {
             throw new IOException(e);

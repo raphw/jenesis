@@ -203,3 +203,36 @@ version matches:
 A clean report means the embedded engine is byte-for-byte the trusted one, so
 `java build/jenesis/Project.java` runs exactly the code SDKMAN shipped - not a
 tampered fork.
+
+Shipping the app as a container image with `bundle`
+---------------------------------------------------
+
+The flags above run the *build* in Docker; the inverse is shipping the *built
+application* as a container image, and `bundle` makes that a short Dockerfile
+without `jpackage`, `jlink`, or `native-image`. Build a portable bundle:
+
+    java -Djenesis.java.bundle=true build/jenesis/Project.java
+
+That stages a `bundle.zip` under `target/` carrying everything the app needs to
+launch, with no assumptions about the host:
+
+    application.properties        mainModule=demo.dockerisolation, mainClass=sample.Sample
+    modulepath/*.jar              the modular jars (this module and org.slf4j)
+    classpath/*.jar               any plain-classpath jars
+
+Because the bundle is self-describing - `application.properties` names the entry
+point and the two folders split the run path - any JVM base image can run it.
+Unzip it into an `eclipse-temurin` (or any JDK/JRE) image and launch the command
+those properties spell out:
+
+    FROM eclipse-temurin:25-jre
+    COPY modulepath/ /app/modulepath/
+    WORKDIR /app
+    ENTRYPOINT ["java", "--module-path", "modulepath", \
+                "--module", "demo.dockerisolation/sample.Sample"]
+
+A classpath-only app swaps the `--module-path`/`--module` pair for
+`-cp 'classpath/*' <mainClass>`. The same image definition works under Podman.
+Unlike `jpackage`/`jlink`, the bundle embeds no runtime, so the JVM comes from the
+base image and a single image can be rebased onto a newer JVM without rebuilding
+the app.

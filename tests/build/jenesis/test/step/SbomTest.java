@@ -84,6 +84,6 @@ public class SbomTest {
 
         assertThat(next.resolve("resources").resolve("META-INF").resolve("NOTICE"))
                 .content().contains("Demo").contains("Apache-2.0");
-        assertThat(next.resolve("sbom").resolve("demo-1.0.0.cdx.json")).isNotEmptyFile();
+        assertThat(next.resolve("reports").resolve("sbom").resolve("demo-1.0.0.cdx.json")).isNotEmptyFile();
     }
 }

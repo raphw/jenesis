@@ -75,20 +75,39 @@ public class JenesisModuleRepository implements Repository {
                     ? Optional.of(RepositoryItem.ofFile(file, true))
                     : Optional.empty();
         }
-        InputStream stream;
-        try {
-            URLConnection connection = uri.toURL().openConnection();
-            if (connection instanceof HttpURLConnection http) {
-                http.setRequestProperty("User-Agent", "Jenesis");
-                if (token != null) {
-                    http.setRequestProperty("Authorization", token);
+        InputStream stream = null;
+        IOException failure = null;
+        for (int attempt = 0; attempt < 4; attempt++) {
+            try {
+                URLConnection connection = uri.toURL().openConnection();
+                if (connection instanceof HttpURLConnection http) {
+                    http.setRequestProperty("User-Agent", "Jenesis");
+                    if (token != null) {
+                        http.setRequestProperty("Authorization", token);
+                    }
+                }
+                stream = connection.getInputStream();
+                failure = null;
+                break;
+            } catch (FileNotFoundException _) {
+                return Optional.empty();
+            } catch (IOException e) {
+                failure = e;
+                if (attempt < 3) {
+                    try {
+                        Thread.sleep(500L << attempt);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted while fetching " + uri, interrupted);
+                    }
                 }
             }
-            stream = connection.getInputStream();
-        } catch (FileNotFoundException _) {
-            return Optional.empty();
         }
-        return Optional.of(() -> stream);
+        if (failure != null) {
+            throw failure;
+        }
+        InputStream fetched = stream;
+        return Optional.of(() -> fetched);
     }
 
     private static void requireSafeSegment(String role, String value) {

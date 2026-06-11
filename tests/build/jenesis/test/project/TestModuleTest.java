@@ -400,6 +400,27 @@ public class TestModuleTest {
     }
 
     @Test
+    public void skips_when_jenesis_test_skip_is_set() throws IOException {
+        System.setProperty("jenesis.test.skip", "");
+        try {
+            BuildExecutor executor = newExecutor();
+            executor.addSource("dependencies", emptyDependencies);
+            executor.addSource("classes", classes);
+            executor.addModule(
+                    "test",
+                    new TestModule(Map.of(), Map.of())
+                            .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false).requireEngine(true),
+                    "dependencies", "classes");
+
+            SequencedMap<String, Path> outputs = executor.execute();
+
+            assertThat(outputs).doesNotContainKeys("test/resolved", "test/dependencies", "test/executed");
+        } finally {
+            System.clearProperty("jenesis.test.skip");
+        }
+    }
+
+    @Test
     public void requires_step_emits_runner_coordinate_when_missing() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("dependencies", emptyDependencies);

@@ -157,6 +157,7 @@ public record Execute(Project project, String mainClass, String module) {
 
     public static void main(String... arguments) {
         try {
+            Project.loadJenesisProperties(Path.of(System.getProperty("jenesis.project.root", ".")));
             Project project = new Project();
             int code = new Execute(project).doExecute(true, arguments);
             if (code != 0) {

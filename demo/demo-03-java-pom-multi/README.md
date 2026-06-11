@@ -166,23 +166,25 @@ coordinates (`commons-lang3`, the JUnit closure) but skips the intra-project
 `greeter` dependency, since coordinates produced within the project are never
 pinned into dependency management.
 
-Printing the dependency tree
-----------------------------
+Printing the dependency graph
+-----------------------------
 
-To see what each module resolves, `-Djenesis.print.dependencies=true` prints each
-module's resolved tree as it resolves (a verbose toggle, not a build step); a
-multi-module build prints one block per module and scope:
+To see what each module resolves, run the `dependencies` selector. It prints each
+module's resolved dependency graph in one block per module and scope (each block
+headed by `<scope> (<module>)`), with every node carrying its resolved module name
+and declared license:
 
-    java -Djenesis.print.dependencies=true build/jenesis/Project.java
+    java build/jenesis/Project.java dependencies
 
-    Dependency tree:
-    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile]
-    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile]
-    │  ├─ maven/org.opentest4j/opentest4j 1.3.0 [compile]
-    │  ├─ maven/org.junit.platform/junit-platform-commons 1.11.3 [compile]
-    │  │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile] (*)
-    │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile]
-    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime]
+    main/compile (module-app)
+    maven/org.junit.jupiter/junit-jupiter 5.11.3 [compile] (module org.junit.jupiter) {Eclipse Public License v2.0}
+    ├─ maven/org.junit.jupiter/junit-jupiter-api 5.11.3 [compile] (module org.junit.jupiter.api) {Eclipse Public License v2.0}
+    │  ├─ maven/org.opentest4j/opentest4j 1.3.0 [compile] (module org.opentest4j) {The Apache License, Version 2.0}
+    │  └─ maven/org.apiguardian/apiguardian-api 1.1.2 [compile] (module org.apiguardian.api) {The Apache License, Version 2.0}
+    └─ maven/org.junit.jupiter/junit-jupiter-engine 5.11.3 [runtime] (module org.junit.jupiter.engine) {Eclipse Public License v2.0}
+
+Repeated subtrees are dimmed and marked `(*)`, and a `Resolved dependencies:`
+summary after each block lists the final version chosen for every coordinate.
 
 Each node shows the property-file key, version, and Maven scope; a dependency
 reached more than once is expanded under its first parent and dimmed with `(*)`

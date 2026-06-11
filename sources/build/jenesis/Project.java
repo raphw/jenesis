@@ -38,7 +38,6 @@ public record Project(
         boolean tests,
         boolean sources,
         boolean documentation,
-        boolean stageTests,
         Pinning pinning,
         List<Path> metadata,
         String version,
@@ -101,7 +100,7 @@ public record Project(
                         mavenDeps);
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
-                stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("maven", new MavenRepositoryStaging(), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
@@ -161,7 +160,7 @@ public record Project(
                         modulesDeps);
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
-                stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("modular", new ModularStaging(), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
                 stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
@@ -229,8 +228,8 @@ public record Project(
                         modulesDeps);
             }, METADATA);
             executor.addModule(STAGE, (stage, inherited) -> {
-                stage.addStep("maven", new MavenRepositoryStaging(project.stageTests()), inherited.sequencedKeySet());
-                stage.addStep("modular", new ModularStaging(project.stageTests()), inherited.sequencedKeySet());
+                stage.addStep("maven", new MavenRepositoryStaging(), inherited.sequencedKeySet());
+                stage.addStep("modular", new ModularStaging(), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
                 stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
@@ -408,10 +407,15 @@ public record Project(
                     
                     %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
                       %{name}skip%{reset}                             Skip executing tests
-                      %{name}stage%{reset}                            Stage test artifacts alongside main artifacts
+                      %{name}engine%{reset} <name>                    Force the test engine (%{name}junit-platform%{reset},
+                                                      %{name}junit4%{reset}, %{name}testng%{reset}); unset auto-detects it
+                                                      from the resolved test dependencies
                       %{name}filter%{reset} <patterns>                Comma-separated %{name}<classRegex>[#<method>]%{reset} entries
                                                       restricting which tests run; changing the value
                                                       invalidates the test step's cache and forces a re-run
+
+                    %{header}Staging (-Djenesis.stage.<key>=<value>):%{reset}
+                      %{name}tests%{reset}                            Stage test-variant artifacts alongside main artifacts
                     
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
@@ -735,10 +739,11 @@ public record Project(
                                                         resolves.
                     
                     Test execution (-Djenesis.test.<key>=<value>):
-                      -Djenesis.test.skip=true            Skip wiring test
+                      -Djenesis.test.skip=true            Skip test
                                                         execution.
-                      -Djenesis.test.stage=true           Stage test artifacts
-                                                        alongside main artifacts.
+                      -Djenesis.stage.tests=true          Stage test-variant
+                                                        artifacts alongside main
+                                                        artifacts.
                       -Djenesis.test.filter=<patterns>    Comma-separated
                                                         <classRegex>[#<method>]
                                                         entries restricting which
@@ -1007,10 +1012,9 @@ public record Project(
                 resolvedCache,
                 new HashDigestFunction(System.getProperty("jenesis.project.digest", "SHA-256")),
                 resolvedLayout,
-                System.getProperty("jenesis.test.skip") == null,
+                true,
                 Boolean.getBoolean("jenesis.project.sources"),
                 Boolean.getBoolean("jenesis.project.documentation"),
-                Boolean.getBoolean("jenesis.test.stage"),
                 Pinning.fromProperty(),
                 resolvedMetadata,
                 System.getProperty("jenesis.project.version"),
@@ -1030,7 +1034,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1050,7 +1053,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1070,7 +1072,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1090,7 +1091,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1110,7 +1110,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1130,7 +1129,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1150,7 +1148,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1170,27 +1167,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
-                pinning,
-                metadata,
-                version,
-                defaultTarget,
-                assembler,
-                repositories,
-                resolvers);
-    }
-
-    public Project stageTests(boolean stageTests) {
-        return new Project(root,
-                configuration,
-                target,
-                cache,
-                hashFunction,
-                layout,
-                tests,
-                sources,
-                documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1210,7 +1186,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1230,7 +1205,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 List.of(metadata),
                 version,
@@ -1250,7 +1224,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1270,7 +1243,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1290,7 +1262,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1310,7 +1281,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1330,7 +1300,6 @@ public record Project(
                 tests,
                 sources,
                 documentation,
-                stageTests,
                 pinning,
                 metadata,
                 version,
@@ -1369,18 +1338,42 @@ public record Project(
     }
 
     public static void loadJenesisProperties(Path path) throws IOException {
-        Path file = path.resolve("jenesis.properties");
-        if (!Files.isRegularFile(file)) {
+        Set<Path> loaded = new LinkedHashSet<>();
+        Deque<Path> pending = new ArrayDeque<>();
+        Path base = path.resolve("jenesis.properties");
+        if (Files.isRegularFile(base)) {
+            pending.add(base);
+        }
+        addProfiles(pending, path, System.getProperty("jenesis.project.properties"));
+        while (!pending.isEmpty()) {
+            Path file = pending.removeFirst().normalize();
+            if (!loaded.add(file)) {
+                continue;
+            }
+            if (!Files.isRegularFile(file)) {
+                throw new IllegalArgumentException("Profile properties file not found: " + file);
+            }
+            SequencedProperties properties = SequencedProperties.ofFiles(file);
+            addProfiles(pending, path, properties.getProperty("jenesis.project.properties"));
+            for (String name : properties.stringPropertyNames()) {
+                System.getProperties().putIfAbsent(name, properties.getProperty(name));
+            }
+        }
+    }
+
+    private static void addProfiles(Deque<Path> pending, Path base, String list) {
+        if (list == null) {
             return;
         }
-        SequencedProperties properties = SequencedProperties.ofFiles(file);
-        for (String name : properties.stringPropertyNames()) {
-            System.getProperties().putIfAbsent(name, properties.getProperty(name));
+        for (String name : list.split(",")) {
+            String trimmed = name.trim();
+            if (!trimmed.isEmpty()) {
+                pending.add(base.resolve(trimmed.endsWith(".properties") ? trimmed : trimmed + ".properties"));
+            }
         }
     }
 
     SequencedMap<String, Path> doMain(String... selectors) throws IOException, InterruptedException {
-        loadJenesisProperties(root());
         if (Boolean.getBoolean("jenesis.project.watch")) {
             watch(selectors);
             return new LinkedHashMap<>();
@@ -1446,6 +1439,7 @@ public record Project(
 
     public static void main(String... selectors) {
         try {
+            loadJenesisProperties(Path.of(System.getProperty("jenesis.project.root", ".")));
             new Project().doMain(selectors);
         } catch (Throwable t) {
             if (t instanceof InterruptedException) {

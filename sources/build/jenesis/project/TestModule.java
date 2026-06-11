@@ -44,7 +44,16 @@ public class TestModule implements BuildExecutorModule {
                         ".*\\.IT[a-zA-Z0-9$]*", ".*\\..*IT", ".*\\..*ITCase")
                 .map(Pattern::compile)
                 .toList();
-        this(null,
+        TestEngine engine = switch (System.getProperty("jenesis.test.engine", "").toLowerCase(Locale.ROOT)) {
+            case "" -> null;
+            case "junit-platform" -> new JUnitPlatform();
+            case "junit4" -> new JUnit4();
+            case "testng" -> new TestNG();
+            default -> throw new IllegalArgumentException("Unknown test engine: "
+                    + System.getProperty("jenesis.test.engine")
+                    + " (expected junit-platform, junit4, or testng)");
+        };
+        this(engine,
                 (Predicate<String> & Serializable)
                         (name -> patterns.stream().anyMatch(pattern -> pattern.matcher(name).matches())),
                 null,
@@ -369,6 +378,9 @@ public class TestModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        if (System.getProperty("jenesis.test.skip") != null) {
+            return;
+        }
         TestEngine resolved = engine;
         if (resolved == null) {
             resolved = TestEngine.of(() -> inherited.values().stream().iterator()).orElse(null);

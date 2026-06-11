@@ -160,7 +160,7 @@ public class MavenDefaultRepository implements MavenRepository {
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
                         LazyRepositoryItem item = fetch(
                                 entry.getValue(),
-                                path + "." + entry.getKey().toLowerCase(),
+                                path + "." + entry.getKey().toLowerCase(Locale.ROOT),
                                 false);
                         if (valid) {
                             MessageDigest digest;
@@ -170,7 +170,12 @@ public class MavenDefaultRepository implements MavenRepository {
                                 throw new IllegalStateException(e);
                             }
                             try (FileChannel channel = FileChannel.open(cached)) {
-                                digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+                                ByteBuffer buffer = ByteBuffer.allocate(1 << 16);
+                                while (channel.read(buffer) != -1) {
+                                    buffer.flip();
+                                    digest.update(buffer);
+                                    buffer.clear();
+                                }
                             }
                             Optional<InputStream> candidate = item.toLazyInputStream();
                             if (candidate.isPresent()) {
@@ -225,7 +230,7 @@ public class MavenDefaultRepository implements MavenRepository {
         if (validate) {
             for (Map.Entry<String, URI> entry : validations.entrySet()) {
                 LazyRepositoryItem item = fetch(entry.getValue(),
-                        path + "." + entry.getKey().toLowerCase(),
+                        path + "." + entry.getKey().toLowerCase(Locale.ROOT),
                         false);
                 MessageDigest digest;
                 try {
@@ -262,15 +267,31 @@ public class MavenDefaultRepository implements MavenRepository {
                                            String prefix,
                                            String suffix,
                                            String token) throws IOException {
-        InputStream stream;
-        try {
-            stream = openStream(uri, token);
-        } catch (FileNotFoundException _) {
-            return Optional.empty();
-        }
         Path temporary = Files.createTempFile(prefix, suffix);
-        try (stream) {
-            Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
+        try {
+            IOException failure = null;
+            for (int attempt = 0; attempt < 4; attempt++) {
+                try (InputStream stream = openStream(uri, token)) {
+                    Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
+                    failure = null;
+                    break;
+                } catch (FileNotFoundException _) {
+                    Files.deleteIfExists(temporary);
+                    return Optional.empty();
+                } catch (IOException e) {
+                    failure = e;
+                    if (attempt < 3) {
+                        Thread.sleep(500L << attempt);
+                    }
+                }
+            }
+            if (failure != null) {
+                throw failure;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Files.deleteIfExists(temporary);
+            throw new IOException("Interrupted while fetching " + uri, e);
         } catch (Throwable t) {
             Files.deleteIfExists(temporary);
             throw t;
@@ -279,9 +300,15 @@ public class MavenDefaultRepository implements MavenRepository {
             return Optional.of(temporary);
         }
         try {
-            for (MessageDigest digest : digests.values()) {
-                try (FileChannel channel = FileChannel.open(temporary)) {
-                    digest.update(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+            try (FileChannel channel = FileChannel.open(temporary)) {
+                ByteBuffer buffer = ByteBuffer.allocate(1 << 16);
+                while (channel.read(buffer) != -1) {
+                    buffer.flip();
+                    for (MessageDigest digest : digests.values()) {
+                        digest.update(buffer);
+                        buffer.rewind();
+                    }
+                    buffer.clear();
                 }
             }
             String invalid = null;

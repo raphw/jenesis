@@ -30,6 +30,7 @@ jobs:
         # .jmod and chains jmod -> jlink -> jpackage, then launches the produced app.
         demo:
           - { name: java-pom, dir: demo-01-java-pom, entry: build/jenesis/Project.java }
+          - { name: java-pom-dependencies, dir: demo-01-java-pom, entry: build/jenesis/Project.java dependencies }
           - { name: java-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java }
           - { name: java-modular-as-modular, dir: demo-02-java-modular, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular }
           - { name: java-pom-multi, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java }
@@ -41,6 +42,7 @@ jobs:
           # tests run (a -D flag, so it precedes the source file in flags).
           - { name: java-pom-multi-module, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java +greeter }
           - { name: java-pom-multi-test-filter, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.test.filter=.*GreeterTest#prefix_is_a_greeting" }
+          - { name: java-pom-multi-test-engine, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: -Djenesis.test.engine=junit-platform }
           - { name: java-modular-multi-module, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java +greeter-test }
           - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.test.filter=.*GreeterTest#prefix_is_a_greeting" }
           - { name: java-modular-jmod-jlink, dir: demo-02-java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
@@ -73,6 +75,8 @@ jobs:
           - { name: supply-chain-security, dir: demo-27-supply-chain-security, entry: build/Demo.java }
           - { name: publishing, dir: demo-28-publishing, entry: build/Demo.java }
           - { name: kotlin-plugin, dir: demo-29-kotlin-plugin, entry: build/jenesis/Project.java }
+          - { name: sbom, dir: demo-30-sbom, entry: build/jenesis/Project.java }
+          - { name: profiles, dir: demo-31-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

@@ -34,7 +34,7 @@ public class Demo {
         BuildExecutor root = BuildExecutor.of(Path.of("target"));
         root.addModule("maven", MavenProject.make(Path.of("."),
                 (descriptor, repositories, resolvers) -> new InferredMultiProjectAssembler().apply(
-                        new ProjectModuleDescriptor(descriptor, true, false, false, null, PathPlacement.CLASS_PATH),
+                        new ProjectModuleDescriptor(descriptor, Path.of("."), true, false, false, null, PathPlacement.CLASS_PATH),
                         repositories,
                         resolvers)));
         root.execute(args);

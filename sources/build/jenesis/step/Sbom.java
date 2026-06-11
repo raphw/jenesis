@@ -13,8 +13,6 @@ import build.jenesis.maven.MavenDependencyKey;
 
 public class Sbom implements BuildStep {
 
-    public static final String SBOM = "sbom/";
-
     private final CycloneDxEmitter.Format format;
 
     public Sbom() {
@@ -98,12 +96,15 @@ public class Sbom implements BuildStep {
                 .resolve(RESOURCES).resolve("META-INF").resolve("sbom"));
         String fileName = artifactId + "." + format.extension();
         Files.writeString(embedded.resolve(fileName), document);
-        SequencedProperties manifest = new SequencedProperties();
-        manifest.setProperty("Sbom-Format", "CycloneDX");
-        manifest.setProperty("Sbom-Location", "META-INF/sbom/" + fileName);
-        manifest.store(context.next().resolve("manifest.mf"));
+        Manifest manifest = new Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        manifest.getMainAttributes().putValue("Sbom-Format", "CycloneDX");
+        manifest.getMainAttributes().putValue("Sbom-Location", "META-INF/sbom/" + fileName);
+        try (OutputStream out = Files.newOutputStream(context.next().resolve("manifest.mf"))) {
+            manifest.write(out);
+        }
         Files.writeString(context.next().resolve(RESOURCES).resolve("META-INF").resolve("NOTICE"), notice(metadata));
-        Path standalone = Files.createDirectories(context.next().resolve(SBOM));
+        Path standalone = Files.createDirectories(context.next().resolve(REPORTS + "sbom"));
         Files.writeString(standalone.resolve(artifactId + "-" + version + "." + format.extension()), document);
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

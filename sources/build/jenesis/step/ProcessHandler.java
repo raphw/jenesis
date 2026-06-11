@@ -73,7 +73,7 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
 
     final class OfProcess implements ProcessHandler {
 
-        private static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+        private static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
 
         private final List<String> commands;
 

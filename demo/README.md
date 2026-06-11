@@ -79,6 +79,8 @@ Quick index
 | 27 | [`supply-chain-security`](demo-27-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 28 | [`publishing`](demo-28-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 | 29 | [`kotlin-plugin`](demo-29-kotlin-plugin/README.md)           | Run a Kotlin compiler plugin (kotlinx.serialization) declared with `@jenesis.plugin kotlin <repo>/<coord>`, passed to the compiler as `-Xplugin=` | `java build/jenesis/Project.java`  |
+| 30 | [`sbom`](demo-30-sbom/README.md)                             | Emit a CycloneDX SBOM (embedded in the jar, staged as a report, and attached to the Maven repo for publication) with `-Djenesis.sbom.cyclonedx=json` | `java build/jenesis/Project.java`  |
+| 31 | [`profiles`](demo-31-profiles/README.md)                     | Build profiles: a `release` profile selected with `-Djenesis.project.properties=release` turns on source jars and chains to a `supply-chain` profile that adds an SBOM | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -542,6 +544,29 @@ line and the build fails, exactly like the annotation processor demo. The
 resolution path is identical for every language (a `plugin:<compiler>` scope per
 compiler); only the compiler flag differs (`--processor-path` for
 `javac`, `-Xplugin=` for Kotlin, `-Xplugin:` for Scala).
+
+## 21. Software bill of materials - [`sbom`](demo-30-sbom/README.md)
+
+`sbom` turns on a CycloneDX software bill of materials with a single property,
+`-Djenesis.sbom.cyclonedx=json` (or `xml`). The default Java assembler runs an
+`Sbom` step before the jar is sealed, reading the module's resolved dependency
+graph, content hashes, and captured licenses, and emits the document in-process
+(no external tool). It lands three ways: embedded in the jar at `META-INF/sbom/`,
+collected on `stage` into `target/stage/reports/sbom/`, and - when a Maven
+repository is staged - attached as `<artifact>-<version>-cyclonedx.json` next to
+the pom so `export` publishes it to Maven Central.
+
+## 22. Build profiles - [`profiles`](demo-31-profiles/README.md)
+
+`profiles` shows how a named set of properties switches features on together. A
+profile is a `*.properties` file at the project root; `jenesis.project.properties`
+selects one (or a comma-separated list, the `.properties` suffix optional), loaded
+before the build is configured. Profiles compose by chaining - a loaded file may
+set `jenesis.project.properties` itself to pull in more. The demo's `release`
+profile turns on source jars and chains to a `supply-chain` profile that adds the
+SBOM, so `-Djenesis.project.properties=release` produces a publication build in one
+switch. Every property a profile sets is a default, so the command line always
+wins. The always-loaded base is `jenesis.properties` (optional).
 
 Cross-cutting concepts
 ----------------------
