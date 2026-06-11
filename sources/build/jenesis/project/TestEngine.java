@@ -2,6 +2,7 @@ package build.jenesis.project;
 
 import module java.base;
 import build.jenesis.BuildStep;
+import build.jenesis.PathPlacement;
 import build.jenesis.step.Dependencies;
 
 public interface TestEngine extends Serializable {
@@ -79,7 +80,7 @@ public interface TestEngine extends Serializable {
             }
             jars.addAll(Dependencies.all(folder));
             for (Path file : jars) {
-                ModuleDescriptor module = inspect(file);
+                ModuleDescriptor module = PathPlacement.moduleDescriptor(file);
                 if (module != null) {
                     modules.add(module);
                 }
@@ -87,26 +88,5 @@ public interface TestEngine extends Serializable {
         }
         modules.sort(Comparator.comparing(ModuleDescriptor::name));
         return modules;
-    }
-
-    private static ModuleDescriptor inspect(Path file) {
-        try (JarFile jar = new JarFile(file.toFile())) {
-            JarEntry moduleInfo = jar.getJarEntry("module-info.class");
-            if (moduleInfo != null) {
-                try (InputStream input = jar.getInputStream(moduleInfo)) {
-                    return ModuleDescriptor.read(input);
-                }
-            }
-            Manifest manifest = jar.getManifest();
-            if (manifest != null) {
-                String automatic = manifest.getMainAttributes().getValue("Automatic-Module-Name");
-                if (automatic != null) {
-                    return ModuleDescriptor.newAutomaticModule(automatic).build();
-                }
-            }
-            return null;
-        } catch (Exception _) {
-            return null;
-        }
     }
 }

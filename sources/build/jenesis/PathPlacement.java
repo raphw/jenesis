@@ -25,27 +25,8 @@ public enum PathPlacement {
 
     INFERRED(true) {
         @Override
-        public boolean test(Path path) throws IOException {
-            if (Files.isDirectory(path)) {
-                return Files.exists(path.resolve("module-info.class"));
-            }
-            ModuleReference reference;
-            try {
-                reference = ModuleFinder.of(path).findAll().stream().findFirst().orElse(null);
-            } catch (FindException _) {
-                return false;
-            }
-            if (reference == null) {
-                return false;
-            }
-            if (!reference.descriptor().isAutomatic()) {
-                return true;
-            }
-            try (JarFile jar = new JarFile(path.toFile())) {
-                Manifest manifest = jar.getManifest();
-                return manifest != null
-                        && manifest.getMainAttributes().getValue("Automatic-Module-Name") != null;
-            }
+        public boolean test(Path path) {
+            return moduleDescriptor(path) != null;
         }
     };
 
@@ -63,5 +44,34 @@ public enum PathPlacement {
 
     public PathPlacement forModuleInfo(boolean moduleInfoPresent) {
         return moduleInfoPresent ? this : CLASS_PATH;
+    }
+
+    public static ModuleDescriptor moduleDescriptor(Path path) {
+        try {
+            if (Files.isDirectory(path)) {
+                Path moduleInfo = path.resolve("module-info.class");
+                if (!Files.exists(moduleInfo)) {
+                    return null;
+                }
+                try (InputStream input = Files.newInputStream(moduleInfo)) {
+                    return ModuleDescriptor.read(input);
+                }
+            }
+            try (JarFile jar = new JarFile(path.toFile(), true, ZipFile.OPEN_READ, JarFile.runtimeVersion())) {
+                JarEntry moduleInfo = jar.getJarEntry("module-info.class");
+                if (moduleInfo != null) {
+                    try (InputStream input = jar.getInputStream(moduleInfo)) {
+                        return ModuleDescriptor.read(input);
+                    }
+                }
+                Manifest manifest = jar.getManifest();
+                String automatic = manifest == null
+                        ? null
+                        : manifest.getMainAttributes().getValue("Automatic-Module-Name");
+                return automatic == null ? null : ModuleDescriptor.newAutomaticModule(automatic).build();
+            }
+        } catch (IOException | RuntimeException _) {
+            return null;
+        }
     }
 }

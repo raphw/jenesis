@@ -6,6 +6,7 @@ import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.License;
+import build.jenesis.PathPlacement;
 import build.jenesis.Resolver;
 
 public class MavenPomResolver implements MavenResolver {
@@ -85,10 +86,11 @@ public class MavenPomResolver implements MavenResolver {
         traversal.dependencies().forEach((key, value) -> {
             String withVersion = key.coordinate(prefix, value.version());
             Resolver.Resolved artifact = artifacts.get(withVersion);
+            ModuleDescriptor descriptor = artifact == null ? null : PathPlacement.moduleDescriptor(artifact.file());
             nodes.put(key.coordinate(prefix, null), new Resolver.Vertex(
                     value.version(),
-                    artifact == null ? null : Resolver.moduleName(artifact.file()),
-                    artifact != null && Resolver.automaticModule(artifact.file()),
+                    descriptor == null ? null : descriptor.name(),
+                    descriptor != null && descriptor.isAutomatic(),
                     traversal.licenses().getOrDefault(withVersion, List.of())));
         });
         return new Resolver.Resolution(artifacts, traversal.edges(), nodes);

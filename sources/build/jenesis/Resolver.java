@@ -103,28 +103,6 @@ public interface Resolver extends Serializable {
         return materialized;
     }
 
-    static String moduleName(Path jar) {
-        try {
-            return ModuleFinder.of(jar).findAll().stream()
-                    .findFirst()
-                    .map(reference -> reference.descriptor().name())
-                    .orElse(null);
-        } catch (RuntimeException _) {
-            return null;
-        }
-    }
-
-    static boolean automaticModule(Path jar) {
-        try {
-            return ModuleFinder.of(jar).findAll().stream()
-                    .findFirst()
-                    .map(reference -> reference.descriptor().isAutomatic())
-                    .orElse(false);
-        } catch (RuntimeException _) {
-            return false;
-        }
-    }
-
     static Resolver identity() {
         return (executor, prefix, repositories, coordinates, _, _) -> {
             SequencedMap<String, String> resolved = new LinkedHashMap<>();

@@ -4,6 +4,7 @@ import module java.base;
 import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
+import build.jenesis.PathPlacement;
 import build.jenesis.Resolver;
 
 public class MavenModuleResolver implements Resolver {
@@ -90,10 +91,11 @@ public class MavenModuleResolver implements Resolver {
         closure.forEach((key, value) -> {
             String withVersion = key.coordinate(mavenPrefix, value.version());
             Resolver.Resolved artifact = materialized.get(withVersion);
+            ModuleDescriptor descriptor = artifact == null ? null : PathPlacement.moduleDescriptor(artifact.file());
             nodes.put(key.coordinate(mavenPrefix, null), new Resolver.Vertex(
                     value.version(),
-                    artifact == null ? null : Resolver.moduleName(artifact.file()),
-                    artifact != null && Resolver.automaticModule(artifact.file()),
+                    descriptor == null ? null : descriptor.name(),
+                    descriptor != null && descriptor.isAutomatic(),
                     resolution.licenses().getOrDefault(withVersion, List.of())));
         });
         return new Resolver.Resolution(materialized, resolution.edges(), nodes);
