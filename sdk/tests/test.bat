@@ -1,12 +1,12 @@
 @echo off
 setlocal EnableDelayedExpansion
 REM Happy-path test for the Windows SDK scripts (sdk\bin\jenesis*.bat).
-REM Mirrors sdk-tests\test.sh: jenesis-init -> jenesis-version -> jenesis-validate
+REM Mirrors sdk\tests\test.sh: jenesis-init -> jenesis-version -> jenesis-validate
 REM against a freshly-staged SDK at <repo>\sdk\{lib,sources}\. Exits 0 only when
 REM every check passes.
 
-for %%i in ("%~dp0..") do set "REPO_ROOT=%%~fi"
-set "SDK_HOME=%REPO_ROOT%\sdk"
+REM This script lives at <repo>\sdk\tests\, so its parent is the SDK home.
+for %%i in ("%~dp0..") do set "SDK_HOME=%%~fi"
 
 set "SOURCES_JAR="
 for %%f in ("%SDK_HOME%\sources\*-sources.jar") do (
@@ -29,8 +29,8 @@ set "PROJ=%TMPDIR%\proj"
 mkdir "%PROJ%"
 set "OUTFILE=%TMPDIR%\out.txt"
 
-REM [1/4] jenesis-version on fresh directory: exit 1, reports missing build/jenesis
-echo [1/4] jenesis-version on fresh directory
+REM [1/5] jenesis-version on fresh directory: exit 1, reports missing build/jenesis
+echo [1/5] jenesis-version on fresh directory
 call "%SDK_HOME%\bin\jenesis-version.bat" "%PROJ%" > "%OUTFILE%" 2>&1
 set "RC=!ERRORLEVEL!"
 if not "!RC!"=="1" goto :fail
@@ -38,8 +38,8 @@ findstr /c:"sdk is at version !VERSION!" "%OUTFILE%" >nul || goto :fail
 findstr /c:"no build/jenesis found" "%OUTFILE%" >nul || goto :fail
 echo   ok
 
-REM [2/4] jenesis-init: populates build\jenesis and writes jenesis.version
-echo [2/4] jenesis-init
+REM [2/5] jenesis-init: populates build\jenesis and writes jenesis.version
+echo [2/5] jenesis-init
 call "%SDK_HOME%\bin\jenesis-init.bat" "%PROJ%" > "%OUTFILE%" 2>&1
 if errorlevel 1 goto :fail
 if not exist "%PROJ%\build\jenesis\" goto :fail
@@ -49,17 +49,30 @@ for /f "usebackq delims=" %%v in ("%PROJ%\build\jenesis\jenesis.version") do if 
 if not "!RECORDED!"=="!VERSION!" goto :fail
 echo   ok
 
-REM [3/4] jenesis-version on initialised project: exit 0, reports matching version
-echo [3/4] jenesis-version on initialised project
+REM [3/5] jenesis-version on initialised project: exit 0, reports matching version
+echo [3/5] jenesis-version on initialised project
 call "%SDK_HOME%\bin\jenesis-version.bat" "%PROJ%" > "%OUTFILE%" 2>&1
 if errorlevel 1 goto :fail
 findstr /c:"build/jenesis is at version !VERSION!" "%OUTFILE%" >nul || goto :fail
 echo   ok
 
-REM [4/4] jenesis-validate: reports zero drift against the bundled sources
-echo [4/4] jenesis-validate
+REM [4/5] jenesis-validate: reports zero drift against the bundled sources
+echo [4/5] jenesis-validate
 call "%SDK_HOME%\bin\jenesis-validate.bat" "%PROJ%" > "%OUTFILE%" 2>&1
 findstr /c:"0 differs, 0 missing, 0 additional" "%OUTFILE%" >nul || goto :fail
+echo   ok
+
+REM [5/5] jenesis: the launcher resolves the engine from the SDK and dispatches to it;
+REM `help` is a print-only goal, so it runs offline once a project descriptor exists.
+echo [5/5] jenesis help
+if not exist "%PROJ%\sources\" mkdir "%PROJ%\sources"
+(echo module sdktest {})> "%PROJ%\sources\module-info.java"
+pushd "%PROJ%"
+call "%SDK_HOME%\bin\jenesis.bat" help > "%OUTFILE%" 2>&1
+set "RC=!ERRORLEVEL!"
+popd
+if not "!RC!"=="0" goto :fail
+findstr /c:"a Java build tool" "%OUTFILE%" >nul || goto :fail
 echo   ok
 
 rmdir /s /q "%TMPDIR%" >nul 2>&1

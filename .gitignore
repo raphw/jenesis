@@ -4,6 +4,7 @@ cache/
 *.class
 /sdk/*
 !/sdk/bin/
+!/sdk/tests/
 
 ### IntelliJ IDEA ###
 .idea/*

@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Route Maven Central through the repository variable MAVEN_REPOSITORY_URI when set
+# (the Google Cloud mirror of Central, to avoid Central rate-limiting the runners),
+# falling back to Central itself so an unset variable never becomes an empty URI.
+env:
+  MAVEN_REPOSITORY_URI: ${{ vars.MAVEN_REPOSITORY_URI || 'https://repo1.maven.org/maven2/' }}
+
 jobs:
   demos:
     strategy:
@@ -163,12 +169,12 @@ jobs:
 
       - name: Run SDK tests (POSIX)
         if: runner.os != 'Windows'
-        run: bash sdk-tests/test.sh
+        run: bash sdk/tests/test.sh
 
       - name: Run SDK tests (Windows)
         if: runner.os == 'Windows'
         shell: cmd
-        run: sdk-tests\test.bat
+        run: sdk\tests\test.bat
 
       - name: Upload target on failure
         if: failure()

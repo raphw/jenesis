@@ -75,7 +75,7 @@ jobs:
           cp LICENSE sdk/LICENSE
           BASE="jenesis-${VERSION}"
           ln -sfn sdk "${BASE}"
-          zip -r "sdk/${BASE}.zip" "${BASE}"
+          zip -r "sdk/${BASE}.zip" "${BASE}" -x "${BASE}/tests/*"
           rm "${BASE}"
 
       - name: JReleaser deploy
