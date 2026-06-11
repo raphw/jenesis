@@ -201,11 +201,13 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                         String name = file.getFileName().toString();
+                        Path relative = sources.relativize(file);
                         if (!name.endsWith(".java")
                                 && !name.endsWith(".kt")
                                 && !name.endsWith(".scala")
-                                && !name.endsWith(".groovy")) {
-                            BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
+                                && !name.endsWith(".groovy")
+                                && !BuildStep.underMetaInfVersions(relative)) {
+                            BuildStep.linkOrCopy(target.resolve(relative), file);
                         }
                         return FileVisitResult.CONTINUE;
                     }

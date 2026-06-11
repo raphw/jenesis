@@ -49,4 +49,10 @@ public interface BuildStep extends Serializable {
             Files.copy(existing, link);
         }
     }
+
+    static boolean underMetaInfVersions(Path path) {
+        return path.getNameCount() >= 2
+                && path.getName(0).toString().equals("META-INF")
+                && path.getName(1).toString().equals("versions");
+    }
 }

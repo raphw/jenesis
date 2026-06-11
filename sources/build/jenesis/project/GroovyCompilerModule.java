@@ -193,7 +193,9 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                             String name = file.toString();
                             if (name.endsWith(".groovy")) {
                                 files.add(name);
-                            } else if (includeResources && !name.endsWith(".java")) {
+                            } else if (includeResources
+                                    && !name.endsWith(".java")
+                                    && !BuildStep.underMetaInfVersions(sources.relativize(file))) {
                                 BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                             }
                             return FileVisitResult.CONTINUE;
