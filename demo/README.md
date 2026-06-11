@@ -600,13 +600,17 @@ the running JDK's `bin/`, then `PATH`, so the build runs on a GraalVM JDK or wit
 
 The new idea is **closed-world ahead-of-time compilation**, and its catch:
 `native-image` only sees code reached statically, so anything dynamic (reflection,
-JNI, resources, proxies) needs reachability metadata - a `native-image/` config
-directory the step passes through, usually captured by running once under the
-tracing agent. This demo's module is dependency- and reflection-free, so it needs
-none. native-image is an *alternative* to jpackage, not a successor: jpackage for a
-faithful bundle of the JVM you tested against, native-image when startup latency and
-footprint dominate. Like `docker-isolation`, it needs tooling the CI runners lack
-(GraalVM), so it is a local exercise.
+JNI, resources, proxies) needs reachability metadata. The demo walks the whole loop:
+`Sample` loads its greeter by a name assembled at run time, so the binary needs
+metadata; `-Djenesis.observe.native=true` runs the tracing agent during the test
+(the second observation engine from section 13) and stages what it records; you
+commit that into `sources/META-INF/native-image/`, where native-image auto-discovers
+it from the jar. Build with the metadata and the reflective greeting works; delete it
+and the binary fails with `ClassNotFoundException`. native-image is an *alternative*
+to jpackage, not a successor: jpackage for a faithful bundle of the JVM you tested
+against, native-image when startup latency and footprint dominate. Like
+`docker-isolation`, it needs tooling the CI runners lack (GraalVM), so it is a local
+exercise.
 
 Cross-cutting concepts
 ----------------------
