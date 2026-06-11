@@ -10,7 +10,6 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.InferredTestObservationModule;
-import build.jenesis.project.InferredTestObservationModule.Observation;
 import build.jenesis.project.ObservabilityEngine;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +27,7 @@ public class InferredTestObservationModuleTest {
         executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
-        }).observe(Observation.JACOCO), "project");
+        }).jacoco(true), "project");
         executor.execute("observed/jacoco/required");
 
         assertThat(observed).extracting(ObservabilityEngine::name).containsExactly("jacoco");
@@ -46,7 +45,7 @@ public class InferredTestObservationModuleTest {
         executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
-        }).observe(), "project");
+        }).jacoco(false).nativeImage(false), "project");
         executor.execute();
 
         assertThat(observed).isEmpty();
