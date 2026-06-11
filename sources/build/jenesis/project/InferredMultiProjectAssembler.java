@@ -210,9 +210,7 @@ public record InferredMultiProjectAssembler(String packaging,
             if (launcher) {
                 sub.addModule("launcher",
                         new LauncherModule(repositories, resolvers).pinning(descriptor.pinning()),
-                        Stream.concat(
-                                Stream.of("prepare", "binary"),
-                                descriptor.artifacts().stream()));
+                        Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
             }
             if (nativeImage) {
                 sub.addStep("native-image",

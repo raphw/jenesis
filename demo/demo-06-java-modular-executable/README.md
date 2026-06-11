@@ -192,6 +192,12 @@ this and runs the produced jar for you:
 
     java build/DemoLauncher.java Ada Lovelace
 
+Because the launcher is shaded into the artifact you ship, it is pinned like any
+other dependency - this module's `module-info.java` carries a
+`@jenesis.pin launcher/maven/build.jenesis/build.jenesis.launcher <version> SHA-256/...`
+tag (in its own `launcher` group), so the exact launcher bytes are verified and the
+build is reproducible, and `pin` refreshes it the same way it pins everything else.
+
 Unlike `jpackage` and `bundle`, this carries no JVM and no `jlink` runtime - it is a
 plain jar that runs on any JDK 25 - and unlike the `bundle.zip` it needs no launch
 script. (A bundle with no `mainClass` is instead a self-contained Java agent; see the
