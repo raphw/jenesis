@@ -772,7 +772,7 @@ public class MavenProjectTest {
     }
 
     @Test
-    public void checksum_comment_inside_dependency_lands_in_requires_properties() throws IOException {
+    public void checksum_comment_inside_a_direct_dependency_is_ignored() throws IOException {
         Files.writeString(project.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -808,10 +808,8 @@ public class MavenProjectTest {
 
         SequencedProperties testRequires = SequencedProperties.ofFiles(results.get("maven/test-module-/manifests")
                 .resolve(BuildStep.REQUIRES));
-        assertThat(testRequires.getProperty("main/compile/maven/org.junit.jupiter/junit-jupiter/5.11.3"))
-                .isEqualTo("SHA256/cafebabe");
-        assertThat(testRequires.getProperty("main/runtime/maven/org.junit.jupiter/junit-jupiter/5.11.3"))
-                .isEqualTo("SHA256/cafebabe");
+        assertThat(testRequires.getProperty("main/compile/maven/org.junit.jupiter/junit-jupiter/5.11.3")).isEmpty();
+        assertThat(testRequires.getProperty("main/runtime/maven/org.junit.jupiter/junit-jupiter/5.11.3")).isEmpty();
 
         SequencedProperties mainRequires = SequencedProperties.ofFiles(results.get("maven/module-/manifests")
                 .resolve(BuildStep.REQUIRES));

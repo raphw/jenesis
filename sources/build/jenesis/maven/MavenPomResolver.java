@@ -500,8 +500,7 @@ public class MavenPomResolver implements MavenResolver {
                                 toTextChild400(node, "version").orElseThrow(missing("parent.version")),
                                 path != null ? toTextChild400(node, "relativePath").map(value -> value.endsWith("/pom.xml")
                                         ? value.substring(0, value.length() - 7)
-                                        : value).orElse("../") : null,
-                                trusted ? toCommentChecksum(node).orElse(null) : null))
+                                        : value).orElse("../") : null))
                         .orElse(null);
                 Map<String, String> properties = new HashMap<>();
                 Map<DependencyKey, DependencyValue> managedDependencies = new HashMap<>();
@@ -550,7 +549,7 @@ public class MavenPomResolver implements MavenResolver {
                                 parent.groupId(),
                                 parent.artifactId(),
                                 parent.version(),
-                                parent.checksum(),
+                                null,
                                 children,
                                 unresolved);
                         groupId = property(resolution.groupId(), resolution.properties());
@@ -591,7 +590,7 @@ public class MavenPomResolver implements MavenResolver {
                 toChildren400(document.getDocumentElement(), "dependencies")
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "dependency"))
-                        .map(node -> toDependency400(node, trusted))
+                        .map(node -> toDependency400(node, false))
                         .forEach(entry -> dependencies.putLast(entry.getKey(), entry.getValue()));
                 Node build = extended
                         ? toChildren400(document.getDocumentElement(), "build").findFirst().orElse(null)
@@ -1040,7 +1039,7 @@ public class MavenPomResolver implements MavenResolver {
     private record DependencyCoordinate(String groupId, String artifactId, String version) {
     }
 
-    private record ParentCoordinate(String groupId, String artifactId, String version, String relativePath, String checksum) {
+    private record ParentCoordinate(String groupId, String artifactId, String version, String relativePath) {
     }
 
     private record UnresolvedPom(String groupId,
