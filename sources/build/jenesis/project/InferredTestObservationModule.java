@@ -21,8 +21,18 @@ public class InferredTestObservationModule implements BuildExecutorModule {
                                          Map<String, Resolver> resolvers,
                                          Pinning pinning,
                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
-        boolean jacoco = Boolean.getBoolean("jenesis.observe.jacoco");
-        this(jacoco ? Set.of(Observation.JACOCO) : Set.of(), repositories, resolvers, pinning, toTarget);
+        this(inferred(), repositories, resolvers, pinning, toTarget);
+    }
+
+    private static Set<Observation> inferred() {
+        Set<Observation> observations = EnumSet.noneOf(Observation.class);
+        if (Boolean.getBoolean("jenesis.observe.jacoco")) {
+            observations.add(Observation.JACOCO);
+        }
+        if (Boolean.getBoolean("jenesis.observe.native")) {
+            observations.add(Observation.NATIVE_IMAGE);
+        }
+        return observations;
     }
 
     private InferredTestObservationModule(Set<Observation> observations,
@@ -53,6 +63,11 @@ public class InferredTestObservationModule implements BuildExecutorModule {
             JaCoCo jacoco = new JaCoCo();
             engines.add(jacoco);
             reports.put(jacoco.name(), new JaCoCoModule(repositories, resolvers).pinning(pinning));
+        }
+        if (observations.contains(Observation.NATIVE_IMAGE)) {
+            NativeImageAgent agent = new NativeImageAgent();
+            engines.add(agent);
+            reports.put(agent.name(), new NativeImageAgentModule());
         }
         buildExecutor.addModule(TEST, toTarget.apply(engines), inherited.sequencedKeySet());
         SequencedSet<String> reportInputs = new LinkedHashSet<>();

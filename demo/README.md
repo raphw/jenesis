@@ -368,11 +368,20 @@ records which lines the tests exercise; a report step then renders an HTML and
 XML coverage report from that data, the compiled classes, and the sources.
 
 The new idea is **inferred test observation**. An `InferredTestObservationModule`
-sits where the plain test module used to, bundling JaCoCo today and leaving room
-for more observation engines. With coverage off (the default) it is a plain test
+sits where the plain test module used to, and an observation engine wraps the test
+run by attaching a JVM agent. With coverage off (the default) it is a plain test
 run; with it on, the agent instruments the run with no change to the sources, and
 JaCoCo resolves its own tooling in a `jacoco` group, separate from the project's
 dependencies.
+
+A second observation engine plugs into the same slot: `-Djenesis.observe.native=true`
+attaches the **GraalVM native-image tracing agent**, which records the reflection,
+JNI, resource and proxy use the tests exercise and stages it as reachability
+metadata under `reports/native-image/`. Committed into `META-INF/native-image/`, that
+metadata is what lets the ahead-of-time `native-image` build (section 23) resolve
+dynamic access its closed-world analysis cannot see on its own. It needs a GraalVM
+JDK (the agent ships in the GraalVM runtime), so like `native-image` it is a local
+exercise.
 
 ## 14. Excluding a transitive dependency - [`maven-exclusions`](demo-20-maven-exclusions/README.md)
 ----------------------------------------------------
