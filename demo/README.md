@@ -56,7 +56,7 @@ Quick index
 | 3  | [`java-pom-multi`](demo-03-java-pom-multi/README.md)         | Many Maven modules: a library + a consumer that depends on it and an external artifact | `java build/jenesis/Project.java`  |
 | 4  | [`java-modular-multi`](demo-04-java-modular-multi/README.md) | The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
 | 5  | [`java-pom-executable`](demo-05-java-pom-executable/README.md)       | A runnable Maven project: a `<mainClass>` entry point + dependency, packaged into a native app image with `jpackage` | `java build/Demo.java`              |
-| 6  | [`java-modular-executable`](demo-06-java-modular-executable/README.md) | The same as a Java module: entry point via `@jenesis.main` + dependency, packaged with `jpackage`        | `java build/Demo.java`              |
+| 6  | [`java-modular-executable`](demo-06-java-modular-executable/README.md) | The same as a Java module: entry point via `@jenesis.main` + dependency, packaged with `jpackage` (and a plain `.jmod` + `jlink` runtime, and a `bundle` zip) | `java build/Demo.java`              |
 | 7  | [`java-multi-release`](demo-07-java-multi-release/README.md) | A modular multi-release JAR: Java 21 baseline plus a Java 25 override of one utility, selected by the runtime | `java build/jenesis/Execute.java`  |
 | 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 9  | [`java-quality`](demo-09-java-quality/README.md)             | Inferred code quality for Java: Checkstyle, PMD, SpotBugs, and a verifying `google-java-format`, each turned on by its config file | `java build/jenesis/Project.java`  |
@@ -201,9 +201,18 @@ a directory you launch in place. It reports the produced package instead of runn
 and needs the platform's packaging tooling on the PATH, so it is a local exercise rather
 than a CI one.
 
+Two more outputs round out the packaging menu, both opt-in flags shown on
+`java-modular-executable`. `-Djenesis.java.jmod=true -Djenesis.java.jlink=true` builds
+the lower-level pieces `jpackage` uses internally: a `.jmod` staged beside the modular
+jar, and a `jlink` runtime image trimmed to the module graph under `stage/runtime`,
+runnable from its own `bin/java -m` - the foundation `custom-jmod` (section 16) later
+builds on. And `-Djenesis.java.bundle=true` writes a `bundle.zip` of just the jars plus
+an `application.properties`, the **no-runtime** form you unzip onto an off-the-shelf JRE
+base (also used to ship the app as a container image in `docker-isolation`).
+
 The new idea is that **the build produces a runnable artifact, not just a jar**, and
-that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives both launching
-and packaging through the same `module.properties` field.
+that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives launching,
+packaging, and runtime-image linking through the same `module.properties` field.
 
 ## 5. A multi-release JAR - [`java-multi-release`](demo-07-java-multi-release/README.md)
 
@@ -619,8 +628,11 @@ point; `-Djenesis.execute.module=<module>` / `-Djenesis.execute.mainClass=<fqcn>
 pick which module and main to launch in a multi-module build), packaged into a
 native application image with `-Djenesis.java.jpackage` (the value is the `jpackage
 --type`; the image is collected under `stage/packages/` next to `stage/maven` and
-`stage/modular`; see section 4), or compiled ahead of time into a standalone GraalVM
-native binary with `-Djenesis.java.native=true` (see section 23).
+`stage/modular`; see section 4), packed into a `.jmod` and linked into a trimmed
+`jlink` runtime image (`-Djenesis.java.jmod` / `-Djenesis.java.jlink`, staged under
+`stage/runtime`), zipped jars-only for a JRE base (`-Djenesis.java.bundle`), or
+compiled ahead of time into a standalone GraalVM native binary with
+`-Djenesis.java.native=true` (see section 23).
 
 **Pinning, checksums, and scopes.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a

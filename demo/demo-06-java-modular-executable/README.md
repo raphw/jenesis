@@ -93,6 +93,48 @@ into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular
         |-- bin/demo.modular.executable             the launcher
         `-- lib/                                     app jars + bundled runtime
 
+Stage a `.jmod` and a `jlink` runtime image
+-------------------------------------------
+
+`jpackage` produces that app-image by running `jlink` internally over the module
+graph. You can also produce the lower-level artifacts on their own - the `.jmod`
+and the linked runtime image - with two boolean properties. Both are modular-only:
+a `.jmod` and a custom runtime are built from *modules*, so a classpath project
+(`../demo-05-java-pom-executable`) has nothing to pack or link.
+
+    java -Djenesis.java.jmod=true -Djenesis.java.jlink=true build/jenesis/Project.java stage
+
+`-Djenesis.java.jmod=true` wires a `jmod` step that packs the module into a `.jmod`,
+the modular-package format that - unlike a jar - can also carry native libraries,
+legal files, and `bin/`/`conf/` content. It is staged beside the modular jar in the
+module-repository layout:
+
+    target/stage/modular/output/demo.modular.executable/1-SNAPSHOT/
+    |-- demo.modular.executable.jar
+    `-- demo.modular.executable.jmod
+
+`-Djenesis.java.jlink=true` wires a `jlink` step that links a **custom runtime
+image** holding only the modules this app needs, staged under `stage/runtime` (the
+analogue of `stage/packages`):
+
+    target/stage/runtime/output/
+    |-- bin/java          the runtime's own launcher
+    `-- lib/ conf/ ...    a standard, trimmed JDK runtime layout
+
+The image is trimmed to exactly `demo.modular.executable`, `org.slf4j`, and
+`java.base` (about 61 MB here, against ~300 MB for a full JDK), and it runs straight
+from its own `bin/java` with no JDK installed:
+
+    target/stage/runtime/output/bin/java -m demo.modular.executable/sample.Sample Ada Lovelace
+    # Hello, Ada Lovelace, from a packaged Java module built by Jenesis!
+
+The difference from the app-image is only the wrapper: `jpackage` adds a native
+launcher (`bin/demo.modular.executable`) and an installer-friendly layout around the
+same kind of trimmed runtime, while `jlink` leaves you the bare runtime image to
+launch with `java -m`. `../demo-23-custom-jmod` chains all three steps -
+`jmod -> jlink -> jpackage` - and shows extra content packed into the `.jmod` riding
+through the linked runtime into the final app.
+
 Bundle the jars for a JRE-based image
 -------------------------------------
 

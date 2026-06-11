@@ -51,7 +51,7 @@ jobs:
           - { name: java-pom-multi-test-engine, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: -Djenesis.test.engine=junit-platform }
           - { name: java-modular-multi-module, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java +greeter-test }
           - { name: java-modular-multi-test-filter, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.test.filter=.*GreeterTest#prefix_is_a_greeting" }
-          - { name: java-modular-jmod-jlink, dir: demo-02-java-modular, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
+          - { name: java-modular-jmod-jlink, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: demo-05-java-pom-executable, entry: build/Demo.java }
           - { name: java-pom-bundle, dir: demo-05-java-pom-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }
           - { name: java-modular-executable, dir: demo-06-java-modular-executable, entry: build/Demo.java }
