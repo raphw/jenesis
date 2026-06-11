@@ -11,37 +11,43 @@ coordinates end to end.
 Run it
 ------
 
-    java build/Demo.java
+    java build/jenesis/Project.java
 
 `requires org.slf4j` is satisfied by fetching `org.slf4j` as a named module from
 the module repository. Building leaves **no `pom.xml`** anywhere under `target/`
 (contrast `../demo-02-java-modular`, the same project under MODULAR_TO_MAVEN, which
 emits one). Staging shows the same split:
 
-    java build/Demo.java stage      # target/stage/modular only - no target/stage/maven
+    java build/jenesis/Project.java stage      # target/stage/modular only - no target/stage/maven
 
 `export` then publishes the modular jar (and any `.jmod`) into the local Jenesis
 module repository (`~/.jenesis`), keyed by module name and version, with no Maven
 coordinate anywhere in the pipeline.
 
-Selecting the layout in code
-----------------------------
+Selecting the layout
+--------------------
 
 A `module-info.java` with no `pom.xml` auto-detects MODULAR_TO_MAVEN; the pure
-MODULAR layout is never chosen automatically, so you ask for it. `build/Demo.java`
-does that on the `Project` builder (the in-code equivalent of
-`-Djenesis.project.layout=modular`):
+MODULAR layout is never chosen automatically, so you ask for it. This demo asks for
+it in a `jenesis.properties` at the project root - the same file `../demo-09-java-quality`
+uses to select its formatter - which the launcher loads into system properties
+before the build:
 
-    new Project()
-            .layout(Project.Layout.MODULAR)
-            .build(args);
+    jenesis.project.layout=modular
+
+So the demo runs with the stock `java build/jenesis/Project.java`, no custom
+launcher. The command line wins over the file, so a one-off
+`-Djenesis.project.layout=modular` on any modular project does the same thing
+without the file (exactly what `../demo-02-java-modular` runs to force this layout
+on the same sources that otherwise auto-detect MODULAR_TO_MAVEN), and an in-code
+build can call `new Project().layout(Project.Layout.MODULAR)` directly.
 
 Layout
 ------
 
     demo-21-module-layout
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
-    |-- build/Demo.java          builds with Project.Layout.MODULAR
+    |-- jenesis.properties       selects the pure MODULAR layout
     `-- sources
         |-- module-info.java     module demo.modulelayout, requires org.slf4j (pinned by module name)
         `-- sample/Sample.java   uses org.slf4j
@@ -85,7 +91,7 @@ differently under each layout.
 Under **MODULAR** (this demo) the node is a Java module name resolved from the
 module repository - no Maven coordinate, no Maven scope:
 
-    java build/Demo.java dependencies
+    java build/jenesis/Project.java dependencies
 
     main/compile (module-sources)
     module/org.slf4j 2.0.16 (module org.slf4j)

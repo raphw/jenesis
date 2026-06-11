@@ -145,6 +145,14 @@ build runs on the host and only the finished artifact is launched in the
 container. The same `jenesis.execute.docker.mount` flag exists for symmetry when a
 launched program needs a host path made visible.
 
+When a sandboxed build or program legitimately needs to *write* to a host path -
+say a generated-output directory you want to keep after the container exits -
+`jenesis.project.docker.mountWritable` (and its `jenesis.execute.docker.mountWritable`
+twin) add **read-write** bind mounts, the counterpart to the read-only `.mount`
+above. Reach for it sparingly: every writable mount is a hole in the very
+confinement this demo is about, so widen the sandbox only for the exact path that
+needs it.
+
 Read-only repositories: `export` does not work in Docker
 --------------------------------------------------------
 

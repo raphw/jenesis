@@ -70,7 +70,7 @@ jobs:
           - { name: groovy-quality, dir: demo-18-groovy-quality, entry: build/jenesis/Project.java }
           - { name: code-coverage, dir: demo-19-code-coverage, entry: build/jenesis/Project.java }
           - { name: maven-exclusions, dir: demo-20-maven-exclusions, entry: build/jenesis/Project.java }
-          - { name: module-layout, dir: demo-21-module-layout, entry: build/Demo.java }
+          - { name: module-layout, dir: demo-21-module-layout, entry: build/jenesis/Project.java }
           - { name: custom-assembler, dir: demo-22-custom-assembler, entry: build/Demo.java }
           - { name: custom-jmod, dir: demo-23-custom-jmod, entry: build/Demo.java }
           - { name: internal-module, dir: demo-24-internal-module, entry: build/Demo.java }

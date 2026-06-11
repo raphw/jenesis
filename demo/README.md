@@ -7,7 +7,8 @@ Jenesis' features: start with a single Maven project, turn it into a module,
 scale to many modules, package a module into a runnable application image, build
 a multi-release JAR, infer code-quality tools, bring in other JVM languages and
 lint them too, customize or replace the build template itself, lock down the
-supply chain, and finally assemble a release for Maven Central.
+supply chain, assemble a release for Maven Central, and finally compile a module
+ahead of time into a GraalVM native binary.
 
 Every demo has its own `build/jenesis` symlink into this repository's
 `sources/build/jenesis`, so each runs in isolation from inside its own directory
@@ -37,7 +38,7 @@ explicit `-D` wins over a file entry):
 
 Some demos ship their own launcher and are run with `java build/Demo.java`
 instead: the ones that customize, replace, or drive the template directly
-(`module-layout`, `custom-assembler`, `internal-module`, `external-module`,
+(`custom-assembler`, `internal-module`, `external-module`,
 `custom-maven`, `custom-modular`, `custom-build`, `custom-jmod`,
 `supply-chain-security`, `publishing`) and the two executable demos (`java-pom-executable`,
 `java-modular-executable`), which stage a
@@ -70,7 +71,7 @@ Quick index
 | 18 | [`groovy-quality`](demo-18-groovy-quality/README.md)         | Inferred code quality for Groovy: CodeNarc lints the sources          | `java build/jenesis/Project.java`  |
 | 19 | [`code-coverage`](demo-19-code-coverage/README.md)          | Inferred test observation: JaCoCo records coverage during the test run and renders an HTML/XML report, enabled with `-Djenesis.observe.jacoco=true` | `java build/jenesis/Project.java`  |
 | 20 | [`maven-exclusions`](demo-20-maven-exclusions/README.md)     | Maven only: a dependency with an `<exclusions>` block; a test asserts the excluded transitive is absent | `java build/jenesis/Project.java`  |
-| 21 | [`module-layout`](demo-21-module-layout/README.md)           | Explicitly select the pure MODULAR layout: resolve by module name, emit a modular jar with no `pom.xml` | `java build/Demo.java`             |
+| 21 | [`module-layout`](demo-21-module-layout/README.md)           | Explicitly select the pure MODULAR layout (via `jenesis.properties`): resolve by module name, emit a modular jar with no `pom.xml` | `java build/jenesis/Project.java`  |
 | 22 | [`custom-assembler`](demo-22-custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
 | 23 | [`custom-jmod`](demo-23-custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod`, `jlink` it into a runtime, and `jpackage` that into a runnable app | `java build/Demo.java`             |
 | 24 | [`internal-module`](demo-24-internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
@@ -81,6 +82,7 @@ Quick index
 | 29 | [`docker-isolation`](demo-29-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
 | 30 | [`supply-chain-security`](demo-30-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 31 | [`publishing`](demo-31-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
+| 32 | [`native-image`](demo-32-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary with `-Djenesis.java.native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -385,8 +387,12 @@ main one.
 ----------------------------------------------------
 
 `module-layout` is the same shape of project as `demo-02-java-modular` - a
-`module-info.java` requiring a named module - but `build/Demo.java` selects the
-layout in code: `new Project().layout(Project.Layout.MODULAR)`.
+`module-info.java` requiring a named module - but a `jenesis.properties` at its
+root selects the layout: `jenesis.project.layout=modular`. The launcher loads that
+file before the build, so the stock `java build/jenesis/Project.java` picks the
+pure MODULAR layout with no custom launcher (the command-line
+`-Djenesis.project.layout=modular` wins over it, and an in-code build can call
+`new Project().layout(Project.Layout.MODULAR)`).
 
 The new idea is the **layout choice**. A `module-info.java` with no `pom.xml`
 auto-detects MODULAR_TO_MAVEN, which translates each `requires` into a Maven
@@ -562,6 +568,34 @@ and GPG signing are deferred to a dedicated release tool - the README recommends
 signing key, or the network, yet shows the complete, validated artifact set a
 release would carry.
 
+## 23. Ahead-of-time native image - [`native-image`](demo-32-native-image/README.md)
+
+`native-image` revisits the runnable-artifact idea from section 4 from the other
+end. There, `jpackage` bundled your bytecode with a `jlink`-trimmed JVM; here
+GraalVM `native-image` compiles the program *and* the runtime it touches into a
+single standalone machine-code binary - no JVM, near-instant startup, a few
+megabytes. The project is the same minimal modular shape as `java-modular`, and the
+entry point is the same `@jenesis.main` field jpackage keyed off; only the back end
+differs.
+
+It is opt-in through one boolean, `-Djenesis.java.native=true`, which wires a
+per-module `native-image` step (skipping modules with no main class). The step
+reuses the launcher coordinates the build already derived - the produced module
+path and `--module <module>/<main-class>` - and runs `native-image --no-fallback`
+over them. `native-image` is located like every external tool: `GRAALVM_HOME`, then
+the running JDK's `bin/`, then `PATH`, so the build runs on a GraalVM JDK or with
+`GRAALVM_HOME` pointed at one.
+
+The new idea is **closed-world ahead-of-time compilation**, and its catch:
+`native-image` only sees code reached statically, so anything dynamic (reflection,
+JNI, resources, proxies) needs reachability metadata - a `native-image/` config
+directory the step passes through, usually captured by running once under the
+tracing agent. This demo's module is dependency- and reflection-free, so it needs
+none. native-image is an *alternative* to jpackage, not a successor: jpackage for a
+faithful bundle of the JVM you tested against, native-image when startup latency and
+footprint dominate. Like `docker-isolation`, it needs tooling the CI runners lack
+(GraalVM), so it is a local exercise.
+
 Cross-cutting concepts
 ----------------------
 
@@ -579,10 +613,14 @@ being built as part of it.
 descriptors to record resolved versions and checksums; `stage` lays artifacts out
 as local Maven and module repositories; `export` publishes them. A module that
 declares an entry point (`@jenesis.main` in `module-info.java`, or `<mainClass>`
-in `pom.xml`) can also be launched from its built artifacts, or packaged into a
+in `pom.xml`) can also be launched from its built artifacts with the `Execute`
+launcher (`java build/jenesis/Execute.java`, which builds then runs that entry
+point; `-Djenesis.execute.module=<module>` / `-Djenesis.execute.mainClass=<fqcn>`
+pick which module and main to launch in a multi-module build), packaged into a
 native application image with `-Djenesis.java.jpackage` (the value is the `jpackage
---type`); the image is collected under `stage/packages/` next to `stage/maven` and
-`stage/modular`. See demo 4.
+--type`; the image is collected under `stage/packages/` next to `stage/maven` and
+`stage/modular`; see section 4), or compiled ahead of time into a standalone GraalVM
+native binary with `-Djenesis.java.native=true` (see section 23).
 
 **Pinning, checksums, and scopes.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
