@@ -11,6 +11,11 @@ public class InferredTestObservationModule implements BuildExecutorModule {
 
     public static final String TEST = "test";
 
+    public enum Observation {
+        JACOCO,
+        NATIVE_IMAGE
+    }
+
     private final Set<Observation> observations;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
@@ -21,10 +26,6 @@ public class InferredTestObservationModule implements BuildExecutorModule {
                                          Map<String, Resolver> resolvers,
                                          Pinning pinning,
                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
-        this(inferred(), repositories, resolvers, pinning, toTarget);
-    }
-
-    private static Set<Observation> inferred() {
         Set<Observation> observations = EnumSet.noneOf(Observation.class);
         if (Boolean.getBoolean("jenesis.observe.jacoco")) {
             observations.add(Observation.JACOCO);
@@ -32,7 +33,7 @@ public class InferredTestObservationModule implements BuildExecutorModule {
         if (Boolean.getBoolean("jenesis.observe.native")) {
             observations.add(Observation.NATIVE_IMAGE);
         }
-        return observations;
+        this(observations, repositories, resolvers, pinning, toTarget);
     }
 
     private InferredTestObservationModule(Set<Observation> observations,

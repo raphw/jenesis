@@ -10,8 +10,8 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.InferredTestObservationModule;
+import build.jenesis.project.InferredTestObservationModule.Observation;
 import build.jenesis.project.ObservabilityEngine;
-import build.jenesis.project.Observation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
