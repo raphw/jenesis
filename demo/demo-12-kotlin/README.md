@@ -25,13 +25,17 @@ sources out under one package:
 
     demo/demo-12-kotlin
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    `-- sources
-        |-- module-info.java       requires kotlin.stdlib; exports sample; exports sample.pure
-        `-- sample
-            |-- Greeter.java       a Java type in the exported 'sample' package
-            |-- Sample.kt          Kotlin that calls Greeter
-            `-- pure
-                `-- Pure.kt        a pure-Kotlin package, exported with no Java type
+    |-- sources
+    |   |-- module-info.java       requires kotlin.stdlib; exports sample; exports sample.pure
+    |   |-- messages.properties    a root resource, read by Greeter at run time
+    |   `-- sample
+    |       |-- Greeter.java       a Java type in the exported 'sample' package; loads the resource
+    |       |-- Sample.kt          Kotlin that calls Greeter
+    |       `-- pure
+    |           `-- Pure.kt        a pure-Kotlin package, exported with no Java type
+    `-- test
+        |-- module-info.java       open module sample.kotlin.test (@jenesis.test sample.kotlin)
+        `-- sampletest/SampleTest.java   asserts the greeting comes from the resource
 
 How Jenesis builds it
 ---------------------
@@ -57,6 +61,21 @@ type, yet `module-info.java` exports it. The order is what makes this work -
 so the Kotlin classes must exist first. `kotlinc` and `scalac` can read `.java`
 as source, so they run ahead of `javac`; `groovyc` cannot, which is why the
 `groovy` demo's exported package still needs a Java type.
+
+Packaging a resource in a mixed-language module
+-----------------------------------------------
+
+`messages.properties` sits at the source root, outside any package. In a
+single-language module the one compiler copies non-source files into the jar
+alongside the classes; here two compilers run, so neither owns that step and a
+dedicated resource step copies every non-source file instead - `messages.properties`
+lands at the jar root either way. `Greeter.java` reads it back with
+`Greeter.class.getResourceAsStream("/messages.properties")` and `Sample.kt` returns
+it with a Kotlin suffix, so one greeting crosses Java -> resource -> Kotlin. The
+`sample.kotlin.test` module asserts the result, so the build proves the resource was
+packaged into the mixed jar and is loadable. (Files under `META-INF/` are always
+copied this way too, except the `META-INF/versions/` multi-release overlay, which is
+compiled - see `../demo-07-java-multi-release`.)
 
 Pinning
 -------
