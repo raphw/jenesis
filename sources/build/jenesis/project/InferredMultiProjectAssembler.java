@@ -27,7 +27,11 @@ public record InferredMultiProjectAssembler(String packaging,
                                             boolean bundle,
                                             boolean nativeImage,
                                             CycloneDxEmitter.Format sbom,
-                                            TestEngine testEngine) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                            UnaryOperator<InferredSourceCodeQualityModule> check,
+                                            UnaryOperator<InferredSourceFormattingModule> format,
+                                            UnaryOperator<InferredByteCodeQualityModule> validate,
+                                            UnaryOperator<InferredTestObservationModule> observe,
+                                            UnaryOperator<TestModule> test) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public InferredMultiProjectAssembler() {
         String packagingOverride = System.getProperty("jenesis.java.jpackage");
@@ -43,35 +47,55 @@ public record InferredMultiProjectAssembler(String packaging,
                     default -> throw new IllegalArgumentException(
                             "Unknown SBOM format: " + sbomFormat + " (expected json or xml)");
                 },
-                null);
+                UnaryOperator.identity(),
+                UnaryOperator.identity(),
+                UnaryOperator.identity(),
+                UnaryOperator.identity(),
+                UnaryOperator.identity());
     }
 
     public InferredMultiProjectAssembler packaging(String packaging) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
     public InferredMultiProjectAssembler jmod(boolean jmod) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
     public InferredMultiProjectAssembler jlink(boolean jlink) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
     public InferredMultiProjectAssembler bundle(boolean bundle) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
     public InferredMultiProjectAssembler nativeImage(boolean nativeImage) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
     public InferredMultiProjectAssembler sbom(CycloneDxEmitter.Format sbom) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
-    public InferredMultiProjectAssembler testEngine(TestEngine testEngine) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, testEngine);
+    public InferredMultiProjectAssembler check(UnaryOperator<InferredSourceCodeQualityModule> check) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
+    }
+
+    public InferredMultiProjectAssembler format(UnaryOperator<InferredSourceFormattingModule> format) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
+    }
+
+    public InferredMultiProjectAssembler validate(UnaryOperator<InferredByteCodeQualityModule> validate) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
+    }
+
+    public InferredMultiProjectAssembler observe(UnaryOperator<InferredTestObservationModule> observe) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
+    }
+
+    public InferredMultiProjectAssembler test(UnaryOperator<TestModule> test) {
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, nativeImage, sbom, check, format, validate, observe, test);
     }
 
     @Override
@@ -84,12 +108,12 @@ public record InferredMultiProjectAssembler(String packaging,
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
             sub.addModule("check",
-                    new InferredSourceCodeQualityModule(descriptor.configuration(), repositories, resolvers)
-                            .pinning(descriptor.pinning()),
+                    check.apply(new InferredSourceCodeQualityModule(descriptor.configuration(), repositories, resolvers)
+                            .pinning(descriptor.pinning())),
                     descriptor.sources());
             sub.addModule("format",
-                    new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
-                            .pinning(descriptor.pinning()),
+                    format.apply(new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
+                            .pinning(descriptor.pinning())),
                     descriptor.sources());
             if (sbom != null) {
                 sub.addStep("sbom", new Sbom().format(sbom),
@@ -99,8 +123,8 @@ public record InferredMultiProjectAssembler(String packaging,
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)
                                     .pinning(descriptor.pinning())
                                     .modulePath(descriptor.modulePath()))
-                            .validator(new InferredByteCodeQualityModule(descriptor.configuration(), repositories, resolvers)
-                                    .pinning(descriptor.pinning()))
+                            .validator(validate.apply(new InferredByteCodeQualityModule(descriptor.configuration(), repositories, resolvers)
+                                    .pinning(descriptor.pinning())))
                             .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
                     Stream.of(
                             Stream.of("prepare"),
@@ -120,17 +144,16 @@ public record InferredMultiProjectAssembler(String packaging,
                 if (module != null) {
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
-                        sub.addModule("observed", new InferredTestObservationModule(
+                        sub.addModule("observed", observe.apply(new InferredTestObservationModule(
                                 repositories,
                                 resolvers,
                                 descriptor.pinning(),
-                                engines -> new TestModule(repositories, resolvers)
-                                        .engine(testEngine)
+                                engines -> test.apply(new TestModule(repositories, resolvers)
                                         .observe(engines)
                                         .pinning(descriptor.pinning())
                                         .modulePath(descriptor.modulePath())
-                                        .moduleName(properties.getProperty("module"))
-                                ), Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
+                                        .moduleName(properties.getProperty("module")))
+                                )), Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
                     }
                 }
             }
