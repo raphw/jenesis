@@ -267,15 +267,31 @@ public class MavenDefaultRepository implements MavenRepository {
                                            String prefix,
                                            String suffix,
                                            String token) throws IOException {
-        InputStream stream;
-        try {
-            stream = openStream(uri, token);
-        } catch (FileNotFoundException _) {
-            return Optional.empty();
-        }
         Path temporary = Files.createTempFile(prefix, suffix);
-        try (stream) {
-            Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
+        try {
+            IOException failure = null;
+            for (int attempt = 0; attempt < 4; attempt++) {
+                try (InputStream stream = openStream(uri, token)) {
+                    Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
+                    failure = null;
+                    break;
+                } catch (FileNotFoundException _) {
+                    Files.deleteIfExists(temporary);
+                    return Optional.empty();
+                } catch (IOException e) {
+                    failure = e;
+                    if (attempt < 3) {
+                        Thread.sleep(500L << attempt);
+                    }
+                }
+            }
+            if (failure != null) {
+                throw failure;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Files.deleteIfExists(temporary);
+            throw new IOException("Interrupted while fetching " + uri, e);
         } catch (Throwable t) {
             Files.deleteIfExists(temporary);
             throw t;
