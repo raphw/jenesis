@@ -88,6 +88,31 @@ to run the application once under the tracing agent
 accesses the static analysis cannot see. This demo has nothing to record, so it
 ships no such directory.
 
+Capturing that metadata with an observation engine
+--------------------------------------------------
+
+Jenesis automates running the tracing agent the same way it automates JaCoCo
+coverage (`../demo-19-code-coverage`): as a **test-observation engine**. On a
+project with tests, build it on a GraalVM JDK with
+
+    java -Djenesis.observe.native=true build/jenesis/Project.java stage
+
+and the `observed` step attaches `-agentlib:native-image-agent` to the test JVM, so
+every reflective, JNI, resource and proxy access the tests exercise is recorded.
+The capture is staged as a report:
+
+    target/stage/reports/native-image/<module>/reachability-metadata.json
+
+Review it, then commit it into the module's `sources/META-INF/native-image/`, where
+both `native-image` and the plain JVM auto-discover it from the jar. The split is
+deliberate - capture happens during the test run (so the agent only ever ships in
+the GraalVM runtime, no coordinate to resolve), while building the image stays a
+separate, reviewable step - which is why Jenesis stages the metadata for you to vet
+rather than feeding it straight into the same build. This demo carries no tests and
+no reflection, so there is nothing to capture; the flow matters once an app reaches
+for dynamic features. Like the image build, it needs a GraalVM JDK, so it is a local
+exercise.
+
 Layout
 ------
 
