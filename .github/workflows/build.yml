@@ -54,8 +54,12 @@ jobs:
           - { name: java-modular-jmod-jlink, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java stage, flags: -Djenesis.java.jmod=true -Djenesis.java.jlink=true }
           - { name: java-pom-executable, dir: demo-05-java-pom-executable, entry: build/Demo.java }
           - { name: java-pom-bundle, dir: demo-05-java-pom-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }
+          - { name: java-pom-launcher, dir: demo-05-java-pom-executable, entry: build/DemoLauncher.java }
+          - { name: java-pom-launcher-strict, dir: demo-05-java-pom-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.launcher=true -Djenesis.dependency.pin=strict }
           - { name: java-modular-executable, dir: demo-06-java-modular-executable, entry: build/Demo.java }
           - { name: java-modular-bundle, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.bundle=true }
+          - { name: java-modular-launcher, dir: demo-06-java-modular-executable, entry: build/DemoLauncher.java }
+          - { name: java-modular-launcher-strict, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.launcher=true -Djenesis.dependency.pin=strict }
           - { name: java-multi-release, dir: demo-07-java-multi-release, entry: build/jenesis/Execute.java }
           - { name: annotations, dir: demo-08-annotations, entry: build/jenesis/Project.java }
           - { name: java-quality, dir: demo-09-java-quality, entry: build/jenesis/Project.java }

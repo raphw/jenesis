@@ -164,6 +164,45 @@ For a non-modular project the zip holds only `classpath/` and an `application.pr
 with just `mainClass`, launched with `java -cp 'classpath/*' sample.Sample` (see
 `../demo-05-java-pom-executable`).
 
+A single executable jar with the launcher
+-----------------------------------------
+
+The `bundle.zip` still needs a launch command. `-Djenesis.java.launcher=true` goes one
+step further and produces a **single executable jar** you run with `java -jar foo.jar` -
+without flattening the dependencies into a fat jar, so modularity survives. The target
+resolves the published `build.jenesis:build.jenesis.launcher` from Maven Central and
+shades it into the jar:
+
+    java -Djenesis.java.launcher=true build/jenesis/Project.java
+
+    demo.modular.executable.jar
+    |-- META-INF/MANIFEST.MF                  Main-Class: build.jenesis.launcher.Launcher
+    |-- build/jenesis/launcher/*.class        the launcher (the jar's own unnamed module at run time)
+    |-- application.properties                mainClass, mainModule, classpath order
+    |-- modulepath/<dep>.jar/...              each modular/automatic dependency, exploded
+    `-- classpath/<dep>.jar/...               each plain dependency, exploded
+
+The launcher's `Main-Class` reads `application.properties`, resolves the `modulepath/`
+subfolders into a fresh `ModuleLayer` and the `classpath/` ones into the unnamed module
+of the same loader, and invokes the entry point - reconstructing what
+`java -p modulepath -cp classpath -m demo.modular.executable/sample.Sample` would do,
+all in process. Because each dependency keeps its own subfolder nothing is merged, so
+`module-info`s and `META-INF/services` do not collide. `build/DemoLauncher.java` builds
+this and runs the produced jar for you:
+
+    java build/DemoLauncher.java Ada Lovelace
+
+Because the launcher is shaded into the artifact you ship, it is pinned like any
+other dependency - this module's `module-info.java` carries a
+`@jenesis.pin launcher/maven/build.jenesis/build.jenesis.launcher <version> SHA-256/...`
+tag (in its own `launcher` group), so the exact launcher bytes are verified and the
+build is reproducible, and `pin` refreshes it the same way it pins everything else.
+
+Unlike `jpackage` and `bundle`, this carries no JVM and no `jlink` runtime - it is a
+plain jar that runs on any JDK 25 - and unlike the `bundle.zip` it needs no launch
+script. (A bundle with no `mainClass` is instead a self-contained Java agent; see the
+launcher's own documentation.)
+
 Fully bundled native installer
 ------------------------------
 

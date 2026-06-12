@@ -31,4 +31,7 @@
             <version>3.14.0</version>
         </dependency>
     </dependencies>
+    <!--jenesis.pin
+    launcher/maven/build.jenesis/build.jenesis.launcher 0.2.0 SHA-256/0a1865acddc82c6d57a52a9343f1b698e647f376cdf93c3c2527bf17b91e6d29
+    -->
 </project>

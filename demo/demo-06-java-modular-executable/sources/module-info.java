@@ -14,6 +14,7 @@
  *
  * @jenesis.release 25
  * @jenesis.main sample.Sample
+ * @jenesis.pin launcher/maven/build.jenesis/build.jenesis.launcher 0.2.0 SHA-256/0a1865acddc82c6d57a52a9343f1b698e647f376cdf93c3c2527bf17b91e6d29
  * @jenesis.pin org.slf4j 2.0.16
  * @jenesis.pin org.slf4j/slf4j-api 2.0.16 SHA-256/a12578dde1ba00bd9b816d388a0b879928d00bab3c83c240f7013bf4196c579a
  */

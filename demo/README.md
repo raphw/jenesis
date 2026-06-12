@@ -43,7 +43,9 @@ instead: the ones that customize, replace, or drive the template directly
 `supply-chain-security`, `publishing`) and the two executable demos (`java-pom-executable`,
 `java-modular-executable`), which stage a
 `jpackage` image and run it with the arguments you pass, and additionally ship a
-`build/DemoNative.java` sibling that builds a native installer. Each demo writes
+`build/DemoNative.java` sibling that builds a native installer and a
+`build/DemoLauncher.java` sibling that builds a single `java -jar`-able executable jar
+with the `build.jenesis.launcher` and runs it. Each demo writes
 to a local `target/` directory; delete it to rebuild from scratch.
 
 Quick index
@@ -206,9 +208,13 @@ Two more outputs round out the packaging menu, both opt-in flags shown on
 the lower-level pieces `jpackage` uses internally: a `.jmod` staged beside the modular
 jar, and a `jlink` runtime image trimmed to the module graph under `stage/runtime`,
 runnable from its own `bin/java -m` - the foundation `custom-jmod` (section 16) later
-builds on. And `-Djenesis.java.bundle=true` writes a `bundle.zip` of just the jars plus
-an `application.properties`, the **no-runtime** form you unzip onto an off-the-shelf JRE
-base (also used to ship the app as a container image in `docker-isolation`).
+builds on. And two no-runtime forms: `-Djenesis.java.bundle=true` writes a `bundle.zip` of just the
+jars plus an `application.properties` to unzip onto an off-the-shelf JRE base (also used
+to ship the app as a container image in `docker-isolation`), while
+`-Djenesis.java.launcher=true` shades the published `build.jenesis.launcher` into a
+**single executable jar** you run with `java -jar foo.jar` - dependencies exploded into
+per-dependency subfolders so the module graph is reconstructed at run time rather than
+flattened into a fat jar.
 
 The new idea is that **the build produces a runnable artifact, not just a jar**, and
 that one entry-point declaration (`@jenesis.main` / `<mainClass>`) drives launching,
@@ -637,9 +643,10 @@ native application image with `-Djenesis.java.jpackage` (the value is the `jpack
 --type`; the image is collected under `stage/packages/` next to `stage/maven` and
 `stage/modular`; see section 4), packed into a `.jmod` and linked into a trimmed
 `jlink` runtime image (`-Djenesis.java.jmod` / `-Djenesis.java.jlink`, staged under
-`stage/runtime`), zipped jars-only for a JRE base (`-Djenesis.java.bundle`), or
-compiled ahead of time into a standalone GraalVM native binary with
-`-Djenesis.java.native=true` (see section 23).
+`stage/runtime`), zipped jars-only for a JRE base (`-Djenesis.java.bundle`), shaded with
+the `build.jenesis.launcher` into a single `java -jar`-able executable jar that keeps the
+module graph (`-Djenesis.java.launcher`), or compiled ahead of time into a standalone
+GraalVM native binary with `-Djenesis.java.native=true` (see section 23).
 
 **Pinning, checksums, and scopes.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a
