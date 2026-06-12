@@ -7,38 +7,6 @@ public interface HashFunction {
 
     byte[] hash(Path file) throws IOException;
 
-    default String encoded(byte[] hash) {
-        return HexFormat.of().formatHex(hash);
-    }
-
-    default String encodedHash(Path file) throws IOException {
-        return encoded(hash(file));
-    }
-
-    static HashFunction ofSize() {
-        return file -> {
-            long size = Files.size(file);
-            byte[] hash = new byte[Long.BYTES];
-            for (int index = Long.BYTES - 1; index >= 0; index--) {
-                hash[index] = (byte) (size & 0xFF);
-                size >>= Byte.SIZE;
-            }
-            return hash;
-        };
-    }
-
-    static HashFunction ofLastModified() {
-        return file -> {
-            long lastModified = Files.getLastModifiedTime(file).toMillis();
-            byte[] hash = new byte[Long.BYTES];
-            for (int index = Long.BYTES - 1; index >= 0; index--) {
-                hash[index] = (byte) (lastModified & 0xFF);
-                lastModified >>= Byte.SIZE;
-            }
-            return hash;
-        };
-    }
-
     static Map<Path, byte[]> read(Path file) throws IOException {
         Map<Path, byte[]> checksums = new LinkedHashMap<>();
         SequencedProperties properties = SequencedProperties.ofFiles(file);

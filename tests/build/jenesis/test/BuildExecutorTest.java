@@ -29,7 +29,7 @@ public class BuildExecutorTest implements Serializable {
 
     @TempDir
     private Path root, source, source2;
-    private transient HashFunction hash;
+    private transient HashDigestFunction hash;
     private transient BuildExecutor buildExecutor;
 
     @BeforeEach

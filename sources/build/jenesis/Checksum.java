@@ -30,7 +30,7 @@ public final class Checksum {
         return value.get();
     }
 
-    public static Map<Path, Checksum> diff(Map<Path, byte[]> expected, Map<Path, byte[]> actual, HashFunction hash) {
+    public static Map<Path, Checksum> diff(Map<Path, byte[]> expected, Map<Path, byte[]> actual, HashDigestFunction hash) {
         Map<Path, Checksum> diff = new LinkedHashMap<>();
         Map<Path, byte[]> removed = new LinkedHashMap<>(expected);
         for (Map.Entry<Path, byte[]> entry : actual.entrySet()) {
@@ -52,7 +52,7 @@ public final class Checksum {
         return diff;
     }
 
-    public static Map<Path, Checksum> added(Map<Path, byte[]> actual, HashFunction hash) {
+    public static Map<Path, Checksum> added(Map<Path, byte[]> actual, HashDigestFunction hash) {
         Map<Path, Checksum> added = new LinkedHashMap<>();
         actual.forEach((path, bytes) -> added.put(path, new Checksum(ChecksumStatus.ADDED, () -> hash.encoded(bytes))));
         return added;

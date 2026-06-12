@@ -10,7 +10,7 @@ class BuildExecutorDefault implements BuildExecutor {
 
     private final Path target;
     private final Duration timeout;
-    private final HashFunction hash;
+    private final HashDigestFunction hash;
     private final BuildStepHashFunction stepHash;
     private final BuildExecutorCallback callback;
     private final String location;
@@ -20,7 +20,7 @@ class BuildExecutorDefault implements BuildExecutor {
 
     BuildExecutorDefault(Path target,
                          Duration timeout,
-                         HashFunction hash,
+                         HashDigestFunction hash,
                          BuildStepHashFunction stepHash,
                          BuildExecutorCallback callback,
                          String location,
