@@ -67,7 +67,7 @@ class BuildExecutorDefault implements BuildExecutor {
                 try {
                     future.complete(Map.of(identity, Map.of(
                             identity,
-                            new StepSummary(path, HashFunction.read(path, hash)))));
+                            new StepSummary(path, HashFunction.read(path, hash, executor)))));
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
@@ -118,7 +118,7 @@ class BuildExecutorDefault implements BuildExecutor {
                     String serialization = stepProperties.getProperty("serialization");
                     consistent = serialization != null
                             && Arrays.equals(currentStepHash, HexFormat.of().parseHex(serialization))
-                            && HashFunction.areConsistent(output, current, hash);
+                            && HashFunction.areConsistent(output, current, hash, executor);
                 } else {
                     consistent = false;
                 }
@@ -166,7 +166,7 @@ class BuildExecutorDefault implements BuildExecutor {
                                         checksum.resolve("argument." + BuildExecutorModule.encode(entry.getKey()) + ".properties"),
                                         entry.getValue().checksums());
                             }
-                            Map<Path, byte[]> checksums = HashFunction.read(output, hash);
+                            Map<Path, byte[]> checksums = HashFunction.read(output, hash, executor);
                             HashFunction.write(checksum.resolve("output.properties"), checksums);
                             SequencedProperties stepProperties = new SequencedProperties();
                             stepProperties.setProperty("serialization", HexFormat.of().formatHex(currentStepHash));
@@ -533,7 +533,7 @@ class BuildExecutorDefault implements BuildExecutor {
                     for (Path path : paths) {
                         extended.put(
                                 ":" + BuildExecutorModule.encode(path.toString()),
-                                new StepSummary(path, HashFunction.read(path, hash)));
+                                new StepSummary(path, HashFunction.read(path, hash, executor)));
                     }
                     return delegate.apply(identity, executor, extended, selectors);
                 }

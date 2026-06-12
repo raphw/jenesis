@@ -23,7 +23,7 @@ public class HashFunctionTest {
     @Test
     public void can_extract_folder() throws IOException {
         Files.writeString(folder.resolve("foo"), "bar");
-        Map<Path, byte[]> checksums = HashFunction.read(folder, _ -> new byte[]{1, 2, 3});
+        Map<Path, byte[]> checksums = HashFunction.read(folder, _ -> new byte[]{1, 2, 3}, Runnable::run);
         assertThat(checksums).containsOnlyKeys(Path.of("foo"));
         assertThat(checksums.get(Path.of("foo"))).isEqualTo(new byte[]{1, 2, 3});
     }
@@ -31,7 +31,7 @@ public class HashFunctionTest {
     @Test
     public void can_extract_nested_folder() throws IOException {
         Files.writeString(Files.createDirectory(folder.resolve("bar")).resolve("foo"), "bar");
-        Map<Path, byte[]> checksums = HashFunction.read(folder, _ -> new byte[]{1, 2, 3});
+        Map<Path, byte[]> checksums = HashFunction.read(folder, _ -> new byte[]{1, 2, 3}, Runnable::run);
         assertThat(checksums).containsOnlyKeys(Path.of("bar/foo"));
         assertThat(checksums.get(Path.of("bar/foo"))).isEqualTo(new byte[]{1, 2, 3});
     }
@@ -40,7 +40,7 @@ public class HashFunctionTest {
     public void can_extract_empty_folder() throws IOException {
         Map<Path, byte[]> checksums = HashFunction.read(folder, _ -> {
             throw new UnsupportedOperationException();
-        });
+        }, Runnable::run);
         assertThat(checksums).isEmpty();
     }
 }

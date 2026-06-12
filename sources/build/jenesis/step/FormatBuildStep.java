@@ -59,7 +59,7 @@ public abstract class FormatBuildStep extends JdkProcessBuildStep {
             if (candidate != null) {
                 config = candidate;
             }
-            current.putAll(formattable(argument.folder(), hash));
+            current.putAll(formattable(argument.folder(), hash, executor));
         }
         if (current.isEmpty()) {
             return CompletableFuture.completedStage(null);
@@ -97,7 +97,7 @@ public abstract class FormatBuildStep extends JdkProcessBuildStep {
                 HashFunction hash = new HashDigestFunction("SHA-256");
                 Map<Path, byte[]> after = new LinkedHashMap<>();
                 for (BuildStepArgument argument : arguments.values()) {
-                    after.putAll(formattable(argument.folder(), hash));
+                    after.putAll(formattable(argument.folder(), hash, executor));
                 }
                 HashFunction.write(context.next().resolve(FORMATTED), after);
                 return CompletableFuture.completedStage(result);
@@ -107,13 +107,13 @@ public abstract class FormatBuildStep extends JdkProcessBuildStep {
         });
     }
 
-    private Map<Path, byte[]> formattable(Path folder, HashFunction hash) throws IOException {
+    private Map<Path, byte[]> formattable(Path folder, HashFunction hash, Executor executor) throws IOException {
         Path sources = folder.resolve(Bind.SOURCES);
         if (!Files.isDirectory(sources)) {
             return Map.of();
         }
         Map<Path, byte[]> formattable = new LinkedHashMap<>();
-        for (Map.Entry<Path, byte[]> entry : HashFunction.read(sources, hash).entrySet()) {
+        for (Map.Entry<Path, byte[]> entry : HashFunction.read(sources, hash, executor).entrySet()) {
             Path file = sources.resolve(entry.getKey());
             if (isFormattable(file)) {
                 formattable.put(file, entry.getValue());
