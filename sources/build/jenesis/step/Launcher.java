@@ -30,24 +30,17 @@ public class Launcher implements BuildStep {
         Path shaded = null;
         SequencedMap<String, Path> jars = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path properties = argument.folder().resolve(ProcessBuildStep.PROCESS + "jpackage.properties");
+            Path properties = argument.folder().resolve("launcher.properties");
             if (Files.isRegularFile(properties)) {
                 SequencedProperties application = SequencedProperties.ofFiles(properties);
-                String module = application.getProperty("--module");
-                if (module != null) {
-                    int slash = module.indexOf('/');
-                    if (slash != -1) {
-                        mainModule = module.substring(0, slash);
-                        mainClass = module.substring(slash + 1);
-                    }
-                } else {
-                    String value = application.getProperty("--main-class");
-                    if (value != null) {
-                        mainClass = value;
-                    }
+                if (mainClass == null) {
+                    mainClass = application.getProperty("mainClass");
+                }
+                if (mainModule == null) {
+                    mainModule = application.getProperty("mainModule");
                 }
                 if (name == null) {
-                    name = application.getProperty("--name");
+                    name = application.getProperty("name");
                 }
             }
             for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {

@@ -296,6 +296,15 @@ public record InferredMultiProjectAssembler(String packaging,
                     }
                 }
                 jpackage.store(processFolder.resolve("jpackage.properties"));
+                SequencedProperties launcher = new SequencedProperties();
+                launcher.setProperty("mainClass", main);
+                if (modulePath.modular() && moduleName != null) {
+                    launcher.setProperty("mainModule", moduleName);
+                }
+                if (artifact != null) {
+                    launcher.setProperty("name", artifact);
+                }
+                launcher.store(context.next().resolve("launcher.properties"));
             }
             if (moduleName != null) {
                 if (processFolder == null) {

@@ -34,9 +34,8 @@ public class BundleTest {
         index.setProperty("main/runtime/maven/lib", "resolved/lib.jar");
         index.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties launcher = new SequencedProperties();
-        launcher.setProperty("--main-jar", "app.jar");
-        launcher.setProperty("--main-class", "sample.Sample");
-        launcher.store(Files.createDirectory(input.resolve("process")).resolve("jpackage.properties"));
+        launcher.setProperty("mainClass", "sample.Sample");
+        launcher.store(input.resolve("launcher.properties"));
 
         BuildStepResult result = new Bundle().apply(
                 Runnable::run,
@@ -45,7 +44,7 @@ public class BundleTest {
                         input,
                         Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED,
                                 Path.of("resolved/lib.jar"), ChecksumStatus.ADDED,
-                                Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Path.of("launcher.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();
         Path zip = next.resolve(Bundle.BUNDLE).resolve("bundle.zip");
@@ -74,8 +73,9 @@ public class BundleTest {
                 Files.createDirectory(input.resolve(BuildStep.ARTIFACTS)).resolve("sample.jar").toString(),
                 "-C", classes.toString(), ".")).isZero();
         SequencedProperties launcher = new SequencedProperties();
-        launcher.setProperty("--module", "sample/sample.Sample");
-        launcher.store(Files.createDirectory(input.resolve("process")).resolve("jpackage.properties"));
+        launcher.setProperty("mainClass", "sample.Sample");
+        launcher.setProperty("mainModule", "sample");
+        launcher.store(input.resolve("launcher.properties"));
 
         BuildStepResult result = new Bundle().apply(
                 Runnable::run,
@@ -83,7 +83,7 @@ public class BundleTest {
                 new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                         input,
                         Map.of(Path.of("artifacts/sample.jar"), ChecksumStatus.ADDED,
-                                Path.of("process/jpackage.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Path.of("launcher.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();
         Path zip = next.resolve(Bundle.BUNDLE).resolve("bundle.zip");

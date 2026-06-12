@@ -36,8 +36,9 @@ public class NativeImageTest {
     @DisabledOnOs(OS.WINDOWS)
     public void emits_a_modular_native_image_command() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
-        launcher.setProperty("--name", "sample-app");
-        launcher.setProperty("--module", "sample/sample.Sample");
+        launcher.setProperty("name", "sample-app");
+        launcher.setProperty("mainModule", "sample");
+        launcher.setProperty("mainClass", "sample.Sample");
         store(launcher);
 
         BuildStepResult result = run(PathPlacement.MODULE_PATH);
@@ -53,8 +54,7 @@ public class NativeImageTest {
     @DisabledOnOs(OS.WINDOWS)
     public void emits_a_classpath_native_image_command() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
-        launcher.setProperty("--main-jar", "app.jar");
-        launcher.setProperty("--main-class", "sample.Sample");
+        launcher.setProperty("mainClass", "sample.Sample");
         store(launcher);
 
         BuildStepResult result = run(PathPlacement.CLASS_PATH);
@@ -70,7 +70,8 @@ public class NativeImageTest {
     @DisabledOnOs(OS.WINDOWS)
     public void passes_a_reachability_config_directory() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
-        launcher.setProperty("--module", "sample/sample.Sample");
+        launcher.setProperty("mainModule", "sample");
+        launcher.setProperty("mainClass", "sample.Sample");
         store(launcher);
         Path config = Files.createDirectory(bundle.resolve("native-image"));
 
@@ -82,7 +83,7 @@ public class NativeImageTest {
     @Test
     public void skips_when_no_launcher_is_configured() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
-        launcher.setProperty("--name", "sample-app");
+        launcher.setProperty("name", "sample-app");
         store(launcher);
 
         BuildStepResult result = run(PathPlacement.MODULE_PATH);
@@ -92,7 +93,7 @@ public class NativeImageTest {
     }
 
     private void store(SequencedProperties launcher) throws IOException {
-        launcher.store(Files.createDirectory(bundle.resolve("process")).resolve("jpackage.properties"));
+        launcher.store(bundle.resolve("launcher.properties"));
     }
 
     private BuildStepResult run(PathPlacement modulePath) throws IOException {
@@ -102,7 +103,7 @@ public class NativeImageTest {
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
                         Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED,
-                                Path.of("process/jpackage.properties"), ChecksumStatus.ADDED)))))
+                                Path.of("launcher.properties"), ChecksumStatus.ADDED)))))
                 .toCompletableFuture().join();
     }
 
