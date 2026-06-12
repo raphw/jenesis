@@ -7,6 +7,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.PinModuleInfo;
 import build.jenesis.step.Inventory;
@@ -76,7 +77,13 @@ public class PinModuleInfoTest {
     }
 
     private String run(Path moduleInfo) throws IOException {
-        new PinModuleInfo("module", "", moduleInfo, new HashDigestFunction("SHA-256")).apply(Runnable::run,
+        return run(moduleInfo, Platform.tokens("linux,x86_64"));
+    }
+
+    private String run(Path moduleInfo, SequencedSet<String> platform) throws IOException {
+        new PinModuleInfo("module", "", moduleInfo, new HashDigestFunction("SHA-256"))
+                .platform(platform)
+                .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
@@ -314,7 +321,7 @@ public class PinModuleInfoTest {
     }
 
     @Test
-    public void preserves_platform_guarded_keys_verbatim() throws IOException {
+    public void updates_matched_fallback_and_preserves_unmatched_guard() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """
                 /**
@@ -328,14 +335,72 @@ public class PinModuleInfoTest {
                 }
                 """);
         writeResolved(new LinkedHashMap<>(Map.of(
-                "module/bar-win", "1.0 SHA-256/stale",
-                "module/other", "2.0 SHA-256/cafebabe")));
-        String result = run(file);
+                "module/bar", "2.0 SHA-256/cafebabe",
+                "module/other", "1.0 SHA-256/dadada")));
+        String result = run(file, Platform.tokens("linux,x86_64"));
         assertThat(result).contains("@jenesis.pin bar :win:1.0 SHA-256/aaa [windows]");
-        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/bbb");
-        assertThat(result).contains("@jenesis.pin other 2.0 SHA-256/cafebabe");
+        assertThat(result).contains("@jenesis.pin bar 2.0 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("@jenesis.pin bar 1.0 SHA-256/bbb");
+        assertThat(result).contains("@jenesis.pin other 1.0 SHA-256/dadada");
         assertThat(result).doesNotContain("@jenesis.pin other 0.9");
-        assertThat(result).doesNotContain("SHA-256/stale");
+    }
+
+    @Test
+    public void updates_matched_guard_and_preserves_fallback() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin bar :win:1.0 SHA-256/aaa [windows]
+                 * @jenesis.pin bar 1.0 SHA-256/bbb
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar-win", "1.1 SHA-256/fresh"));
+        String result = run(file, Platform.tokens("windows,x86_64"));
+        assertThat(result).contains("@jenesis.pin bar :win:1.1 SHA-256/fresh [windows]");
+        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/bbb");
+        assertThat(result).doesNotContain("SHA-256/aaa");
+    }
+
+    @Test
+    public void updates_matched_guard_without_hash() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 * @jenesis.pin bar 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar-win", "1.1"));
+        String result = run(file, Platform.tokens("windows,x86_64"));
+        assertThat(result).contains("@jenesis.pin bar :win:1.1 [windows]");
+        assertThat(result).contains("@jenesis.pin bar 1.0\n");
+        assertThat(result).doesNotContain("SHA-256");
+    }
+
+    @Test
+    public void preserves_guarded_key_without_local_resolution() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 * @jenesis.pin other 0.9
+                 */
+                module foo {
+                  requires bar;
+                  requires other;
+                }
+                """);
+        writeResolved(Map.of("module/other", "1.0 SHA-256/dadada"));
+        String result = run(file, Platform.tokens("linux,x86_64"));
+        assertThat(result).contains("@jenesis.pin bar :win:1.0 [windows]");
+        assertThat(result).contains("@jenesis.pin other 1.0 SHA-256/dadada");
+        assertThat(result).doesNotContain("@jenesis.pin other 0.9");
     }
 
     @Test

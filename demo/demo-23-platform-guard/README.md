@@ -67,6 +67,8 @@ Reproducibility
 
 Every variant stays committed in source with its own checksum, so the build is
 reproducible from the repository alone on any platform: selection only decides
-*which* committed, checksum-validated line applies. The `pin` goal preserves all
-lines of a guarded key verbatim (a repin on one machine only observes the variant
-that machine selected); unguarded pins are rewritten as usual.
+*which* committed, checksum-validated line applies. The `pin` goal applies the
+same guard matching: it refreshes only the line that matched the local platform,
+keeping its guard, and preserves every non-matching line byte-for-byte, since a
+repin on one machine only observes the variant that machine selected. Keys
+without guards are rewritten as usual.

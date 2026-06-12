@@ -377,9 +377,10 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   beyond the platform defaults a build can activate custom flavors (`fips`, `musl`) through the same property.
   The token set is a field of the manifests step, so the cache identity is honest: with no guards the step's
   output is byte-identical on every machine and the resolution cache stays portable across machines; with guards,
-  resolution legitimately runs once per platform. The `pin` goal preserves every key that carries a guard
-  verbatim - guarded and fallback lines alike - since a local repin only observes the variant the local platform
-  selected; unguarded keys are rewritten as usual.
+  resolution legitimately runs once per platform. The `pin` goal applies the same guard matching: the one line
+  that matched the local platform (a guard or the unguarded fallback) is refreshed from the resolved closure,
+  keeping its guard, and every non-matching line is preserved byte-for-byte, since a local repin only observes
+  the variant the local platform selected; keys without guards are rewritten as usual.
   Groups whose resolution Maven must not act on (the compiler groups, including their
   scope `plugin` compiler-plugin entries) stay out of
   `<dependencyManagement>` and live in the `<!--jenesis.pin-->` comment instead;

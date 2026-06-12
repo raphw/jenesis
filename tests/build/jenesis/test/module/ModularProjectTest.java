@@ -148,6 +148,30 @@ public class ModularProjectTest {
     }
 
     @Test
+    public void guarded_pin_value_carries_checksum() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 SHA-256/aaa [windows]
+                 * @jenesis.pin bar 1.0 SHA-256/bbb
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project, _ -> true, true)
+                .platform(Platform.tokens("windows,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsOnly(Map.entry("main/module/bar", ":win:1.0 SHA-256/aaa"));
+    }
+
+    @Test
     public void falls_back_to_unguarded_pin_without_platform_match() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**
