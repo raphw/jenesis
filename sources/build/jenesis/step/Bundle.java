@@ -19,23 +19,16 @@ public class Bundle implements BuildStep {
             throws IOException {
         String mainClass = null, mainModule = null;
         for (BuildStepArgument argument : arguments.values()) {
-            Path properties = argument.folder().resolve(ProcessBuildStep.PROCESS + "jpackage.properties");
+            Path properties = argument.folder().resolve("launcher.properties");
             if (!Files.isRegularFile(properties)) {
                 continue;
             }
             SequencedProperties launcher = SequencedProperties.ofFiles(properties);
-            String module = launcher.getProperty("--module");
-            if (module != null) {
-                int slash = module.indexOf('/');
-                if (slash != -1) {
-                    mainModule = module.substring(0, slash);
-                    mainClass = module.substring(slash + 1);
-                }
-            } else {
-                String value = launcher.getProperty("--main-class");
-                if (value != null) {
-                    mainClass = value;
-                }
+            if (mainClass == null) {
+                mainClass = launcher.getProperty("mainClass");
+            }
+            if (mainModule == null) {
+                mainModule = launcher.getProperty("mainModule");
             }
         }
         if (mainClass == null) {

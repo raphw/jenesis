@@ -33,19 +33,20 @@ public class NativeImage extends JdkProcessBuildStep {
         List<String> path = new ArrayList<>();
         Path config = null;
         for (BuildStepArgument argument : arguments.values()) {
-            Path jpackage = argument.folder().resolve(ProcessBuildStep.PROCESS + "jpackage.properties");
-            if (Files.isRegularFile(jpackage)) {
-                SequencedProperties launcherProperties = SequencedProperties.ofFiles(jpackage);
+            Path descriptor = argument.folder().resolve("launcher.properties");
+            if (Files.isRegularFile(descriptor)) {
+                SequencedProperties launcherProperties = SequencedProperties.ofFiles(descriptor);
                 if (name == null) {
-                    String value = launcherProperties.getProperty("--name");
+                    String value = launcherProperties.getProperty("name");
                     if (value != null && !value.isEmpty()) {
                         name = value;
                     }
                 }
                 if (launcher == null) {
-                    String value = launcherProperties.getProperty(modular ? "--module" : "--main-class");
-                    if (value != null && !value.isEmpty()) {
-                        launcher = value;
+                    String mainClass = launcherProperties.getProperty("mainClass");
+                    String mainModule = launcherProperties.getProperty("mainModule");
+                    if (mainClass != null && !mainClass.isEmpty()) {
+                        launcher = modular && mainModule != null ? mainModule + "/" + mainClass : mainClass;
                     }
                 }
             }
