@@ -5,18 +5,14 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 
 public class MultiProjectDependencies implements BuildStep {
 
     private final Predicate<String> isModule;
-    private final HashDigestFunction digest;
 
-    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule,
-                                                                                 HashDigestFunction digest) {
+    public <P extends Predicate<String> & Serializable> MultiProjectDependencies(P isModule) {
         this.isModule = isModule;
-        this.digest = digest;
     }
 
     @Override
@@ -34,8 +30,8 @@ public class MultiProjectDependencies implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        SequencedMap<String, String> coordinates = new LinkedHashMap<>(),
-                dependencies = new LinkedHashMap<>(),
+        SequencedMap<String, Path> coordinates = new LinkedHashMap<>();
+        SequencedMap<String, String> dependencies = new LinkedHashMap<>(),
                 versions = new LinkedHashMap<>(),
                 exclusions = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
@@ -67,7 +63,7 @@ public class MultiProjectDependencies implements BuildStep {
                     for (String property : properties.stringPropertyNames()) {
                         String value = properties.getProperty(property);
                         if (!value.isEmpty()) {
-                            coordinates.put(property, folder.resolve(value).normalize().toString());
+                            coordinates.put(property, folder.resolve(value).normalize());
                         }
                     }
                 }
@@ -77,10 +73,10 @@ public class MultiProjectDependencies implements BuildStep {
         for (Map.Entry<String, String> entry : dependencies.entrySet()) {
             String key = entry.getKey();
             int second = key.indexOf('/', key.indexOf('/') + 1);
-            String candidate = coordinates.get(key.substring(second + 1));
+            Path candidate = coordinates.get(key.substring(second + 1));
             properties.setProperty(entry.getKey(),
-                    candidate != null && !candidate.isEmpty()
-                            ? digest.encodedHash(Path.of(candidate))
+                    candidate != null
+                            ? fingerprint(arguments.values(), candidate)
                             : entry.getValue());
         }
         properties.store(context.next().resolve(REQUIRES));
@@ -95,5 +91,17 @@ public class MultiProjectDependencies implements BuildStep {
             exclusionsProperties.store(context.next().resolve(EXCLUSIONS));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static String fingerprint(Collection<BuildStepArgument> arguments, Path artifact) {
+        for (BuildStepArgument argument : arguments) {
+            if (artifact.startsWith(argument.folder())) {
+                String checksum = argument.checksum(argument.folder().relativize(artifact));
+                if (checksum != null) {
+                    return checksum;
+                }
+            }
+        }
+        throw new IllegalStateException("No tracked checksum for sibling artifact: " + artifact);
     }
 }

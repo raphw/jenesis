@@ -8,7 +8,6 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -61,7 +60,6 @@ public class ModularProject implements BuildExecutorModule {
                 Map.of("module", new ModularJarResolver(false)),
                 null,
                 true,
-                new HashDigestFunction("MD5"),
                 false,
                 assembler);
     }
@@ -74,7 +72,6 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
                                            boolean modular,
-                                           HashDigestFunction digest,
                                            boolean printDependencies,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(group, prefix, root, filter, modular),
@@ -94,8 +91,7 @@ public class ModularProject implements BuildExecutorModule {
                     buildExecutor.addModule(DEPENDENCIES, (depExec, depInherited) -> {
                         depExec.addStep(PREPARE,
                                 new MultiProjectDependencies(
-                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                        digest),
+                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/")),
                                 depInherited.sequencedKeySet());
                         depExec.addStep(Dependencies.ARTIFACTS,
                                 new Dependencies(mergedRepositories, resolvers).pinning(pinning).printing(printDependencies),

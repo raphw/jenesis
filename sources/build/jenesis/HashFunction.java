@@ -7,6 +7,10 @@ public interface HashFunction {
 
     byte[] hash(Path file) throws IOException;
 
+    default String encoded(byte[] hash) {
+        return HexFormat.of().formatHex(hash);
+    }
+
     static HashFunction ofSize() {
         return file -> {
             long size = Files.size(file);

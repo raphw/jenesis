@@ -23,7 +23,12 @@ public record HashDigestFunction(String algorithm) implements HashFunction, Seri
         return digest.digest();
     }
 
+    @Override
+    public String encoded(byte[] hash) {
+        return algorithm + "/" + HexFormat.of().formatHex(hash);
+    }
+
     public String encodedHash(Path file) throws IOException {
-        return algorithm + "/" + HexFormat.of().formatHex(hash(file));
+        return encoded(hash(file));
     }
 }

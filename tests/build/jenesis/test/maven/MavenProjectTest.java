@@ -512,7 +512,6 @@ public class MavenProjectTest {
                 Map.of("maven", new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})),
                 Map.of("maven", new MavenPomResolver()),
                 null,
-                new HashDigestFunction("MD5"),
                 false,
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {

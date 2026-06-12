@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MultiProjectDependenciesTest {
 
     @TempDir
-    private Path root, target;
+    private Path root;
     private Path previous, next, supplement, module, dependency;
 
     @BeforeEach
@@ -33,12 +33,12 @@ public class MultiProjectDependenciesTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "");
         dependencies.store(module.resolve(BuildStep.REQUIRES));
-        Path file = target.resolve("file");
-        Files.writeString(file, "qux");
+        Path file = Files.writeString(dependency.resolve("file"), "qux");
         SequencedProperties coordinates = new SequencedProperties();
-        coordinates.setProperty("baz", file.toString());
+        coordinates.setProperty("baz", "file");
         coordinates.store(dependency.resolve(BuildStep.IDENTITY));
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, new HashDigestFunction("MD5")).apply(
+        String checksum = new HashDigestFunction("MD5").encodedHash(file);
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
@@ -47,12 +47,14 @@ public class MultiProjectDependenciesTest {
                                         Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
                                 "bar", new BuildStepArgument(
                                         dependency,
-                                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED)))))
+                                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
+                                                Path.of("file"), ChecksumStatus.ADDED),
+                                        Map.of(Path.of("file"), checksum)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
         assertThat(properties.stringPropertyNames()).containsExactly("baz");
-        assertThat(properties.getProperty("baz")).isEqualTo(new HashDigestFunction("MD5").encodedHash(file));
+        assertThat(properties.getProperty("baz")).isEqualTo(checksum);
     }
 
     @Test
@@ -60,7 +62,7 @@ public class MultiProjectDependenciesTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "SHA256/cafebabe");
         dependencies.store(module.resolve(BuildStep.REQUIRES));
-        BuildStepResult result = new MultiProjectDependencies("foo"::equals, new HashDigestFunction("MD5")).apply(
+        BuildStepResult result = new MultiProjectDependencies("foo"::equals).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
