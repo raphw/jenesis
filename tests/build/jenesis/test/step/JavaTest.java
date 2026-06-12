@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Checksum;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.PathPlacement;
 import build.jenesis.step.Java;
 import build.jenesis.step.Javac;
@@ -39,7 +40,7 @@ public class JavaTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.class"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sample/Sample.class"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(supplement.resolve("output")).content().isEqualTo("Hello world!");
         assertThat(supplement.resolve("error")).isEmptyFile();

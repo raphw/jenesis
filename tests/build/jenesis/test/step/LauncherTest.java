@@ -7,6 +7,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Checksum;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Launcher;
 
@@ -45,10 +46,10 @@ public class LauncherTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                         input,
-                        Map.of(Path.of("resolved/launcher.jar"), Checksum.ADDED,
-                                Path.of("artifacts/app.jar"), Checksum.ADDED,
-                                Path.of("resolved/lib.jar"), Checksum.ADDED,
-                                Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("resolved/launcher.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("resolved/lib.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();
         Path jar = next.resolve(Launcher.LAUNCHER).resolve("app.jar");
@@ -87,9 +88,9 @@ public class LauncherTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                         input,
-                        Map.of(Path.of("resolved/launcher.jar"), Checksum.ADDED,
-                                Path.of("artifacts/sample.jar"), Checksum.ADDED,
-                                Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("resolved/launcher.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("artifacts/sample.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();
         Path jar = next.resolve(Launcher.LAUNCHER).resolve("sample.jar");

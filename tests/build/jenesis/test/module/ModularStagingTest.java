@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Checksum;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularStaging;
 import build.jenesis.step.Inventory;
@@ -205,7 +206,7 @@ public class ModularStagingTest {
             try (Stream<Path> stream = Files.list(folder)) {
                 stream.forEach(file -> checksums.put(
                         Path.of(file.getFileName().toString()),
-                        Checksum.ADDED));
+                        Checksum.of(ChecksumStatus.ADDED)));
             }
             arguments.put(folder.getFileName().toString(), new BuildStepArgument(folder, checksums));
         }

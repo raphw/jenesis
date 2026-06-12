@@ -7,10 +7,18 @@ import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ChecksumTest {
 
     private static final HashDigestFunction HASH = new HashDigestFunction("MD5");
+
+    @Test
+    public void of_carries_status_but_no_checksum() {
+        Checksum checksum = Checksum.of(ChecksumStatus.ADDED);
+        assertThat(checksum.status()).isEqualTo(ChecksumStatus.ADDED);
+        assertThatThrownBy(checksum::encoded).isInstanceOf(UnsupportedOperationException.class);
+    }
 
     @Test
     public void can_find_added() {

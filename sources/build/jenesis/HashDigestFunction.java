@@ -27,8 +27,4 @@ public record HashDigestFunction(String algorithm) implements HashFunction, Seri
     public String encoded(byte[] hash) {
         return algorithm + "/" + HexFormat.of().formatHex(hash);
     }
-
-    public String encodedHash(Path file) throws IOException {
-        return encoded(hash(file));
-    }
 }

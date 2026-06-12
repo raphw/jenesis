@@ -34,22 +34,22 @@ public class MultiProjectDependenciesTest {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "");
         dependencies.store(module.resolve(BuildStep.REQUIRES));
-        Path file = Files.writeString(dependency.resolve("file"), "qux");
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("baz", "file");
         coordinates.store(dependency.resolve(BuildStep.IDENTITY));
-        String checksum = new HashDigestFunction("MD5").encodedHash(file);
+        HashDigestFunction hash = new HashDigestFunction("MD5");
+        byte[] artifact = {1, 2, 3};
+        String checksum = hash.encoded(artifact);
         BuildStepResult result = new MultiProjectDependencies("foo"::equals).apply(
                         Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED)),
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED))),
                                 "bar", new BuildStepArgument(
                                         dependency,
-                                        Map.of(Path.of(BuildStep.IDENTITY), Checksum.ADDED,
-                                                Path.of("file"), Checksum.of(ChecksumStatus.ADDED, checksum))))))
+                                        Checksum.added(Map.of(Path.of("file"), artifact), hash)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
@@ -68,7 +68,7 @@ public class MultiProjectDependenciesTest {
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED)))))
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));

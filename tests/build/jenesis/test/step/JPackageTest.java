@@ -8,6 +8,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Checksum;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.JLink;
@@ -56,8 +57,8 @@ public class JPackageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/app.jar"), Checksum.ADDED,
-                                Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES)).isNotEmptyDirectory();
         assertThat(imageDirectory()).isDirectory();
@@ -74,7 +75,7 @@ public class JPackageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES)).doesNotExist();
     }
@@ -105,8 +106,8 @@ public class JPackageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/sample.jar"), Checksum.ADDED,
-                                Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("artifacts/sample.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(imageDirectory()).isDirectory();
     }
@@ -142,7 +143,7 @@ public class JPackageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("runtime", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path image = imageDirectory();
         assertThat(image).isDirectory();
@@ -170,9 +171,9 @@ public class JPackageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/app.jar"), Checksum.ADDED,
-                                Path.of("resolved/app.jar"), Checksum.ADDED,
-                                Path.of("process/jpackage.properties"), Checksum.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("resolved/app.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("same file name 'app.jar'");
     }
@@ -193,7 +194,7 @@ public class JPackageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/app.jar"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JPackage.PACKAGES)).doesNotExist();
     }

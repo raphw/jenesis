@@ -8,6 +8,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Checksum;
+import build.jenesis.ChecksumStatus;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Jar;
 import build.jenesis.step.Javac;
@@ -46,7 +47,7 @@ public class JarTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.class"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sample/Sample.class"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.ARTIFACTS + "classes.jar")).isNotEmptyFile();
     }
@@ -70,7 +71,7 @@ public class JarTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.java"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sample/Sample.java"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.SOURCES + "sources.jar")).isNotEmptyFile();
     }
@@ -91,7 +92,7 @@ public class JarTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.html"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sample/Sample.html"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(BuildStep.DOCUMENTATION + "javadoc.jar")).isNotEmptyFile();
     }
@@ -111,8 +112,8 @@ public class JarTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         classes,
-                        Map.of(Path.of("sample/Sample.class"), Checksum.ADDED,
-                                Path.of("manifest.mf"), Checksum.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sample/Sample.class"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path jar = next.resolve(BuildStep.ARTIFACTS + "classes.jar");
         assertThat(jar).isNotEmptyFile();
@@ -145,11 +146,11 @@ public class JarTest {
                 new LinkedHashMap<>(Map.of(
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of("sample/Sample.class"), Checksum.ADDED,
-                                        Path.of("manifest.mf"), Checksum.ADDED)),
+                                Map.of(Path.of("sample/Sample.class"), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED))),
                         "second", new BuildStepArgument(
                                 second,
-                                Map.of(Path.of("manifest.mf"), Checksum.ADDED))))).toCompletableFuture().join();
+                                Map.of(Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(
                 next.resolve(BuildStep.ARTIFACTS + "classes.jar")))) {
@@ -178,11 +179,11 @@ public class JarTest {
                 new LinkedHashMap<>(Map.of(
                         "classes", new BuildStepArgument(
                                 classes,
-                                Map.of(Path.of("sample/Sample.class"), Checksum.ADDED,
-                                        Path.of("manifest.mf"), Checksum.ADDED)),
+                                Map.of(Path.of("sample/Sample.class"), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED))),
                         "second", new BuildStepArgument(
                                 second,
-                                Map.of(Path.of("manifest.mf"), Checksum.ADDED))))).toCompletableFuture().join();
+                                Map.of(Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
     }
 
@@ -192,8 +193,8 @@ public class JarTest {
         Path second = Files.createDirectory(root.resolve("second"));
         Files.writeString(second.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMain-Class: b.B\r\n");
         LinkedHashMap<String, BuildStepArgument> args = new LinkedHashMap<>();
-        args.put("classes", new BuildStepArgument(classes, Map.of(Path.of("manifest.mf"), Checksum.ADDED)));
-        args.put("second", new BuildStepArgument(second, Map.of(Path.of("manifest.mf"), Checksum.ADDED)));
+        args.put("classes", new BuildStepArgument(classes, Map.of(Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED))));
+        args.put("second", new BuildStepArgument(second, Map.of(Path.of("manifest.mf"), Checksum.of(ChecksumStatus.ADDED))));
         assertThatThrownBy(() -> new Jar(ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
@@ -217,7 +218,7 @@ public class JarTest {
         Path secondNext = Files.createDirectory(root.resolve("second"));
         BuildStepArgument argument = new BuildStepArgument(
                 classes,
-                Map.of(Path.of("sample/Sample.class"), Checksum.ADDED));
+                Map.of(Path.of("sample/Sample.class"), Checksum.of(ChecksumStatus.ADDED)));
         Jar jar = new Jar(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL, Jar.Sort.CLASSES);
         jar.apply(Runnable::run,
                 new BuildStepContext(previous, firstNext, supplement),

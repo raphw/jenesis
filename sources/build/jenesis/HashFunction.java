@@ -11,6 +11,10 @@ public interface HashFunction {
         return HexFormat.of().formatHex(hash);
     }
 
+    default String encodedHash(Path file) throws IOException {
+        return encoded(hash(file));
+    }
+
     static HashFunction ofSize() {
         return file -> {
             long size = Files.size(file);

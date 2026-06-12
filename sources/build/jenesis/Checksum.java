@@ -4,21 +4,19 @@ import module java.base;
 
 public final class Checksum {
 
-    public static final Checksum ADDED = new Checksum(ChecksumStatus.ADDED, (Supplier<String>) null);
-    public static final Checksum REMOVED = new Checksum(ChecksumStatus.REMOVED, (Supplier<String>) null);
-    public static final Checksum ALTERED = new Checksum(ChecksumStatus.ALTERED, (Supplier<String>) null);
-    public static final Checksum RETAINED = new Checksum(ChecksumStatus.RETAINED, (Supplier<String>) null);
-
     private final ChecksumStatus status;
     private final Supplier<String> value;
 
     private Checksum(ChecksumStatus status, Supplier<String> value) {
+        if (status == ChecksumStatus.REMOVED && value != null) {
+            throw new IllegalArgumentException("A removed entry cannot carry a checksum");
+        }
         this.status = status;
         this.value = value;
     }
 
-    public static Checksum of(ChecksumStatus status, String encoded) {
-        return new Checksum(status, encoded == null ? null : () -> encoded);
+    public static Checksum of(ChecksumStatus status) {
+        return new Checksum(status, null);
     }
 
     public ChecksumStatus status() {
@@ -26,7 +24,10 @@ public final class Checksum {
     }
 
     public String encoded() {
-        return value == null ? null : value.get();
+        if (value == null) {
+            throw new UnsupportedOperationException("No checksum was recorded for this " + status + " entry");
+        }
+        return value.get();
     }
 
     public static Map<Path, Checksum> diff(Map<Path, byte[]> expected, Map<Path, byte[]> actual, HashFunction hash) {
@@ -46,7 +47,7 @@ public final class Checksum {
             diff.put(entry.getKey(), new Checksum(status, () -> hash.encoded(bytes)));
         }
         for (Path path : removed.keySet()) {
-            diff.put(path, REMOVED);
+            diff.put(path, of(ChecksumStatus.REMOVED));
         }
         return diff;
     }
