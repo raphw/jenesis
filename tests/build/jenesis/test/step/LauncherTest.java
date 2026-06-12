@@ -37,9 +37,9 @@ public class LauncherTest {
         index.setProperty("main/runtime/maven/lib", "resolved/lib.jar");
         index.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties application = new SequencedProperties();
-        application.setProperty("--main-class", "sample.Sample");
-        application.setProperty("--name", "app");
-        application.store(Files.createDirectory(input.resolve("process")).resolve("jpackage.properties"));
+        application.setProperty("mainClass", "sample.Sample");
+        application.setProperty("name", "app");
+        application.store(input.resolve("launcher.properties"));
 
         BuildStepResult result = new Launcher("launcher").apply(
                 Runnable::run,
@@ -49,7 +49,7 @@ public class LauncherTest {
                         Map.of(Path.of("resolved/launcher.jar"), Checksum.of(ChecksumStatus.ADDED),
                                 Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED),
                                 Path.of("resolved/lib.jar"), Checksum.of(ChecksumStatus.ADDED),
-                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+                                Path.of("launcher.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();
         Path jar = next.resolve(Launcher.LAUNCHER).resolve("app.jar");
@@ -79,9 +79,10 @@ public class LauncherTest {
         index.setProperty("launcher/runtime/maven/build.jenesis/build.jenesis.launcher", "resolved/launcher.jar");
         index.store(input.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties application = new SequencedProperties();
-        application.setProperty("--module", "sample/sample.Sample");
-        application.setProperty("--name", "sample");
-        application.store(Files.createDirectory(input.resolve("process")).resolve("jpackage.properties"));
+        application.setProperty("mainClass", "sample.Sample");
+        application.setProperty("mainModule", "sample");
+        application.setProperty("name", "sample");
+        application.store(input.resolve("launcher.properties"));
 
         BuildStepResult result = new Launcher("launcher").apply(
                 Runnable::run,
@@ -90,7 +91,7 @@ public class LauncherTest {
                         input,
                         Map.of(Path.of("resolved/launcher.jar"), Checksum.of(ChecksumStatus.ADDED),
                                 Path.of("artifacts/sample.jar"), Checksum.of(ChecksumStatus.ADDED),
-                                Path.of("process/jpackage.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+                                Path.of("launcher.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
 
         assertThat(result.next()).isTrue();
         Path jar = next.resolve(Launcher.LAUNCHER).resolve("sample.jar");
