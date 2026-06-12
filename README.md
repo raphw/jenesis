@@ -367,7 +367,11 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   code: a pin line may end with a bracketed **platform guard**,
   `@jenesis.pin org.openjfx.javafx.base :win:21.0.3 <algo>/<hash> [windows]`, and the manifests step keeps only
   the line whose guard matches the active platform when it writes `versions.properties`, so everything downstream
-  of manifests is untouched by the mechanism. The active platform is the token set of the
+  of manifests is untouched by the mechanism. The same guard applies to pin lines in a `pom.xml`'s
+  `<!--jenesis.pin ... -->` comment block, where it selects which version of a (typically transitive) coordinate
+  the bill of materials pins per platform; a directly declared `<version>` stays authoritative over the bill of
+  materials, and a guard can never force in a classifier, since Maven dependency management matches classifiers
+  as part of the coordinate key rather than contributing them. The active platform is the token set of the
   `jenesis.dependency.platform` property (comma-separated, normalized to lower case and sorted), defaulting to
   the detected operating system and chipset - one of `windows`/`linux`/`macos` plus one of `x86_64`/`aarch64` -
   and overriding the property cross-resolves another platform's closure from any machine. A guard matches when

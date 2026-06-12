@@ -82,12 +82,13 @@ public class ModuleInfoParser {
                                 .trim();
                         switch (unknown.getTagName()) {
                             case "jenesis.pin" -> {
-                                int split = content.indexOf(' ');
-                                if (split < 1 || split == content.length() - 1) {
+                                String pin = content.replaceAll("\\s+", " ");
+                                int split = pin.indexOf(' ');
+                                if (split < 1 || split == pin.length() - 1) {
                                     continue;
                                 }
-                                String token = content.substring(0, split).trim();
-                                String version = content.substring(split + 1).trim().replaceAll("\\s+", " ");
+                                String token = pin.substring(0, split);
+                                String version = pin.substring(split + 1).trim();
                                 String guard = null;
                                 if (version.endsWith("]")) {
                                     int bracket = version.lastIndexOf('[');

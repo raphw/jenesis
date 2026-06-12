@@ -9,6 +9,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Platform;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -45,17 +46,32 @@ public class MavenProject implements BuildExecutorModule {
     private final String prefix;
     private final MavenRepository repository;
     private final MavenResolver resolver;
+    private final SequencedSet<String> platform;
 
     public MavenProject(Path root, String prefix, MavenRepository repository, MavenResolver resolver) {
-        this(root, "main", prefix, repository, resolver);
+        this(root, "main", prefix, repository, resolver, Platform.tokens());
     }
 
-    public MavenProject(Path root, String group, String prefix, MavenRepository repository, MavenResolver resolver) {
+    private MavenProject(Path root,
+                         String group,
+                         String prefix,
+                         MavenRepository repository,
+                         MavenResolver resolver,
+                         SequencedSet<String> platform) {
         this.root = root;
         this.group = group;
         this.prefix = prefix;
         this.repository = repository;
         this.resolver = resolver;
+        this.platform = platform;
+    }
+
+    public MavenProject group(String group) {
+        return new MavenProject(root, group, prefix, repository, resolver, platform);
+    }
+
+    public MavenProject platform(SequencedSet<String> platform) {
+        return new MavenProject(root, group, prefix, repository, resolver, platform);
     }
 
     public static BuildExecutorModule make(Path root,
@@ -80,7 +96,7 @@ public class MavenProject implements BuildExecutorModule {
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         MavenRepository repository = MavenRepository.of(requireNonNull(repositories.get(prefix)));
         MavenResolver resolver = MavenResolver.of(resolvers.get(prefix));
-        return new MultiProjectModule(new MavenProject(root, group, prefix, repository, resolver),
+        return new MultiProjectModule(new MavenProject(root, prefix, repository, resolver).group(group),
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
@@ -153,6 +169,7 @@ public class MavenProject implements BuildExecutorModule {
             return;
         }
         String group = this.group;
+        SequencedSet<String> tokens = platform;
         buildExecutor.addStep(SCAN, new Scan(root));
         buildExecutor.addStep(PREPARE, new Prepare(prefix, resolver, repository), SCAN);
         buildExecutor.addModule(MODULE, (modules, paths) -> {
@@ -260,10 +277,29 @@ public class MavenProject implements BuildExecutorModule {
                                 }
                                 String qualified = properties.getProperty("qualifiedDependencies", "");
                                 if (!qualified.isEmpty()) {
-                                    for (String entry : qualified.split(",")) {
+                                    SequencedMap<String, String> unguarded = new LinkedHashMap<>();
+                                    SequencedMap<String, SequencedMap<String, String>> variants = new LinkedHashMap<>();
+                                    for (String entry : qualified.split("\t")) {
                                         int split = entry.indexOf('=');
-                                        versions.setProperty(entry.substring(0, split), entry.substring(split + 1));
+                                        String key = entry.substring(0, split), value = entry.substring(split + 1);
+                                        int bracket = key.indexOf('[');
+                                        if (bracket < 0) {
+                                            unguarded.put(key, value);
+                                        } else {
+                                            variants.computeIfAbsent(key.substring(0, bracket), _ -> new LinkedHashMap<>())
+                                                    .put(key.substring(bracket + 1, key.length() - 1), value);
+                                        }
                                     }
+                                    for (Map.Entry<String, SequencedMap<String, String>> variant : variants.entrySet()) {
+                                        String selected = Platform.select(variant.getKey(),
+                                                unguarded.get(variant.getKey()),
+                                                variant.getValue(),
+                                                tokens);
+                                        if (selected != null) {
+                                            unguarded.put(variant.getKey(), selected);
+                                        }
+                                    }
+                                    unguarded.forEach(versions::setProperty);
                                 }
                                 if (!versions.isEmpty()) {
                                     versions.store(context.next().resolve(BuildStep.VERSIONS));
@@ -482,7 +518,7 @@ public class MavenProject implements BuildExecutorModule {
                 String relativePath = entry.getKey().toString().replace(File.separatorChar, '/');
                 String qualifiedDependencies = value.qualifiedDependencies() == null ? "" : value.qualifiedDependencies().entrySet().stream()
                         .map(requires -> requires.getKey() + "=" + requires.getValue())
-                        .collect(Collectors.joining(","));
+                        .collect(Collectors.joining("\t"));
                 writeModule(maven, value, relativePath, coordinate, selfPom, false, qualifiedDependencies);
                 writeModule(maven, value, relativePath, coordinate, selfPom, true, qualifiedDependencies);
             }

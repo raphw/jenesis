@@ -52,7 +52,7 @@ graph you want.
 Layout
 ------
 
-    demo/demo-30-custom-build
+    demo/demo-31-custom-build
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java     the hand-wired BuildExecutor
     `-- sources/

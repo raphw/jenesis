@@ -108,7 +108,7 @@ public record Project(
             String prefix = BUILD + "/maven/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(project.root(),
                     "pom.xml",
-                    (path, file) -> new PinPom("maven", path, file, project.hashFunction())), BUILD);
+                    (path, file) -> new PinPom("maven", path, List.of(file), project.hashFunction())), BUILD);
             executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
                     "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
             return name -> {

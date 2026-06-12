@@ -70,7 +70,7 @@ under the hood, inherits the same rule.
 Layout
 ------
 
-    demo/demo-25-custom-jmod
+    demo/demo-26-custom-jmod
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: wraps the assembler, builds, runs the packaged app
     `-- sources/
