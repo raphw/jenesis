@@ -106,6 +106,23 @@ needs no JDK and no jpackage:
 The modular sibling `../demo-06-java-modular-executable` splits its jars into
 `modulepath/` and `classpath/` and adds a `mainModule` entry.
 
+A single executable jar with the launcher
+-----------------------------------------
+
+`-Djenesis.java.launcher=true` turns the bundle into a **single executable jar** you
+run with `java -jar foo.jar`, by shading the published `build.jenesis:build.jenesis.launcher`
+into the jar root as its `Main-Class` and exploding each dependency into a
+`classpath/<jar>/` subfolder (this app is non-modular, so everything is class path).
+`build/DemoLauncher.java` builds it and runs the produced jar:
+
+    java build/DemoLauncher.java ada lovelace
+
+The launcher is shaded into the artifact, so it is pinned like any dependency - the
+`pom.xml` carries a `<!--jenesis.pin launcher/maven/build.jenesis/build.jenesis.launcher
+... -->` block (its own `launcher` group, kept out of `<dependencyManagement>` because
+it is not an application dependency). See `../demo-06-java-modular-executable` for the
+full layout and how modular dependencies are reconstructed at run time.
+
 Fully bundled native installer
 ------------------------------
 

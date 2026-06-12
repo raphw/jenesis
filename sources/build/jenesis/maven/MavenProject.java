@@ -262,6 +262,13 @@ public class MavenProject implements BuildExecutorModule {
                                         versions.setProperty(group + "/" + coord, version);
                                     }
                                 }
+                                String qualified = properties.getProperty("qualifiedDependencies", "");
+                                if (!qualified.isEmpty()) {
+                                    for (String entry : qualified.split(",")) {
+                                        int split = entry.indexOf('=');
+                                        versions.setProperty(entry.substring(0, split), entry.substring(split + 1));
+                                    }
+                                }
                                 if (!versions.isEmpty()) {
                                     versions.store(context.next().resolve(BuildStep.VERSIONS));
                                 }
@@ -550,10 +557,10 @@ public class MavenProject implements BuildExecutorModule {
                             + "=" + dep.getValue().version()
                             + (dep.getValue().checksum() == null ? "" : " " + dep.getValue().checksum()))
                     .collect(Collectors.joining(","));
-            if (!qualifiedDependencies.isEmpty()) {
-                managed = managed.isEmpty() ? qualifiedDependencies : managed + "," + qualifiedDependencies;
-            }
             properties.setProperty("managedDependencies", managed);
+            if (!qualifiedDependencies.isEmpty()) {
+                properties.setProperty("qualifiedDependencies", qualifiedDependencies);
+            }
             properties.setProperty("checksums",
                     value.dependencies() == null ? "" : value.dependencies().entrySet().stream()
                             .filter(dep -> dep.getValue().checksum() != null

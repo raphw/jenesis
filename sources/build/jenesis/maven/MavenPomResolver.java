@@ -908,24 +908,12 @@ public class MavenPomResolver implements MavenResolver {
                         if (value.isEmpty()) {
                             continue;
                         }
-                        int at = token.indexOf('@');
-                        String key;
-                        if (at < 0) {
-                            key = "maven/" + token;
-                        } else if (at == 0) {
-                            int slash = token.indexOf('/');
-                            if (slash < 2 || slash == token.length() - 1) {
-                                continue;
-                            }
-                            key = "maven" + token;
-                        } else {
-                            int slash = token.indexOf('/', at);
-                            if (slash <= at + 1 || slash == token.length() - 1) {
-                                continue;
-                            }
-                            key = token;
+                        int firstSlash = token.indexOf('/');
+                        int secondSlash = firstSlash < 1 ? -1 : token.indexOf('/', firstSlash + 1);
+                        if (secondSlash < firstSlash + 2 || secondSlash == token.length() - 1) {
+                            continue;
                         }
-                        entries.put(key, value);
+                        entries.put(token, value);
                     }
                 });
         return entries;
