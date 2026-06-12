@@ -22,10 +22,6 @@ public class PinModuleInfo implements BuildStep {
     private final transient HashDigestFunction hashFunction;
     private final SequencedSet<String> platform;
 
-    public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), hashFunction);
-    }
-
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
         this(prefix, path, moduleInfoFiles, hashFunction, Platform.tokens());
     }

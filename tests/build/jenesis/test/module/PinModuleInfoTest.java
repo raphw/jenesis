@@ -81,7 +81,7 @@ public class PinModuleInfoTest {
     }
 
     private String run(Path moduleInfo, SequencedSet<String> platform) throws IOException {
-        new PinModuleInfo("module", "", moduleInfo, new HashDigestFunction("SHA-256"))
+        new PinModuleInfo("module", "", List.of(moduleInfo), new HashDigestFunction("SHA-256"))
                 .platform(platform)
                 .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),

@@ -167,7 +167,7 @@ public record Project(
                     "modular", new JenesisModuleRepositoryExport(), BuildExecutorModule.PREVIOUS + STAGE + "/modular"), STAGE);
             String prefix = BUILD + "/modules/" + MultiProjectModule.COMPOSE + "/" + MultiProjectModule.MODULE;
             executor.addModule(PIN, new PinModule(project.root(), "module-info.java",
-                    (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())), BUILD);
+                    (path, file) -> new PinModuleInfo("module", path, List.of(file), project.hashFunction())), BUILD);
             executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
                     "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
             return name -> {
@@ -239,7 +239,7 @@ public record Project(
             executor.addModule(PIN,
                     new PinModule(project.root(),
                             "module-info.java",
-                            (path, file) -> new PinModuleInfo("module", path, file, project.hashFunction())),
+                            (path, file) -> new PinModuleInfo("module", path, List.of(file), project.hashFunction())),
                     BUILD);
             executor.addStep(DEPENDENCIES, new Tree(), BUILD);
             return name -> {

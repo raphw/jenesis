@@ -41,12 +41,8 @@ public class ModularProject implements BuildExecutorModule {
     private final boolean modular;
     private final SequencedSet<String> platform;
 
-    public ModularProject(String prefix, Path root, Predicate<Path> filter, boolean modular) {
-        this("main", prefix, root, filter, modular);
-    }
-
-    public ModularProject(String group, String prefix, Path root, Predicate<Path> filter, boolean modular) {
-        this(group, prefix, root, filter, modular, Platform.tokens());
+    public ModularProject(String prefix, Path root) {
+        this("main", prefix, root, _ -> true, true, Platform.tokens());
     }
 
     private ModularProject(String group,
@@ -61,6 +57,18 @@ public class ModularProject implements BuildExecutorModule {
         this.filter = filter;
         this.modular = modular;
         this.platform = platform;
+    }
+
+    public ModularProject group(String group) {
+        return new ModularProject(group, prefix, root, filter, modular, platform);
+    }
+
+    public ModularProject filter(Predicate<Path> filter) {
+        return new ModularProject(group, prefix, root, filter, modular, platform);
+    }
+
+    public ModularProject modular(boolean modular) {
+        return new ModularProject(group, prefix, root, filter, modular, platform);
     }
 
     public ModularProject platform(SequencedSet<String> platform) {
@@ -90,7 +98,7 @@ public class ModularProject implements BuildExecutorModule {
                                            boolean modular,
                                            boolean printDependencies,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
-        return new MultiProjectModule(new ModularProject(group, prefix, root, filter, modular),
+        return new MultiProjectModule(new ModularProject(prefix, root).group(group).filter(filter).modular(modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
