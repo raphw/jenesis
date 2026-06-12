@@ -2,12 +2,17 @@ package build.jenesis;
 
 import module java.base;
 
-public record BuildStepArgument(Path folder, Map<Path, ChecksumStatus> files) {
+public record BuildStepArgument(Path folder, Map<Path, Checksum> files) {
 
     private static final Path WILDCARD = Path.of(".");
 
+    public String checksum(Path file) {
+        Checksum checksum = files.get(file);
+        return checksum == null ? null : checksum.encoded();
+    }
+
     public boolean hasChanged() {
-        return files.values().stream().anyMatch(status -> status != ChecksumStatus.RETAINED);
+        return files.values().stream().anyMatch(checksum -> checksum.status() != ChecksumStatus.RETAINED);
     }
 
     public boolean hasChanged(Path... prefixes) {
@@ -18,6 +23,6 @@ public record BuildStepArgument(Path folder, Map<Path, ChecksumStatus> files) {
         return files.entrySet().stream()
                 .filter(entry -> prefixes.stream().anyMatch(prefix ->
                         WILDCARD.equals(prefix) || entry.getKey().startsWith(prefix)))
-                .anyMatch(entry -> entry.getValue() != ChecksumStatus.RETAINED);
+                .anyMatch(entry -> entry.getValue().status() != ChecksumStatus.RETAINED);
     }
 }

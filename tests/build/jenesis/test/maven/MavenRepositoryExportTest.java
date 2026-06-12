@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.maven.MavenRepositoryExport;
 
@@ -205,7 +206,7 @@ public class MavenRepositoryExportTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
-                                Map.of(Path.of("."), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of("."), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
     }

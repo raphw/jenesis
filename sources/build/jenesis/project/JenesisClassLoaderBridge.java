@@ -169,8 +169,8 @@ class JenesisClassLoaderBridge implements AutoCloseable {
         SequencedMap<String, Object> foreign = new LinkedHashMap<>();
         arguments.forEach((key, value) -> {
             Map<Path, Object> foreignFiles = new LinkedHashMap<>();
-            value.files().forEach((path, status) ->
-                    foreignFiles.put(path, foreignChecksumValues.get(status.name())));
+            value.files().forEach((path, checksum) ->
+                    foreignFiles.put(path, foreignChecksumValues.get(checksum.status().name())));
             try {
                 foreign.put(key, foreignArgumentCtor.invoke(value.folder(), foreignFiles));
             } catch (RuntimeException | Error e) {

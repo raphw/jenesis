@@ -9,7 +9,6 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.HashDigestFunction;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
@@ -67,7 +66,6 @@ public class MavenProject implements BuildExecutorModule {
                 Map.of("maven", new MavenDefaultRepository()),
                 Map.of("maven", new MavenPomResolver()),
                 null,
-                new HashDigestFunction("MD5"),
                 false,
                 assembler);
     }
@@ -78,7 +76,6 @@ public class MavenProject implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
-                                           HashDigestFunction digest,
                                            boolean printDependencies,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         MavenRepository repository = MavenRepository.of(requireNonNull(repositories.get(prefix)));
@@ -100,8 +97,7 @@ public class MavenProject implements BuildExecutorModule {
                     buildExecutor.addModule(DEPENDENCIES, (depExec, depInherited) -> {
                         depExec.addStep(PREPARE,
                                 new MultiProjectDependencies(
-                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/"),
-                                        digest),
+                                        identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/")),
                                 depInherited.sequencedKeySet());
                         depExec.addStep(Dependencies.ARTIFACTS,
                                 new Dependencies(mergedRepositories, resolvers).pinning(pinning).printing(printDependencies),

@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.Pom;
@@ -53,9 +54,9 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -108,9 +109,9 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.DEPENDENCIES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.DEPENDENCIES), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -151,9 +152,9 @@ public class PomTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -188,9 +189,9 @@ public class PomTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
-                                Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
         String pom = Files.readString(next.resolve(Pom.POM));
@@ -221,8 +222,8 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -241,7 +242,7 @@ public class PomTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                         argument,
-                        Map.of(Path.of(BuildStep.METADATA), ChecksumStatus.ADDED))))))
+                        Map.of(Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED)))))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing 'version'");
     }
@@ -272,8 +273,8 @@ public class PomTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -307,10 +308,10 @@ public class PomTest {
         user.store(userMetadata.resolve(BuildStep.METADATA));
         LinkedHashMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("pom", new BuildStepArgument(argument, Map.of(
-                Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+                Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))));
         arguments.put("user", new BuildStepArgument(userMetadata, Map.of(
-                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+                Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))));
         BuildStepResult result = new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         arguments)
@@ -343,10 +344,10 @@ public class PomTest {
         user.store(userMetadata.resolve(BuildStep.METADATA));
         LinkedHashMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("pom", new BuildStepArgument(argument, Map.of(
-                Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+                Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))));
         arguments.put("user", new BuildStepArgument(userMetadata, Map.of(
-                Path.of(BuildStep.METADATA), ChecksumStatus.ADDED)));
+                Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))));
         new Pom().apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         arguments)

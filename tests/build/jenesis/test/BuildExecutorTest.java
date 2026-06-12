@@ -10,6 +10,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.HashFunction;
@@ -20,9 +21,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BuildExecutorTest implements Serializable {
 
+    private static Map<Path, ChecksumStatus> statuses(Map<Path, Checksum> files) {
+        Map<Path, ChecksumStatus> statuses = new LinkedHashMap<>();
+        files.forEach((path, checksum) -> statuses.put(path, checksum.status()));
+        return statuses;
+    }
+
     @TempDir
     private Path root, source, source2;
-    private transient HashFunction hash;
+    private transient HashDigestFunction hash;
     private transient BuildExecutor buildExecutor;
 
     @BeforeEach
@@ -44,7 +51,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -72,7 +79,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -96,7 +103,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             throw new RuntimeException("baz");
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
@@ -117,7 +124,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             return CompletableFuture.failedStage(new RuntimeException("baz"));
         }, "source");
         assertThatThrownBy(() -> buildExecutor.execute(Runnable::run).toCompletableFuture().join())
@@ -166,7 +173,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ALTERED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ALTERED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -197,7 +204,7 @@ public class BuildExecutorTest implements Serializable {
             public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.RETAINED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.RETAINED));
                 return true;
             }
 
@@ -207,7 +214,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isNotEqualTo(output).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.RETAINED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.RETAINED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -239,7 +246,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ALTERED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ALTERED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -271,7 +278,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isNotEqualTo(output).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -291,7 +298,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -302,7 +309,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1");
             assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
-            assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -325,8 +332,8 @@ public class BuildExecutorTest implements Serializable {
             assertThat(arguments).containsOnlyKeys("source1", "source2");
             assertThat(arguments.get("source1").folder()).isEqualTo(source);
             assertThat(arguments.get("source2").folder()).isEqualTo(source2);
-            assertThat(arguments.get("source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
-            assertThat(arguments.get("source2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source2").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source1").folder().resolve("file"))
@@ -347,7 +354,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -358,7 +365,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "qux");
@@ -370,8 +377,8 @@ public class BuildExecutorTest implements Serializable {
             assertThat(arguments).containsOnlyKeys("step1", "step2");
             assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
             assertThat(arguments.get("step2").folder()).isEqualTo(root.resolve("step2").resolve("output"));
-            assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
-            assertThat(arguments.get("step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step2").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1").folder().resolve("file"))
@@ -394,7 +401,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -405,7 +412,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("step1");
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
-                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -430,7 +437,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -441,7 +448,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("step1");
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
-                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -471,7 +478,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -482,7 +489,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("step1");
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
-                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -509,7 +516,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("../source");
                 assertThat(arguments.get("../source").folder()).isEqualTo(source);
-                assertThat(arguments.get("../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("../source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("../source").folder().resolve("file")) + "bar");
@@ -520,7 +527,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("step1");
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
-                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -546,7 +553,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source/source1");
             assertThat(arguments.get("source/source1").folder()).isEqualTo(source);
-            assertThat(arguments.get("source/source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source/source1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source/source1").folder().resolve("file")) + "bar");
@@ -571,7 +578,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("../source");
                 assertThat(arguments.get("../source").folder()).isEqualTo(source);
-                assertThat(arguments.get("../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("../source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 throw new RuntimeException("baz");
             }, "../source");
         }, "source");
@@ -641,7 +648,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("../source/source1");
                 assertThat(arguments.get("../source/source1").folder()).isEqualTo(source);
-                assertThat(arguments.get("../source/source1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("../source/source1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("../source/source1").folder().resolve("file")) + "bar");
@@ -652,7 +659,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("step1");
                 assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step").resolve("step1").resolve("output"));
-                assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -681,7 +688,7 @@ public class BuildExecutorTest implements Serializable {
                     assertThat(context.next()).isDirectory();
                     assertThat(arguments).containsOnlyKeys("../../source");
                     assertThat(arguments.get("../../source").folder()).isEqualTo(source);
-                    assertThat(arguments.get("../../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                    assertThat(statuses(arguments.get("../../source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                     Files.writeString(
                             context.next().resolve("file"),
                             Files.readString(arguments.get("../../source").folder().resolve("file")) + "bar");
@@ -708,7 +715,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -730,7 +737,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -741,7 +748,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1");
             assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
-            assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -752,7 +759,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step0");
             assertThat(arguments.get("step0").folder()).isEqualTo(root.resolve("step0").resolve("output"));
-            assertThat(arguments.get("step0").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step0").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step0").folder().resolve("file")) + "baz");
@@ -774,7 +781,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("source");
             assertThat(arguments.get("source").folder()).isEqualTo(source);
-            assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -785,7 +792,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1");
             assertThat(arguments.get("step1").folder()).isEqualTo(root.resolve("step1").resolve("output"));
-            assertThat(arguments.get("step1").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1").folder().resolve("file")) + "qux");
@@ -796,7 +803,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step0");
             assertThat(arguments.get("step0").folder()).isEqualTo(root.resolve("step0").resolve("output"));
-            assertThat(arguments.get("step0").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step0").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step0").folder().resolve("file")) + "baz");
@@ -820,7 +827,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -832,7 +839,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1/step2");
             assertThat(arguments.get("step1/step2").folder()).isEqualTo(root.resolve("step1/step2").resolve("output"));
-            assertThat(arguments.get("step1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1/step2").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1/step2").folder().resolve("file")) + "qux");
@@ -854,7 +861,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
@@ -865,7 +872,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("source");
                 assertThat(arguments.get("source").folder()).isEqualTo(source);
-                assertThat(arguments.get("source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("source").folder().resolve("file")) + "qux");
@@ -877,9 +884,9 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("step1/step2", "step1/step3");
             assertThat(arguments.get("step1/step2").folder()).isEqualTo(root.resolve("step1/step2").resolve("output"));
-            assertThat(arguments.get("step1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1/step2").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             assertThat(arguments.get("step1/step3").folder()).isEqualTo(root.resolve("step1/step3").resolve("output"));
-            assertThat(arguments.get("step1/step3").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1/step3").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1/step2").folder().resolve("file"))
@@ -902,7 +909,7 @@ public class BuildExecutorTest implements Serializable {
                 inner.addStep("step3", (_, context, arguments) -> {
                     assertThat(arguments).containsOnlyKeys("../../source");
                     assertThat(arguments.get("../../source").folder()).isEqualTo(source);
-                    assertThat(arguments.get("../../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                    assertThat(statuses(arguments.get("../../source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                     Files.writeString(
                             context.next().resolve("file"),
                             Files.readString(arguments.get("../../source").folder().resolve("file")) + "bar");
@@ -913,7 +920,7 @@ public class BuildExecutorTest implements Serializable {
         buildExecutor.addStep("step4", (_, context, arguments) -> {
             assertThat(arguments).containsOnlyKeys("step1/step2/step3");
             assertThat(arguments.get("step1/step2/step3").folder()).isEqualTo(root.resolve("step1/step2/step3").resolve("output"));
-            assertThat(arguments.get("step1/step2/step3").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("step1/step2/step3").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("step1/step2/step3").folder().resolve("file")) + "qux");
@@ -990,7 +997,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("other");
             assertThat(arguments.get("other").folder()).isEqualTo(source);
-            assertThat(arguments.get("other").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("other").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("other").folder().resolve("file")) + "bar");
@@ -1012,7 +1019,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("../other");
                 assertThat(arguments.get("../other").folder()).isEqualTo(source);
-                assertThat(arguments.get("../other").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("../other").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("../other").folder().resolve("file")) + "bar");
@@ -1035,7 +1042,7 @@ public class BuildExecutorTest implements Serializable {
                 assertThat(context.next()).isDirectory();
                 assertThat(arguments).containsOnlyKeys("../source");
                 assertThat(arguments.get("../source").folder()).isEqualTo(source);
-                assertThat(arguments.get("../source").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+                assertThat(statuses(arguments.get("../source").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
                 Files.writeString(
                         context.next().resolve("file"),
                         Files.readString(arguments.get("../source").folder().resolve("file")) + "bar");
@@ -1047,7 +1054,7 @@ public class BuildExecutorTest implements Serializable {
             assertThat(context.next()).isDirectory();
             assertThat(arguments).containsOnlyKeys("other1/step2");
             assertThat(arguments.get("other1/step2").folder()).isEqualTo(root.resolve("step1/step2").resolve("output"));
-            assertThat(arguments.get("other1/step2").files()).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
+            assertThat(statuses(arguments.get("other1/step2").files())).isEqualTo(Map.of(Path.of("file"), ChecksumStatus.ADDED));
             Files.writeString(
                     context.next().resolve("file"),
                     Files.readString(arguments.get("other1/step2").folder().resolve("file")) + "qux");

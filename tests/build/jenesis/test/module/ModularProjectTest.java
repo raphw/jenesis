@@ -178,7 +178,6 @@ public class ModularProjectTest {
                 Map.of("module", new ModularJarResolver(false)),
                 null,
                 true,
-                new HashDigestFunction("MD5"),
                 false,
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {

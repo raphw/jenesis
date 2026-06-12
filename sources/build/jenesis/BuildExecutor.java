@@ -49,7 +49,7 @@ public interface BuildExecutor {
 
     static BuildExecutor of(Path target,
                             Duration timeout,
-                            HashFunction hash,
+                            HashDigestFunction hash,
                             BuildStepHashFunction stepHash,
                             BuildExecutorCallback callback,
                             boolean rebuild) throws IOException {

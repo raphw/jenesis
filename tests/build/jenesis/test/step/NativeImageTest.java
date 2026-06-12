@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.PathPlacement;
 import build.jenesis.SequencedProperties;
@@ -102,8 +103,8 @@ public class NativeImageTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/app.jar"), ChecksumStatus.ADDED,
-                                Path.of("launcher.properties"), ChecksumStatus.ADDED)))))
+                        Map.of(Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("launcher.properties"), Checksum.of(ChecksumStatus.ADDED))))))
                 .toCompletableFuture().join();
     }
 

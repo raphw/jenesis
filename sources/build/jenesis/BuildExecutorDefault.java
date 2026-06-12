@@ -10,7 +10,7 @@ class BuildExecutorDefault implements BuildExecutor {
 
     private final Path target;
     private final Duration timeout;
-    private final HashFunction hash;
+    private final HashDigestFunction hash;
     private final BuildStepHashFunction stepHash;
     private final BuildExecutorCallback callback;
     private final String location;
@@ -20,7 +20,7 @@ class BuildExecutorDefault implements BuildExecutor {
 
     BuildExecutorDefault(Path target,
                          Duration timeout,
-                         HashFunction hash,
+                         HashDigestFunction hash,
                          BuildStepHashFunction stepHash,
                          BuildExecutorCallback callback,
                          String location,
@@ -125,11 +125,12 @@ class BuildExecutorDefault implements BuildExecutor {
                 SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     Path checksums = checksum.resolve("argument." + BuildExecutorModule.encode(entry.getKey()) + ".properties");
+                    Map<Path, byte[]> argumentChecksums = entry.getValue().checksums();
                     arguments.put(entry.getKey(), new BuildStepArgument(
                             entry.getValue().folder(),
                             consistent && Files.exists(checksums)
-                                    ? ChecksumStatus.diff(HashFunction.read(checksums), entry.getValue().checksums())
-                                    : ChecksumStatus.added(entry.getValue().checksums().keySet())));
+                                    ? Checksum.diff(HashFunction.read(checksums), argumentChecksums, hash)
+                                    : Checksum.added(argumentChecksums, hash)));
                 }
                 BiConsumer<Boolean, Throwable> completion = callback.step(
                         location + identity,

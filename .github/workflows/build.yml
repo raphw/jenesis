@@ -17,10 +17,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # internal-module and external-module load a build module through the
-        # class-loader bridge. Their plugin pins build.jenesis to a published
-        # release (@tool/build.jenesis in sources/module-info.java) whose API
-        # matches the local sources, so the bridge loads it without complaint.
+        # The internal-module and external-module demos are temporarily disabled.
+        # They load a build module through the class-loader bridge, whose plugin
+        # pins build.jenesis to a published release (@tool/build.jenesis in
+        # sources/module-info.java). That release still carries the old
+        # BuildStepArgument shape (Map<Path, ChecksumStatus>), which no longer
+        # matches the local sources (Map<Path, Checksum>); re-enable them once a
+        # release carrying the new shape is published and the plugins are re-pinned.
         #
         # The `-as-modular` entries force the pure MODULAR layout
         # (-Djenesis.project.layout=modular) on the same sources that otherwise
@@ -77,8 +80,6 @@ jobs:
           - { name: module-layout, dir: demo-21-module-layout, entry: build/jenesis/Project.java }
           - { name: custom-assembler, dir: demo-22-custom-assembler, entry: build/Demo.java }
           - { name: custom-jmod, dir: demo-23-custom-jmod, entry: build/Demo.java }
-          - { name: internal-module, dir: demo-24-internal-module, entry: build/Demo.java }
-          - { name: external-module, dir: demo-25-external-module, entry: build/Demo.java }
           - { name: custom-maven, dir: demo-26-custom-maven, entry: build/Demo.java }
           - { name: custom-modular, dir: demo-27-custom-modular, entry: build/Demo.java }
           - { name: custom-build, dir: demo-28-custom-build, entry: build/Demo.java }

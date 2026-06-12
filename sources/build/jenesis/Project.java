@@ -85,7 +85,6 @@ public record Project(
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
-                                project.hashFunction(),
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
@@ -145,7 +144,6 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
                                 true,
-                                project.hashFunction(),
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                         new ProjectModuleDescriptor(descriptor,
@@ -213,7 +211,6 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
                                 true,
-                                project.hashFunction(),
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,

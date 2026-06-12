@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.ProcessHandler;
@@ -54,8 +55,8 @@ public class JLinkTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/sample.jar"), ChecksumStatus.ADDED,
-                                Path.of("process/jlink.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("artifacts/sample.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("process/jlink.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JLink.RUNTIME + "release")).isRegularFile();
     }
@@ -69,7 +70,7 @@ public class JLinkTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("artifacts/sample.jar"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("artifacts/sample.jar"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JLink.RUNTIME)).doesNotExist();
     }
@@ -82,7 +83,7 @@ public class JLinkTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("metadata.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("metadata.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JLink.RUNTIME)).doesNotExist();
     }

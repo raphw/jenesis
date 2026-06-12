@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.JMod;
@@ -45,7 +46,7 @@ public class JModTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("classes/module-info.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("classes/module-info.class"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JMod.JMODS + "sample.jmod")).isNotEmptyFile();
     }
@@ -69,8 +70,8 @@ public class JModTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("classes/module-info.class"), ChecksumStatus.ADDED,
-                                Path.of("jmodconfig/app.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("classes/module-info.class"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("jmodconfig/app.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path jmod = next.resolve(JMod.JMODS + "sample.jmod");
         assertThat(jmod).isNotEmptyFile();
@@ -93,7 +94,7 @@ public class JModTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("classes", new BuildStepArgument(
                         bundle,
-                        Map.of(Path.of("classes/Sample.class"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("classes/Sample.class"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(JMod.JMODS)).doesNotExist();
     }
