@@ -13,7 +13,7 @@ public class PinModuleInfo implements BuildStep {
 
     private static final Pattern MODULE_DECLARATION = Pattern.compile("(?m)^(open\\s+)?module\\s+");
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
-    private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
+    private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+(\\S+)(\\s+.*)?$");
 
     private final String prefix;
     private final String path;
@@ -170,12 +170,22 @@ public class PinModuleInfo implements BuildStep {
 
     private static String rewriteJavadoc(String javadoc, SequencedMap<String, String> entries) {
         List<String> lines = new ArrayList<>(List.of(javadoc.split("\\n", -1)));
+        // Keys with a platform-guarded line are preserved verbatim, guarded and fallback
+        // lines alike: the local resolution only reflects the variant this machine selected.
+        Set<String> guarded = new HashSet<>();
+        for (String line : lines) {
+            Matcher matcher = PIN_TAG.matcher(line);
+            if (matcher.matches() && matcher.group(2) != null && matcher.group(2).trim().endsWith("]")) {
+                guarded.add(expand(matcher.group(1)));
+            }
+        }
         int insertAt = -1;
         Iterator<String> it = lines.iterator();
         int index = 0;
         while (it.hasNext()) {
             String line = it.next();
-            if (PIN_TAG.matcher(line).matches()) {
+            Matcher matcher = PIN_TAG.matcher(line);
+            if (matcher.matches() && !guarded.contains(expand(matcher.group(1)))) {
                 if (insertAt < 0) {
                     insertAt = index;
                 }
@@ -197,10 +207,21 @@ public class PinModuleInfo implements BuildStep {
         }
         List<String> tags = new ArrayList<>();
         for (Map.Entry<String, String> entry : entries.entrySet()) {
+            if (guarded.contains(expand(entry.getKey()))) {
+                continue;
+            }
             tags.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
         }
         lines.addAll(insertAt, tags);
         return String.join("\n", lines);
+    }
+
+    private static String expand(String token) {
+        int first = token.indexOf('/');
+        if (first < 0) {
+            return "main/module/" + token;
+        }
+        return token.indexOf('/', first + 1) < 0 ? "main/maven/" + token : token;
     }
 
     private static String renderJavadoc(SequencedMap<String, String> entries) {

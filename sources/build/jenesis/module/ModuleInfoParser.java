@@ -2,6 +2,7 @@ package build.jenesis.module;
 
 import module java.base;
 import module jdk.compiler;
+import build.jenesis.Platform;
 import javax.tools.ToolProvider;
 
 import static java.util.Objects.requireNonNull;
@@ -48,6 +49,7 @@ public class ModuleInfoParser {
                 }
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
+            SequencedMap<String, SequencedMap<String, String>> variants = new LinkedHashMap<>();
             SequencedMap<String, String> plugins = new LinkedHashMap<>();
             String release = null;
             String name = null;
@@ -86,6 +88,18 @@ public class ModuleInfoParser {
                                 }
                                 String token = content.substring(0, split).trim();
                                 String version = content.substring(split + 1).trim().replaceAll("\\s+", " ");
+                                String guard = null;
+                                if (version.endsWith("]")) {
+                                    int bracket = version.lastIndexOf('[');
+                                    if (bracket < 0) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.pin guard '"
+                                                + version
+                                                + "': expected <value> [<token>,<token>...]");
+                                    }
+                                    guard = String.join(",", Platform.tokens(
+                                            version.substring(bracket + 1, version.length() - 1)));
+                                    version = version.substring(0, bracket).trim();
+                                }
                                 if (token.isEmpty() || version.isEmpty()
                                         || token.startsWith("java.") || token.startsWith("jdk.")) {
                                     continue;
@@ -113,7 +127,11 @@ public class ModuleInfoParser {
                                     }
                                     key = token;
                                 }
-                                versions.put(key, version);
+                                if (guard == null) {
+                                    versions.put(key, version);
+                                } else {
+                                    variants.computeIfAbsent(key, _ -> new LinkedHashMap<>()).put(guard, version);
+                                }
                             }
                             case "jenesis.plugin" -> {
                                 String trimmed = content.trim();
@@ -155,7 +173,8 @@ public class ModuleInfoParser {
                     dependencies,
                     runtimeDependencies,
                     plugins,
-                    versions);
+                    versions,
+                    variants);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
     }

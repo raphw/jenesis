@@ -2,6 +2,7 @@ package build.jenesis.module;
 
 import module java.base;
 import build.jenesis.Pinning;
+import build.jenesis.Platform;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
@@ -38,17 +39,32 @@ public class ModularProject implements BuildExecutorModule {
     private final Path root;
     private final Predicate<Path> filter;
     private final boolean modular;
+    private final SequencedSet<String> platform;
 
     public ModularProject(String prefix, Path root, Predicate<Path> filter, boolean modular) {
         this("main", prefix, root, filter, modular);
     }
 
     public ModularProject(String group, String prefix, Path root, Predicate<Path> filter, boolean modular) {
+        this(group, prefix, root, filter, modular, Platform.tokens());
+    }
+
+    private ModularProject(String group,
+                           String prefix,
+                           Path root,
+                           Predicate<Path> filter,
+                           boolean modular,
+                           SequencedSet<String> platform) {
         this.group = group;
         this.prefix = prefix;
         this.root = root;
         this.filter = filter;
         this.modular = modular;
+        this.platform = platform;
+    }
+
+    public ModularProject platform(SequencedSet<String> platform) {
+        return new ModularProject(group, prefix, root, filter, modular, platform);
     }
 
     public static BuildExecutorModule make(Path root, MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
@@ -140,7 +156,11 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
-    private record Manifests(String group, String prefix, String path, boolean modular) implements BuildStep {
+    private record Manifests(String group,
+                             String prefix,
+                             String path,
+                             boolean modular,
+                             SequencedSet<String> platform) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -171,9 +191,19 @@ public class ModularProject implements BuildExecutorModule {
             info.plugins().forEach((coordinate, group) ->
                     requires.setProperty(group + "/plugin/" + coordinate, ""));
             requires.store(context.next().resolve(BuildStep.REQUIRES));
-            if (!info.versions().isEmpty()) {
+            SequencedMap<String, String> versions = new LinkedHashMap<>(info.versions());
+            for (Map.Entry<String, SequencedMap<String, String>> variant : info.variants().entrySet()) {
+                String selected = Platform.select(variant.getKey(),
+                        versions.get(variant.getKey()),
+                        variant.getValue(),
+                        platform);
+                if (selected != null) {
+                    versions.put(variant.getKey(), selected);
+                }
+            }
+            if (!versions.isEmpty()) {
                 SequencedProperties properties = new SequencedProperties();
-                info.versions().forEach(properties::setProperty);
+                versions.forEach(properties::setProperty);
                 properties.store(context.next().resolve(BuildStep.VERSIONS));
             }
             Javac.writeRelease(context.next(), info.release());
@@ -241,7 +271,7 @@ public class ModularProject implements BuildExecutorModule {
                     SequencedSet<String> manifestDeps = new LinkedHashSet<>();
                     manifestDeps.add("sources");
                     manifestDeps.addAll(modInherited.sequencedKeySet());
-                    module.addStep(MANIFESTS, new Manifests(group, prefix, relative, modular), manifestDeps);
+                    module.addStep(MANIFESTS, new Manifests(group, prefix, relative, modular, platform), manifestDeps);
                     module.addStep(COORDINATES, new Coordinates(prefix), MANIFESTS);
                 }, inherited.sequencedKeySet().stream());
             }

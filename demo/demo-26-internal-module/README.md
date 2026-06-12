@@ -6,7 +6,7 @@ its own project, loaded straight from local source - instead of an inline build
 step. The plugin performs a `${greeting}` substitution over the project's Java
 sources before the regular compile, jar, and test flow runs, and it leans on an
 external dependency (`org.json`) to do so. The companion
-`../demo-26-external-module` runs the identical plugin, but resolves it as a
+`../demo-27-external-module` runs the identical plugin, but resolves it as a
 published artifact rather than compiling it from source.
 
 Run it
@@ -26,7 +26,7 @@ Built without the plugin the literal `${greeting}` would print instead.
 Layout
 ------
 
-    demo/demo-25-internal-module
+    demo/demo-26-internal-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (Project + wrapping assembler)
     |-- plugin/

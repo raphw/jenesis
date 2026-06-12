@@ -6,7 +6,7 @@ the standard entry point, while still reusing Jenesis's stock toolchain. You wri
 small `build/Demo.java` that points Jenesis at the project root, and one convenience
 call discovers the `module-info.java` modules, builds the library module first, and
 resolves it when compiling the consumer module - a custom launcher without wiring
-every step by hand. This is the modular counterpart of `../demo-27-custom-maven`.
+every step by hand. This is the modular counterpart of `../demo-28-custom-maven`.
 
 Run it
 ------
@@ -22,7 +22,7 @@ demo.greeter`). Each module produces a modular jar under `target/`.
 Layout
 ------
 
-    demo/demo-28-custom-modular
+    demo/demo-29-custom-modular
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: BuildExecutor + ModularProject.make(...)
     |-- greeter/             the library module
@@ -36,7 +36,7 @@ Where this demo sits
 --------------------
 
 It sits between `../demo-04-java-modular-multi` (the same shape of project driven by the
-full `Project` entry point) and `../demo-29-custom-build` (a build wired entirely by
+full `Project` entry point) and `../demo-30-custom-build` (a build wired entirely by
 hand): a "custom but not so custom" build that reuses the stock toolchain through
 one convenience call. The launcher avoids going through `Project` - no layout, no
 goals - yet without wiring every step by hand either, because
@@ -70,4 +70,4 @@ also emit a generated POM and stage to a Maven repository (the MODULAR_TO_MAVEN
 behavior), or to use a custom repository or strict pinning, switch to the full
 `make(root, prefix, filter, repositories, resolvers, pinning, modular,
 digest, assembler)` overload that `Project` uses. To drop the templates
-entirely and wire the build graph by hand, see `../demo-29-custom-build`.
+entirely and wire the build graph by hand, see `../demo-30-custom-build`.

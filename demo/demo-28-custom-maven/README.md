@@ -21,7 +21,7 @@ produced under `target/`.
 Layout
 ------
 
-    demo/demo-27-custom-maven
+    demo/demo-28-custom-maven
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- build/Demo.java      the launcher: BuildExecutor + MavenProject.make(...)
     |-- pom.xml              aggregator (packaging pom); lists the two modules
@@ -36,7 +36,7 @@ Where this demo sits
 --------------------
 
 It sits between `../demo-03-java-pom-multi` (the same shape of project driven by the full
-`Project` entry point) and `../demo-29-custom-build` (a build wired entirely by hand): a
+`Project` entry point) and `../demo-30-custom-build` (a build wired entirely by hand): a
 "custom but not so custom" build that reuses the stock toolchain through one
 convenience call. The launcher avoids going through `Project` - no layout, no goals,
 no `java build/jenesis/Project.java` - yet without wiring every step by hand either,
@@ -68,4 +68,4 @@ standard compile/jar/test flow runs unchanged.
 To take full control - a custom repository, strict pinning, a different digest -
 switch to the full `make(root, prefix, repositories, resolvers, pinning,
 digest, assembler)` overload that `Project` itself uses. To drop the templates
-entirely and wire the build graph by hand, see `../demo-29-custom-build`.
+entirely and wire the build graph by hand, see `../demo-30-custom-build`.

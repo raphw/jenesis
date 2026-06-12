@@ -314,6 +314,31 @@ public class PinModuleInfoTest {
     }
 
     @Test
+    public void preserves_platform_guarded_keys_verbatim() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin bar :win:1.0 SHA-256/aaa [windows]
+                 * @jenesis.pin bar 1.0 SHA-256/bbb
+                 * @jenesis.pin other 0.9
+                 */
+                module foo {
+                  requires bar;
+                  requires other;
+                }
+                """);
+        writeResolved(new LinkedHashMap<>(Map.of(
+                "module/bar-win", "1.0 SHA-256/stale",
+                "module/other", "2.0 SHA-256/cafebabe")));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin bar :win:1.0 SHA-256/aaa [windows]");
+        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/bbb");
+        assertThat(result).contains("@jenesis.pin other 2.0 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("@jenesis.pin other 0.9");
+        assertThat(result).doesNotContain("SHA-256/stale");
+    }
+
+    @Test
     public void second_run_with_same_input_is_a_noop() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """

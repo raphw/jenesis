@@ -6,7 +6,7 @@ artifact, resolved from a repository coordinate rather than compiled from local
 source. The plugin performs the same `${greeting}` substitution over the
 project's Java sources (driven by the `org.json` dependency) before the regular
 compile, jar, and test flow runs. This is the published-artifact counterpart of
-`../demo-25-internal-module`: same plugin, same outcome, only the plugin is
+`../demo-26-internal-module`: same plugin, same outcome, only the plugin is
 obtained as a coordinate with `ExternalModule` instead of from source with
 `InternalModule`.
 
@@ -27,7 +27,7 @@ Built without the plugin the literal `${greeting}` would print instead.
 Layout
 ------
 
-    demo/demo-26-external-module
+    demo/demo-27-external-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (stage, then Project + assembler)
     |-- plugin/                  the build module (identical to internal-module)
@@ -82,7 +82,7 @@ the resolved module at run time.
 Isolating the build module's Jenesis
 ------------------------------------
 
-Just as in `../demo-25-internal-module`, the resolved build module is loaded into
+Just as in `../demo-26-internal-module`, the resolved build module is loaded into
 its **own `ModuleLayer` with its own class loader** carrying its own
 `build.jenesis`, bridged to the host across class loaders so the two Jenesis
 copies never clash and the module may pin a different version. The build module
