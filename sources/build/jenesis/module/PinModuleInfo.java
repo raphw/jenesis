@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Inventory;
 
@@ -13,22 +14,32 @@ public class PinModuleInfo implements BuildStep {
 
     private static final Pattern MODULE_DECLARATION = Pattern.compile("(?m)^(open\\s+)?module\\s+");
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
-    private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+\\S+.*$");
+    private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+(\\S+)(\\s+.*)?$");
 
     private final String prefix;
     private final String path;
     private final List<Path> moduleInfoFiles;
     private final transient HashDigestFunction hashFunction;
-
-    public PinModuleInfo(String prefix, String path, Path moduleInfoFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(moduleInfoFile), hashFunction);
-    }
+    private final SequencedSet<String> platform;
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
+        this(prefix, path, moduleInfoFiles, hashFunction, Platform.tokens());
+    }
+
+    private PinModuleInfo(String prefix,
+                          String path,
+                          List<Path> moduleInfoFiles,
+                          HashDigestFunction hashFunction,
+                          SequencedSet<String> platform) {
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
         this.hashFunction = hashFunction;
+        this.platform = platform;
+    }
+
+    public PinModuleInfo platform(SequencedSet<String> platform) {
+        return new PinModuleInfo(prefix, path, moduleInfoFiles, hashFunction, platform);
     }
 
     @Override
@@ -45,7 +56,7 @@ public class PinModuleInfo implements BuildStep {
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
         SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
         for (Path file : moduleInfoFiles) {
-            updateModuleInfo(file, entries);
+            updateModuleInfo(file, entries, platform);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
@@ -58,7 +69,9 @@ public class PinModuleInfo implements BuildStep {
         return dependency.checksum().isEmpty() ? null : dependency.checksum();
     }
 
-    private static void updateModuleInfo(Path file, SequencedMap<String, String> entries) throws IOException {
+    private static void updateModuleInfo(Path file,
+                                         SequencedMap<String, String> entries,
+                                         SequencedSet<String> platform) throws IOException {
         String existing = Files.readString(file);
         Matcher moduleDeclarationMatcher = MODULE_DECLARATION.matcher(existing);
         if (!moduleDeclarationMatcher.find()) {
@@ -67,7 +80,7 @@ public class PinModuleInfo implements BuildStep {
         int moduleStart = moduleDeclarationMatcher.start();
         String prelude = existing.substring(0, moduleStart);
         String body = existing.substring(moduleStart);
-        String updatedPrelude = updateJavadoc(prelude, entries);
+        String updatedPrelude = updateJavadoc(prelude, entries, platform);
         String updated = updatedPrelude + body;
         if (!updated.equals(existing)) {
             Files.writeString(file, updated);
@@ -145,7 +158,9 @@ public class PinModuleInfo implements BuildStep {
         return internal;
     }
 
-    private static String updateJavadoc(String prelude, SequencedMap<String, String> entries) {
+    private static String updateJavadoc(String prelude,
+                                        SequencedMap<String, String> entries,
+                                        SequencedSet<String> platform) {
         int javadocEnd = -1;
         int javadocStart = -1;
         Matcher javadocEndMatcher = JAVADOC_END.matcher(prelude);
@@ -164,18 +179,91 @@ public class PinModuleInfo implements BuildStep {
         String before = prelude.substring(0, javadocStart);
         String javadoc = prelude.substring(javadocStart, javadocEnd);
         String after = prelude.substring(javadocEnd);
-        String rewritten = rewriteJavadoc(javadoc, entries);
+        String rewritten = rewriteJavadoc(javadoc, entries, platform);
         return before + rewritten + after;
     }
 
-    private static String rewriteJavadoc(String javadoc, SequencedMap<String, String> entries) {
+    private record PinLine(int index, String token, String guard) {
+    }
+
+    private static String rewriteJavadoc(String javadoc,
+                                         SequencedMap<String, String> entries,
+                                         SequencedSet<String> platform) {
         List<String> lines = new ArrayList<>(List.of(javadoc.split("\\n", -1)));
+        SequencedMap<String, List<PinLine>> guarded = new LinkedHashMap<>();
+        for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+            Matcher matcher = PIN_TAG.matcher(lines.get(lineIndex));
+            if (matcher.matches() && matcher.group(2) != null && matcher.group(2).trim().endsWith("]")) {
+                guarded.computeIfAbsent(expand(matcher.group(1)), _ -> new ArrayList<>());
+            }
+        }
+        for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+            Matcher matcher = PIN_TAG.matcher(lines.get(lineIndex));
+            if (!matcher.matches()) {
+                continue;
+            }
+            String key = expand(matcher.group(1));
+            List<PinLine> pins = guarded.get(key);
+            if (pins == null) {
+                continue;
+            }
+            String rest = matcher.group(2) == null ? "" : matcher.group(2).trim();
+            String guard = null;
+            if (rest.endsWith("]")) {
+                int bracket = rest.lastIndexOf('[');
+                if (bracket >= 0) {
+                    guard = rest.substring(bracket + 1, rest.length() - 1);
+                }
+            }
+            pins.add(new PinLine(lineIndex, matcher.group(1), guard));
+        }
+        // A key with platform guards keeps every line in place; only the line whose guard
+        // matched the local platform (or the unguarded fallback) is refreshed from the
+        // resolved closure, since this resolution only reflects the local variant.
+        SequencedMap<String, String> expanded = new LinkedHashMap<>();
+        entries.forEach((key, value) -> expanded.put(expand(key), key + " " + value));
+        for (Map.Entry<String, List<PinLine>> entry : guarded.entrySet()) {
+            String resolved = expanded.get(entry.getKey());
+            if (resolved == null) {
+                continue;
+            }
+            PinLine fallback = null, matched = null;
+            int specificity = 0;
+            boolean ambiguous = false;
+            for (PinLine pin : entry.getValue()) {
+                if (pin.guard() == null) {
+                    fallback = pin;
+                    continue;
+                }
+                SequencedSet<String> tokens = Platform.tokens(pin.guard());
+                if (!platform.containsAll(tokens)) {
+                    continue;
+                }
+                if (tokens.size() > specificity) {
+                    matched = pin;
+                    specificity = tokens.size();
+                    ambiguous = false;
+                } else if (tokens.size() == specificity) {
+                    ambiguous = true;
+                }
+            }
+            if (ambiguous) {
+                continue;
+            }
+            PinLine winner = matched != null ? matched : fallback;
+            if (winner != null) {
+                lines.set(winner.index(), " * @jenesis.pin "
+                        + resolved
+                        + (winner.guard() == null ? "" : " [" + winner.guard() + "]"));
+            }
+        }
         int insertAt = -1;
         Iterator<String> it = lines.iterator();
         int index = 0;
         while (it.hasNext()) {
             String line = it.next();
-            if (PIN_TAG.matcher(line).matches()) {
+            Matcher matcher = PIN_TAG.matcher(line);
+            if (matcher.matches() && !guarded.containsKey(expand(matcher.group(1)))) {
                 if (insertAt < 0) {
                     insertAt = index;
                 }
@@ -197,10 +285,21 @@ public class PinModuleInfo implements BuildStep {
         }
         List<String> tags = new ArrayList<>();
         for (Map.Entry<String, String> entry : entries.entrySet()) {
+            if (guarded.containsKey(expand(entry.getKey()))) {
+                continue;
+            }
             tags.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
         }
         lines.addAll(insertAt, tags);
         return String.join("\n", lines);
+    }
+
+    private static String expand(String token) {
+        int first = token.indexOf('/');
+        if (first < 0) {
+            return "main/module/" + token;
+        }
+        return token.indexOf('/', first + 1) < 0 ? "main/maven/" + token : token;
     }
 
     private static String renderJavadoc(SequencedMap<String, String> entries) {

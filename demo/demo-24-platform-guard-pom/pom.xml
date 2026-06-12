@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>build.jenesis.demo</groupId>
+    <artifactId>platform-guard-pom</artifactId>
+    <version>1.0.0</version>
+
+    <build>
+        <sourceDirectory>sources</sourceDirectory>
+    </build>
+
+    <properties>
+        <mainClass>sample.Sample</mainClass>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>1.12.0</version>
+                <!--Checksum/SHA-256/de023257ff166044a56bd1aa9124e843cd05dac5806cc705a9311f3556d5a15f-->
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.12.0</version>
+        </dependency>
+    </dependencies>
+    <!--jenesis.pin
+    main/maven/org.apache.commons/commons-lang3 3.14.0 SHA-256/7b96bf3ee68949abb5bc465559ac270e0551596fa34523fddf890ec418dde13c
+    main/maven/org.apache.commons/commons-lang3 3.12.0 SHA-256/d919d904486c037f8d193412da0c92e22a9fa24230b9d67a57855c5c31c7e94e [legacy]
+    -->
+</project>

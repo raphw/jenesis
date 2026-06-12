@@ -363,9 +363,28 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   filename. The `pin` step folds a fused resolved coordinate back into the value form, so repinning round-trips
   the classifier. Classifier pins resolve through the `module` repository only: `MavenModuleResolver` (the
   `MODULAR_TO_MAVEN` layout) rejects them, since a classified artifact shares its GAV's POM and the module-name
-  translation has no per-classifier POM to fetch. Selecting a classifier per machine (an OS- or
-  architecture-dependent condition) is deliberately not part of this mechanism; the pin states the variant
-  explicitly, so the build stays reproducible from committed sources alone.
+  translation has no per-classifier POM to fetch. Per-machine selection composes on top as plain data, never as
+  code: a pin line may end with a bracketed **platform guard**,
+  `@jenesis.pin org.openjfx.javafx.base :win:21.0.3 <algo>/<hash> [windows]`, and the manifests step keeps only
+  the line whose guard matches the active platform when it writes `versions.properties`, so everything downstream
+  of manifests is untouched by the mechanism. The same guard applies to pin lines in a `pom.xml`'s
+  `<!--jenesis.pin ... -->` comment block, where it selects which version of a (typically transitive) coordinate
+  the bill of materials pins per platform; a directly declared `<version>` stays authoritative over the bill of
+  materials, and a guard can never force in a classifier, since Maven dependency management matches classifiers
+  as part of the coordinate key rather than contributing them. The active platform is the token set of the
+  `jenesis.dependency.platform` property (comma-separated, normalized to lower case and sorted), defaulting to
+  the detected operating system and chipset - one of `windows`/`linux`/`macos` plus one of `x86_64`/`aarch64` -
+  and overriding the property cross-resolves another platform's closure from any machine. A guard matches when
+  all of its tokens are contained in the active set; the most specific match (largest guard) wins, an unguarded
+  line for the same key is the fallback, two equally specific distinct matches fail the build, and an unmatched
+  guard without a fallback leaves the key unpinned (which strict pinning then rejects). Tokens are free-form, so
+  beyond the platform defaults a build can activate custom flavors (`fips`, `musl`) through the same property.
+  The token set is a field of the manifests step, so the cache identity is honest: with no guards the step's
+  output is byte-identical on every machine and the resolution cache stays portable across machines; with guards,
+  resolution legitimately runs once per platform. The `pin` goal applies the same guard matching: the one line
+  that matched the local platform (a guard or the unguarded fallback) is refreshed from the resolved closure,
+  keeping its guard, and every non-matching line is preserved byte-for-byte, since a local repin only observes
+  the variant the local platform selected; keys without guards are rewritten as usual.
   Groups whose resolution Maven must not act on (the compiler groups, including their
   scope `plugin` compiler-plugin entries) stay out of
   `<dependencyManagement>` and live in the `<!--jenesis.pin-->` comment instead;

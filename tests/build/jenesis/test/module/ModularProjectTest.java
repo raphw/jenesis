@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
@@ -37,7 +38,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .hasRootCauseMessage("Test module 'foo' declares @jenesis.test other.module but does not"
@@ -56,7 +57,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("module/module-/sources",
                 "module/module-/manifests",
@@ -90,7 +91,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKey("module/module-/sources");
     }
@@ -111,7 +112,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
         Path versionsFile = module.resolve(BuildStep.VERSIONS);
@@ -120,6 +121,148 @@ public class ModularProjectTest {
         assertThat(versions).containsOnly(
                 Map.entry("main/module/bar", "1.2.3"),
                 Map.entry("main/module/transitive.pin", "9.9.9"));
+    }
+
+    @Test
+    public void selects_guarded_pin_matching_platform() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 * @jenesis.pin bar 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.tokens("windows,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsOnly(Map.entry("main/module/bar", ":win:1.0"));
+    }
+
+    @Test
+    public void guarded_pin_value_carries_checksum() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 SHA-256/aaa [windows]
+                 * @jenesis.pin bar 1.0 SHA-256/bbb
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.tokens("windows,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsOnly(Map.entry("main/module/bar", ":win:1.0 SHA-256/aaa"));
+    }
+
+    @Test
+    public void falls_back_to_unguarded_pin_without_platform_match() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 * @jenesis.pin bar 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.tokens("linux,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsOnly(Map.entry("main/module/bar", "1.0"));
+    }
+
+    @Test
+    public void more_specific_guard_wins_over_general_guard() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 * @jenesis.pin bar :win-aarch64:1.0 [windows,aarch64]
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.tokens("windows,aarch64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsOnly(Map.entry("main/module/bar", ":win-aarch64:1.0"));
+    }
+
+    @Test
+    public void ambiguous_guards_fail_the_build() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 * @jenesis.pin bar :x64:1.0 [x86_64]
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.tokens("windows,x86_64")));
+        assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .rootCause()
+                .hasMessageContaining("Ambiguous")
+                .hasMessageContaining("main/module/bar");
+    }
+
+    @Test
+    public void unmatched_guard_without_fallback_yields_no_pin() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.pin bar :win:1.0 [windows]
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.tokens("linux,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(results.get("module/module-/manifests").resolve(BuildStep.VERSIONS)).doesNotExist();
     }
 
     @Test
@@ -137,7 +280,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
         assertThat(module.resolve(BuildStep.VERSIONS)).doesNotExist();
@@ -259,7 +402,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties module = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.MODULE));
@@ -278,7 +421,7 @@ public class ModularProjectTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
-        executor.addModule("module", new ModularProject("module", project, _ -> true, true));
+        executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties module = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.MODULE));

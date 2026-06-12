@@ -7,6 +7,7 @@ import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.License;
 import build.jenesis.PathPlacement;
+import build.jenesis.Platform;
 import build.jenesis.Resolver;
 
 public class MavenPomResolver implements MavenResolver {
@@ -895,7 +896,7 @@ public class MavenPomResolver implements MavenResolver {
                 .filter(text -> text.startsWith("jenesis.pin"))
                 .forEach(text -> {
                     for (String line : text.substring("jenesis.pin".length()).replace("&#45;", "-").split("\n")) {
-                        String trimmed = line.trim();
+                        String trimmed = line.trim().replaceAll("\\s+", " ");
                         if (trimmed.isEmpty()) {
                             continue;
                         }
@@ -905,6 +906,18 @@ public class MavenPomResolver implements MavenResolver {
                         }
                         String token = trimmed.substring(0, space).trim();
                         String value = trimmed.substring(space + 1).trim().replaceAll("\\s+", " ");
+                        String guard = null;
+                        if (value.endsWith("]")) {
+                            int bracket = value.lastIndexOf('[');
+                            if (bracket < 0) {
+                                throw new IllegalArgumentException("Malformed jenesis.pin guard '"
+                                        + value
+                                        + "': expected <value> [<token>,<token>...]");
+                            }
+                            guard = String.join(",", Platform.tokens(
+                                    value.substring(bracket + 1, value.length() - 1)));
+                            value = value.substring(0, bracket).trim();
+                        }
                         if (value.isEmpty()) {
                             continue;
                         }
@@ -913,7 +926,7 @@ public class MavenPomResolver implements MavenResolver {
                         if (secondSlash < firstSlash + 2 || secondSlash == token.length() - 1) {
                             continue;
                         }
-                        entries.put(token, value);
+                        entries.put(guard == null ? token : token + "[" + guard + "]", value);
                     }
                 });
         return entries;

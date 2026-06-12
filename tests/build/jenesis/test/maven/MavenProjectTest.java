@@ -7,6 +7,7 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
@@ -663,6 +664,65 @@ public class MavenProjectTest {
                 .as("a group-qualified block pin keeps its own group rather than being prefixed with main/")
                 .containsEntry("launcher/maven/build.jenesis/build.jenesis.launcher", "0.2.0 SHA-256/abc");
         assertThat(versions.stringPropertyNames()).noneMatch(name -> name.startsWith("main/maven/launcher"));
+    }
+
+    @Test
+    public void selects_guarded_block_pin_matching_platform() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    launcher/maven/build.jenesis/build.jenesis.launcher 0.3.0 SHA-256/win [windows]
+                    launcher/maven/build.jenesis/build.jenesis.launcher 0.2.0 SHA-256/abc
+                    -->
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver)
+                .platform(Platform.tokens("windows,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("maven/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsEntry("launcher/maven/build.jenesis/build.jenesis.launcher", "0.3.0 SHA-256/win");
+    }
+
+    @Test
+    public void falls_back_to_unguarded_block_pin_without_platform_match() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    launcher/maven/build.jenesis/build.jenesis.launcher 0.3.0 SHA-256/win [windows]
+                    launcher/maven/build.jenesis/build.jenesis.launcher 0.2.0 SHA-256/abc
+                    -->
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver)
+                .platform(Platform.tokens("linux,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("maven/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions).containsEntry("launcher/maven/build.jenesis/build.jenesis.launcher", "0.2.0 SHA-256/abc");
+        assertThat(versions.stringPropertyNames()).noneMatch(name -> name.contains("["));
     }
 
     @Test

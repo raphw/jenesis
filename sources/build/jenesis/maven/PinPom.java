@@ -6,6 +6,7 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Inventory;
 
@@ -17,22 +18,32 @@ public class PinPom implements BuildStep {
     private static final Pattern PROJECT_CLOSE = Pattern.compile("\\n([ \\t]*)</project>");
     private static final Pattern CHECKSUM_COMMENT = Pattern.compile("[ \\t]*<!--\\s*Checksum/[^>]*-->\\s*\\n");
     private static final Pattern INDENT = Pattern.compile("\\n([ \\t]+)<");
-    private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--\\s*jenesis\\.pin\\b.*?-->\\s*\\n");
+    private static final Pattern PIN_COMMENT = Pattern.compile("(?s)([ \\t]*)<!--\\s*jenesis\\.pin\\b(.*?)-->\\s*\\n");
 
     private final String prefix;
     private final String path;
     private final List<Path> pomFiles;
     private final transient HashDigestFunction hashFunction;
-
-    public PinPom(String prefix, String path, Path pomFile, HashDigestFunction hashFunction) {
-        this(prefix, path, List.of(pomFile), hashFunction);
-    }
+    private final SequencedSet<String> platform;
 
     public PinPom(String prefix, String path, List<Path> pomFiles, HashDigestFunction hashFunction) {
+        this(prefix, path, pomFiles, hashFunction, Platform.tokens());
+    }
+
+    private PinPom(String prefix,
+                   String path,
+                   List<Path> pomFiles,
+                   HashDigestFunction hashFunction,
+                   SequencedSet<String> platform) {
         this.prefix = prefix;
         this.path = path;
         this.pomFiles = List.copyOf(pomFiles);
         this.hashFunction = hashFunction;
+        this.platform = platform;
+    }
+
+    public PinPom platform(SequencedSet<String> platform) {
+        return new PinPom(prefix, path, pomFiles, hashFunction, platform);
     }
 
     @Override
@@ -78,6 +89,10 @@ public class PinPom implements BuildStep {
                 qualified.put(key, entry.getValue());
             }
         }
+        Matcher pinMatcher = PIN_COMMENT.matcher(existing);
+        List<String> preserved = pinMatcher.find()
+                ? preserveGuarded(pinMatcher.group(2), qualified, managed)
+                : List.of();
         String block = managed.isEmpty() ? "" : renderBlock(managed, indent);
         String updated;
         if (dependencyManagementMatcher.find(0)) {
@@ -96,8 +111,8 @@ public class PinPom implements BuildStep {
                 updated = existing.substring(0, projectCloseMatcher.start() + 1) + block + existing.substring(projectCloseMatcher.start() + 1);
             }
         }
-        String requires = qualified.isEmpty() ? "" : renderRequires(qualified, indent);
         Matcher requiresMatcher = PIN_COMMENT.matcher(updated);
+        String requires = qualified.isEmpty() && preserved.isEmpty() ? "" : renderRequires(qualified, preserved, indent);
         if (requiresMatcher.find()) {
             updated = requiresMatcher.replaceFirst(Matcher.quoteReplacement(requires));
         } else if (!requires.isEmpty()) {
@@ -137,9 +152,96 @@ public class PinPom implements BuildStep {
         return entries;
     }
 
-    private static String renderRequires(SequencedMap<String, String> qualified, String indent) {
+    private List<String> preserveGuarded(String block,
+                                         SequencedMap<String, String> qualified,
+                                         SequencedMap<String, String> managed) {
+        record Pin(String token, String value, String guard) {
+        }
+        List<Pin> pins = new ArrayList<>();
+        Set<String> guarded = new LinkedHashSet<>();
+        for (String line : block.replace("&#45;", "-").split("\n")) {
+            String trimmed = line.trim().replaceAll("\\s+", " ");
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int space = trimmed.indexOf(' ');
+            if (space < 1) {
+                continue;
+            }
+            String token = trimmed.substring(0, space);
+            String value = trimmed.substring(space + 1).trim();
+            String guard = null;
+            if (value.endsWith("]")) {
+                int bracket = value.lastIndexOf('[');
+                if (bracket >= 0) {
+                    guard = value.substring(bracket + 1, value.length() - 1);
+                    value = value.substring(0, bracket).trim();
+                }
+            }
+            pins.add(new Pin(token, value, guard));
+            if (guard != null) {
+                guarded.add(token);
+            }
+        }
+        if (guarded.isEmpty()) {
+            return List.of();
+        }
+        // A key with platform guards keeps every line in place; only the line whose guard
+        // matched the local platform (or the unguarded fallback) is refreshed from the
+        // resolved closure, since this resolution only reflects the local variant.
+        for (String key : guarded) {
+            String resolved = qualified.remove(key);
+            if (key.startsWith("main/maven/")) {
+                String fromManaged = managed.remove(key.substring("main/maven/".length()));
+                if (resolved == null) {
+                    resolved = fromManaged;
+                }
+            }
+            Integer fallback = null, matched = null;
+            int specificity = 0;
+            boolean ambiguous = false;
+            for (int index = 0; index < pins.size(); index++) {
+                Pin pin = pins.get(index);
+                if (!pin.token().equals(key)) {
+                    continue;
+                }
+                if (pin.guard() == null) {
+                    fallback = index;
+                    continue;
+                }
+                SequencedSet<String> tokens = Platform.tokens(pin.guard());
+                if (!platform.containsAll(tokens)) {
+                    continue;
+                }
+                if (tokens.size() > specificity) {
+                    matched = index;
+                    specificity = tokens.size();
+                    ambiguous = false;
+                } else if (tokens.size() == specificity) {
+                    ambiguous = true;
+                }
+            }
+            Integer winner = matched != null ? matched : fallback;
+            if (resolved != null && winner != null && !ambiguous) {
+                Pin pin = pins.get(winner);
+                pins.set(winner, new Pin(pin.token(), resolved, pin.guard()));
+            }
+        }
+        List<String> preserved = new ArrayList<>();
+        for (Pin pin : pins) {
+            if (guarded.contains(pin.token())) {
+                preserved.add(pin.token() + " " + pin.value() + (pin.guard() == null ? "" : " [" + pin.guard() + "]"));
+            }
+        }
+        return preserved;
+    }
+
+    private static String renderRequires(SequencedMap<String, String> qualified, List<String> preserved, String indent) {
         StringBuilder sb = new StringBuilder();
         sb.append(indent).append("<!--jenesis.pin\n");
+        for (String line : preserved) {
+            sb.append(indent).append(line.replace("--", "&#45;&#45;")).append("\n");
+        }
         for (Map.Entry<String, String> entry : qualified.entrySet()) {
             sb.append(indent).append((entry.getKey() + " " + entry.getValue()).replace("--", "&#45;&#45;")).append("\n");
         }

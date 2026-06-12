@@ -7,6 +7,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
+import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.PinPom;
 import build.jenesis.step.Inventory;
@@ -73,7 +74,13 @@ public class PinPomTest {
     }
 
     private String run(Path pomFile) throws IOException {
-        new PinPom("maven", "", pomFile, new HashDigestFunction("SHA-256")).apply(Runnable::run,
+        return run(pomFile, Platform.tokens("linux,x86_64"));
+    }
+
+    private String run(Path pomFile, SequencedSet<String> platform) throws IOException {
+        new PinPom("maven", "", List.of(pomFile), new HashDigestFunction("SHA-256"))
+                .platform(platform)
+                .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
@@ -81,6 +88,101 @@ public class PinPomTest {
                 .toCompletableFuture()
                 .join();
         return Files.readString(pomFile);
+    }
+
+    @Test
+    public void updates_matched_guarded_comment_line_and_preserves_others() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/aaa [windows]
+                    kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/bbb
+                    plugin/maven/org.example/other 0.9
+                    -->
+                </project>
+                """);
+        writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3 SHA-256/fresh"));
+        writeResolved("plugin", Map.of("maven/org.example/other", "4.5.6 SHA-256/cafebabe"));
+        String result = run(pom, Platform.tokens("windows,x86_64"));
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/fresh [windows]");
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/bbb");
+        assertThat(result).doesNotContain("SHA-256/aaa");
+        assertThat(result).contains("plugin/maven/org.example/other 4.5.6 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("org.example/other 0.9");
+    }
+
+    @Test
+    public void updates_matched_fallback_comment_line_and_preserves_guard() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/aaa [windows]
+                    kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/bbb
+                    -->
+                </project>
+                """);
+        writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3 SHA-256/fresh"));
+        String result = run(pom, Platform.tokens("linux,x86_64"));
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/aaa [windows]");
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/fresh");
+        assertThat(result).doesNotContain("SHA-256/bbb");
+    }
+
+    @Test
+    public void guarded_main_pin_stays_in_block_and_out_of_dependency_management() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    main/maven/io.smallrye.reactive/mutiny-zero 1.0.0 SHA-256/aaa [windows]
+                    main/maven/io.smallrye.reactive/mutiny-zero 0.9.0 SHA-256/bbb
+                    -->
+                </project>
+                """);
+        writeResolved(Map.of("maven/io.smallrye.reactive/mutiny-zero", "1.1.1 SHA-256/fresh"));
+        String result = run(pom, Platform.tokens("linux,x86_64"));
+        assertThat(result).contains("main/maven/io.smallrye.reactive/mutiny-zero 1.0.0 SHA-256/aaa [windows]");
+        assertThat(result).contains("main/maven/io.smallrye.reactive/mutiny-zero 1.1.1 SHA-256/fresh");
+        assertThat(result).doesNotContain("SHA-256/bbb");
+        assertThat(result).doesNotContain("<dependencyManagement>");
+    }
+
+    @Test
+    public void preserves_guarded_comment_key_without_local_resolution() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    kotlin/maven/org.jetbrains/something 1.0.0 [windows]
+                    -->
+                </project>
+                """);
+        writeResolved("plugin", Map.of("maven/org.example/other", "4.5.6"));
+        String result = run(pom, Platform.tokens("linux,x86_64"));
+        assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.0.0 [windows]");
+        assertThat(result).contains("plugin/maven/org.example/other 4.5.6");
     }
 
     @Test

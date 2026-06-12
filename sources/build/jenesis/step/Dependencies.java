@@ -153,13 +153,31 @@ public class Dependencies implements BuildStep {
                     for (String coordinate : repoEntry.getValue().sequencedKeySet()) {
                         coordinates.put(coordinate, repoExclusions.getOrDefault(coordinate, Collections.emptyNavigableSet()));
                     }
+                    SequencedMap<String, SequencedMap<String, String>> groupVersions = versions
+                            .getOrDefault(group, new LinkedHashMap<>());
+                    List<SequencedMap<String, String>> scoped = new ArrayList<>();
+                    scoped.add(groupVersions.getOrDefault(repo, new LinkedHashMap<>()));
+                    for (String managed : resolver.managedPrefixes()) {
+                        scoped.add(groupVersions.getOrDefault(managed, new LinkedHashMap<>()));
+                    }
                     SequencedMap<String, String> bom = new LinkedHashMap<>();
-                    if (pinned) {
-                        SequencedMap<String, SequencedMap<String, String>> groupVersions = versions
-                                .getOrDefault(group, new LinkedHashMap<>());
-                        bom.putAll(groupVersions.getOrDefault(repo, new LinkedHashMap<>()));
-                        for (String managed : resolver.managedPrefixes()) {
-                            groupVersions.getOrDefault(managed, new LinkedHashMap<>()).forEach(bom::putIfAbsent);
+                    for (SequencedMap<String, String> pins : scoped) {
+                        if (pinned) {
+                            pins.forEach(bom::putIfAbsent);
+                        } else {
+                            // Ignored pins drop versions and checksums, but a classifier qualifier
+                            // is a variant choice, not a derived version: it survives as a floating
+                            // classifier-only selection.
+                            pins.forEach((coordinate, value) -> {
+                                if (value.startsWith(":")) {
+                                    int space = value.indexOf(' ');
+                                    String qualified = space < 0 ? value : value.substring(0, space);
+                                    int divider = qualified.indexOf(':', 1);
+                                    bom.putIfAbsent(coordinate, divider < 0
+                                            ? qualified
+                                            : qualified.substring(0, divider));
+                                }
+                            });
                         }
                     }
                     Resolver.Resolution resolution = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
