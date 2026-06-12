@@ -6,7 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
 
@@ -47,13 +47,13 @@ public class GroupTest {
                         "left", new BuildStepArgument(
                                 left,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.REQUIRES), Checksum.ADDED)),
                         "right", new BuildStepArgument(
                                 right,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join();
         SequencedProperties leftGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "left.properties"));
         SequencedProperties rightGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "right.properties"));
         assertThat(leftGroup.stringPropertyNames()).isEmpty();
@@ -80,13 +80,13 @@ public class GroupTest {
                         "left", new BuildStepArgument(
                                 left,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.REQUIRES), Checksum.ADDED)),
                         "right", new BuildStepArgument(
                                 right,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join();
         SequencedProperties leftGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "left.properties"));
         SequencedProperties rightGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "right.properties"));
         assertThat(leftGroup.stringPropertyNames()).isEmpty();
@@ -109,8 +109,8 @@ public class GroupTest {
                         "left", new BuildStepArgument(
                                 left,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join();
         SequencedProperties leftGroup = SequencedProperties.ofFiles(next.resolve(Group.GROUPS + "left.properties"));
         assertThat(leftGroup.stringPropertyNames()).isEmpty();
         assertThat(result.next()).isTrue();

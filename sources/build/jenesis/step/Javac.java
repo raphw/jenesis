@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.PathPlacement;
 import build.jenesis.SequencedProperties;
@@ -71,8 +72,8 @@ public class Javac extends JdkProcessBuildStep {
             processFiles.add(Path.of(ProcessBuildStep.PROCESS + name));
         }
         for (BuildStepArgument argument : arguments.values()) {
-            for (Map.Entry<Path, ChecksumStatus> entry : argument.files().entrySet()) {
-                if (entry.getValue() == ChecksumStatus.RETAINED) {
+            for (Map.Entry<Path, Checksum> entry : argument.files().entrySet()) {
+                if (entry.getValue().status() == ChecksumStatus.RETAINED) {
                     continue;
                 }
                 Path path = entry.getKey();

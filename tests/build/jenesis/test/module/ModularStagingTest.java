@@ -5,7 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularStaging;
 import build.jenesis.step.Inventory;
@@ -201,11 +201,11 @@ public class ModularStagingTest {
     private BuildStepResult run(boolean includeTests, Path... inventoryFolders) throws IOException {
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         for (Path folder : inventoryFolders) {
-            Map<Path, ChecksumStatus> checksums = new LinkedHashMap<>();
+            Map<Path, Checksum> checksums = new LinkedHashMap<>();
             try (Stream<Path> stream = Files.list(folder)) {
                 stream.forEach(file -> checksums.put(
                         Path.of(file.getFileName().toString()),
-                        ChecksumStatus.ADDED));
+                        Checksum.ADDED));
             }
             arguments.put(folder.getFileName().toString(), new BuildStepArgument(folder, checksums));
         }

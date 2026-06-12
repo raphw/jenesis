@@ -126,16 +126,11 @@ class BuildExecutorDefault implements BuildExecutor {
                 for (Map.Entry<String, StepSummary> entry : summaries.entrySet()) {
                     Path checksums = checksum.resolve("argument." + BuildExecutorModule.encode(entry.getKey()) + ".properties");
                     Map<Path, byte[]> argumentChecksums = entry.getValue().checksums();
-                    Map<Path, String> encoded = new LinkedHashMap<>();
-                    for (Map.Entry<Path, byte[]> checksumEntry : argumentChecksums.entrySet()) {
-                        encoded.put(checksumEntry.getKey(), hash.encoded(checksumEntry.getValue()));
-                    }
                     arguments.put(entry.getKey(), new BuildStepArgument(
                             entry.getValue().folder(),
                             consistent && Files.exists(checksums)
-                                    ? ChecksumStatus.diff(HashFunction.read(checksums), argumentChecksums)
-                                    : ChecksumStatus.added(argumentChecksums.keySet()),
-                            encoded));
+                                    ? Checksum.diff(HashFunction.read(checksums), argumentChecksums, hash)
+                                    : Checksum.added(argumentChecksums, hash)));
                 }
                 BiConsumer<Boolean, Throwable> completion = callback.step(
                         location + identity,

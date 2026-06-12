@@ -7,7 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Javac;
@@ -42,7 +42,7 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
@@ -68,9 +68,9 @@ public class JavacTest {
     @Test
     public void shouldRun_skips_when_only_irrelevant_files_changed() {
         BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
-                Path.of("sources/sample/note.txt"), ChecksumStatus.ADDED,
-                Path.of("sources/sample/Sample.kt"), ChecksumStatus.ADDED,
-                Path.of("metadata.properties"), ChecksumStatus.ADDED));
+                Path.of("sources/sample/note.txt"), Checksum.ADDED,
+                Path.of("sources/sample/Sample.kt"), Checksum.ADDED,
+                Path.of("metadata.properties"), Checksum.ADDED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
         assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isFalse();
@@ -79,7 +79,7 @@ public class JavacTest {
     @Test
     public void shouldRun_fires_when_a_java_source_changed() {
         BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
-                Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED));
+                Path.of("sources/sample/Sample.java"), Checksum.ADDED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
         assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isTrue();
@@ -89,7 +89,7 @@ public class JavacTest {
     public void shouldRun_fires_when_upstream_classpath_or_dependencies_changed() {
         for (Path changed : List.of(Path.of("classes/x.jar"), Path.of("artifacts/x.jar"), Path.of(BuildStep.DEPENDENCIES))) {
             BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
-                    changed, ChecksumStatus.ADDED));
+                    changed, Checksum.ADDED));
             SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
             arguments.put("input", argument);
             assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments))
@@ -101,7 +101,7 @@ public class JavacTest {
     @Test
     public void shouldRun_fires_when_javac_properties_changed() {
         BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
-                Path.of("process/javac.properties"), ChecksumStatus.ADDED));
+                Path.of("process/javac.properties"), Checksum.ADDED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
         assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isTrue();
@@ -110,8 +110,8 @@ public class JavacTest {
     @Test
     public void shouldRun_ignores_retained_files() {
         BuildStepArgument argument = new BuildStepArgument(sources, Map.of(
-                Path.of("sources/sample/Sample.java"), ChecksumStatus.RETAINED,
-                Path.of("classes/Other.class"), ChecksumStatus.RETAINED));
+                Path.of("sources/sample/Sample.java"), Checksum.RETAINED,
+                Path.of("classes/Other.class"), Checksum.RETAINED));
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("input", argument);
         assertThat(new Javac(ProcessHandler.Factory.TOOL).shouldRun(arguments)).isFalse();
@@ -132,8 +132,8 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("process/javac.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("process/javac.properties"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
     }
@@ -154,8 +154,8 @@ public class JavacTest {
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
-                                Path.of("process/javac.properties"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/module-info.java"), Checksum.ADDED,
+                                Path.of("process/javac.properties"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
         assertThat(moduleInfo).isNotEmptyFile();
@@ -175,7 +175,7 @@ public class JavacTest {
                 new BuildStepContext(this.previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/module-info.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path moduleInfo = next.resolve(Javac.CLASSES + "module-info.class");
         assertThat(moduleInfo).isNotEmptyFile();
@@ -200,8 +200,8 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         Path mainClass = next.resolve(Javac.CLASSES + "sample/Sample.class");
         Path overlayClass = next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Sample.class");
@@ -240,10 +240,10 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/sample/Helper.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/21/sample/Caller.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("sources/sample/Helper.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Caller.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
         assertThat(next.resolve(Javac.CLASSES + "sample/Helper.class")).isNotEmptyFile();
@@ -274,8 +274,8 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Helper.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/17/sample/Caller.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Helper.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/17/sample/Caller.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Helper.class")).isNotEmptyFile();
         assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/17/sample/Caller.class")).isNotEmptyFile();
@@ -300,9 +300,9 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/sample/Helper.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/21/sample/Caller.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/module-info.java"), Checksum.ADDED,
+                                Path.of("sources/sample/Helper.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Caller.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "module-info.class")).isNotEmptyFile();
         assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/21/sample/Caller.class")).isNotEmptyFile();
@@ -321,9 +321,9 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("manifest.mf"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("manifest.mf"))
                 .as("Javac defers to the predecessor's manifest when it already declares Multi-Release")
@@ -343,9 +343,9 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), ChecksumStatus.ADDED,
-                                Path.of("manifest.mf"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("sources/META-INF/versions/21/sample/Sample.java"), Checksum.ADDED,
+                                Path.of("manifest.mf"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("manifest.mf")).content().contains("Multi-Release: true");
     }
@@ -359,7 +359,7 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("manifest.mf")).doesNotExist();
     }
@@ -383,10 +383,10 @@ public class JavacTest {
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sibling", new BuildStepArgument(
                 root.resolve("sibling"),
-                Map.of(Path.of(Javac.CLASSES + "pure/Generated.class"), ChecksumStatus.ADDED)));
+                Map.of(Path.of(Javac.CLASSES + "pure/Generated.class"), Checksum.ADDED)));
         arguments.put("sources", new BuildStepArgument(
                 sources,
-                Map.of(Path.of("sources/module-info.java"), ChecksumStatus.ADDED)));
+                Map.of(Path.of("sources/module-info.java"), Checksum.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL).apply(Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 arguments).toCompletableFuture().join();
@@ -416,9 +416,9 @@ public class JavacTest {
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sources", new BuildStepArgument(sources,
-                Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)));
+                Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED)));
         arguments.put("processors/artifacts", new BuildStepArgument(processorRoot,
-                Map.of(Path.of("resolved/processor.jar"), ChecksumStatus.ADDED)));
+                Map.of(Path.of("resolved/processor.jar"), Checksum.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
@@ -454,11 +454,11 @@ public class JavacTest {
 
         SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
         arguments.put("sources", new BuildStepArgument(sources, Map.of(
-                Path.of("sources/module-info.java"), ChecksumStatus.ADDED,
-                Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED)));
+                Path.of("sources/module-info.java"), Checksum.ADDED,
+                Path.of("sources/sample/Sample.java"), Checksum.ADDED)));
         arguments.put("processors/artifacts", new BuildStepArgument(root.resolve("processor"), Map.of(
-                Path.of("resolved/plain.jar"), ChecksumStatus.ADDED,
-                Path.of("resolved/modular.jar"), ChecksumStatus.ADDED)));
+                Path.of("resolved/plain.jar"), Checksum.ADDED,
+                Path.of("resolved/modular.jar"), Checksum.ADDED)));
         BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
                 .apply(Runnable::run, new BuildStepContext(previous, next, supplement), arguments)
                 .toCompletableFuture().join();
@@ -561,7 +561,7 @@ public class JavacTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                         sources,
-                        Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
         assertThat(next.resolve(Javac.CLASSES + "sample/foo")).content().isEqualTo("bar");
@@ -581,9 +581,9 @@ public class JavacTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                                 sources,
-                                Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                        Path.of("sources/sample/app.properties"), ChecksumStatus.ADDED,
-                                        Path.of("sources/sample/Other.kt"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                        Path.of("sources/sample/app.properties"), Checksum.ADDED,
+                                        Path.of("sources/sample/Other.kt"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "sample/Sample.class")).isNotEmptyFile();
         assertThat(next.resolve(Javac.CLASSES + "sample/app.properties"))
@@ -608,9 +608,9 @@ public class JavacTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
                                 sources,
-                                Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
-                                        Path.of("sources/META-INF/native-image/app/reachability-metadata.json"), ChecksumStatus.ADDED,
-                                        Path.of("sources/META-INF/versions/25/overlay.json"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Map.of(Path.of("sources/sample/Sample.java"), Checksum.ADDED,
+                                        Path.of("sources/META-INF/native-image/app/reachability-metadata.json"), Checksum.ADDED,
+                                        Path.of("sources/META-INF/versions/25/overlay.json"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve(Javac.CLASSES + "META-INF/native-image/app/reachability-metadata.json"))
                 .as("META-INF resources are copied into the classes output verbatim")

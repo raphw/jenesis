@@ -6,7 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Assign;
 
@@ -40,8 +40,8 @@ public class AssignTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.ARTIFACTS + "foo"), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.ARTIFACTS + "foo"), Checksum.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -67,9 +67,9 @@ public class AssignTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.ARTIFACTS + "classes.jar"), ChecksumStatus.ADDED,
-                                        Path.of("jmods/foo.jmod"), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.ARTIFACTS + "classes.jar"), Checksum.ADDED,
+                                        Path.of("jmods/foo.jmod"), Checksum.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -100,8 +100,8 @@ public class AssignTest {
                         new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
                                 argument,
                                 Map.of(
-                                        Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                        Path.of(BuildStep.ARTIFACTS + "foo"), ChecksumStatus.ADDED)))))
+                                        Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                        Path.of(BuildStep.ARTIFACTS + "foo"), Checksum.ADDED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();

@@ -6,7 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.maven.MavenRepositoryExport;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -205,7 +205,7 @@ public class MavenRepositoryExportTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("source", new BuildStepArgument(
                                 source,
-                                Map.of(Path.of("."), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of("."), Checksum.ADDED)))))
                 .toCompletableFuture()
                 .join();
     }

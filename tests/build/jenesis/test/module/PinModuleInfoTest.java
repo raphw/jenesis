@@ -4,7 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.PinModuleInfo;
@@ -79,7 +79,7 @@ public class PinModuleInfoTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
                                 input,
-                                Map.of(Path.of(Inventory.INVENTORY), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(Inventory.INVENTORY), Checksum.ADDED)))))
                 .toCompletableFuture()
                 .join();
         return Files.readString(moduleInfo);

@@ -6,6 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
@@ -44,12 +45,11 @@ public class MultiProjectDependenciesTest {
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)),
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED)),
                                 "bar", new BuildStepArgument(
                                         dependency,
-                                        Map.of(Path.of(BuildStep.IDENTITY), ChecksumStatus.ADDED,
-                                                Path.of("file"), ChecksumStatus.ADDED),
-                                        Map.of(Path.of("file"), checksum)))))
+                                        Map.of(Path.of(BuildStep.IDENTITY), Checksum.ADDED,
+                                                Path.of("file"), Checksum.of(ChecksumStatus.ADDED, checksum))))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));
@@ -68,7 +68,7 @@ public class MultiProjectDependenciesTest {
                         new LinkedHashMap<>(Map.of(
                                 "foo", new BuildStepArgument(
                                         module,
-                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.REQUIRES));

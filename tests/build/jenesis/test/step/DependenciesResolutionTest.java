@@ -6,7 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.License;
 import build.jenesis.Pinning;
 import build.jenesis.Repository;
@@ -80,7 +80,7 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("main/compile/foo/qux",
@@ -113,7 +113,7 @@ public class DependenciesResolutionTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                                 dependencies,
-                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties licenses = SequencedProperties.ofFiles(next.resolve("licenses.properties"));
@@ -141,7 +141,7 @@ public class DependenciesResolutionTest {
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                                 dependencies,
-                                Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED)))))
+                                Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED)))))
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties graph = SequencedProperties.ofFiles(next.resolve("graph.properties"));
@@ -165,7 +165,7 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(resolved.stringPropertyNames()).containsExactly("kotlinc/plugin/maven/org.jetbrains/something");
@@ -191,7 +191,7 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("main/compile/foo/qux",
@@ -224,7 +224,7 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames()).containsExactlyInAnyOrder("main/compile/foo/qux",
@@ -260,9 +260,9 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED,
+                                Checksum.ADDED,
                                 Path.of(BuildStep.VERSIONS),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames())
@@ -292,9 +292,9 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED,
+                                Checksum.ADDED,
                                 Path.of(BuildStep.VERSIONS),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames())
@@ -325,9 +325,9 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.REQUIRES),
-                                ChecksumStatus.ADDED,
+                                Checksum.ADDED,
                                 Path.of(BuildStep.VERSIONS),
-                                ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                                Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties dependencies = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(dependencies.stringPropertyNames())
@@ -348,7 +348,7 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(
                                 Path.of(BuildStep.VERSIONS),
-                                ChecksumStatus.ADDED))))))
+                                Checksum.ADDED))))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("bar")
                 .hasMessageContaining("<group>/<repository>/<coordinate>");
@@ -369,7 +369,7 @@ public class DependenciesResolutionTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join())
                 .hasStackTraceContaining("Mismatched digest for bar");
     }
 
@@ -388,7 +388,7 @@ public class DependenciesResolutionTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No checksum pinned for foo-bar.jar")
                 .hasMessageContaining("strict pinning");
@@ -408,7 +408,7 @@ public class DependenciesResolutionTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
         assertThat(index.getProperty("main/compile/foo/bar")).isEqualTo("resolved/bar.jar");
@@ -431,7 +431,7 @@ public class DependenciesResolutionTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
                         dependencies,
-                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ADDED))))).toCompletableFuture().join())
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ADDED))))).toCompletableFuture().join())
                 .hasStackTraceContaining("Conflicting checksums pinned for foo-bar.jar");
     }
 }

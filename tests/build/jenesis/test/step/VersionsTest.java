@@ -6,7 +6,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Versions;
 
@@ -234,10 +234,10 @@ public class VersionsTest {
                                 "classes", new BuildStepArgument(
                                         classesInput,
                                         Map.of(Path.of(BuildStep.CLASSES + "module-info.class"),
-                                                ChecksumStatus.RETAINED)),
+                                                Checksum.RETAINED)),
                                 "requires", new BuildStepArgument(
                                         requiresInput,
-                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.RETAINED)))))
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.RETAINED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -258,10 +258,10 @@ public class VersionsTest {
                                 "classes", new BuildStepArgument(
                                         classesInput,
                                         Map.of(Path.of(BuildStep.CLASSES + "module-info.class"),
-                                                ChecksumStatus.RETAINED)),
+                                                Checksum.RETAINED)),
                                 "requires", new BuildStepArgument(
                                         requiresInput,
-                                        Map.of(Path.of(BuildStep.REQUIRES), ChecksumStatus.ALTERED)))))
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.ALTERED)))))
                 .toCompletableFuture()
                 .join();
         assertThat(result.next()).isTrue();
@@ -342,7 +342,7 @@ public class VersionsTest {
     }
 
     private static BuildStepArgument argumentFor(Path folder) {
-        return new BuildStepArgument(folder, Map.of(Path.of("."), ChecksumStatus.ADDED));
+        return new BuildStepArgument(folder, Map.of(Path.of("."), Checksum.ADDED));
     }
 
     private ModuleDescriptor readModuleInfo() throws IOException {

@@ -5,7 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.ChecksumStatus;
+import build.jenesis.Checksum;
 import build.jenesis.step.Bind;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,8 +36,8 @@ public class BindTest {
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("original", new BuildStepArgument(
                         original,
-                        Map.of(Path.of("file"), ChecksumStatus.ADDED,
-                                Path.of("folder/sub/file"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+                        Map.of(Path.of("file"), Checksum.ADDED,
+                                Path.of("folder/sub/file"), Checksum.ADDED))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         assertThat(next.resolve("other/copied")).content().isEqualTo("foo");
         assertThat(next.resolve("other/sub/file")).content().isEqualTo("bar");
