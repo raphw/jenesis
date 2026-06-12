@@ -209,7 +209,9 @@ public class ScalaCompilerModule implements BuildExecutorModule {
                                     || (name.endsWith(".java")
                                     && !file.getFileName().toString().equals("module-info.java"))) {
                                 files.add(name);
-                            } else if (includeResources && !name.endsWith(".java")) {
+                            } else if (includeResources
+                                    && !name.endsWith(".java")
+                                    && !BuildStep.underMetaInfVersions(sources.relativize(file))) {
                                 BuildStep.linkOrCopy(target.resolve(sources.relativize(file)), file);
                             }
                             return FileVisitResult.CONTINUE;

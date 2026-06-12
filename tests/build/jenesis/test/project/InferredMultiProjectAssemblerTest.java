@@ -13,6 +13,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
+import build.jenesis.project.TestModule;
 import build.jenesis.step.JPackage;
 import build.jenesis.step.ProcessBuildStep;
 
@@ -283,7 +284,8 @@ public class InferredMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, sources, tests, source, documentation, null, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new InferredMultiProjectAssembler(packageType, jmod, jlink, false, false, null, null).apply(descriptor, Map.of(), Map.of());
+        BuildExecutorModule assembled = new InferredMultiProjectAssembler()
+                .packaging(packageType).jmod(jmod).jlink(jlink).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
@@ -302,6 +304,19 @@ public class InferredMultiProjectAssemblerTest {
         SequencedMap<String, Path> execute(String selector) {
             return executor.execute(Runnable::run, selector).toCompletableFuture().join();
         }
+    }
+
+    @Test
+    public void sub_module_configurators_default_to_identity_and_round_trip() {
+        InferredMultiProjectAssembler assembler = new InferredMultiProjectAssembler();
+        assertThat(assembler.check().apply(null)).as("check configurator defaults to identity").isNull();
+        assertThat(assembler.format().apply(null)).as("format configurator defaults to identity").isNull();
+        assertThat(assembler.validate().apply(null)).as("validate configurator defaults to identity").isNull();
+        assertThat(assembler.observe().apply(null)).as("observe configurator defaults to identity").isNull();
+        assertThat(assembler.test().apply(null)).as("test configurator defaults to identity").isNull();
+
+        UnaryOperator<TestModule> custom = test -> test.requireEngine(false);
+        assertThat(assembler.test(custom).test()).as("the test wither stores the configurator").isSameAs(custom);
     }
 
     private static SequencedProperties readProperties(Path path) throws IOException {

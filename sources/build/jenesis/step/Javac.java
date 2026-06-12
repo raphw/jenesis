@@ -159,7 +159,7 @@ public class Javac extends JdkProcessBuildStep {
                             if (versionOf(relative) == null) {
                                 files.add(name);
                             }
-                        } else if (includeResources) {
+                        } else if (includeResources && !BuildStep.underMetaInfVersions(relative)) {
                             BuildStep.linkOrCopy(target.resolve(relative), file);
                         }
                         return FileVisitResult.CONTINUE;

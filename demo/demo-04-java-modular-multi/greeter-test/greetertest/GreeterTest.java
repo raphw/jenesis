@@ -17,4 +17,9 @@ class GreeterTest {
     void prefix_is_not_blank() {
         assertFalse(new Greeter().prefix().isBlank());
     }
+
+    @Test
+    void prefix_is_loaded_from_the_packaged_resource() {
+        assertTrue(new Greeter().prefix().contains("packaged resource"));
+    }
 }

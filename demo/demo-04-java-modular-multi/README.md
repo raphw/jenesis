@@ -25,6 +25,7 @@ The project is three module directories, each with its own `module-info.java`:
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- greeter/             the library module
     |   |-- module-info.java     module demo.greeter { exports sample.greeter; }
+    |   |-- messages.properties  a root resource, packaged into the jar and read at run time
     |   `-- sample/greeter/Greeter.java
     |-- greeter-test/        the test variant of demo.greeter
     |   |-- module-info.java     open module demo.greeter.test (@jenesis.test demo.greeter)
@@ -52,6 +53,18 @@ repository (`target/stage/maven/output`, keyed by the generated coordinate), and
 `export` publishes each. The sibling resolves as the Maven coordinate read from
 `greeter`'s generated POM, so the published `app` POM declares a dependency on
 the published `greeter` artifact.
+
+Packaging a resource
+--------------------
+
+`greeter` ships a `messages.properties` at its source root, outside any package. A
+non-`.java` file is not compiled - Jenesis copies it verbatim into the module jar
+(here at the jar root), so `Greeter.prefix()` reads its greeting back at run time
+with `Greeter.class.getResourceAsStream("/messages.properties")`. Because the file
+sits in no package it is not module-encapsulated, so the class loads it from its
+own module without the descriptor having to `opens` anything. `greeter-test`
+asserts the greeting comes from that resource, so the build itself proves the
+resource was packaged and is loadable.
 
 Tests
 -----

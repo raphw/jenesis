@@ -1,0 +1,19 @@
+{
+  "reflection": [
+    {
+      "type": "sample.Greeter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "greet",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    }
+  ]
+}

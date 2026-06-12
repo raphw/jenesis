@@ -593,4 +593,30 @@ public class JavacTest {
                 .as("foreign-language sources are excluded from output when includeResources(false)")
                 .doesNotExist();
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void copies_meta_inf_resources_but_not_the_versions_overlay(boolean process) throws IOException {
+        Path sample = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sample.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Path config = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/native-image/app"));
+        Files.writeString(config.resolve("reachability-metadata.json"), "[]");
+        Path versioned = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/versions/25"));
+        Files.writeString(versioned.resolve("overlay.json"), "{}");
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                                sources,
+                                Map.of(Path.of("sources/sample/Sample.java"), ChecksumStatus.ADDED,
+                                        Path.of("sources/META-INF/native-image/app/reachability-metadata.json"), ChecksumStatus.ADDED,
+                                        Path.of("sources/META-INF/versions/25/overlay.json"), ChecksumStatus.ADDED))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/native-image/app/reachability-metadata.json"))
+                .as("META-INF resources are copied into the classes output verbatim")
+                .content().isEqualTo("[]");
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/versions/25/overlay.json"))
+                .as("the META-INF/versions multi-release overlay is not copied as a plain resource")
+                .doesNotExist();
+    }
 }
