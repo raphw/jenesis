@@ -116,14 +116,7 @@ public class JenesisRawGitRepository implements Repository {
         IOException failure = null;
         for (int attempt = 0; attempt < 4; attempt++) {
             try {
-                URLConnection connection = uri.toURL().openConnection();
-                if (connection instanceof HttpURLConnection http) {
-                    http.setRequestProperty("User-Agent", "Jenesis");
-                    if (token != null) {
-                        http.setRequestProperty("Authorization", token);
-                    }
-                }
-                return Optional.of(connection.getInputStream());
+                return Optional.of(Repository.open(uri, token));
             } catch (FileNotFoundException _) {
                 return Optional.empty();
             } catch (IOException e) {

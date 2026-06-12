@@ -401,7 +401,13 @@ public record Project(
                       versions to the latest and skips checksum verification (refresh the
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
                       but tolerates missing ones.
-                    
+
+                    %{header}Repositories (-Djenesis.repository.<key>=<value>):%{reset}
+                      %{name}insecure%{reset}                          Allow plaintext (%{name}http://%{reset}) repository fetches;
+                                                      by default only %{name}https://%{reset} and %{name}file://%{reset} are
+                                                      accepted and a credential is never forwarded
+                                                      across a redirect to another host
+
                     %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
                       %{name}skip%{reset}                             Skip executing tests
                       %{name}engine%{reset} <name>                    Force the test engine (%{name}junit-platform%{reset},
@@ -701,7 +707,15 @@ public record Project(
                                                   floats to the latest and skips
                                                   checksums (refresh pins via
                                                   the pin step).
-                    
+
+                    Repositories:
+                      -Djenesis.repository.insecure=true  Allow plaintext
+                                                  (http://) fetches; by default
+                                                  only https:// and file:// are
+                                                  accepted, and a credential is
+                                                  never forwarded across a
+                                                  redirect to another host.
+
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
                                                         Avoid setting this; rely

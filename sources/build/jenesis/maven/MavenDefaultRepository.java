@@ -2,6 +2,7 @@ package build.jenesis.maven;
 
 import module java.base;
 import build.jenesis.BuildExecutorCallback;
+import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 
 public class MavenDefaultRepository implements MavenRepository {
@@ -252,14 +253,7 @@ public class MavenDefaultRepository implements MavenRepository {
     }
 
     private static InputStream openStream(URI uri, String token) throws IOException {
-        URLConnection connection = uri.toURL().openConnection();
-        if (connection instanceof HttpURLConnection http) {
-            http.setRequestProperty("User-Agent", "Jenesis");
-            if (token != null) {
-                http.setRequestProperty("Authorization", token);
-            }
-        }
-        return connection.getInputStream();
+        return Repository.open(uri, token);
     }
 
     private static Optional<Path> download(URI uri,

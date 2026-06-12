@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Repository;
 
 public class DownloadModuleUris implements BuildStep {
 
@@ -37,12 +38,8 @@ public class DownloadModuleUris implements BuildStep {
             throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(context.next().resolve(URIS))) {
             for (URI location : locations.get()) {
-                URLConnection connection = location.toURL().openConnection();
-                if (connection instanceof HttpURLConnection http) {
-                    http.setRequestProperty("User-Agent", "Jenesis");
-                }
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                        connection.getInputStream(),
+                        Repository.open(location, null),
                         StandardCharsets.UTF_8))) {
                     Iterator<String> it = reader.lines().iterator();
                     while (it.hasNext()) {

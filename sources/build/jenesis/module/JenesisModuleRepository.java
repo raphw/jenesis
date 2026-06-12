@@ -79,14 +79,7 @@ public class JenesisModuleRepository implements Repository {
         IOException failure = null;
         for (int attempt = 0; attempt < 4; attempt++) {
             try {
-                URLConnection connection = uri.toURL().openConnection();
-                if (connection instanceof HttpURLConnection http) {
-                    http.setRequestProperty("User-Agent", "Jenesis");
-                    if (token != null) {
-                        http.setRequestProperty("Authorization", token);
-                    }
-                }
-                stream = connection.getInputStream();
+                stream = Repository.open(uri, token);
                 failure = null;
                 break;
             } catch (FileNotFoundException _) {
