@@ -76,8 +76,8 @@ Quick index
 | 21 | [`module-layout`](demo-21-module-layout/README.md)           | Explicitly select the pure MODULAR layout (via `jenesis.properties`): resolve by module name, emit a modular jar with no `pom.xml` | `java build/jenesis/Project.java`  |
 | 22 | [`custom-assembler`](demo-22-custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
 | 23 | [`custom-jmod`](demo-23-custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod`, `jlink` it into a runtime, and `jpackage` that into a runnable app | `java build/Demo.java`             |
-| 24 | [`internal-module`](demo-24-internal-module/README.md)       | Move that preprocessing into a build module loaded from local source  | `java build/Demo.java`             |
-| 25 | [`external-module`](demo-25-external-module/README.md)       | Resolve the same build module as a published coordinate               | `java build/Demo.java`             |
+| 24 | [`internal-module`](demo-24-internal-module/README.md)       | Move that preprocessing into a build module loaded from local source (temporarily not in CI: pins a published `build.jenesis` that predates the local `Map<Path, Checksum>` change) | `java build/Demo.java`             |
+| 25 | [`external-module`](demo-25-external-module/README.md)       | Resolve the same build module as a published coordinate (temporarily not in CI: same reason as 24) | `java build/Demo.java`             |
 | 26 | [`custom-maven`](demo-26-custom-maven/README.md)             | Drive a multi-module Maven build via `MavenProject.make(root, assembler)`, no `Project` | `java build/Demo.java`             |
 | 27 | [`custom-modular`](demo-27-custom-modular/README.md)         | The same via `ModularProject.make(root, assembler)` for modules       | `java build/Demo.java`             |
 | 28 | [`custom-build`](demo-28-custom-build/README.md)             | No `Project` at all: wire a `BuildExecutor` by hand                   | `java build/Demo.java`             |
@@ -481,6 +481,13 @@ Java module name in the default `main` group.
 
 Together these show that build logic itself is just another module - it can be
 authored inline, loaded from source, or consumed as a versioned artifact.
+
+> Both demos are temporarily excluded from CI. They load the build module through
+> the class-loader bridge against a *published* `build.jenesis` (`@jenesis.pin
+> tool/module/build.jenesis`), whose `BuildStepArgument` still carries the old
+> `Map<Path, ChecksumStatus>` shape; the local sources now use `Map<Path, Checksum>`,
+> so the bridge cannot load them together until a `build.jenesis` carrying the new
+> shape is published and the pins are bumped.
 
 ## 18. Driving the build without `Project` - [`custom-maven`](demo-26-custom-maven/README.md), [`custom-modular`](demo-27-custom-modular/README.md)
 
