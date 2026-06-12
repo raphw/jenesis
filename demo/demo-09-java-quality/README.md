@@ -95,7 +95,7 @@ the report, so other tools can find it.
 
 By default the linters are report-only: they record findings but do not fail the
 build. Pass `.strict(true)` when wiring a tool yourself (see
-`../demo-22-custom-assembler`) to turn a finding into a build failure.
+`../demo-23-custom-assembler`) to turn a finding into a build failure.
 
 Formatting: verify, and how to reformat
 ---------------------------------------

@@ -145,6 +145,67 @@ public class JenesisModuleRepositoryTest {
     }
 
     @Test
+    public void fetches_classified_module_from_version_subdirectory() throws IOException {
+        Path versionDir = Files.createDirectories(root.resolve("build.jenesis/1.0.0"));
+        Files.writeString(versionDir.resolve("build.jenesis-windows-x86_64.jar"), "native-classes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis-windows-x86_64/1.0.0");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("native-classes");
+        }
+    }
+
+    @Test
+    public void fetches_unversioned_classified_module() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis-win.jar"), "native-classes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis-win");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("native-classes");
+        }
+    }
+
+    @Test
+    public void classified_fetch_honours_explicit_type() throws IOException {
+        Path versionDir = Files.createDirectories(root.resolve("build.jenesis/1.0.0"));
+        Files.writeString(versionDir.resolve("build.jenesis-win.pom"), "classified-pom");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis-win/1.0.0:pom");
+
+        assertThat(item).isPresent();
+        try (InputStream stream = item.orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("classified-pom");
+        }
+    }
+
+    @Test
+    public void does_not_serve_unclassified_jar_for_classified_request() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis.jar"), "classes");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis-win");
+
+        assertThat(item).isEmpty();
+    }
+
+    @Test
+    public void rejects_blank_classifier() {
+        assertThatThrownBy(() -> new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis-"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier");
+    }
+
+    @Test
     public void rejects_version_segment_containing_path_traversal() throws IOException {
         Path outside = Files.writeString(root.resolve("secret.jar"), "secret");
 

@@ -111,7 +111,7 @@ directory shown above.
 Layout
 ------
 
-    demo/demo-32-native-image
+    demo/demo-33-native-image
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- sources/
     |   |-- module-info.java     module demo.graal.image (@jenesis.main sample.Sample)

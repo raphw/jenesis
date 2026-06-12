@@ -287,6 +287,33 @@ public class PinModuleInfoTest {
     }
 
     @Test
+    public void pins_classified_module_with_classifier_in_version_value() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar-windows-x86_64", "1.2.3 SHA-256/cafebabe"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin bar :windows-x86_64:1.2.3 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("@jenesis.pin bar-windows-x86_64");
+    }
+
+    @Test
+    public void pins_classified_module_in_tool_group() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                }
+                """);
+        writeResolved("scala", Map.of("module/some.module-win", "3.5.2"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin scala/module/some.module :win:3.5.2");
+        assertThat(result).doesNotContain("some.module-win");
+    }
+
+    @Test
     public void second_run_with_same_input_is_a_noop() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """

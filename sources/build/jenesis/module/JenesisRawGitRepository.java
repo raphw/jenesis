@@ -57,23 +57,34 @@ public class JenesisRawGitRepository implements Repository {
         int slash = identifier.indexOf('/');
         String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
         String version = slash < 0 ? null : identifier.substring(slash + 1);
+        // Module names cannot contain a dash, so a dash always introduces a classifier.
+        int dash = moduleName.indexOf('-');
+        String classifier = dash < 0 ? null : moduleName.substring(dash + 1);
+        if (dash >= 0) {
+            moduleName = moduleName.substring(0, dash);
+        }
         requireSafeSegment("module name", moduleName);
+        if (classifier != null) {
+            requireSafeSegment("classifier", classifier);
+        }
         if (version != null) {
             requireSafeSegment("version", version);
         }
-        Coordinate resolved = resolve(moduleName, version);
+        Coordinate resolved = resolve(moduleName, classifier, version);
         if (resolved == null) {
             return Optional.empty();
         }
         String path = resolved.groupId().replace('.', '/')
                 + "/" + resolved.artifactId()
                 + "/" + resolved.version()
-                + "/" + resolved.artifactId() + "-" + resolved.version() + "." + type;
+                + "/" + resolved.artifactId() + "-" + resolved.version()
+                + (classifier == null ? "" : "-" + classifier) + "." + type;
         return open(repository.resolve(path), token).map(stream -> (RepositoryItem) () -> stream);
     }
 
-    private Coordinate resolve(String moduleName, String version) throws IOException {
-        String tsvName = requireNamedModules ? "modules.tsv" : "artifacts.tsv";
+    private Coordinate resolve(String moduleName, String classifier, String version) throws IOException {
+        String tsvName = (requireNamedModules ? "modules" : "artifacts")
+                + (classifier == null ? "" : "-" + classifier) + ".tsv";
         URI tsvUri = data.resolve(moduleName.replace('.', '/') + "/" + tsvName);
         Optional<InputStream> stream = open(tsvUri, null);
         if (stream.isEmpty()) {

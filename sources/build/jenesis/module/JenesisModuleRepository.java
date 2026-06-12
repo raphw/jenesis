@@ -56,13 +56,23 @@ public class JenesisModuleRepository implements Repository {
         int slash = identifier.indexOf('/');
         String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
         String version = slash < 0 ? null : identifier.substring(slash + 1);
+        // Module names cannot contain a dash, so a dash always introduces a classifier.
+        int dash = moduleName.indexOf('-');
+        String classifier = dash < 0 ? null : moduleName.substring(dash + 1);
+        if (dash >= 0) {
+            moduleName = moduleName.substring(0, dash);
+        }
         requireSafeSegment("module name", moduleName);
+        if (classifier != null) {
+            requireSafeSegment("classifier", classifier);
+        }
         if (version != null) {
             requireSafeSegment("version", version);
         }
+        String fileName = (classifier == null ? moduleName : moduleName + "-" + classifier) + "." + type;
         String relative = version == null
-                ? moduleName + "/" + moduleName + "." + type
-                : moduleName + "/" + version + "/" + moduleName + "." + type;
+                ? moduleName + "/" + fileName
+                : moduleName + "/" + version + "/" + fileName;
         URI base = root.normalize();
         URI uri = base.resolve(relative).normalize();
         URI contained = base.relativize(uri);

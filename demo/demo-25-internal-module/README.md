@@ -6,7 +6,7 @@ its own project, loaded straight from local source - instead of an inline build
 step. The plugin performs a `${greeting}` substitution over the project's Java
 sources before the regular compile, jar, and test flow runs, and it leans on an
 external dependency (`org.json`) to do so. The companion
-`../demo-25-external-module` runs the identical plugin, but resolves it as a
+`../demo-26-external-module` runs the identical plugin, but resolves it as a
 published artifact rather than compiling it from source.
 
 Run it
@@ -26,7 +26,7 @@ Built without the plugin the literal `${greeting}` would print instead.
 Layout
 ------
 
-    demo/demo-24-internal-module
+    demo/demo-25-internal-module
     |-- build/jenesis            symlink to ../../../sources/build/jenesis
     |-- build/Demo.java          the launcher (Project + wrapping assembler)
     |-- plugin/
@@ -47,8 +47,8 @@ project; its `.jenesis.skip` marker keeps the host project's module discovery
 from mistaking it for a second project module.
 
 The plugin's `build.jenesis` dependency resolves from the default Jenesis
-repository as the published `0.3.0` artifact (pinned via the
-`@jenesis.pin build.jenesis 0.3.0 ...`
+repository as the published `0.6.0` artifact (pinned via the
+`@jenesis.pin build.jenesis 0.6.0 ...`
 tag in `sources/module-info.java`), whose API matches the local sources the host
 runs against, so the class-loader bridge loads it without complaint.
 
@@ -92,7 +92,7 @@ Isolating the build module's Jenesis
 ------------------------------------
 
 A build module brings its own `build.jenesis` (here the pinned
-`build.jenesis` `0.3.0`), which is generally a *different* copy from the
+`build.jenesis` `0.6.0`), which is generally a *different* copy from the
 Jenesis running the build. To let the two coexist, `InternalModule` loads the
 module into its **own `ModuleLayer` with its own class loader**, so the module's
 `build.jenesis` never clashes with the host's on a single class path. A

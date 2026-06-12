@@ -66,10 +66,24 @@ public class ModularJarResolver implements Resolver {
             }
             String hint = propagated.get(current);
             String requested = pin != null ? pin : (hint != null ? hint : inlineVersion);
+            String classifier, expected;
+            if (requested != null && requested.startsWith(":")) {
+                int divider = requested.indexOf(':', 1);
+                classifier = divider < 0 ? requested.substring(1) : requested.substring(1, divider);
+                expected = divider < 0 ? null : requested.substring(divider + 1);
+                if (classifier.isEmpty() || expected != null && expected.isEmpty()) {
+                    throw new IllegalArgumentException("Malformed classifier '" + requested + "' for " + current
+                            + ": expected :<classifier> or :<classifier>:<version>");
+                }
+            } else {
+                classifier = null;
+                expected = requested;
+            }
+            String identifier = classifier == null ? current : current + "-" + classifier;
             Repository repository = repositories.getOrDefault(Resolver.base(prefix), Repository.empty());
-            RepositoryItem item = requested == null
-                    ? repository.fetch(executor, current).orElse(null)
-                    : repository.fetch(executor, current + "/" + requested).orElse(null);
+            RepositoryItem item = expected == null
+                    ? repository.fetch(executor, identifier).orElse(null)
+                    : repository.fetch(executor, identifier + "/" + expected).orElse(null);
             if (item == null) {
                 if (fallback == null) {
                     throw new IllegalArgumentException("No module found for " + current);
@@ -138,12 +152,16 @@ public class ModularJarResolver implements Resolver {
                             "Expected module " + current + " but jar declares " + descriptor.name());
                 }
                 String declared = descriptor.rawVersion().orElse(null);
-                if (!resolveAutomaticModules && declared != null && requested != null && !declared.equals(requested)) {
+                if (declared != null && declared.startsWith(":")) {
                     throw new IllegalArgumentException(
-                            "Expected version " + requested + " for " + current + " but jar declares " + declared);
+                            "Module " + current + " declares an unsafe version '" + declared + "'");
                 }
-                String version = requested != null ? requested : declared;
-                String currentCoordinate = prefix + "/" + current + (version == null ? "" : "/" + version);
+                if (!resolveAutomaticModules && declared != null && expected != null && !declared.equals(expected)) {
+                    throw new IllegalArgumentException(
+                            "Expected version " + expected + " for " + current + " but jar declares " + declared);
+                }
+                String version = expected != null ? expected : declared;
+                String currentCoordinate = prefix + "/" + identifier + (version == null ? "" : "/" + version);
                 Path jar = item.file().orElseThrow(() -> new IllegalStateException(
                         "Repository did not materialize a file for " + current));
                 if (checksum != null && !checksum.isEmpty()) {
@@ -168,7 +186,8 @@ public class ModularJarResolver implements Resolver {
                         .forEach(requires -> {
                             String name = requires.name();
                             requires.rawCompiledVersion().ifPresent(v -> {
-                                if (v.isEmpty() || v.equals("..") || v.indexOf('/') >= 0 || v.indexOf('\\') >= 0) {
+                                if (v.isEmpty() || v.equals("..") || v.indexOf('/') >= 0 || v.indexOf('\\') >= 0
+                                        || v.startsWith(":")) {
                                     throw new IllegalArgumentException("Module " + current
                                             + " declares an unsafe compiled version '" + v + "' for " + name);
                                 }

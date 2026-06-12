@@ -590,6 +590,158 @@ public class ModularJarResolverTest {
         assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root/1.0");
     }
 
+    @Test
+    public void classifier_pin_drives_classified_fetch() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, Resolver.Resolved> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root-windows-x86_64/9.9" -> toJar("root", "9.9");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", ":windows-x86_64:9.9")),
+                DependencyScope.COMPILE).artifacts();
+        assertThat(fetched).containsOnlyKeys("root-windows-x86_64/9.9");
+        assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root-windows-x86_64/9.9");
+    }
+
+    @Test
+    public void classifier_pin_without_version_uses_module_info_version() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, Resolver.Resolved> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root-windows-x86_64" -> toJar("root", "1.2.3");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", ":windows-x86_64")),
+                DependencyScope.COMPILE).artifacts();
+        assertThat(fetched).containsOnlyKeys("root-windows-x86_64");
+        assertThat(dependencies.sequencedKeySet()).containsExactly("foo/root-windows-x86_64/1.2.3");
+    }
+
+    @Test
+    public void classifier_pin_applies_to_transitive_module() throws IOException {
+        Map<String, String> fetched = new LinkedHashMap<>();
+        SequencedMap<String, Resolver.Resolved> dependencies = new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    fetched.put(coordinate, "");
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> toJar("root", "1.0", require("dep", 0));
+                        case "dep-win/2.0" -> toJar("dep", "2.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("dep", ":win:2.0")),
+                DependencyScope.COMPILE).artifacts();
+        assertThat(fetched).containsOnlyKeys("root", "dep-win/2.0");
+        assertThat(dependencies.sequencedKeySet()).containsExactly(
+                "foo/root/1.0",
+                "foo/dep-win/2.0");
+    }
+
+    @Test
+    public void classifier_pin_rejects_mismatched_module_info_version() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root-win/9.9" -> toJar("root", "1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", ":win:9.9")),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("9.9")
+                .hasMessageContaining("1.0");
+    }
+
+    @Test
+    public void rejects_classifier_pin_without_classifier() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, _) -> Optional.empty()),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", ":")),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Malformed classifier");
+    }
+
+    @Test
+    public void rejects_classifier_pin_with_empty_version() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, _) -> Optional.empty()),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of("root", ":win:")),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Malformed classifier");
+    }
+
+    @Test
+    public void rejects_module_info_version_with_classifier_syntax() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> toJar("root", ":win:1.0");
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unsafe")
+                .hasMessageContaining(":win:1.0");
+    }
+
+    @Test
+    public void rejects_propagated_compiled_version_with_classifier_syntax() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "foo",
+                Map.of("foo", (_, coordinate) -> {
+                    RepositoryItem item = switch (coordinate) {
+                        case "root" -> toJar("root", "1.0", require("dep", 0, ":win:1.0"));
+                        default -> null;
+                    };
+                    return Optional.ofNullable(item);
+                }),
+                new LinkedHashMap<>(Map.of("root", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unsafe compiled version")
+                .hasMessageContaining(":win:1.0");
+    }
+
     private RepositoryItem toMultiReleaseJar(String module,
                                              String rootVersion,
                                              Map<Integer, String> versions) throws IOException {

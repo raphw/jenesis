@@ -115,6 +115,22 @@ public class JenesisRawGitRepositoryTest {
     }
 
     @Test
+    public void resolves_classified_module_through_classifier_scoped_tsv() throws IOException {
+        writeTsv("widget", "modules-windows-x86_64.tsv", "1.0\tcom.example\twidget-core\t1.0");
+        writeArtifact("com.example", "widget-core", "1.0", "windows-x86_64", "jar", "native");
+
+        assertThat(content(named().fetch(Runnable::run, "widget-windows-x86_64/1.0"))).isEqualTo("native");
+    }
+
+    @Test
+    public void does_not_read_unclassified_tsv_for_classified_request() throws IOException {
+        writeTsv("widget", "modules.tsv", "1.0\tcom.example\twidget-core\t1.0");
+        writeArtifact("com.example", "widget-core", "1.0", "jar", "v1");
+
+        assertThat(named().fetch(Runnable::run, "widget-win/1.0")).isEmpty();
+    }
+
+    @Test
     public void rejects_a_module_name_with_path_traversal() {
         assertThatThrownBy(() -> named().fetch(Runnable::run, "widget/../../secret"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -146,6 +162,14 @@ public class JenesisRawGitRepositoryTest {
                 .resolve(artifactId)
                 .resolve(version));
         Files.writeString(dir.resolve(artifactId + "-" + version + "." + type), content);
+    }
+
+    private void writeArtifact(String groupId, String artifactId, String version, String classifier, String type, String content) throws IOException {
+        Path dir = Files.createDirectories(maven
+                .resolve(groupId.replace('.', '/'))
+                .resolve(artifactId)
+                .resolve(version));
+        Files.writeString(dir.resolve(artifactId + "-" + version + "-" + classifier + "." + type), content);
     }
 
     private static String content(Optional<RepositoryItem> item) throws IOException {

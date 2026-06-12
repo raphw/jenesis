@@ -114,6 +114,10 @@ public class MavenModuleResolver implements Resolver {
         } else {
             int space = pinned.indexOf(' ');
             String version = space < 0 ? pinned : pinned.substring(0, space);
+            if (version.startsWith(":")) {
+                throw new IllegalArgumentException("Module classifiers are not supported when resolving "
+                        + coordinate + " through Maven: " + version);
+            }
             checksum = space < 0 ? null : pinned.substring(space + 1).trim();
             fetchCoord = coordinate + "/" + version + ":pom";
         }

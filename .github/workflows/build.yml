@@ -17,14 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # The internal-module and external-module demos are temporarily disabled.
-        # They load a build module through the class-loader bridge, whose plugin
-        # pins build.jenesis to a published release (@tool/build.jenesis in
-        # sources/module-info.java). That release still carries the old
-        # BuildStepArgument shape (Map<Path, ChecksumStatus>), which no longer
-        # matches the local sources (Map<Path, Checksum>); re-enable them once a
-        # release carrying the new shape is published and the plugins are re-pinned.
-        #
         # The `-as-modular` entries force the pure MODULAR layout
         # (-Djenesis.project.layout=modular) on the same sources that otherwise
         # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
@@ -78,13 +70,16 @@ jobs:
           - { name: code-coverage, dir: demo-19-code-coverage, entry: build/jenesis/Project.java }
           - { name: maven-exclusions, dir: demo-20-maven-exclusions, entry: build/jenesis/Project.java }
           - { name: module-layout, dir: demo-21-module-layout, entry: build/jenesis/Project.java }
-          - { name: custom-assembler, dir: demo-22-custom-assembler, entry: build/Demo.java }
-          - { name: custom-jmod, dir: demo-23-custom-jmod, entry: build/Demo.java }
-          - { name: custom-maven, dir: demo-26-custom-maven, entry: build/Demo.java }
-          - { name: custom-modular, dir: demo-27-custom-modular, entry: build/Demo.java }
-          - { name: custom-build, dir: demo-28-custom-build, entry: build/Demo.java }
-          - { name: supply-chain-security, dir: demo-30-supply-chain-security, entry: build/Demo.java }
-          - { name: publishing, dir: demo-31-publishing, entry: build/Demo.java }
+          - { name: module-classifier, dir: demo-22-module-classifier, entry: build/jenesis/Execute.java }
+          - { name: custom-assembler, dir: demo-23-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-24-custom-jmod, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-25-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-26-external-module, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-27-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-28-custom-modular, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-29-custom-build, entry: build/Demo.java }
+          - { name: supply-chain-security, dir: demo-31-supply-chain-security, entry: build/Demo.java }
+          - { name: publishing, dir: demo-32-publishing, entry: build/Demo.java }
           - { name: kotlin-plugin, dir: demo-14-kotlin-plugin, entry: build/jenesis/Project.java }
           - { name: sbom, dir: demo-10-sbom, entry: build/jenesis/Project.java }
           - { name: profiles, dir: demo-11-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }

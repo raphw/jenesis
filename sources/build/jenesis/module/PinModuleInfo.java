@@ -113,11 +113,21 @@ public class PinModuleInfo implements BuildStep {
                     ? null
                     : computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
-            entries.putIfAbsent(
-                    moduleRoot ? coordinate.substring("module/".length())
-                            : mavenShortcut ? mavenCoordinate
-                            : group + "/" + coordinate,
-                    value);
+            String entry;
+            if (coordinate.startsWith("module/")) {
+                String module = coordinate.substring("module/".length());
+                // Module names cannot contain a dash, so a dash always introduces a classifier,
+                // which pins as part of the version value to keep the pin keyed by module name.
+                int dash = module.indexOf('-');
+                if (dash >= 0) {
+                    value = ":" + module.substring(dash + 1) + ":" + value;
+                    module = module.substring(0, dash);
+                }
+                entry = group.equals("main") ? module : group + "/module/" + module;
+            } else {
+                entry = mavenShortcut ? mavenCoordinate : group + "/" + coordinate;
+            }
+            entries.putIfAbsent(entry, value);
         }
         return entries;
     }
