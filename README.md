@@ -345,7 +345,9 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   coordinate) is written in full. The repository is otherwise spelled out (`module`, `maven`); a `module-info.java`
   can therefore pin a Maven coordinate it pulls in transitively (e.g. a non-modular transitive of a named module
   dependency) as `org.foo/bar` (or `main/maven/org.foo/bar` in full) even though its declared dependencies resolve
-  through the `module` repository. A `module`-repository pin's version value may additionally select an artifact
+  through the `module` repository. The grammar - including both abbreviations - is identical for the
+  `module-info.java` `@jenesis.pin` tag and the `pom.xml` `<!--jenesis.pin ... -->` comment block, and a malformed
+  token fails the build in either place rather than being silently ignored. A `module`-repository pin's version value may additionally select an artifact
   classifier with a leading-colon qualifier, `:<classifier>[:<version>]` (e.g.
   `@jenesis.pin org.example.native :windows-x86_64:1.2.3 <algo>/<hash>`, or `:windows-x86_64` alone to leave the
   version floating). The pin stays keyed by the bare module name - the classifier is part of the value, never the

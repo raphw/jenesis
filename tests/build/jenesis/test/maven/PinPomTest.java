@@ -118,6 +118,61 @@ public class PinPomTest {
     }
 
     @Test
+    public void refreshes_short_form_guarded_main_pin_without_duplicating() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    org.foo/bar 1.0.0 SHA-256/aaa [legacy]
+                    org.foo/bar 2.0.0 SHA-256/bbb
+                    -->
+                </project>
+                """);
+        writeResolved(Map.of("maven/org.foo/bar", "3.0.0 SHA-256/fresh"));
+        String result = run(pom, Platform.of("linux,x86_64,legacy"));
+        assertThat(result).contains("org.foo/bar 3.0.0 SHA-256/fresh [legacy]");
+        assertThat(result).contains("org.foo/bar 2.0.0 SHA-256/bbb");
+        assertThat(result).doesNotContain("SHA-256/aaa");
+        assertThat(result).as("the guarded short-form main pin is not migrated into dependencyManagement")
+                .doesNotContain("<dependencyManagement>");
+        assertThat(result).as("the short form is not duplicated as a full main/maven line")
+                .doesNotContain("main/maven/org.foo/bar");
+    }
+
+    @Test
+    public void updates_only_the_matched_guard_among_several_and_retains_the_rest() throws IOException {
+        Path pom = root.resolve("pom.xml");
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    kotlin/maven/org.x/y 1.0 SHA-256/win [windows]
+                    kotlin/maven/org.x/y 2.0 SHA-256/leg [legacy]
+                    kotlin/maven/org.x/y 3.0 SHA-256/fb
+                    -->
+                </project>
+                """);
+        writeResolved("kotlin", Map.of("maven/org.x/y", "9.9 SHA-256/fresh"));
+        String result = run(pom, Platform.of("linux,x86_64,legacy"));
+        assertThat(result).as("the matched [legacy] line is refreshed")
+                .contains("kotlin/maven/org.x/y 9.9 SHA-256/fresh [legacy]");
+        assertThat(result).as("the non-matched [windows] line is retained verbatim")
+                .contains("kotlin/maven/org.x/y 1.0 SHA-256/win [windows]");
+        assertThat(result).as("the fallback line is retained verbatim")
+                .contains("kotlin/maven/org.x/y 3.0 SHA-256/fb");
+        assertThat(result).as("the stale [legacy] value is gone").doesNotContain("SHA-256/leg");
+    }
+
+    @Test
     public void updates_matched_fallback_comment_line_and_preserves_guard() throws IOException {
         Path pom = root.resolve("pom.xml");
         Files.writeString(pom, """

@@ -365,6 +365,27 @@ public class PinModuleInfoTest {
     }
 
     @Test
+    public void updates_only_the_matched_guard_among_several_and_retains_the_rest() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin bar :win:1.0 SHA-256/win [windows]
+                 * @jenesis.pin bar :leg:2.0 SHA-256/leg [legacy]
+                 * @jenesis.pin bar 3.0 SHA-256/fb
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar-leg", "9.9 SHA-256/fresh"));
+        String result = run(file, Platform.of("linux,x86_64,legacy"));
+        assertThat(result).contains("@jenesis.pin bar :leg:9.9 SHA-256/fresh [legacy]");
+        assertThat(result).contains("@jenesis.pin bar :win:1.0 SHA-256/win [windows]");
+        assertThat(result).contains("@jenesis.pin bar 3.0 SHA-256/fb");
+        assertThat(result).doesNotContain("SHA-256/leg ");
+    }
+
+    @Test
     public void updates_matched_guard_without_hash() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """

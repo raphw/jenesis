@@ -180,29 +180,26 @@ public class PinPom implements BuildStep {
             }
             pins.add(new Pin(token, value, guard));
             if (guard != null) {
-                guarded.add(token);
+                guarded.add(expand(token));
             }
         }
         if (guarded.isEmpty()) {
             return List.of();
         }
-        // A key with platform guards keeps every line in place; only the line whose guard
-        // matched the local platform (or the unguarded fallback) is refreshed from the
-        // resolved closure, since this resolution only reflects the local variant.
+        // A coordinate with platform guards keeps every line in place; only the line whose
+        // guard matched the local platform (or the unguarded fallback) is refreshed from the
+        // resolved closure, since this resolution only reflects the local variant. Lines are
+        // matched by their expanded coordinate, so short and full forms refer to the same key.
         for (String key : guarded) {
-            String resolved = qualified.remove(key);
-            if (key.startsWith("main/maven/")) {
-                String fromManaged = managed.remove(key.substring("main/maven/".length()));
-                if (resolved == null) {
-                    resolved = fromManaged;
-                }
-            }
+            String resolved = key.startsWith("main/maven/")
+                    ? managed.remove(key.substring("main/maven/".length()))
+                    : qualified.remove(key);
             Integer fallback = null, matched = null;
             int specificity = 0;
             boolean ambiguous = false;
             for (int index = 0; index < pins.size(); index++) {
                 Pin pin = pins.get(index);
-                if (!pin.token().equals(key)) {
+                if (!expand(pin.token()).equals(key)) {
                     continue;
                 }
                 if (pin.guard() == null) {
@@ -229,11 +226,19 @@ public class PinPom implements BuildStep {
         }
         List<String> preserved = new ArrayList<>();
         for (Pin pin : pins) {
-            if (guarded.contains(pin.token())) {
+            if (guarded.contains(expand(pin.token()))) {
                 preserved.add(pin.token() + " " + pin.value() + (pin.guard() == null ? "" : " [" + pin.guard() + "]"));
             }
         }
         return preserved;
+    }
+
+    private static String expand(String token) {
+        int first = token.indexOf('/');
+        if (first < 0) {
+            return "main/module/" + token;
+        }
+        return token.indexOf('/', first + 1) < 0 ? "main/maven/" + token : token;
     }
 
     private static String renderRequires(SequencedMap<String, String> qualified, List<String> preserved, String indent) {

@@ -17,6 +17,7 @@ import build.jenesis.maven.MavenRepository;
 import build.jenesis.project.JavaToolchainModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 public class MavenProjectTest {
@@ -664,6 +665,67 @@ public class MavenProjectTest {
                 .as("a group-qualified block pin keeps its own group rather than being prefixed with main/")
                 .containsEntry("launcher/maven/build.jenesis/build.jenesis.launcher", "0.2.0 SHA-256/abc");
         assertThat(versions.stringPropertyNames()).noneMatch(name -> name.startsWith("main/maven/launcher"));
+    }
+
+    @Test
+    public void expands_short_form_block_pins_into_the_main_group() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    org.slf4j/slf4j-api 2.0.16 SHA-256/abc
+                    some.module 1.2.3 SHA-256/def
+                    -->
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties versions = SequencedProperties.ofFiles(
+                results.get("maven/module-/manifests").resolve(BuildStep.VERSIONS));
+        assertThat(versions)
+                .as("a one-slash short form expands to the main/maven group")
+                .containsEntry("main/maven/org.slf4j/slf4j-api", "2.0.16 SHA-256/abc");
+        assertThat(versions)
+                .as("a bare module short form expands to the main/module group")
+                .containsEntry("main/module/some.module", "1.2.3 SHA-256/def");
+    }
+
+    @Test
+    public void rejects_malformed_block_pin_token() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>group</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <!--jenesis.pin
+                    org.slf4j/ 2.0.16
+                    -->
+                </project>
+                """);
+        Files.writeString(Files.createDirectories(project.resolve("src/main/java")).resolve("source"), "foo");
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), false);
+        executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver));
+        assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
+                .hasRootCauseInstanceOf(IllegalArgumentException.class)
+                .rootCause()
+                .hasMessageContaining("Malformed jenesis.pin token")
+                .hasMessageContaining("org.slf4j/");
     }
 
     @Test
