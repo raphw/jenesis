@@ -28,8 +28,6 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
                 if (System.getProperty("org.graalvm.nativeimage.imagecode") == null) {
                     return TOOL;
                 }
-                // A native image normally has no in-process JDK tools and must fork them, but one built with
-                // jdk.compiler/jdk.jartool on its module path carries javac/jar in-process; prefer that when present.
                 return ToolProvider.findFirst("javac").isPresent() ? TOOL : FORK;
             }
             return switch (factory) {

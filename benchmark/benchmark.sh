@@ -53,7 +53,6 @@ check_env() {
 
 rxtx() { awk -F'[: ]+' '/eth|wl|en|wlp|enp|eno/{rx+=$3;tx+=$11} END{print rx+0" "tx+0}' /proc/net/dev; }
 
-# timeit "<command>" -> echoes "wall_seconds rx_kb tx_kb rc"
 timeit() {
   local b0 b1; b0=$(rxtx)
   /usr/bin/time -f "$TFMT" -o "$TF" bash -c "$1" >"$LOG" 2>&1; local rc=$?
@@ -66,7 +65,6 @@ median() { # reads numbers on stdin, prints median
   sort -n | awk '{a[NR]=$1} END{print (NR%2)?a[(NR+1)/2]:(a[NR/2]+a[NR/2+1])/2}'
 }
 
-# bench <label> <runs> <per-run-setup> <timed-cmd>
 bench() {
   local label="$1" runs="$2" setup="$3" cmd="$4" i walls="" worst=0
   printf '%-26s ' "$label"
@@ -81,7 +79,6 @@ bench() {
   printf 'median %6.2fs  (n=%s, net<=%sKB)\n' "$(printf '%s' "$walls" | median)" "$runs" "$worst"
 }
 
-# warm variant: establish state once (untimed), then time N runs with no further setup
 bench_warm() {
   local label="$1" runs="$2" warmup="$3" cmd="$4" i walls="" worst=0
   bash -c "$warmup" >/dev/null 2>&1
@@ -107,16 +104,11 @@ build_native() {
   [ -n "$GRAALVM_HOME" ] || { warn "GRAALVM_HOME not set - skipping the native launcher"; return 1; }
   build_launcher
   note "Capturing reachability metadata and building the native launcher (one-off)"
-  # Capture with the tools in-process so javac/jar are recorded, and keep jdk.compiler/jdk.jartool in the image:
-  # Factory.of() then runs the compiler in-process (no fork), which is markedly faster on a cold build.
   local cfg; cfg="$(mktemp -d)"
   "$GRAALVM_HOME/bin/java" -Djenesis.process.factory=tool -Djenesis.test.skip=true \
       -agentlib:native-image-agent=config-output-dir="$cfg" \
       -cp "$LAUNCHER" build.jenesis.Project build >/dev/null 2>&1
   rm -rf target
-  # -H:IncludeResourceBundles forces javac's message bundles into the image: the agent only records bundles a
-  # captured compile happened to load, so without this the in-process compiler fails the moment it formats a
-  # diagnostic it did not record (a MissingResourceException in JavacMessages.getBundles).
   "$GRAALVM_HOME/bin/native-image" --no-fallback --add-modules jdk.compiler,jdk.jartool \
       -H:IncludeResourceBundles=com.sun.tools.javac.resources.compiler,com.sun.tools.javac.resources.javac,com.sun.tools.javac.resources.ct,sun.tools.jar.resources.jar \
       -H:ConfigurationFileDirectories="$cfg" \
@@ -124,7 +116,6 @@ build_native() {
     && echo "native launcher (in-process javac): $NATIVE" || { warn "native-image build failed"; return 1; }
 }
 
-# command strings (Maven compiles tests; Jenesis test-skip compiles the test module, both skip the run)
 M_NT() { echo "$1 package -o -q -ntp -DskipTests"; }
 M_F()  { echo "$1 package -o -q -ntp"; }
 SRC_NT="java -Djenesis.test.skip=true build/jenesis/Project.java build"
@@ -156,8 +147,6 @@ table_compile() {
   [ -x "$NATIVE" ] && bench_warm "jenesis-native" "$RUNS_WARM" "rm -rf target; $NATIVE_NT" "$NATIVE_NT"
   echo "-- one-line edit to a main source --"
   if git diff --quiet -- "$EDIT" 2>/dev/null; then
-    # the edit scenario appends to $EDIT and restores it with 'git checkout'; only run it when $EDIT is
-    # committed-clean, so a contributor's uncommitted changes are never discarded.
     bench_warm "maven3"      "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $m" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $m"
     bench_warm "jenesis-source"  "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $SRC_NT" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $SRC_NT"
     bench_warm "jenesis-precompiled" "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $JAVAC_NT" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $JAVAC_NT"
@@ -171,7 +160,6 @@ table_compile() {
   bench "jenesis-source"  "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $SRC_NT>/dev/null 2>&1; touch $EDIT" "$SRC_NT"
   bench "jenesis-precompiled" "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $JAVAC_NT>/dev/null 2>&1; touch $EDIT" "$JAVAC_NT"
   [ -x "$NATIVE" ] && bench "jenesis-native" "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $NATIVE_NT>/dev/null 2>&1; touch $EDIT" "$NATIVE_NT"
-  # 'touch' only changes mtime, not content, so $EDIT needs no restore here.
 }
 
 table_full() {
@@ -199,7 +187,6 @@ table_aot() {
   note "Table: JDK 25 AOT cache (JEP 514/515) for the precompiled launcher"
   build_launcher
   local jar="$ROOT/.jenesis/launcher.jar" aot="$ROOT/.jenesis/build.aot"
-  # CDS/AOT rejects an exploded class directory on the classpath, so the engine must be a jar.
   rm -f "$jar"; jar --create --file "$jar" -C "$LAUNCHER" .
   local B="-Djenesis.test.skip=true -cp $jar build.jenesis.Project build"
   note "recording run (-XX:AOTCacheOutput captures classes + method profiles)"

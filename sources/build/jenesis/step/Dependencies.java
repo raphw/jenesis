@@ -163,9 +163,6 @@ public class Dependencies implements BuildStep {
                     SequencedMap<String, String> bom = new LinkedHashMap<>();
                     for (SequencedMap<String, String> pins : scoped) {
                         if (pinning == Pinning.VERSIONS) {
-                            // Versions-only pins keep the resolved version but drop the trailing
-                            // checksum, so the resolver selects the pinned version without validating
-                            // any artifact digest.
                             pins.forEach((coordinate, value) -> {
                                 int space = value.indexOf(' ');
                                 bom.putIfAbsent(coordinate, space < 0 ? value : value.substring(0, space));
