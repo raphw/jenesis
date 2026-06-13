@@ -393,7 +393,6 @@ JDK (the agent ships in the GraalVM runtime), so like `native-image` it is a loc
 exercise.
 
 ## 14. Excluding a transitive dependency - [`maven-exclusions`](demo-20-maven-exclusions/README.md)
-----------------------------------------------------
 
 A Maven dependency drags in a transitive subtree, and `<exclusions>` prunes part
 of it. `maven-exclusions` declares Apache Commons Text but excludes its Apache
@@ -411,7 +410,6 @@ compile scope - the exclusion applies to the test class path too, not just the
 main one.
 
 ## 15. Choosing the pure modular layout - [`module-layout`](demo-21-module-layout/README.md)
-----------------------------------------------------
 
 `module-layout` is the same shape of project as `demo-02-java-modular` - a
 `module-info.java` requiring a named module - but a `jenesis.properties` at its
@@ -435,7 +433,6 @@ Reach for it when artifacts are consumed only as Java modules and you want no PO
 in the pipeline; keep the default when you also need a `pom.xml`.
 
 ## 16. Selecting a classified module variant - [`module-classifier`](demo-22-module-classifier/README.md)
-----------------------------------------------------
 
 Some artifacts publish **classified variants** beside their default jar - the same
 module name, different bytes, distinguished by what Maven calls a *classifier*.
@@ -465,7 +462,6 @@ jar carries `requires transitive org.reactivestreams`). Run
 `java build/jenesis/Execute.java` to build and launch it.
 
 ## 17. Selecting a variant per platform - [`platform-guard`](demo-23-platform-guard/README.md), [`platform-guard-pom`](demo-24-platform-guard-pom/README.md)
-----------------------------------------------------
 
 The previous demo committed one classified variant explicitly; `platform-guard`
 declares several and lets the build pick. A `@jenesis.pin` line may end with a
@@ -618,7 +614,6 @@ the container. It needs a Docker daemon, so it is a local exercise rather than a
 CI one. There are no assertions; each actor just reports what it managed to do.
 
 ## 23. Supply-chain security - [`supply-chain-security`](demo-33-supply-chain-security/README.md)
-----------------------------------------------------
 
 Pinning has two halves, and this demo shows both by getting them wrong on purpose.
 `supply-chain-security` has two modules and a `build/Demo.java` that asserts each
