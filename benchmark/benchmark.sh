@@ -1,27 +1,7 @@
 #!/usr/bin/env bash
-#
-# Reproducible build-performance benchmarks for the Jenesis project.
-# Reproduces the tables in the README "Build performance" section.
-#
-# Usage:
+# Reproducible build-performance benchmarks for the Jenesis project; reproduces the README
+# "Build performance" tables. Usage, methodology and configuration are in benchmark/README.md.
 #   benchmark/benchmark.sh {launch|compile|full|maven|pinning|aot|all}
-#
-# Methodology (see benchmark/README.md for the rationale):
-#   - Wall-clock is measured externally with /usr/bin/time (its %e field), never a build tool's self-report.
-#   - Every run records the network byte delta on the host interfaces, printed as net=+RX/TXKB; with warm caches
-#     the compile/incremental/launch builds transfer 0 KB (the full build does a ~25 KB symmetric metadata fetch).
-#   - The CPU should be on a "performance" power profile; the script warns if it is not (a "power-saver" profile
-#     pins the cores low and inflates every figure several-fold).
-#   - Maven compiles the tests but skips running them (-DskipTests); Jenesis's -Djenesis.test.skip likewise
-#     compiles the test module and skips only the runner, so both compile the same sources.
-#
-# Configuration (override via environment):
-#   JAVA_HOME      JDK 25+ used for the Jenesis and Maven builds (default: the java on PATH).
-#   MVN            Maven 3 launcher                 (default: mvn)
-#   MVN4           Maven 4 launcher, optional       (default: unset; the 'maven' table needs it)
-#   GRAALVM_HOME   GraalVM 25+ for the native image (default: unset; the native launcher is skipped without it)
-#   RUNS_COLD      repetitions for cold builds      (default: 5)
-#   RUNS_WARM      repetitions for warm/incremental (default: 3)
 #
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,74 +13,88 @@ MVN4="${MVN4:-}"
 GRAALVM_HOME="${GRAALVM_HOME:-}"
 RUNS_COLD="${RUNS_COLD:-5}"
 RUNS_WARM="${RUNS_WARM:-3}"
+ENGINE="build/jenesis"; [ -f $ENGINE/Project.java ] || ENGINE="sources/build/jenesis"
 LAUNCHER="$ROOT/.jenesis/launcher"
+EXE=""; NICMD=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXE=".exe"; NICMD=".cmd";; esac
 NATIVE="$ROOT/.jenesis/benchmark-image"
+NATIVE_BIN="$NATIVE$EXE"
 EDIT="sources/build/jenesis/Project.java"
-TFMT="%e %U %S %M"
 TF="$(mktemp)"; LOG="$(mktemp)"; trap 'rm -f "$TF" "$LOG"' EXIT
+HAVE_GTIME=0; /usr/bin/time -f %e true >/dev/null 2>&1 && HAVE_GTIME=1
+HAVE_NET=0; [ -r /proc/net/dev ] && HAVE_NET=1
 
 note() { printf '\n== %s ==\n' "$*"; }
 warn() { printf '!! %s\n' "$*" >&2; }
 
 check_env() {
-  command -v /usr/bin/time >/dev/null || { warn "/usr/bin/time (GNU time) is required"; exit 1; }
-  if command -v powerprofilesctl >/dev/null; then
+  if command -v powerprofilesctl >/dev/null 2>&1; then
     [ "$(powerprofilesctl get 2>/dev/null)" = performance ] \
-      || warn "CPU power profile is not 'performance' - figures will be slow and noisy (try: powerprofilesctl set performance)"
+      || warn "CPU power profile is not 'performance' - figures will be slow and noisy"
   fi
   java -version >/dev/null 2>&1 || { warn "no java on PATH / JAVA_HOME"; exit 1; }
 }
 
-rxtx() { awk -F'[: ]+' '/eth|wl|en|wlp|enp|eno/{rx+=$3;tx+=$11} END{print rx+0" "tx+0}' /proc/net/dev; }
+rxtx() { [ "$HAVE_NET" = 1 ] && awk -F'[: ]+' '/eth|wl|en|wlp|enp|eno/{rx+=$3;tx+=$11} END{print rx+0" "tx+0}' /proc/net/dev || echo "0 0"; }
 
 timeit() {
-  local b0 b1; b0=$(rxtx)
-  /usr/bin/time -f "$TFMT" -o "$TF" bash -c "$1" >"$LOG" 2>&1; local rc=$?
-  b1=$(rxtx); set -- $b0; local r0=$1 t0=$2; set -- $b1
-  local wall; wall=$(cut -d' ' -f1 "$TF")
-  echo "$wall $(( ($1-r0)/1024 )) $(( ($2-t0)/1024 )) $rc"
+  local b0 b1 rc wall r0 t0; b0=$(rxtx)
+  if [ "$HAVE_GTIME" = 1 ]; then
+    /usr/bin/time -f "%e" -o "$TF" bash -c "$1" >"$LOG" 2>&1; rc=$?
+    wall=$(cut -d' ' -f1 "$TF")
+  else
+    TIMEFORMAT=%R
+    { time bash -c "$1" >"$LOG" 2>&1; } 2>"$TF"; rc=$?
+    wall=$(tr -d '[:space:]' < "$TF" | tr ',' '.')
+  fi
+  b1=$(rxtx); set -- $b0; r0=$1; t0=$2; set -- $b1
+  if [ "$HAVE_NET" = 1 ]; then echo "$wall $(( ($1-r0)/1024 )) $(( ($2-t0)/1024 )) $rc"; else echo "$wall na na $rc"; fi
 }
 
-median() { # reads numbers on stdin, prints median
+median() {
   sort -n | awk '{a[NR]=$1} END{print (NR%2)?a[(NR+1)/2]:(a[NR/2]+a[NR/2+1])/2}'
+}
+
+result() {
+  if [ "$HAVE_NET" = 1 ]; then printf 'median %6.2fs  (n=%s, net<=%sKB)\n' "$(printf '%s' "$1" | median)" "$2" "$3"
+  else printf 'median %6.2fs  (n=%s)\n' "$(printf '%s' "$1" | median)" "$2"; fi
 }
 
 bench() {
   local label="$1" runs="$2" setup="$3" cmd="$4" i walls="" worst=0
   printf '%-26s ' "$label"
-  for i in $(seq 1 "$runs"); do
+  for (( i=1; i<=runs; i++ )); do
     [ -n "$setup" ] && bash -c "$setup" >/dev/null 2>&1
     read -r wall rx tx rc <<<"$(timeit "$cmd")"
     walls+="$wall
 "
     [ "$rc" != 0 ] && { printf 'FAILED (rc=%s)\n' "$rc"; tail -3 "$LOG" >&2; return 1; }
-    [ "$((rx+tx))" -gt "$worst" ] && worst=$((rx+tx))
+    [ "$rx" != na ] && [ "$((rx+tx))" -gt "$worst" ] && worst=$((rx+tx))
   done
-  printf 'median %6.2fs  (n=%s, net<=%sKB)\n' "$(printf '%s' "$walls" | median)" "$runs" "$worst"
+  result "$walls" "$runs" "$worst"
 }
 
 bench_warm() {
   local label="$1" runs="$2" warmup="$3" cmd="$4" i walls="" worst=0
   bash -c "$warmup" >/dev/null 2>&1
   printf '%-26s ' "$label"
-  for i in $(seq 1 "$runs"); do
+  for (( i=1; i<=runs; i++ )); do
     read -r wall rx tx rc <<<"$(timeit "$cmd")"
     walls+="$wall
 "
     [ "$rc" != 0 ] && { printf 'FAILED (rc=%s)\n' "$rc"; tail -3 "$LOG" >&2; return 1; }
-    [ "$((rx+tx))" -gt "$worst" ] && worst=$((rx+tx))
+    [ "$rx" != na ] && [ "$((rx+tx))" -gt "$worst" ] && worst=$((rx+tx))
   done
-  printf 'median %6.2fs  (n=%s, net<=%sKB)\n' "$(printf '%s' "$walls" | median)" "$runs" "$worst"
+  result "$walls" "$runs" "$worst"
 }
 
 build_launcher() {
   [ -d "$LAUNCHER" ] && return 0
   note "Precompiling the engine to $LAUNCHER"
-  rm -rf "$LAUNCHER"; javac -d "$LAUNCHER" $(find -L build/jenesis -name '*.java')
+  rm -rf "$LAUNCHER"; javac -d "$LAUNCHER" $(find -L "$ENGINE" -name '*.java')
 }
 
 build_native() {
-  [ -x "$NATIVE" ] && return 0
+  [ -x "$NATIVE_BIN" ] && return 0
   [ -n "$GRAALVM_HOME" ] || { warn "GRAALVM_HOME not set - skipping the native launcher"; return 1; }
   build_launcher
   note "Capturing reachability metadata and building the native launcher (one-off)"
@@ -109,26 +103,26 @@ build_native() {
       -agentlib:native-image-agent=config-output-dir="$cfg" \
       -cp "$LAUNCHER" build.jenesis.Project build >/dev/null 2>&1
   rm -rf target
-  "$GRAALVM_HOME/bin/native-image" --no-fallback --add-modules jdk.compiler,jdk.jartool \
+  "$GRAALVM_HOME/bin/native-image$NICMD" --no-fallback --add-modules jdk.compiler,jdk.jartool \
       -H:IncludeResourceBundles=com.sun.tools.javac.resources.compiler,com.sun.tools.javac.resources.javac,com.sun.tools.javac.resources.ct,sun.tools.jar.resources.jar \
       -H:ConfigurationFileDirectories="$cfg" \
       -cp "$LAUNCHER" build.jenesis.Project "$NATIVE" >/dev/null 2>&1 \
-    && echo "native launcher (in-process javac): $NATIVE" || { warn "native-image build failed"; return 1; }
+    && echo "native launcher (in-process javac): $NATIVE_BIN" || { warn "native-image build failed"; return 1; }
 }
 
 M_NT() { echo "$1 package -o -q -ntp -DskipTests"; }
 M_F()  { echo "$1 package -o -q -ntp"; }
-SRC_NT="java -Djenesis.test.skip=true build/jenesis/Project.java build"
+SRC_NT="java -Djenesis.test.skip=true $ENGINE/Project.java build"
 JAVAC_NT="java -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
-NATIVE_NT="$NATIVE -Djenesis.test.skip=true build"
-SRC_F="java build/jenesis/Project.java build"
+NATIVE_NT="$NATIVE_BIN -Djenesis.test.skip=true build"
+SRC_F="java $ENGINE/Project.java build"
 
 table_launch() {
   note "Table: build-tool launch overhead (run 'help', no project work)"
   build_launcher
-  bench_warm "source"      "$RUNS_WARM" "java build/jenesis/Project.java help" "java build/jenesis/Project.java help"
+  bench_warm "source"      "$RUNS_WARM" "java $ENGINE/Project.java help" "java $ENGINE/Project.java help"
   bench_warm "precompiled" "$RUNS_WARM" "java -cp $LAUNCHER build.jenesis.Project help" "java -cp $LAUNCHER build.jenesis.Project help"
-  build_native && bench_warm "native" "$RUNS_WARM" "$NATIVE help" "$NATIVE help"
+  build_native && bench_warm "native" "$RUNS_WARM" "$NATIVE_BIN help" "$NATIVE_BIN help"
 }
 
 table_compile() {
@@ -139,18 +133,18 @@ table_compile() {
   bench "maven3"      "$RUNS_COLD" "rm -rf target" "$m"
   bench "jenesis-source"  "$RUNS_COLD" "rm -rf target" "$SRC_NT"
   bench "jenesis-precompiled" "$RUNS_COLD" "rm -rf target" "$JAVAC_NT"
-  [ -x "$NATIVE" ] && bench "jenesis-native" "$RUNS_COLD" "rm -rf target" "$NATIVE_NT"
+  [ -x "$NATIVE_BIN" ] && bench "jenesis-native" "$RUNS_COLD" "rm -rf target" "$NATIVE_NT"
   echo "-- warm no-op (nothing changed) --"
   bench_warm "maven3"      "$RUNS_WARM" "rm -rf target; $m" "$m"
   bench_warm "jenesis-source"  "$RUNS_WARM" "rm -rf target; $SRC_NT" "$SRC_NT"
   bench_warm "jenesis-precompiled" "$RUNS_WARM" "rm -rf target; $JAVAC_NT" "$JAVAC_NT"
-  [ -x "$NATIVE" ] && bench_warm "jenesis-native" "$RUNS_WARM" "rm -rf target; $NATIVE_NT" "$NATIVE_NT"
+  [ -x "$NATIVE_BIN" ] && bench_warm "jenesis-native" "$RUNS_WARM" "rm -rf target; $NATIVE_NT" "$NATIVE_NT"
   echo "-- one-line edit to a main source --"
   if git diff --quiet -- "$EDIT" 2>/dev/null; then
     bench_warm "maven3"      "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $m" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $m"
     bench_warm "jenesis-source"  "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $SRC_NT" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $SRC_NT"
     bench_warm "jenesis-precompiled" "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $JAVAC_NT" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $JAVAC_NT"
-    [ -x "$NATIVE" ] && bench_warm "jenesis-native" "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $NATIVE_NT" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $NATIVE_NT"
+    [ -x "$NATIVE_BIN" ] && bench_warm "jenesis-native" "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $NATIVE_NT" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $NATIVE_NT"
     git checkout -- "$EDIT" 2>/dev/null
   else
     warn "skipping the edit table: $EDIT has uncommitted changes (commit or stash them to measure it)"
@@ -159,7 +153,7 @@ table_compile() {
   bench "maven3"      "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $m>/dev/null 2>&1; touch $EDIT" "$m"
   bench "jenesis-source"  "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $SRC_NT>/dev/null 2>&1; touch $EDIT" "$SRC_NT"
   bench "jenesis-precompiled" "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $JAVAC_NT>/dev/null 2>&1; touch $EDIT" "$JAVAC_NT"
-  [ -x "$NATIVE" ] && bench "jenesis-native" "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $NATIVE_NT>/dev/null 2>&1; touch $EDIT" "$NATIVE_NT"
+  [ -x "$NATIVE_BIN" ] && bench "jenesis-native" "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $NATIVE_NT>/dev/null 2>&1; touch $EDIT" "$NATIVE_NT"
 }
 
 table_full() {

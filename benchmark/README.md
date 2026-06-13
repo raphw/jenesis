@@ -29,6 +29,19 @@ Configuration (environment variables, all optional):
 The script prepares what it needs: it precompiles the engine into `.jenesis/launcher` for the precompiled
 launcher, and (when `GRAALVM_HOME` is set) captures reachability metadata and builds a native launcher once.
 
+It is `bash` (not POSIX `sh`) and runs on Linux, macOS and Windows (Git Bash). Where GNU `time` is absent
+(macOS, Windows) it falls back to the shell's `time` keyword for wall-clock, and where `/proc/net/dev` is
+absent it omits the `net<=NKB` column rather than asserting zero bytes.
+
+Continuous integration
+----------------------
+
+The `Build performance benchmarks` GitHub Action (`.github/workflows/benchmark.yml`) runs these tables on
+Linux, macOS and Windows on demand: trigger it from the Actions tab, optionally choosing which tables and how
+many repetitions, and it uploads a `benchmark-<os>.txt` per runner. Runner figures are noisier than a
+controlled local machine (shared, virtualized cores), so treat them as cross-platform smoke and relative
+comparisons rather than the headline numbers.
+
 Methodology
 -----------
 
