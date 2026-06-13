@@ -294,7 +294,7 @@ metadata is captured by the *test* module, which `requires build.jenesis` (it te
 metadata in the same build, the main module would have to depend on the test module that already depends on it - a
 cycle. So capture and consumption are necessarily separated by the `META-INF/native-image/` hand-off (which also
 serves as the human review point for what reflection gets baked into the closed-world image), exactly as the
-[`demo-35-native-image`](demo/demo-35-native-image) example shows for an application rather than the build tool. The
+[`demo-36-native-image`](demo/demo-36-native-image) example shows for an application rather than the build tool. The
 only fully automatic alternative would move `native-image` out of the per-module pipeline into a terminal step that
 depends on both the main artifact and the test capture, which the shipped layouts deliberately do not do.
 
@@ -844,7 +844,7 @@ classes, walks the graph to the tests that reach them, and passes only those to 
 change that reaches no test runs nothing, and any non-class change (a resource, a dependency) falls back to the full
 suite. This is a development-loop optimisation for `watch`, not a correctness gate: static selection cannot see
 reflection or other indirect couplings, so continuous integration should keep running the whole suite with selection
-off. The [`test-selection`](demo/demo-36-test-selection/README.md) demo shows it editing one class and re-running only
+off. The [`test-selection`](demo/demo-20-test-selection/README.md) demo shows it editing one class and re-running only
 that class's test.
 
 ### Printing the dependency tree
