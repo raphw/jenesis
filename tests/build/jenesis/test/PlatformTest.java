@@ -20,10 +20,8 @@ public class PlatformTest {
     }
 
     @Test
-    public void rejects_blank_token_list() {
-        assertThatThrownBy(() -> Platform.of(" , "))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No platform tokens");
+    public void empty_token_list_is_legal() {
+        assertThat(Platform.of(" , ").tokens()).isEmpty();
     }
 
     @Test

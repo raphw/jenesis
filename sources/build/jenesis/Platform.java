@@ -14,50 +14,40 @@ public record Platform(SequencedSet<String> tokens) implements Serializable {
                 normalized.add(value);
             }
         }
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException("No platform tokens in " + tokens);
-        }
         this.tokens = Collections.unmodifiableSequencedSet(normalized);
     }
 
     public Platform() {
-        this(detected());
+        this(Stream.concat(
+                Stream.of(os(System.getProperty("os.name", "")), arch(System.getProperty("os.arch", "")))
+                        .filter(token -> !"false".equalsIgnoreCase(System.getProperty(PREFIX + token, ""))),
+                System.getProperties().stringPropertyNames().stream()
+                        .filter(name -> name.startsWith(PREFIX) && "true".equalsIgnoreCase(System.getProperty(name)))
+                        .map(name -> name.substring(PREFIX.length())))
+                .collect(Collectors.toCollection(TreeSet::new)));
     }
 
-    private static SequencedSet<String> detected() {
-        SequencedSet<String> tokens = new TreeSet<>();
-        String os = System.getProperty("os.name", "").trim().toLowerCase(Locale.ROOT);
-        if (os.startsWith("windows")) {
-            tokens.add("windows");
-        } else if (os.startsWith("mac") || os.startsWith("darwin")) {
-            tokens.add("macos");
-        } else if (os.startsWith("linux")) {
-            tokens.add("linux");
-        } else {
-            tokens.add(os.replace(' ', '-'));
+    private static String os(String name) {
+        String normalized = name.trim().toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("windows")) {
+            return "windows";
         }
-        String arch = System.getProperty("os.arch", "").trim().toLowerCase(Locale.ROOT);
-        tokens.add(switch (arch) {
+        if (normalized.startsWith("mac") || normalized.startsWith("darwin")) {
+            return "macos";
+        }
+        if (normalized.startsWith("linux")) {
+            return "linux";
+        }
+        return normalized.replace(' ', '-');
+    }
+
+    private static String arch(String name) {
+        String normalized = name.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
             case "amd64", "x86-64", "x64" -> "x86_64";
             case "arm64" -> "aarch64";
-            default -> arch;
-        });
-        for (String name : System.getProperties().stringPropertyNames()) {
-            if (!name.startsWith(PREFIX)) {
-                continue;
-            }
-            String token = name.substring(PREFIX.length()).trim().toLowerCase(Locale.ROOT);
-            if (token.isEmpty()) {
-                continue;
-            }
-            String value = System.getProperty(name).trim();
-            if (value.equalsIgnoreCase("true")) {
-                tokens.add(token);
-            } else if (value.equalsIgnoreCase("false")) {
-                tokens.remove(token);
-            }
-        }
-        return tokens;
+            default -> normalized;
+        };
     }
 
     public static Platform of(String value) {
