@@ -212,33 +212,247 @@ that recompile. Precompile once with `javac` and run from the classes:
 Or ahead-of-time compile that launcher with GraalVM `native-image` for near-instant startup. Two things
 matter for the native build:
 
-- A native image has no in-process JDK tools, so `ProcessHandler.Factory.of()` detects the native-image
-  runtime (via the `org.graalvm.nativeimage.imagecode` system property) and defaults to the `FORK` factory,
-  forking the JDK `javac`/`jar` instead. Keep a JDK on `JAVA_HOME`/`PATH` at runtime.
+- **How the image runs the JDK tools.** A bare native image has no in-process JDK tools, so
+  `ProcessHandler.Factory.of()` detects the native-image runtime (via the `org.graalvm.nativeimage.imagecode`
+  system property) and forks `javac`/`jar` from a JDK on `JAVA_HOME`/`PATH`. Adding `--add-modules
+  jdk.compiler,jdk.jartool` to the `native-image` command keeps `javac` and `jar` *inside* the image;
+  `Factory.of()` then sees that `javac` is present and runs the tools in-process, with no per-compile process
+  fork. In-process is markedly faster - the ahead-of-time-compiled `javac` has no JVM startup and no JIT warm-up -
+  so it is the form to prefer; the [Build performance](#build-performance) section measures a cold build at ~6 s
+  in-process against ~13 s forking. (`-Djenesis.process.factory=tool|fork` overrides the choice.) A JDK on
+  `JAVA_HOME` is still required either way - the build resolves its tool home from it, and `javac --release` reads
+  that JDK's symbol files - so this trades the fork's process-spawn cost for speed, not the JDK dependency itself.
 - The incremental cache serializes every `BuildStep` to key it, so that a changed step configuration (for
   example the `jenesis.test.filter` filter) invalidates that step. That serialization needs native-image
   reachability metadata, which is captured from a real build with the native-image agent.
 
-Putting it together (after the `javac` precompile above):
+Putting it together (after the `javac` precompile above), on a GraalVM JDK:
 
-    # capture metadata from a representative build (process mode, so the forked-tool steps are recorded)
-    java -Djenesis.process.factory=fork \
+    # capture metadata from a representative build, running the tools in-process so javac/jar are recorded
+    java -Djenesis.process.factory=tool \
         -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \
         -cp .jenesis/launcher build.jenesis.Project build
 
-    # build the native launcher with that metadata
-    native-image --no-fallback \
+    # build the launcher with javac/jar kept in the image, so the build compiles in-process
+    native-image --no-fallback --add-modules jdk.compiler,jdk.jartool \
+        -H:IncludeResourceBundles=com.sun.tools.javac.resources.compiler,com.sun.tools.javac.resources.javac,com.sun.tools.javac.resources.ct,sun.tools.jar.resources.jar \
         -H:ConfigurationFileDirectories=.jenesis/native-config \
         -cp .jenesis/launcher build.jenesis.Project jenesis
 
-    # run it; process mode is auto-detected, no flags needed
-    ./jenesis [selectors...]
+    # run it; in-process tools are auto-detected, no factory flag needed (a JDK on JAVA_HOME is still required)
+    JAVA_HOME=/path/to/jdk ./jenesis [selectors...]
 
+The `-H:IncludeResourceBundles` flag is essential, not optional: the agent only records the message bundles a
+captured compile happened to load, so without forcing javac's bundles into the image the in-process compiler dies
+with a `MissingResourceException` (`JavacMessages.getBundles`) the first time it formats a diagnostic it had not
+recorded. For the smaller fork-based image instead, drop `--add-modules` and `-H:IncludeResourceBundles` and
+capture with
+`-Djenesis.process.factory=fork`; it then forks `javac`/`jar` from a JDK on `PATH` at run time.
 Capture the metadata from builds that exercise every layout and step you use, custom steps included, since it
 only covers what the agent run reached. Loading foreign build modules (`InternalModule` / `ExternalModule`,
 which bridge classes across class loaders) needs a full JVM and is not supported in a native image. Rebuild
 the precompiled or native launcher whenever the build sources change; this only accelerates launching the
 build, while the project being built is still recompiled by the build graph when its own sources change.
+
+### Building the launcher with Jenesis itself
+
+The native build above invokes `native-image` by hand. Jenesis can also drive it as a build step, the same way it
+drives `javac`, `jlink` or `jpackage`, so the launcher is produced by the build rather than a separate script.
+Because the root `pom.xml` declares `<mainClass>build.jenesis.Project</mainClass>`, the default assembler treats
+`build.jenesis` as a launchable module and, when asked, wires a `native-image` step for it. The reflection that
+`native-image`'s closed-world analysis cannot see is discovered by running the build's own tests under GraalVM's
+tracing agent. Both phases need a GraalVM JDK (or `GRAALVM_HOME` pointed at one):
+
+    # 1. capture: run the tests under the tracing agent, which records the reflection the engine reaches
+    java -Djenesis.observe.native=true build/jenesis/Project.java
+
+    # 2. commit the captured metadata where native-image looks for it (it is packaged into the jar)
+    mkdir -p sources/META-INF/native-image/build.jenesis
+    cp target/build/maven/compose/module/test-module-/produce/assemble/observed/native-image/report/output/reports/native-image/reachability-metadata.json \
+       sources/META-INF/native-image/build.jenesis/
+
+    # 3. build the native launcher through Jenesis (native-image runs over the produced module)
+    java -Djenesis.java.native=true build/jenesis/Project.java
+
+`jenesis.observe.native` attaches `-agentlib:native-image-agent` to the test JVM, so the agent records every
+reflective, JNI, resource and serialization access the 1049 tests exercise (including the `BuildStep` serialization
+the incremental cache depends on) and stages it as a `reports/native-image/` report. Reviewed and copied under
+`sources/META-INF/native-image/`, that file is packaged verbatim into the jar (files under `META-INF/` are copied
+as resources), where `native-image` discovers it without further configuration. `jenesis.java.native` then runs
+`native-image` over the produced launcher, locating the tool through `GRAALVM_HOME`, then `java.home`, then `PATH`,
+and writes the executable under the step's output:
+
+    target/build/maven/compose/module/module-/produce/assemble/native-image/output/native/build.jenesis
+
+Running that binary launches the build with the near-instant startup measured below. This was verified end to end
+on a GraalVM 25 JDK: the agent run produced a 212 KB `reachability-metadata.json`, and the resulting native
+executable launched the build correctly.
+
+The two phases cannot collapse into one build, and the reason is structural rather than a missing convenience. The
+metadata is captured by the *test* module, which `requires build.jenesis` (it tests the main module); the
+`native-image` step lives on the *main* module. For the main module's image to consume the test module's captured
+metadata in the same build, the main module would have to depend on the test module that already depends on it - a
+cycle. So capture and consumption are necessarily separated by the `META-INF/native-image/` hand-off (which also
+serves as the human review point for what reflection gets baked into the closed-world image), exactly as the
+[`demo-35-native-image`](demo/demo-35-native-image) example shows for an application rather than the build tool. The
+only fully automatic alternative would move `native-image` out of the per-module pipeline into a terminal step that
+depends on both the main artifact and the test capture, which the shipped layouts deliberately do not do.
+
+### Build performance
+
+Because every build step is content-hashed and the build itself ships as plain Java source, Jenesis's
+performance profile differs from a plugin-based build, and it shifts again with how the build is launched. The
+figures below build Jenesis itself (130 main sources, 112 test sources, 1049 tests) and compare it against Maven
+on the same machine.
+
+*Conditions.* All wall-clock times are measured externally with `/usr/bin/time` (its `%e` elapsed field), never a
+build tool's own self-report. The machine is an 8-core x86-64 laptop on JDK 25, kept on AC power with the CPU power
+profile pinned to `performance`; the laptop's default `power-saver` profile pins the cores near 1.4 GHz and
+inflates every figure by roughly 2.6x, which is the single largest measurement error to rule out before trusting
+any number. Both tools run with warm dependency caches (`~/.m2` for Maven, `.jenesis/cache` for Jenesis). To keep
+network latency out of the results, the whole matrix was re-run under a hard block - Maven `-o` plus a dead
+HTTP/HTTPS proxy (`127.0.0.1:1`) injected into every JVM via `JAVA_TOOL_OPTIONS`, so any real fetch fails instantly
+rather than adding latency - and each run's network byte delta was recorded: every compile-only, incremental and
+launch build completed with **0 KB transferred** (a passing build under the dead proxy is itself proof it needs no
+network). The one exception is the full build with tests, which moves about 25 KB **symmetrically on both tools**
+(a `maven-metadata.xml` lookup for the `RELEASE`-versioned external tools the test fixtures resolve - PMD,
+Checkstyle, the Scala and Kotlin compilers); that is sub-second against ~270 s of test execution and identical on
+both sides, so it does not bias the comparison. A first build on a fresh machine pays a one-time dependency
+download not shown here. The cold compile figure is the median of five runs and the other compile-only figures the
+median of three; the full builds are run once or twice, being test-bound and barely variable. Maven is 3.9.16
+(Maven 4 is discussed at the end).
+
+The Jenesis build is launched three ways, differing only in how the build engine is loaded:
+
+- *source* - `java build/jenesis/Project.java`, the canonical form, which recompiles the engine every invocation;
+- *precompiled* - `javac` the engine once into `.jenesis/launcher`, then `java -cp .jenesis/launcher build.jenesis.Project`;
+- *native* - `native-image` the launcher once into `./jenesis`.
+
+**Launch overhead** (running `help`, no project work; median of five):
+
+| Launcher    | Overhead     |
+|-------------|--------------|
+| source      | 2.81 s       |
+| precompiled | 0.07 s       |
+| native      | under 0.01 s |
+
+The source launcher recompiles the roughly 313-file engine on every run; removing that is the entire point of
+precompiling or going native. The one-time cost to obtain them is a couple of seconds for the `javac` launcher and
+about 160 s (yielding a 61 MB binary) for the native image, and both must be rebuilt whenever the build sources
+change.
+
+**Compile and package, tests compiled but not run** (`-DskipTests` for Maven, `-Djenesis.test.skip` for Jenesis).
+Both compile the 130 main and 112 test sources and skip only execution, which is the fairest tool-to-tool
+comparison: CPU-bound and network-free. Cold is the median of five runs (tight, within +/- 0.4 s); the rest are the
+median of three:
+
+| Scenario                          | Maven 3 | Jenesis source | Jenesis precompiled | Jenesis native |
+|-----------------------------------|---------|----------------|---------------------|----------------|
+| cold (empty `target/`)            | 11.5 s  | 14.9 s         | 10.6 s              | 6.8 s          |
+| warm no-op (nothing changed)      | 1.6 s   | 6.3 s          | 0.41 s              | 0.06 s         |
+| one-line edit to a main source    | 12.4 s  | 11.8 s         | 3.3 s               | 0.90 s         |
+| spurious `touch` (content same)   | 12.1 s  | 6.3 s          | 0.55 s              | 0.06 s         |
+
+The `native` column is the in-process build (`--add-modules jdk.compiler,jdk.jartool`, see below); a bare native
+image that forks `javac` instead is slower cold (~12.5 s) and is the variant to reach for only when a smaller
+image matters more than build speed.
+
+Read cold-to-warm, not only left-to-right. Cold, the precompiled launcher (10.6 s) edges out Maven (11.5 s) and the
+two are otherwise close: Jenesis's extra per-build work (resolving the dependency graph, emitting a POM, metadata
+and an inventory, content-hashing every input and output) is repaid by compiling each module in a single in-process
+`javac` invocation. The source launcher adds the per-run engine recompile on top (14.9 s). Warm and incremental are where content-hashing
+separates them. A no-op rebuild is 0.06 to 0.41 s on a precompiled or native launcher, because every step's input
+hash matches its recorded output and nothing re-runs, while Maven still walks its lifecycle in ~1.6 s. On any change
+to a main source - a real one-line edit, or even a content-preserving `touch` - Maven's mtime-based staleness
+recompiles the main sources *and* all 112 test sources (~12 s), because test compilation depends on the main output.
+Jenesis keys on content instead: a `touch` that does not change the bytes is a near no-op (0.06 s native), and a
+real edit recompiles only the module that changed (3.3 s precompiled), leaving the unaffected module's compiled
+tests cached.
+
+Flight-recorder profiles (`-XX:StartFlightRecording=settings=profile`) confirm where the differences come from.
+In the source-launcher cold build the hottest methods are all in `com.sun.tools.javac` (`Type.hasTag`,
+`Resolve.instantiate`, `Check.checkType`): it is compiler-bound, and it compiles the 313-file engine on top of the
+project's own sources. The precompiled-launcher cold build is also compiler-bound but only for the project sources -
+the engine is already compiled - which is the ~4 s difference between them. In the warm no-op build the compiler
+disappears from the profile entirely; the hottest methods are `sun.security.provider.DigestBase` and file
+I/O, because the only work left is content-hashing step inputs and outputs to confirm nothing changed. That digest
+is the incremental cache's `jenesis.executor.digest`, MD5 by default (`DigestBase` is the shared base class; the
+samples are MD5's compression), and is deliberately distinct from the SHA-256 used for dependency-pinning
+checksums, which a warm build does not touch. That is the incremental engine made visible: a warm rebuild hashes,
+it does not compile.
+
+The native launcher leads the table, and why is worth unpacking. It is built with `--add-modules
+jdk.compiler,jdk.jartool` (see [Faster launch](#faster-launch-precompiling-and-native-images)), which keeps `javac`
+and `jar` *inside* the image so `Factory.of()` runs them in-process. The ahead-of-time-compiled `javac` reaches
+full speed instantly - no JVM to boot, no JIT warm-up - so it wins every row: a cold build in ~6.8 s (under the
+precompiled launcher's 10.6 s and Maven's 11.5 s), a one-line edit in ~0.9 s (the changed module recompiled by an
+already-hot AOT compiler, against the precompiled launcher's 3.3 s), and the warm and `touch` no-ops at ~0.06 s
+(just the MD5 hash check, with no JVM to start). Its times are also the most *reproducible*: being AOT they barely
+move run to run, where the JVM launchers drift with JIT and the CPU's 3.3-3.7 GHz clock.
+
+Two caveats come with it. A native image is closed-world, so its reachability metadata must be complete - and the
+agent only records the message bundles a training compile happened to load, so without `-H:IncludeResourceBundles`
+for javac's and jar's bundles the in-process compiler dies at run time with a `MissingResourceException`
+(`JavacMessages.getBundles`); the flag forces them in and makes it deterministic. And a *bare* native image,
+without `--add-modules`, has no in-process JDK tools and forks an external `javac` instead - that variant is the
+slowest cold (~12.5 s, paying a process fork plus a cold `javac` JVM with no shared JIT state) and earns its keep
+only when a smaller image and reusing the machine's JDK matter more than build speed. A JDK on `JAVA_HOME` is
+required either way (`javac --release` reads its symbol files).
+
+**A JVM AOT cache, without GraalVM (JDK 25).** The precompiled launcher can also be sped up on a plain JVM with
+JDK 25's AOT cache (JEP 514/515): a *recording run* captures the classes the build loads and links, plus JIT
+method profiles, into a cache that later runs memory-map in. It is a smaller, lower-effort win than a native image
+- measured here a cold compile goes 10.8 s to 9.5 s and a warm no-op 0.42 s to 0.34 s - because the cache
+front-loads class loading and warm-up but the JVM still interprets-then-JITs `javac`, where the native image's
+`javac` is machine code from the first instruction. Two practicalities decide whether it works: the engine must be
+a *jar*, not an exploded class directory (CDS/AOT refuses a non-empty directory on the classpath), and the cache
+comes from a training run:
+
+    jar --create --file launcher.jar -C .jenesis/launcher .
+    java -XX:AOTCacheOutput=build.aot -cp launcher.jar build.jenesis.Project build   # recording run
+    java -XX:AOTCache=build.aot       -cp launcher.jar build.jenesis.Project build   # subsequent runs
+
+The same mechanism would trim the startup and early warm-up off the test JVM, but the full build's test phase is
+dominated by long-running and forked external tools rather than JVM warm-up, so the effect there is small.
+`benchmark/benchmark.sh aot` reproduces the launcher figures above.
+
+**Full build, all 1049 tests** (warm caches; the ~25 KB symmetric metadata fetch noted under *Conditions* applies
+here and only here):
+
+| Scenario                         | Maven 3 | Jenesis |
+|----------------------------------|---------|---------|
+| cold                             | 268 s   | 270 s   |
+| warm no-op (nothing changed)     | 279 s   | 6.6 s   |
+
+The launcher variant is omitted here on purpose. This table is test-bound, and which launcher starts the build
+(source, precompiled, or native) only moves the few seconds of launch-and-compile against ~270 s of tool-driven
+test execution; the native launcher's win does not apply, and running the 1049-test integration suite *inside* a
+native image (JUnit plus the forked external tools, all closed-world) is impractical, so the JVM launcher is used.
+
+Cold, the two land within one percent: the build is dominated by running 1049 integration tests that drive external
+tools (PMD, Checkstyle, the Scala and Kotlin compilers, and so on), which is process- and IO-bound and essentially
+independent of the build tool - it barely moved when the CPU was unthrottled from 1.4 to 3.6 GHz. The warm no-op
+row is where they diverge by more than an order of magnitude. Maven's surefire re-runs the entire suite on every
+invocation, so a rebuild with nothing changed still costs the full 279 s; Jenesis content-hashes each test step's
+inputs - the compiled classes under test and their dependency closure - and skips the step when that hash is
+unchanged, so a no-op rebuild is about 6.6 s. This is the property that compounds in multi-module builds: a test
+step re-runs only when the artifacts it depends on actually change, so editing one module re-tests that module and
+its dependents while every unaffected module keeps its cached test result. The single-project measurement here is
+the floor of that effect; the more modules a build carries, the larger the share of the suite a typical change
+leaves untouched. (The ~1 % cold gap was checked, not assumed: byte counters put both tools at the same ~25 KB of
+metadata I/O, and an earlier Jenesis cold run that had measured 442 s - making Maven look intrinsically faster -
+did not reproduce once instrumented (re-measured: 270 s). That spike was the first test-running build of its
+session warming the external-tool cache, after which the next tool inherited it; with the tool cache warm on both
+sides the cold builds are equal.)
+
+**Maven 3 versus Maven 4.** The project's `pom.xml` pins `maven-compiler-plugin` to 3.15.0 in `<pluginManagement>`,
+which both Maven versions honour; Maven 3.9.16 already selects that version by default, while Maven 4.0.0-rc-5 would
+otherwise bind the older 3.13.0, whose bundled ASM rejects Java 25 bytecode (`Unsupported class file major version
+69`), so the pin is what lets Maven 4 compile Java 25 at all. With it in place, the two are equivalent on real
+builds: measured back to back, a cold compile lands within run-to-run noise of Maven 3, and Maven 4-rc5 only adds
+about 0.9 s of fixed CLI startup overhead, visible just on near-empty rebuilds. The tables above were measured with
+Maven 3.9.16. Jenesis sidesteps the plugin question entirely: it compiles through the JDK's own
+`javac` by way of `ToolProvider`, with no intermediate bytecode-analysis layer that can lag the JDK.
 
 ### Selectors
 
@@ -1623,7 +1837,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.format.java`, `jenesis.format.rewrite`, `jenesis.format.<tool>` | system property | Read by `InferredSourceFormattingModule` (wired as the per-module `format` step). `jenesis.format.java=google\|palantir` selects a Java formatter - a Java formatter has no config file to infer from, so unset runs none; `.javaFormatter(GOOGLE\|PALANTIR)` is the in-code equivalent. `jenesis.format.ktlint` / `jenesis.format.scalafmt` (each default `true`) switch off the ktlint / scalafmt formatters, which otherwise activate from `.editorconfig` / `.scalafmt.conf`. `jenesis.format.rewrite` (default `false`) flips the whole chain from verify mode (a CI gate that fails on an unformatted source without writing it) to rewriting sources in place (it sets `.verify(false)` on each formatter). Default: no Java formatter, ktlint/scalafmt on, verify mode. |
 | `jenesis.observe.jacoco` | system property | Read by `InferredTestObservationModule` (wired as the per-module `observed` step that wraps the test run). When `true`, it adds JaCoCo as a coverage agent that `-javaagent`-attaches to the test JVM and writes `jacoco.exec`, which the `JaCoCoModule` then renders into an HTML/XML report under `reports/jacoco/`. The `.jacoco(boolean)` wither sets it directly in code. Default `false` (no observation agent, the test run is unwrapped). |
 | `jenesis.observe.native` | system property | Read by `InferredTestObservationModule`, the GraalVM counterpart of `jenesis.observe.jacoco`. When `true`, it adds the `NativeImageAgent` engine, which `-agentlib:native-image-agent=config-output-dir=...`-attaches the GraalVM tracing agent to the test JVM so it records the reflection, JNI, resource, proxy and serialization the tests exercise. The agent ships in the GraalVM runtime (no coordinate to resolve), so the build must run on a GraalVM JDK (or with `GRAALVM_HOME` set, as the test JVM inherits the build's `java.home`); on a stock JDK the test run fails to load the agent. `NativeImageAgentModule` then stages the captured config (`reachability-metadata.json` and friends) as a report under `reports/native-image/`, ready to commit into `META-INF/native-image/` where `native-image` (`jenesis.java.native`) auto-discovers it. The `.nativeImage(boolean)` wither sets it directly in code. Default `false`. |
-| `jenesis.dependency.pin` | system property | A pinning mode - `strict` or `ignore` (unset is the lenient default). `strict` makes every `Dependencies` step the project wires (through the layouts' `MavenProject.make`/`ModularProject.make`, and through `InferredMultiProjectAssembler`'s `TestModule`) fail the build with an `IllegalStateException` for any resolved coordinate that has no checksum pinned in `requires.properties` - locking the build down so every artifact has to come with a SHA pin from a `pom.xml` `<!--Checksum/...-->` comment or a `@jenesis.pin <group>/<repository>/<coordinate> <version> <algorithm>/<hex>` Javadoc tag. `ignore` is the opposite: every Jenesis pin (managed version and checksum) is dropped, so versions float to the latest the repository serves and checksums are not verified; run the `pin` step under it on a trusted machine to refresh the pinned closure to the latest versions and freshly computed checksums. Unset applies existing pins but tolerates missing ones. The mode is a `Pinning` enum whose **default value is resolved from this property**: `Project`'s default constructor reads it once via `Pinning.fromProperty()` (a bare `Project()` is pinned according to `jenesis.dependency.pin`), and that value is threaded down through `MavenProject.make` / `ModularProject.make` / `ProjectModuleDescriptor` / `InferredMultiProjectAssembler` / `TestModule` into every `Dependencies`, so a user never has to remember to propagate it. The `pinning(...)` withers override that default - `Project.pinning(Pinning.STRICT)` to lock down or `Project.pinning(Pinning.IGNORE)` to opt out - and the override (including an explicit `null`, which stays lenient regardless of the property) wins all the way down; `Dependencies` also takes it directly (`new Dependencies(repositories, resolvers).pinning(Pinning.STRICT)`). |
+| `jenesis.dependency.pin` | system property | A pinning mode - `strict`, `versions`, or `ignore` (unset is the lenient default). `strict` makes every `Dependencies` step the project wires (through the layouts' `MavenProject.make`/`ModularProject.make`, and through `InferredMultiProjectAssembler`'s `TestModule`) fail the build with an `IllegalStateException` for any resolved coordinate that has no checksum pinned in `requires.properties` - locking the build down so every artifact has to come with a SHA pin from a `pom.xml` `<!--Checksum/...-->` comment or a `@jenesis.pin <group>/<repository>/<coordinate> <version> <algorithm>/<hex>` Javadoc tag. `ignore` is the opposite: every Jenesis pin (managed version and checksum) is dropped, so versions float to the latest the repository serves and checksums are not verified; run the `pin` step under it on a trusted machine to refresh the pinned closure to the latest versions and freshly computed checksums. `versions` is in between: it keeps the managed versions but strips their checksums before the `Resolver` runs, so the build selects exactly the pinned version without validating any artifact digest - useful to pin versions for reproducibility without committing or maintaining checksums (and it disables the per-artifact SHA validation that the resolver otherwise performs when a checksum is pinned). Unset applies existing pins but tolerates missing ones. The mode is a `Pinning` enum whose **default value is resolved from this property**: `Project`'s default constructor reads it once via `Pinning.fromProperty()` (a bare `Project()` is pinned according to `jenesis.dependency.pin`), and that value is threaded down through `MavenProject.make` / `ModularProject.make` / `ProjectModuleDescriptor` / `InferredMultiProjectAssembler` / `TestModule` into every `Dependencies`, so a user never has to remember to propagate it. The `pinning(...)` withers override that default - `Project.pinning(Pinning.STRICT)` to lock down or `Project.pinning(Pinning.IGNORE)` to opt out - and the override (including an explicit `null`, which stays lenient regardless of the property) wins all the way down; `Dependencies` also takes it directly (`new Dependencies(repositories, resolvers).pinning(Pinning.STRICT)`). |
 | `jenesis.platform.<token>` | system property | Adds (`=true`) or removes (`=false`) a single platform token, where the active platform starts from the detected operating system (`windows`/`linux`/`macos`) and chipset (`x86_64`/`aarch64`). The token set is read once by `Platform`'s no-arg constructor (a value record) when `MavenProject` / `ModularProject` / `PinModuleInfo` / `PinPom` are constructed, and threaded into the manifests step where it selects which platform-guarded pin lines apply (a `@jenesis.pin ... [<token>,...]` Javadoc tag, or a guarded line in a `pom.xml`'s `<!--jenesis.pin ... -->` block): a guard applies when all its tokens are in the active set, the most specific match wins, the unguarded line for the same coordinate is the fallback. `=true` activates a custom flavor (`-Djenesis.platform.fips=true` selects a `[fips]` guard on top of the real machine), `=false` disables a detected default (`-Djenesis.platform.linux=false -Djenesis.platform.windows=true` cross-resolves a Windows closure from a Linux host). The platform is part of the manifests step's serialized cache identity, so changing it re-runs exactly the affected selection; an in-code build overrides it wholesale through the `platform(Platform)` builder method. |
 | `jenesis.project.digest` | system property | Content digest algorithm threaded through the build as the project's `HashDigestFunction` (default `SHA-256`). Used by `PinPom` / `PinModuleInfo` to recompute checksums over the resolved jar artifacts during the `pin` step - pin always rehashes whatever is sitting in the upstream `artifacts/` folders, so the pinned `<!--Checksum/...-->` / `@jenesis.pin` lines always reflect the bytes the build actually used. (The intra-project sibling-artifact fingerprint that `MultiProjectDependencies` writes into `requires.properties` is instead the build executor's own per-file checksum, so it follows `jenesis.executor.digest`, not this property.) Any `MessageDigest` algorithm name is accepted (`SHA-512`, `SHA-1`, etc.). |
 | `jenesis.project.version` | system property   | When set, stamps the version onto every artifact this build produces. It is appended last into every per-module `metadata.properties` (after the framework defaults and the project-root override file), so it overrides the `version` from either layer. `Javac` passes `--module-version <V>` when compiling a `module-info.java`, so the produced `module-info.class` carries it as `Module.version` (and downstream consumers automatically pick it up as `compiledVersion` on their `requires` directives). `Pom` writes it into `<version>`; dependency versions are unaffected. `MavenRepositoryStaging` reads coordinates from the produced `pom.xml`, so the staged folder path, artifact filenames and `MavenRepositoryExport`'s `maven-metadata-local.xml` follow along. |

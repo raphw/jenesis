@@ -1,0 +1,85 @@
+name: Build performance benchmarks
+
+# On-demand only: build-performance numbers are environment-sensitive, so this is
+# never run automatically. Trigger it from the Actions tab; results are written to
+# a per-OS text file and uploaded as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      tables:
+        description: 'Benchmark tables to run (space-separated subset of: launch compile full maven pinning aot all)'
+        default: 'launch compile pinning aot'
+      runs_cold:
+        description: 'Repetitions per cold scenario'
+        default: '5'
+      runs_warm:
+        description: 'Repetitions per warm scenario'
+        default: '3'
+
+# Route Maven Central through the repository variable MAVEN_REPOSITORY_URI when set
+# (the Google Cloud mirror of Central, to avoid Central rate-limiting the runners),
+# falling back to Central itself so an unset variable never becomes an empty URI.
+env:
+  MAVEN_REPOSITORY_URI: ${{ vars.MAVEN_REPOSITORY_URI || 'https://repo1.maven.org/maven2/' }}
+
+jobs:
+  benchmark:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # GraalVM gives both a HotSpot `java` (for the source, precompiled and AOT
+      # scenarios) and `native-image` (for the native launcher column); it also
+      # exports GRAALVM_HOME, which benchmark.sh reads to build the native image.
+      - name: Set up GraalVM JDK 25
+        uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
+        with:
+          distribution: graalvm
+          java-version: '25'
+
+      # Populate the caches the offline benchmarks rely on: a full Jenesis build
+      # primes its resolution cache, and a full Maven build primes ~/.m2 so the
+      # `-o` (offline) Maven scenarios resolve. Maven is only primed when a table
+      # that runs it is requested.
+      - name: Warm caches
+        shell: bash
+        env:
+          TABLES: ${{ inputs.tables }}
+        run: |
+          java build/jenesis/Project.java build
+          case " $TABLES " in
+            *" compile "*|*" full "*|*" maven "*|*" all "*) mvn -B -ntp package ;;
+          esac
+
+      - name: Run benchmarks
+        shell: bash
+        env:
+          TABLES: ${{ inputs.tables }}
+          RUNS_COLD: ${{ inputs.runs_cold }}
+          RUNS_WARM: ${{ inputs.runs_warm }}
+        run: |
+          out="benchmark-${{ matrix.os }}.txt"
+          {
+            echo "Jenesis build-performance benchmarks"
+            echo "os:     ${{ matrix.os }} (${{ runner.arch }})"
+            echo "tables: $TABLES"
+            echo "runs:   cold=$RUNS_COLD warm=$RUNS_WARM"
+            echo "date:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            java -version 2>&1 | sed 's/^/java:   /'
+            echo
+          } | tee "$out"
+          for t in $TABLES; do
+            bash benchmark/benchmark.sh "$t" 2>&1 | tee -a "$out"
+          done
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark-${{ matrix.os }}
+          path: benchmark-${{ matrix.os }}.txt
+          if-no-files-found: warn

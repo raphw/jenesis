@@ -162,12 +162,14 @@ public class Dependencies implements BuildStep {
                     }
                     SequencedMap<String, String> bom = new LinkedHashMap<>();
                     for (SequencedMap<String, String> pins : scoped) {
-                        if (pinned) {
+                        if (pinning == Pinning.VERSIONS) {
+                            pins.forEach((coordinate, value) -> {
+                                int space = value.indexOf(' ');
+                                bom.putIfAbsent(coordinate, space < 0 ? value : value.substring(0, space));
+                            });
+                        } else if (pinned) {
                             pins.forEach(bom::putIfAbsent);
                         } else {
-                            // Ignored pins drop versions and checksums, but a classifier qualifier
-                            // is a variant choice, not a derived version: it survives as a floating
-                            // classifier-only selection.
                             pins.forEach((coordinate, value) -> {
                                 if (value.startsWith(":")) {
                                     int space = value.indexOf(' ');
