@@ -921,12 +921,30 @@ public class MavenPomResolver implements MavenResolver {
                         if (value.isEmpty()) {
                             continue;
                         }
+                        String key;
                         int firstSlash = token.indexOf('/');
-                        int secondSlash = firstSlash < 1 ? -1 : token.indexOf('/', firstSlash + 1);
-                        if (secondSlash < firstSlash + 2 || secondSlash == token.length() - 1) {
-                            continue;
+                        int secondSlash = firstSlash < 0 ? -1 : token.indexOf('/', firstSlash + 1);
+                        if (firstSlash < 0) {
+                            key = "main/module/" + token;
+                        } else if (secondSlash < 0) {
+                            if (firstSlash < 1 || firstSlash == token.length() - 1) {
+                                throw new IllegalArgumentException("Malformed jenesis.pin token '"
+                                        + token
+                                        + "': expected <module>, <groupId>/<artifactId>,"
+                                        + " or <group>/<repository>/<coordinate>");
+                            }
+                            key = "main/maven/" + token;
+                        } else {
+                            if (firstSlash < 1 || secondSlash == firstSlash + 1
+                                    || secondSlash == token.length() - 1) {
+                                throw new IllegalArgumentException("Malformed jenesis.pin token '"
+                                        + token
+                                        + "': expected <module>, <groupId>/<artifactId>,"
+                                        + " or <group>/<repository>/<coordinate>");
+                            }
+                            key = token;
                         }
-                        entries.put(guard == null ? token : token + "[" + guard + "]", value);
+                        entries.put(guard == null ? key : key + "[" + guard + "]", value);
                     }
                 });
         return entries;
