@@ -4,7 +4,7 @@
 # Reproduces the tables in the README "Build performance" section.
 #
 # Usage:
-#   benchmark/benchmark.sh {launch|compile|full|maven|pinning|all}
+#   benchmark/benchmark.sh {launch|compile|full|maven|pinning|aot|all}
 #
 # Methodology (see benchmark/README.md for the rationale):
 #   - Wall-clock is measured externally with /usr/bin/time (its %e field), never a build tool's self-report.
@@ -195,6 +195,25 @@ table_maven() {
   bench_warm "maven4" "$RUNS_WARM" "rm -rf target; $m4" "$m4"
 }
 
+table_aot() {
+  note "Table: JDK 25 AOT cache (JEP 514/515) for the precompiled launcher"
+  build_launcher
+  local jar="$ROOT/.jenesis/launcher.jar" aot="$ROOT/.jenesis/build.aot"
+  # CDS/AOT rejects an exploded class directory on the classpath, so the engine must be a jar.
+  rm -f "$jar"; jar --create --file "$jar" -C "$LAUNCHER" .
+  local B="-Djenesis.test.skip=true -cp $jar build.jenesis.Project build"
+  note "recording run (-XX:AOTCacheOutput captures classes + method profiles)"
+  rm -rf target "$aot"
+  java -XX:AOTCacheOutput="$aot" $B >/dev/null 2>&1 || { warn "AOT cache training failed (needs JDK 25+)"; rm -f "$jar"; return 1; }
+  echo "-- cold --"
+  bench "precompiled (jar)"       "$RUNS_COLD" "rm -rf target" "java $B"
+  bench "precompiled (jar) + AOT" "$RUNS_COLD" "rm -rf target" "java -XX:AOTCache=$aot $B"
+  echo "-- warm no-op --"
+  bench_warm "precompiled (jar)"       "$RUNS_WARM" "rm -rf target; java $B"                  "java $B"
+  bench_warm "precompiled (jar) + AOT" "$RUNS_WARM" "rm -rf target; java -XX:AOTCache=$aot $B" "java -XX:AOTCache=$aot $B"
+  rm -f "$jar" "$aot"
+}
+
 table_pinning() {
   note "Table: dependency pinning - default (checksums verified) vs versions (checksums stripped)"
   build_launcher
@@ -215,7 +234,8 @@ case "${1:-}" in
   full)    table_full ;;
   maven)   table_maven ;;
   pinning) table_pinning ;;
-  all)     table_launch; table_compile; table_full; table_maven; table_pinning ;;
-  *) echo "usage: $0 {launch|compile|full|maven|pinning|all}"; exit 1 ;;
+  aot)     table_aot ;;
+  all)     table_launch; table_compile; table_full; table_maven; table_pinning; table_aot ;;
+  *) echo "usage: $0 {launch|compile|full|maven|pinning|aot|all}"; exit 1 ;;
 esac
 note "done: ${1:-}"

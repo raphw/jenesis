@@ -12,7 +12,8 @@ Running
     benchmark/benchmark.sh compile     # one table
     benchmark/benchmark.sh all         # every table
 
-Subcommands: `launch`, `compile`, `full`, `maven`, `pinning`, `all`.
+Subcommands: `launch`, `compile`, `full`, `maven`, `pinning`, `aot`, `all`. (`aot` measures a JDK 25 AOT cache
+for the precompiled launcher - JEP 514/515 - via a recording run; it needs JDK 25+.)
 
 Configuration (environment variables, all optional):
 

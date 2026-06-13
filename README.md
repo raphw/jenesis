@@ -399,6 +399,23 @@ slowest cold (~12.5 s, paying a process fork plus a cold `javac` JVM with no sha
 only when a smaller image and reusing the machine's JDK matter more than build speed. A JDK on `JAVA_HOME` is
 required either way (`javac --release` reads its symbol files).
 
+**A JVM AOT cache, without GraalVM (JDK 25).** The precompiled launcher can also be sped up on a plain JVM with
+JDK 25's AOT cache (JEP 514/515): a *recording run* captures the classes the build loads and links, plus JIT
+method profiles, into a cache that later runs memory-map in. It is a smaller, lower-effort win than a native image
+- measured here a cold compile goes 10.8 s to 9.5 s and a warm no-op 0.42 s to 0.34 s - because the cache
+front-loads class loading and warm-up but the JVM still interprets-then-JITs `javac`, where the native image's
+`javac` is machine code from the first instruction. Two practicalities decide whether it works: the engine must be
+a *jar*, not an exploded class directory (CDS/AOT refuses a non-empty directory on the classpath), and the cache
+comes from a training run:
+
+    jar --create --file launcher.jar -C .jenesis/launcher .
+    java -XX:AOTCacheOutput=build.aot -cp launcher.jar build.jenesis.Project build   # recording run
+    java -XX:AOTCache=build.aot       -cp launcher.jar build.jenesis.Project build   # subsequent runs
+
+The same mechanism would trim the startup and early warm-up off the test JVM, but the full build's test phase is
+dominated by long-running and forked external tools rather than JVM warm-up, so the effect there is small.
+`benchmark/benchmark.sh aot` reproduces the launcher figures above.
+
 **Full build, all 1049 tests** (warm caches; the ~25 KB symmetric metadata fetch noted under *Conditions* applies
 here and only here):
 
