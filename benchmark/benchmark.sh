@@ -107,14 +107,21 @@ build_native() {
   [ -n "$GRAALVM_HOME" ] || { warn "GRAALVM_HOME not set - skipping the native launcher"; return 1; }
   build_launcher
   note "Capturing reachability metadata and building the native launcher (one-off)"
+  # Capture with the tools in-process so javac/jar are recorded, and keep jdk.compiler/jdk.jartool in the image:
+  # Factory.of() then runs the compiler in-process (no fork), which is markedly faster on a cold build.
   local cfg; cfg="$(mktemp -d)"
-  "$GRAALVM_HOME/bin/java" -Djenesis.process.factory=fork -Djenesis.test.skip=true \
+  "$GRAALVM_HOME/bin/java" -Djenesis.process.factory=tool -Djenesis.test.skip=true \
       -agentlib:native-image-agent=config-output-dir="$cfg" \
       -cp "$LAUNCHER" build.jenesis.Project build >/dev/null 2>&1
   rm -rf target
-  "$GRAALVM_HOME/bin/native-image" --no-fallback -H:ConfigurationFileDirectories="$cfg" \
+  # -H:IncludeResourceBundles forces javac's message bundles into the image: the agent only records bundles a
+  # captured compile happened to load, so without this the in-process compiler fails the moment it formats a
+  # diagnostic it did not record (a MissingResourceException in JavacMessages.getBundles).
+  "$GRAALVM_HOME/bin/native-image" --no-fallback --add-modules jdk.compiler,jdk.jartool \
+      -H:IncludeResourceBundles=com.sun.tools.javac.resources.compiler,com.sun.tools.javac.resources.javac,com.sun.tools.javac.resources.ct,sun.tools.jar.resources.jar \
+      -H:ConfigurationFileDirectories="$cfg" \
       -cp "$LAUNCHER" build.jenesis.Project "$NATIVE" >/dev/null 2>&1 \
-    && echo "native launcher: $NATIVE" || { warn "native-image build failed"; return 1; }
+    && echo "native launcher (in-process javac): $NATIVE" || { warn "native-image build failed"; return 1; }
 }
 
 # command strings (Maven compiles tests; Jenesis test-skip compiles the test module, both skip the run)

@@ -212,28 +212,42 @@ that recompile. Precompile once with `javac` and run from the classes:
 Or ahead-of-time compile that launcher with GraalVM `native-image` for near-instant startup. Two things
 matter for the native build:
 
-- A native image has no in-process JDK tools, so `ProcessHandler.Factory.of()` detects the native-image
-  runtime (via the `org.graalvm.nativeimage.imagecode` system property) and defaults to the `FORK` factory,
-  forking the JDK `javac`/`jar` instead. Keep a JDK on `JAVA_HOME`/`PATH` at runtime.
+- **How the image runs the JDK tools.** A bare native image has no in-process JDK tools, so
+  `ProcessHandler.Factory.of()` detects the native-image runtime (via the `org.graalvm.nativeimage.imagecode`
+  system property) and forks `javac`/`jar` from a JDK on `JAVA_HOME`/`PATH`. Adding `--add-modules
+  jdk.compiler,jdk.jartool` to the `native-image` command keeps `javac` and `jar` *inside* the image;
+  `Factory.of()` then sees that `javac` is present and runs the tools in-process, with no per-compile process
+  fork. In-process is markedly faster - the ahead-of-time-compiled `javac` has no JVM startup and no JIT warm-up -
+  so it is the form to prefer; the [Build performance](#build-performance) section measures a cold build at ~6 s
+  in-process against ~13 s forking. (`-Djenesis.process.factory=tool|fork` overrides the choice.) A JDK on
+  `JAVA_HOME` is still required either way - the build resolves its tool home from it, and `javac --release` reads
+  that JDK's symbol files - so this trades the fork's process-spawn cost for speed, not the JDK dependency itself.
 - The incremental cache serializes every `BuildStep` to key it, so that a changed step configuration (for
   example the `jenesis.test.filter` filter) invalidates that step. That serialization needs native-image
   reachability metadata, which is captured from a real build with the native-image agent.
 
-Putting it together (after the `javac` precompile above):
+Putting it together (after the `javac` precompile above), on a GraalVM JDK:
 
-    # capture metadata from a representative build (process mode, so the forked-tool steps are recorded)
-    java -Djenesis.process.factory=fork \
+    # capture metadata from a representative build, running the tools in-process so javac/jar are recorded
+    java -Djenesis.process.factory=tool \
         -agentlib:native-image-agent=config-output-dir=.jenesis/native-config \
         -cp .jenesis/launcher build.jenesis.Project build
 
-    # build the native launcher with that metadata
-    native-image --no-fallback \
+    # build the launcher with javac/jar kept in the image, so the build compiles in-process
+    native-image --no-fallback --add-modules jdk.compiler,jdk.jartool \
+        -H:IncludeResourceBundles=com.sun.tools.javac.resources.compiler,com.sun.tools.javac.resources.javac,com.sun.tools.javac.resources.ct,sun.tools.jar.resources.jar \
         -H:ConfigurationFileDirectories=.jenesis/native-config \
         -cp .jenesis/launcher build.jenesis.Project jenesis
 
-    # run it; process mode is auto-detected, no flags needed
-    ./jenesis [selectors...]
+    # run it; in-process tools are auto-detected, no factory flag needed (a JDK on JAVA_HOME is still required)
+    JAVA_HOME=/path/to/jdk ./jenesis [selectors...]
 
+The `-H:IncludeResourceBundles` flag is essential, not optional: the agent only records the message bundles a
+captured compile happened to load, so without forcing javac's bundles into the image the in-process compiler dies
+with a `MissingResourceException` (`JavacMessages.getBundles`) the first time it formats a diagnostic it had not
+recorded. For the smaller fork-based image instead, drop `--add-modules` and `-H:IncludeResourceBundles` and
+capture with
+`-Djenesis.process.factory=fork`; it then forks `javac`/`jar` from a JDK on `PATH` at run time.
 Capture the metadata from builds that exercise every layout and step you use, custom steps included, since it
 only covers what the agent run reached. Loading foreign build modules (`InternalModule` / `ExternalModule`,
 which bridge classes across class loaders) needs a full JVM and is not supported in a native image. Rebuild
@@ -334,10 +348,14 @@ median of three:
 
 | Scenario                          | Maven 3 | Jenesis source | Jenesis precompiled | Jenesis native |
 |-----------------------------------|---------|----------------|---------------------|----------------|
-| cold (empty `target/`)            | 11.5 s  | 14.9 s         | 10.6 s              | 12.5 s         |
+| cold (empty `target/`)            | 11.5 s  | 14.9 s         | 10.6 s              | 6.8 s          |
 | warm no-op (nothing changed)      | 1.6 s   | 6.3 s          | 0.41 s              | 0.06 s         |
-| one-line edit to a main source    | 12.4 s  | 11.8 s         | 3.3 s               | 3.4 s          |
+| one-line edit to a main source    | 12.4 s  | 11.8 s         | 3.3 s               | 0.90 s         |
 | spurious `touch` (content same)   | 12.1 s  | 6.3 s          | 0.55 s              | 0.06 s         |
+
+The `native` column is the in-process build (`--add-modules jdk.compiler,jdk.jartool`, see below); a bare native
+image that forks `javac` instead is slower cold (~12.5 s) and is the variant to reach for only when a smaller
+image matters more than build speed.
 
 Read cold-to-warm, not only left-to-right. Cold, the precompiled launcher (10.6 s) edges out Maven (11.5 s) and the
 two are otherwise close: Jenesis's extra per-build work (resolving the dependency graph, emitting a POM, metadata
@@ -363,16 +381,23 @@ samples are MD5's compression), and is deliberately distinct from the SHA-256 us
 checksums, which a warm build does not touch. That is the incremental engine made visible: a warm rebuild hashes,
 it does not compile.
 
-Two things about the native launcher are worth explaining. It is the fastest to *launch* and the most
-*reproducible* (ahead-of-time compiled, so no JIT warm-up, where the JVM launchers vary run to run with JIT and the
-CPU's sustained clock - it floated between 3.3 and 3.7 GHz across sessions here), yet it is the *slowest of the
-Jenesis launchers on a cold build* (12.5 s, behind the precompiled 10.6 s). That is not a contradiction: a native
-image has no in-process JDK tools, so the build detects the native runtime and forks an external `javac` (and
-`jar`) process instead of calling the compiler in-process through `ToolProvider`. A cold build, which actually
-compiles, pays that process-fork plus a cold `javac` JVM that shares no JIT state with the build, which is the ~2 s
-it trails the precompiled launcher by. A warm no-op compiles nothing, so the fork never happens and the native
-binary's instant startup (no JVM to boot) makes it the quickest of all - the 0.06 s in the warm row. In short:
-forking `javac` costs the native launcher on compile-heavy runs and its zero startup wins on cache-hit runs.
+The native launcher leads the table, and why is worth unpacking. It is built with `--add-modules
+jdk.compiler,jdk.jartool` (see [Faster launch](#faster-launch-precompiling-and-native-images)), which keeps `javac`
+and `jar` *inside* the image so `Factory.of()` runs them in-process. The ahead-of-time-compiled `javac` reaches
+full speed instantly - no JVM to boot, no JIT warm-up - so it wins every row: a cold build in ~6.8 s (under the
+precompiled launcher's 10.6 s and Maven's 11.5 s), a one-line edit in ~0.9 s (the changed module recompiled by an
+already-hot AOT compiler, against the precompiled launcher's 3.3 s), and the warm and `touch` no-ops at ~0.06 s
+(just the MD5 hash check, with no JVM to start). Its times are also the most *reproducible*: being AOT they barely
+move run to run, where the JVM launchers drift with JIT and the CPU's 3.3-3.7 GHz clock.
+
+Two caveats come with it. A native image is closed-world, so its reachability metadata must be complete - and the
+agent only records the message bundles a training compile happened to load, so without `-H:IncludeResourceBundles`
+for javac's and jar's bundles the in-process compiler dies at run time with a `MissingResourceException`
+(`JavacMessages.getBundles`); the flag forces them in and makes it deterministic. And a *bare* native image,
+without `--add-modules`, has no in-process JDK tools and forks an external `javac` instead - that variant is the
+slowest cold (~12.5 s, paying a process fork plus a cold `javac` JVM with no shared JIT state) and earns its keep
+only when a smaller image and reusing the machine's JDK matter more than build speed. A JDK on `JAVA_HOME` is
+required either way (`javac --release` reads its symbol files).
 
 **Full build, all 1049 tests** (warm caches; the ~25 KB symmetric metadata fetch noted under *Conditions* applies
 here and only here):
@@ -381,6 +406,11 @@ here and only here):
 |----------------------------------|---------|---------|
 | cold                             | 268 s   | 270 s   |
 | warm no-op (nothing changed)     | 279 s   | 6.6 s   |
+
+The launcher variant is omitted here on purpose. This table is test-bound, and which launcher starts the build
+(source, precompiled, or native) only moves the few seconds of launch-and-compile against ~270 s of tool-driven
+test execution; the native launcher's win does not apply, and running the 1049-test integration suite *inside* a
+native image (JUnit plus the forked external tools, all closed-world) is impractical, so the JVM launcher is used.
 
 Cold, the two land within one percent: the build is dominated by running 1049 integration tests that drive external
 tools (PMD, Checkstyle, the Scala and Kotlin compilers, and so on), which is process- and IO-bound and essentially

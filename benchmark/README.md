@@ -54,10 +54,12 @@ These controls are what make the comparison fair; they are the conclusions of a 
 Notes on the figures
 ---------------------
 
-- The `native` launcher is the fastest to launch and the most reproducible (ahead-of-time, no JIT warm-up) but
-  the slowest Jenesis launcher on a *cold* build, because a native image has no in-process JDK tools and forks an
-  external `javac` instead of compiling through `ToolProvider`; a warm no-op compiles nothing, so its zero
-  startup wins instead.
+- The `native` launcher this script builds carries `jdk.compiler`/`jdk.jartool` (`--add-modules`) and forces
+  javac's and jar's message bundles in (`-H:IncludeResourceBundles`, without which the in-process compiler fails
+  non-deterministically on an un-recorded bundle), so it runs `javac` in-process; with the ahead-of-time-compiled
+  compiler - no JVM startup, no JIT warm-up - it is the fastest configuration measured here, cold and warm. A bare
+  native image without those modules has no in-process JDK tools and forks an external `javac`, making it the
+  slowest on a cold build instead (the `jenesis.process.factory=tool|fork` property forces either path).
 - `pin=versions` (checksums stripped, versions kept) shows no measurable speedup: the warm hot path is the
   incremental cache's MD5 hashing, and the SHA-256 artifact validation it removes runs only on a cold
   `Dependencies` step and is negligible.
