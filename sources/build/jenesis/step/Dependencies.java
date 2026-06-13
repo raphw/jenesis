@@ -170,9 +170,6 @@ public class Dependencies implements BuildStep {
                         } else if (pinned) {
                             pins.forEach(bom::putIfAbsent);
                         } else {
-                            // Ignored pins drop versions and checksums, but a classifier qualifier
-                            // is a variant choice, not a derived version: it survives as a floating
-                            // classifier-only selection.
                             pins.forEach((coordinate, value) -> {
                                 if (value.startsWith(":")) {
                                     int space = value.indexOf(' ');
