@@ -399,8 +399,9 @@ public record Project(
                     %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
                       versions to the latest and skips checksum verification (refresh the
-                      pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
-                      but tolerates missing ones.
+                      pins by running the %{name}pin%{reset} step under it); %{name}versions%{reset} keeps the
+                      pinned versions but skips checksum verification. Unset keeps existing
+                      pins but tolerates missing ones.
 
                     %{header}Platform (-Djenesis.platform.<token>=<true|false>):%{reset}
                       The active platform starts from the detected operating system and
@@ -720,11 +721,13 @@ public record Project(
                                                   (Ctrl+C to stop).
                     
                     Pinning:
-                      -Djenesis.dependency.pin=strict|ignore  strict fails on
-                                                  any unpinned artifact; ignore
-                                                  floats to the latest and skips
-                                                  checksums (refresh pins via
-                                                  the pin step).
+                      -Djenesis.dependency.pin=strict|versions|ignore
+                                                  strict fails on any unpinned
+                                                  artifact; ignore floats to the
+                                                  latest and skips checksums
+                                                  (refresh pins via the pin step);
+                                                  versions keeps pinned versions
+                                                  but skips checksum verification.
 
                     Platform:
                       -Djenesis.platform.<token>=true|false  The active platform

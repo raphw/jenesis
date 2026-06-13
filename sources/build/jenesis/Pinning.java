@@ -6,6 +6,8 @@ public enum Pinning {
 
     STRICT,
 
+    VERSIONS,
+
     IGNORE;
 
     public static Pinning fromProperty() {
