@@ -4,6 +4,8 @@ import module java.base;
 
 public record Platform(SequencedSet<String> tokens) implements Serializable {
 
+    private static final String PREFIX = "jenesis.platform.";
+
     public Platform(SequencedSet<String> tokens) {
         SequencedSet<String> normalized = new TreeSet<>();
         for (String token : tokens) {
@@ -18,11 +20,11 @@ public record Platform(SequencedSet<String> tokens) implements Serializable {
         this.tokens = Collections.unmodifiableSequencedSet(normalized);
     }
 
-    public static Platform detect() {
-        String property = System.getProperty("jenesis.dependency.platform");
-        if (property != null) {
-            return of(property);
-        }
+    public Platform() {
+        this(detected());
+    }
+
+    private static SequencedSet<String> detected() {
         SequencedSet<String> tokens = new TreeSet<>();
         String os = System.getProperty("os.name", "").trim().toLowerCase(Locale.ROOT);
         if (os.startsWith("windows")) {
@@ -40,7 +42,22 @@ public record Platform(SequencedSet<String> tokens) implements Serializable {
             case "arm64" -> "aarch64";
             default -> arch;
         });
-        return new Platform(tokens);
+        for (String name : System.getProperties().stringPropertyNames()) {
+            if (!name.startsWith(PREFIX)) {
+                continue;
+            }
+            String token = name.substring(PREFIX.length()).trim().toLowerCase(Locale.ROOT);
+            if (token.isEmpty()) {
+                continue;
+            }
+            String value = System.getProperty(name).trim();
+            if (value.equalsIgnoreCase("true")) {
+                tokens.add(token);
+            } else if (value.equalsIgnoreCase("false")) {
+                tokens.remove(token);
+            }
+        }
+        return tokens;
     }
 
     public static Platform of(String value) {

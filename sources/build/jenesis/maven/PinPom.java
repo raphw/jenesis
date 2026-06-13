@@ -27,7 +27,7 @@ public class PinPom implements BuildStep {
     private final Platform platform;
 
     public PinPom(String prefix, String path, List<Path> pomFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, pomFiles, hashFunction, Platform.detect());
+        this(prefix, path, pomFiles, hashFunction, new Platform());
     }
 
     private PinPom(String prefix,

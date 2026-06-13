@@ -23,7 +23,7 @@ public class PinModuleInfo implements BuildStep {
     private final Platform platform;
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, moduleInfoFiles, hashFunction, Platform.detect());
+        this(prefix, path, moduleInfoFiles, hashFunction, new Platform());
     }
 
     private PinModuleInfo(String prefix,

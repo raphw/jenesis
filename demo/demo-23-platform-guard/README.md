@@ -17,16 +17,16 @@ which resolves the unguarded fallback (the modern `mutiny.zero` 1.1.1) and print
 
     Selected variant: the modern mutiny.zero 1.1.1
 
-Then select the guarded variant by overriding the platform tokens:
+Then select the guarded variant by adding the `legacy` platform token:
 
-    java -Djenesis.dependency.platform=legacy build/jenesis/Execute.java
+    java -Djenesis.platform.legacy=true build/jenesis/Execute.java
 
 which resolves the classified `jdk-flow` variant of 0.4.3 instead and prints:
 
     Selected variant: the legacy jdk-flow variant of mutiny.zero 0.4.3
 
-No `target/` cleanup is needed between the two: the platform token set is a field
-of the manifests step, so changing it invalidates exactly the selection and the
+No `target/` cleanup is needed between the two: the platform is a field of the
+manifests step, so adding the flag invalidates exactly the selection and the
 resolution that depends on it.
 
 The guarded pins
@@ -40,13 +40,16 @@ The guarded pins
         requires mutiny.zero;
     }
 
-The active platform is the token set of the `jenesis.dependency.platform` property
-(comma-separated, case-normalized), defaulting to the detected operating system and
-chipset: one of `windows`/`linux`/`macos` plus one of `x86_64`/`aarch64`. A guard
-matches when all of its tokens are contained in the active set; the most specific
-match (largest guard) wins, the unguarded line is the fallback, equally specific
-distinct matches fail the build, and an unmatched guard without a fallback leaves
-the module unpinned (which strict pinning rejects).
+The active platform starts from the detected operating system and chipset (one of
+`windows`/`linux`/`macos` plus one of `x86_64`/`aarch64`); a
+`-Djenesis.platform.<token>=true` flag adds a token and a
+`-Djenesis.platform.<token>=false` flag removes a detected one (so
+`-Djenesis.platform.linux=false -Djenesis.platform.windows=true` cross-resolves a
+Windows closure from a Linux host). A guard matches when all of its tokens are
+contained in the active set; the most specific match (largest guard) wins, the
+unguarded line is the fallback, equally specific distinct matches fail the build,
+and an unmatched guard without a fallback leaves the module unpinned (which strict
+pinning rejects).
 
 A real OS-dependent project guards with platform tokens, one line per variant:
 

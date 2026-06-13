@@ -83,4 +83,48 @@ public class PlatformTest {
     public void equal_token_sets_are_equal_regardless_of_input_order() {
         assertThat(Platform.of("windows,x86_64")).isEqualTo(Platform.of("x86_64, WINDOWS"));
     }
+
+    @Test
+    public void detected_platform_has_an_operating_system_and_chipset() {
+        assertThat(new Platform().tokens()).hasSizeGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    public void declared_flag_adds_a_token_on_top_of_the_detected_ones() {
+        Platform detected = new Platform();
+        System.setProperty("jenesis.platform.fips", "true");
+        try {
+            Platform extended = new Platform();
+            assertThat(extended.tokens()).contains("fips");
+            assertThat(extended.tokens()).containsAll(detected.tokens());
+            assertThat(detected.tokens()).doesNotContain("fips");
+        } finally {
+            System.clearProperty("jenesis.platform.fips");
+        }
+    }
+
+    @Test
+    public void declared_flag_must_be_true_to_add() {
+        System.setProperty("jenesis.platform.fips", "yes");
+        try {
+            assertThat(new Platform().tokens()).doesNotContain("fips");
+        } finally {
+            System.clearProperty("jenesis.platform.fips");
+        }
+    }
+
+    @Test
+    public void declared_false_flag_removes_a_detected_token() {
+        Platform detected = new Platform();
+        assertThat(detected.tokens()).hasSizeGreaterThanOrEqualTo(2);
+        String removed = detected.tokens().getFirst();
+        System.setProperty("jenesis.platform." + removed, "false");
+        try {
+            SequencedSet<String> expected = new TreeSet<>(detected.tokens());
+            expected.remove(removed);
+            assertThat(new Platform().tokens()).containsExactlyElementsOf(expected);
+        } finally {
+            System.clearProperty("jenesis.platform." + removed);
+        }
+    }
 }

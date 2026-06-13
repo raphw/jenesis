@@ -42,7 +42,7 @@ public class ModularProject implements BuildExecutorModule {
     private final Platform platform;
 
     public ModularProject(String prefix, Path root) {
-        this("main", prefix, root, _ -> true, true, Platform.detect());
+        this("main", prefix, root, _ -> true, true, new Platform());
     }
 
     private ModularProject(String group,

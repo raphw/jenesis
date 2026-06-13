@@ -49,7 +49,7 @@ public class MavenProject implements BuildExecutorModule {
     private final Platform platform;
 
     public MavenProject(Path root, String prefix, MavenRepository repository, MavenResolver resolver) {
-        this(root, "main", prefix, repository, resolver, Platform.detect());
+        this(root, "main", prefix, repository, resolver, new Platform());
     }
 
     private MavenProject(Path root,
