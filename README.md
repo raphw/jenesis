@@ -251,7 +251,7 @@ capture with
 Capture the metadata from builds that exercise every layout and step you use, custom steps included, since it
 only covers what the agent run reached. Loading foreign build modules (`InternalModule` / `ExternalModule`,
 which bridge classes across class loaders) needs a full JVM and is not supported in a native image. Rebuild
-the precompiled or native launcher whenever the build sources change; this only accelerates launching the
+the compiled or native launcher whenever the build sources change; this only accelerates launching the
 build, while the project being built is still recompiled by the build graph when its own sources change.
 
 ### Building the launcher with Jenesis itself
@@ -325,7 +325,7 @@ median of three; the full builds are run once or twice, being test-bound and bar
 The Jenesis build is launched three ways, differing only in how the build engine is loaded:
 
 - *source* - `java build/jenesis/Project.java`, the canonical form, which recompiles the engine every invocation;
-- *precompiled* - `javac` the engine once into `.jenesis/launcher`, then `java -cp .jenesis/launcher build.jenesis.Project`;
+- *compiled* - `javac` the engine once into `.jenesis/launcher`, then `java -cp .jenesis/launcher build.jenesis.Project`; an SDKMAN-installed `jenesis` (or the unpacked release zip) runs this same already-compiled engine jar, so it shares the *compiled* figures rather than the *source* ones;
 - *native* - `native-image` the launcher once into `./jenesis`.
 
 **Launch overhead** (running `help`, no project work; median of five):
@@ -333,7 +333,7 @@ The Jenesis build is launched three ways, differing only in how the build engine
 | Launcher    | Overhead     |
 |-------------|--------------|
 | source      | 2.81 s       |
-| precompiled | 0.07 s       |
+| compiled    | 0.07 s       |
 | native      | under 0.01 s |
 
 The source launcher recompiles the roughly 313-file engine on every run; removing that is the entire point of
@@ -341,38 +341,68 @@ precompiling or going native. The one-time cost to obtain them is a couple of se
 about 160 s (yielding a 61 MB binary) for the native image, and both must be rebuilt whenever the build sources
 change.
 
+**First run on a bare machine.** The tables assume the build tool and its caches are already present; standing
+each tool up from nothing - a shell and a JDK, empty caches - is a one-time cost worth comparing too. Maven is
+not on the machine, so the project carries the Maven wrapper: `./mvnw` downloads the Maven distribution (a
+9.4 MB zip, plus the 63 KB `maven-wrapper.jar` when it is not committed), unzips it and boots Maven in about 1 s
+here. That only obtains Maven itself - the first real build then populates an empty `~/.m2` with every plugin,
+its POM and its transitive libraries alongside the project's own dependencies. For this project that is about
+33 MB across ~490 files (56 jars, 127 POMs, the rest checksums and metadata) and added roughly 6.7 s to the
+first build on this connection; being many small POM and metadata requests it is latency-bound rather than
+bandwidth-bound, so it stretches on a slow or distant link and is impossible offline. Roughly a third of those
+bytes are Maven's own runtime and plugins (`maven-compiler-plugin`, `maven-surefire-plugin`, `maven-jar-plugin`
+and their `plexus`/`codehaus` plumbing) - build tooling that has no Jenesis equivalent.
+
+Jenesis ships as source and runs on the JDK that is required anyway, so there is no tool to download and no
+plugin ecosystem to fetch; its first run pulls only the project's own dependencies, the same ones Maven also
+downloads. What it pays for being source rather than a compiled artifact is the per-run engine recompile from
+the launch-overhead table - about 2.4 s (`java build/jenesis/Project.java help` at ~2.5 s against the compiled
+launcher's ~0.07 s). That cost is CPU-only: it transfers nothing, works offline, does not grow on a worse
+connection, and disappears once the engine is compiled once into `.jenesis/launcher` (0.07 s) or installed
+through SDKMAN, which ships that same compiled jar. So on a fast network these are all single-digit seconds and
+roughly comparable; the difference is in kind, in that Maven must reach the network to assemble its tooling
+before it can build while Jenesis trades that for a fixed, offline, eliminable recompile.
+
+There is a supply-chain dimension to the wrapper too. The Maven wrapper commits a 63 KB `maven-wrapper.jar` into
+the repository, and Gradle's equivalent a 47 KB `gradle-wrapper.jar` (which then fetches a ~131 MB Gradle
+distribution on first run, around 6 s here and far longer on a slower link); each is an opaque binary, checked into version control and run with the build's full
+privileges, which is enough of an attack surface that Gradle ships a dedicated wrapper-validation step to
+checksum its jar. Committing a binary to a source repository is exactly what a build tool should not require:
+Jenesis checks in only the engine's Java source under `build/jenesis/`, auditable as text and compiled locally
+by the JDK, so there is no opaque artifact to trust or verify in the first place.
+
 **Compile and package, tests compiled but not run** (`-DskipTests` for Maven, `-Djenesis.test.skip` for Jenesis).
 Both compile the 130 main and 112 test sources and skip only execution, which is the fairest tool-to-tool
 comparison: CPU-bound and network-free. Cold is the median of five runs (tight, within +/- 0.4 s); the rest are the
 median of three:
 
-| Scenario                          | Maven 3 | Jenesis source | Jenesis precompiled | Jenesis native |
-|-----------------------------------|---------|----------------|---------------------|----------------|
-| cold (empty `target/`)            | 11.5 s  | 14.9 s         | 10.6 s              | 6.8 s          |
-| warm no-op (nothing changed)      | 1.6 s   | 6.3 s          | 0.41 s              | 0.06 s         |
-| one-line edit to a main source    | 12.4 s  | 11.8 s         | 3.3 s               | 0.90 s         |
-| spurious `touch` (content same)   | 12.1 s  | 6.3 s          | 0.55 s              | 0.06 s         |
+| Scenario                          | Maven 3 | Jenesis source | Jenesis compiled | Jenesis native |
+|-----------------------------------|---------|----------------|------------------|----------------|
+| cold (empty `target/`)            | 11.5 s  | 14.9 s         | 10.6 s           | 6.8 s          |
+| warm no-op (nothing changed)      | 1.6 s   | 6.3 s          | 0.41 s           | 0.06 s         |
+| one-line edit to a main source    | 12.4 s  | 11.8 s         | 3.3 s            | 0.90 s         |
+| spurious `touch` (content same)   | 12.1 s  | 6.3 s          | 0.55 s           | 0.06 s         |
 
 The `native` column is the in-process build (`--add-modules jdk.compiler,jdk.jartool`, see below); a bare native
 image that forks `javac` instead is slower cold (~12.5 s) and is the variant to reach for only when a smaller
 image matters more than build speed.
 
-Read cold-to-warm, not only left-to-right. Cold, the precompiled launcher (10.6 s) edges out Maven (11.5 s) and the
+Read cold-to-warm, not only left-to-right. Cold, the compiled launcher (10.6 s) edges out Maven (11.5 s) and the
 two are otherwise close: Jenesis's extra per-build work (resolving the dependency graph, emitting a POM, metadata
 and an inventory, content-hashing every input and output) is repaid by compiling each module in a single in-process
 `javac` invocation. The source launcher adds the per-run engine recompile on top (14.9 s). Warm and incremental are where content-hashing
-separates them. A no-op rebuild is 0.06 to 0.41 s on a precompiled or native launcher, because every step's input
+separates them. A no-op rebuild is 0.06 to 0.41 s on a compiled or native launcher, because every step's input
 hash matches its recorded output and nothing re-runs, while Maven still walks its lifecycle in ~1.6 s. On any change
 to a main source - a real one-line edit, or even a content-preserving `touch` - Maven's mtime-based staleness
 recompiles the main sources *and* all 112 test sources (~12 s), because test compilation depends on the main output.
 Jenesis keys on content instead: a `touch` that does not change the bytes is a near no-op (0.06 s native), and a
-real edit recompiles only the module that changed (3.3 s precompiled), leaving the unaffected module's compiled
+real edit recompiles only the module that changed (3.3 s compiled), leaving the unaffected module's compiled
 tests cached.
 
 Flight-recorder profiles (`-XX:StartFlightRecording=settings=profile`) confirm where the differences come from.
 In the source-launcher cold build the hottest methods are all in `com.sun.tools.javac` (`Type.hasTag`,
 `Resolve.instantiate`, `Check.checkType`): it is compiler-bound, and it compiles the 313-file engine on top of the
-project's own sources. The precompiled-launcher cold build is also compiler-bound but only for the project sources -
+project's own sources. The compiled-launcher cold build is also compiler-bound but only for the project sources -
 the engine is already compiled - which is the ~4 s difference between them. In the warm no-op build the compiler
 disappears from the profile entirely; the hottest methods are `sun.security.provider.DigestBase` and file
 I/O, because the only work left is content-hashing step inputs and outputs to confirm nothing changed. That digest
@@ -385,8 +415,8 @@ The native launcher leads the table, and why is worth unpacking. It is built wit
 jdk.compiler,jdk.jartool` (see [Faster launch](#faster-launch-precompiling-and-native-images)), which keeps `javac`
 and `jar` *inside* the image so `Factory.of()` runs them in-process. The ahead-of-time-compiled `javac` reaches
 full speed instantly - no JVM to boot, no JIT warm-up - so it wins every row: a cold build in ~6.8 s (under the
-precompiled launcher's 10.6 s and Maven's 11.5 s), a one-line edit in ~0.9 s (the changed module recompiled by an
-already-hot AOT compiler, against the precompiled launcher's 3.3 s), and the warm and `touch` no-ops at ~0.06 s
+compiled launcher's 10.6 s and Maven's 11.5 s), a one-line edit in ~0.9 s (the changed module recompiled by an
+already-hot AOT compiler, against the compiled launcher's 3.3 s), and the warm and `touch` no-ops at ~0.06 s
 (just the MD5 hash check, with no JVM to start). Its times are also the most *reproducible*: being AOT they barely
 move run to run, where the JVM launchers drift with JIT and the CPU's 3.3-3.7 GHz clock.
 
@@ -399,7 +429,7 @@ slowest cold (~12.5 s, paying a process fork plus a cold `javac` JVM with no sha
 only when a smaller image and reusing the machine's JDK matter more than build speed. A JDK on `JAVA_HOME` is
 required either way (`javac --release` reads its symbol files).
 
-**A JVM AOT cache, without GraalVM (JDK 25).** The precompiled launcher can also be sped up on a plain JVM with
+**A JVM AOT cache, without GraalVM (JDK 25).** The compiled launcher can also be sped up on a plain JVM with
 JDK 25's AOT cache (JEP 514/515): a *recording run* captures the classes the build loads and links, plus JIT
 method profiles, into a cache that later runs memory-map in. It is a smaller, lower-effort win than a native image
 - measured here a cold compile goes 10.8 s to 9.5 s and a warm no-op 0.42 s to 0.34 s - because the cache
@@ -425,7 +455,7 @@ here and only here):
 | warm no-op (nothing changed)     | 279 s   | 6.6 s   |
 
 The launcher variant is omitted here on purpose. This table is test-bound, and which launcher starts the build
-(source, precompiled, or native) only moves the few seconds of launch-and-compile against ~270 s of tool-driven
+(source, compiled, or native) only moves the few seconds of launch-and-compile against ~270 s of tool-driven
 test execution; the native launcher's win does not apply, and running the 1049-test integration suite *inside* a
 native image (JUnit plus the forked external tools, all closed-world) is impractical, so the JVM launcher is used.
 
@@ -453,6 +483,33 @@ builds: measured back to back, a cold compile lands within run-to-run noise of M
 about 0.9 s of fixed CLI startup overhead, visible just on near-empty rebuilds. The tables above were measured with
 Maven 3.9.16. Jenesis sidesteps the plugin question entirely: it compiles through the JDK's own
 `javac` by way of `ToolProvider`, with no intermediate bytecode-analysis layer that can lag the JDK.
+
+**Across three platforms.** The tables above are the controlled single-machine measurement; to confirm the
+*shape* holds elsewhere, the on-demand `benchmark` workflow (`.github/workflows/benchmark.yml`) runs the same
+`benchmark/benchmark.sh` unattended on GitHub-hosted runners (Linux x64, macOS ARM64, Windows x64) and uploads
+a result file per OS. The absolute numbers there are not comparable to the laptop figures - the runners are
+shared, virtualised machines and one is ARM - so they are a cross-platform sanity check, not headline numbers.
+Cold compile-and-package and warm no-op, medians under the same `-DskipTests` / `jenesis.test.skip` flags:
+
+| Platform (runner) | Maven 3 cold | source cold | compiled cold | native cold | Maven 3 warm | source warm | compiled warm | native warm |
+|-------------------|--------------|-------------|---------------|-------------|--------------|-------------|---------------|-------------|
+| macOS ARM64       | 9.7 s        | 12.1 s      | 8.3 s         | 5.3 s       | 1.4 s        | 5.6 s       | 0.37 s        | 0.11 s      |
+| Linux x64         | 14.9 s       | 19.6 s      | 13.4 s        | 7.9 s       | 2.2 s        | 9.7 s       | 0.63 s        | 0.08 s      |
+| Windows x64       | 18.5 s       | 23.6 s      | 15.8 s        | 8.5 s       | 3.5 s        | 11.9 s      | 0.86 s        | 0.17 s      |
+
+The ordering is the same on every platform and matches the laptop: the native launcher is the fastest cold
+build and the source launcher the slowest (it recompiles the ~313-file engine on every run), with the
+compiled launcher edging Maven in between; a warm no-op on a compiled or native launcher stays an order
+of magnitude under Maven, while the source launcher's no-op stays above it for the same recompile reason. macOS
+ARM64 is the quickest of the three -
+its single-thread speed even edges the laptop's native cold build (5.3 s against 6.8 s) - and Windows x64 the
+slowest, paying its heavier filesystem. The secondary findings reproduce too: `pin=versions` is
+indistinguishable from the default on all three (checksum validation costs nothing on the warm path), the
+JDK 25 AOT cache's win shrinks into run-to-run noise on the shared runners (a few percent, against the ~12 %
+seen on the quiet laptop), and the in-process native launcher built successfully on every runner, Windows
+included. One caveat is specific to the runners: the `net<=NKB` column is emitted only on Linux and, on a
+shared host, also picks up unrelated background traffic, so it is not the clean zero-transfer proof the
+controlled run gives - which is why the laptop measurement stays the headline.
 
 ### Selectors
 
