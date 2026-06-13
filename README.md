@@ -46,7 +46,10 @@ state, so the canonical `java build/jenesis/Project.java` invocation works ident
     curl -fsSL https://get.jenesis.build | bash
     java build/jenesis/Project.java
 
-Set `JENESIS_VERSION=X.Y.Z` to pin a specific version. The script is `install.sh` at the repository root.
+Set `JENESIS_VERSION=X.Y.Z` to pin a specific release, or pass a git ref as an argument to install an arbitrary
+tag, commit, or branch (`curl -fsSL https://get.jenesis.build | bash -s -- main`); for a non-release ref the
+bootstrap sources are taken straight from the repository tree at that ref. The script is `install.sh` at the
+repository root.
 
 **Git submodule.** Most explicit; the pinned submodule commit is the reproducibility anchor, so a fresh clone
 plus `git submodule update --init` is the entire setup with no separate install step:

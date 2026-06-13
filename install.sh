@@ -9,17 +9,28 @@
 #                 default for projects that do not track Jenesis as a submodule.
 #   * submodule - when the project already tracks Jenesis as a git submodule
 #                 (a .gitmodules entry whose URL points at the Jenesis repo), the
-#                 existing submodule is checked out to the latest release tag
-#                 instead, and the new commit is staged in the superproject.
+#                 existing submodule is checked out to the requested ref instead,
+#                 and the new commit is staged in the superproject.
 #
 # The mode is detected automatically; override with JENESIS_MODE.
 #
-# Designed to be piped from a curl command:
+# By default the latest published release is installed. An optional argument
+# pins an arbitrary git ref instead - a tag, a commit, or a branch:
 #
-#     curl -fsSL https://get.jenesis.build | bash
+#     curl -fsSL https://get.jenesis.build | bash               # latest release
+#     curl -fsSL https://get.jenesis.build | bash -s -- v0.6.1  # a tag
+#     curl -fsSL https://get.jenesis.build | bash -s -- main    # a branch
+#     curl -fsSL https://get.jenesis.build | bash -s -- 1f48f48 # a commit
+#
+# When a ref is given, vendor mode copies the bootstrap sources straight from
+# the repository tree at that ref (so unreleased branches and commits work too),
+# and submodule mode checks the submodule out to it.
 #
 # Environment variables:
-#   JENESIS_VERSION       Specific version to install (default: latest GitHub release)
+#   JENESIS_REF           Git ref to install (tag, commit, or branch); same as
+#                         the positional argument, for when passing one is awkward
+#   JENESIS_VERSION       Release version to install (default: latest GitHub release);
+#                         ignored when a ref is given
 #   JENESIS_TARGET        Target project directory (default: current working directory)
 #   JENESIS_GITHUB_REPO   Source repository, owner/name (default: raphw/jenesis)
 #   JENESIS_MODE          auto (default) | vendor | submodule
@@ -54,17 +65,32 @@ fi
 TARGET="${JENESIS_TARGET:-$PWD}"
 [ -d "$TARGET" ] || die "target '$TARGET' is not a directory"
 
-# --- resolve the version to install -----------------------------------------
+# --- resolve the ref or release version to install --------------------------
+#
+# A positional argument (or JENESIS_REF) pins an arbitrary git ref: a tag, a
+# commit, or a branch. When given, that ref is installed verbatim - the
+# submodule is checked out to it, and vendor mode copies the bootstrap sources
+# from the repository tree at that ref. Without it, the latest release (or
+# JENESIS_VERSION) is installed from its published sources jar. RELEASE marks
+# which path applies; VERSION is only set on the release path.
 
-if [ -n "${JENESIS_VERSION:-}" ]; then
+REF="${1:-${JENESIS_REF:-}}"
+if [ -n "$REF" ]; then
+    RELEASE=0
+    say "using ref ${REF}"
+elif [ -n "${JENESIS_VERSION:-}" ]; then
+    RELEASE=1
     VERSION="${JENESIS_VERSION#v}"
+    REF="v${VERSION}"
     say "using pinned version ${VERSION}"
 else
+    RELEASE=1
     say "resolving latest release from github.com/${GITHUB_REPO}"
     META="$(fetch_stdout "https://api.github.com/repos/${GITHUB_REPO}/releases/latest")" \
-        || die "failed to query GitHub API - set JENESIS_VERSION to bypass version lookup"
+        || die "failed to query GitHub API - set JENESIS_VERSION or pass a ref to bypass version lookup"
     VERSION="$(printf '%s' "$META" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -n1)"
     [ -n "$VERSION" ] || die "could not parse latest version from GitHub API response"
+    REF="v${VERSION}"
     say "latest version is ${VERSION}"
 fi
 
@@ -100,23 +126,23 @@ if [ "$MODE" = "submodule" ] && [ -z "$SUBMODULE_PATH" ]; then
     die "JENESIS_MODE=submodule but no Jenesis submodule (a .gitmodules entry for ${GITHUB_REPO}) was found under ${TARGET}"
 fi
 
-# --- submodule mode: move the existing submodule to the release tag ----------
+# --- submodule mode: move the existing submodule to the requested ref --------
 
 if [ -n "$SUBMODULE_PATH" ]; then
     command -v git >/dev/null 2>&1 || die "git is required to update a Jenesis submodule"
     SUB="$TARGET/$SUBMODULE_PATH"
-    say "detected Jenesis submodule at '${SUBMODULE_PATH}' - updating to v${VERSION}"
+    say "detected Jenesis submodule at '${SUBMODULE_PATH}' - updating to ${REF}"
 
     git -C "$TARGET" submodule update --init -- "$SUBMODULE_PATH" \
         || die "failed to initialize submodule '${SUBMODULE_PATH}'"
-    git -C "$SUB" fetch --tags --quiet \
-        || die "failed to fetch tags in submodule '${SUBMODULE_PATH}'"
-    git -C "$SUB" checkout --quiet "v${VERSION}" \
-        || die "failed to check out 'v${VERSION}' in '${SUBMODULE_PATH}' - does the tag exist?"
+    git -C "$SUB" fetch --quiet --tags origin \
+        || die "failed to fetch in submodule '${SUBMODULE_PATH}'"
+    git -C "$SUB" checkout --quiet "$REF" \
+        || die "failed to check out '${REF}' in '${SUBMODULE_PATH}' - does the ref exist?"
     git -C "$TARGET" add "$SUBMODULE_PATH" \
         || die "failed to stage the updated submodule pointer"
 
-    say "updated submodule '${SUBMODULE_PATH}' to v${VERSION} (staged in the superproject; commit when ready)"
+    say "updated submodule '${SUBMODULE_PATH}' to ${REF} (staged in the superproject; commit when ready)"
     say "next: run 'java build/jenesis/Project.java' from ${TARGET}"
     exit 0
 fi
@@ -133,21 +159,35 @@ else
     die "no extractor found - install 'unzip' or a JDK (with 'jar' on PATH or via JAVA_HOME)"
 fi
 
-JAR_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/build.jenesis-${VERSION}-sources.jar"
-
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
-
-say "downloading ${JAR_URL}"
-fetch_to "$JAR_URL" "$TMPDIR/sources.jar" \
-    || die "failed to download $JAR_URL - check that the release exists on GitHub"
-
 mkdir -p "$TMPDIR/extract"
-extract "$TMPDIR/sources.jar" "$TMPDIR/extract" \
-    || die "failed to extract sources jar"
 
-JAR_BUILD="$TMPDIR/extract/build/jenesis"
-[ -d "$JAR_BUILD" ] || die "extracted jar does not contain build/jenesis - artifact layout unexpected"
+if [ "$RELEASE" = "1" ]; then
+    # A published release: take the blessed sources jar from the release assets.
+    JAR_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/build.jenesis-${VERSION}-sources.jar"
+    say "downloading ${JAR_URL}"
+    fetch_to "$JAR_URL" "$TMPDIR/sources.jar" \
+        || die "failed to download $JAR_URL - check that the release exists on GitHub"
+    extract "$TMPDIR/sources.jar" "$TMPDIR/extract" \
+        || die "failed to extract sources jar"
+    SRC_DIR="$TMPDIR/extract/build/jenesis"
+    STAMP="$VERSION"
+else
+    # An arbitrary ref: take the repository tree at that ref as a zip archive
+    # (works for tags, commits, and branches that have no published release).
+    ZIP_URL="https://github.com/${GITHUB_REPO}/archive/${REF}.zip"
+    say "downloading ${ZIP_URL}"
+    fetch_to "$ZIP_URL" "$TMPDIR/source.zip" \
+        || die "failed to download $ZIP_URL - does the ref '${REF}' exist on github.com/${GITHUB_REPO}?"
+    extract "$TMPDIR/source.zip" "$TMPDIR/extract" \
+        || die "failed to extract the source archive"
+    SRC_DIR="$(find "$TMPDIR/extract" -type d -path '*/sources/build/jenesis' 2>/dev/null | head -n1)"
+    STAMP="$REF"
+fi
+
+[ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ] \
+    || die "could not locate build/jenesis in the downloaded sources - artifact layout unexpected"
 
 DEST="$TARGET/build/jenesis"
 if [ -d "$DEST" ]; then
@@ -159,7 +199,7 @@ if [ -d "$DEST" ]; then
     rm -rf "$DEST"
 fi
 mkdir -p "$TARGET/build"
-cp -R "$JAR_BUILD" "$DEST"
-printf '%s' "$VERSION" > "$DEST/jenesis.version"
-say "installed Jenesis ${VERSION} to ${DEST}"
+cp -R "$SRC_DIR" "$DEST"
+printf '%s' "$STAMP" > "$DEST/jenesis.version"
+say "installed Jenesis ${STAMP} to ${DEST}"
 say "next: run 'java build/jenesis/Project.java' from ${TARGET}"
