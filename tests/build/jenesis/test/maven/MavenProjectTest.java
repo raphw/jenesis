@@ -688,7 +688,7 @@ public class MavenProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver)
-                .platform(Platform.tokens("windows,x86_64")));
+                .platform(Platform.of("windows,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(
                 results.get("maven/module-/manifests").resolve(BuildStep.VERSIONS));
@@ -717,7 +717,7 @@ public class MavenProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("maven", new MavenProject(project, "maven", mavenRepository, mavenPomResolver)
-                .platform(Platform.tokens("linux,x86_64")));
+                .platform(Platform.of("linux,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(
                 results.get("maven/module-/manifests").resolve(BuildStep.VERSIONS));

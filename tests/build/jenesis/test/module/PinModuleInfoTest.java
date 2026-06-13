@@ -77,10 +77,10 @@ public class PinModuleInfoTest {
     }
 
     private String run(Path moduleInfo) throws IOException {
-        return run(moduleInfo, Platform.tokens("linux,x86_64"));
+        return run(moduleInfo, Platform.of("linux,x86_64"));
     }
 
-    private String run(Path moduleInfo, SequencedSet<String> platform) throws IOException {
+    private String run(Path moduleInfo, Platform platform) throws IOException {
         new PinModuleInfo("module", "", List.of(moduleInfo), new HashDigestFunction("SHA-256"))
                 .platform(platform)
                 .apply(Runnable::run,
@@ -337,7 +337,7 @@ public class PinModuleInfoTest {
         writeResolved(new LinkedHashMap<>(Map.of(
                 "module/bar", "2.0 SHA-256/cafebabe",
                 "module/other", "1.0 SHA-256/dadada")));
-        String result = run(file, Platform.tokens("linux,x86_64"));
+        String result = run(file, Platform.of("linux,x86_64"));
         assertThat(result).contains("@jenesis.pin bar :win:1.0 SHA-256/aaa [windows]");
         assertThat(result).contains("@jenesis.pin bar 2.0 SHA-256/cafebabe");
         assertThat(result).doesNotContain("@jenesis.pin bar 1.0 SHA-256/bbb");
@@ -358,7 +358,7 @@ public class PinModuleInfoTest {
                 }
                 """);
         writeResolved(Map.of("module/bar-win", "1.1 SHA-256/fresh"));
-        String result = run(file, Platform.tokens("windows,x86_64"));
+        String result = run(file, Platform.of("windows,x86_64"));
         assertThat(result).contains("@jenesis.pin bar :win:1.1 SHA-256/fresh [windows]");
         assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/bbb");
         assertThat(result).doesNotContain("SHA-256/aaa");
@@ -377,7 +377,7 @@ public class PinModuleInfoTest {
                 }
                 """);
         writeResolved(Map.of("module/bar-win", "1.1"));
-        String result = run(file, Platform.tokens("windows,x86_64"));
+        String result = run(file, Platform.of("windows,x86_64"));
         assertThat(result).contains("@jenesis.pin bar :win:1.1 [windows]");
         assertThat(result).contains("@jenesis.pin bar 1.0\n");
         assertThat(result).doesNotContain("SHA-256");
@@ -397,7 +397,7 @@ public class PinModuleInfoTest {
                 }
                 """);
         writeResolved(Map.of("module/other", "1.0 SHA-256/dadada"));
-        String result = run(file, Platform.tokens("linux,x86_64"));
+        String result = run(file, Platform.of("linux,x86_64"));
         assertThat(result).contains("@jenesis.pin bar :win:1.0 [windows]");
         assertThat(result).contains("@jenesis.pin other 1.0 SHA-256/dadada");
         assertThat(result).doesNotContain("@jenesis.pin other 0.9");

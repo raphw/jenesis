@@ -97,8 +97,8 @@ public class ModuleInfoParser {
                                                 + version
                                                 + "': expected <value> [<token>,<token>...]");
                                     }
-                                    guard = String.join(",", Platform.tokens(
-                                            version.substring(bracket + 1, version.length() - 1)));
+                                    guard = Platform.of(
+                                            version.substring(bracket + 1, version.length() - 1)).canonical();
                                     version = version.substring(0, bracket).trim();
                                 }
                                 if (token.isEmpty() || version.isEmpty()

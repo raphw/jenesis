@@ -140,7 +140,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
-                .platform(Platform.tokens("windows,x86_64")));
+                .platform(Platform.of("windows,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
@@ -164,7 +164,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
-                .platform(Platform.tokens("windows,x86_64")));
+                .platform(Platform.of("windows,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
@@ -188,7 +188,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
-                .platform(Platform.tokens("linux,x86_64")));
+                .platform(Platform.of("linux,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
@@ -212,7 +212,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
-                .platform(Platform.tokens("windows,aarch64")));
+                .platform(Platform.of("windows,aarch64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties versions = SequencedProperties.ofFiles(
                 results.get("module/module-/manifests").resolve(BuildStep.VERSIONS));
@@ -236,7 +236,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
-                .platform(Platform.tokens("windows,x86_64")));
+                .platform(Platform.of("windows,x86_64")));
         assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()
@@ -260,7 +260,7 @@ public class ModularProjectTest {
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
-                .platform(Platform.tokens("linux,x86_64")));
+                .platform(Platform.of("linux,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results.get("module/module-/manifests").resolve(BuildStep.VERSIONS)).doesNotExist();
     }

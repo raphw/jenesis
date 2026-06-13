@@ -39,10 +39,10 @@ public class ModularProject implements BuildExecutorModule {
     private final Path root;
     private final Predicate<Path> filter;
     private final boolean modular;
-    private final SequencedSet<String> platform;
+    private final Platform platform;
 
     public ModularProject(String prefix, Path root) {
-        this("main", prefix, root, _ -> true, true, Platform.tokens());
+        this("main", prefix, root, _ -> true, true, Platform.detect());
     }
 
     private ModularProject(String group,
@@ -50,7 +50,7 @@ public class ModularProject implements BuildExecutorModule {
                            Path root,
                            Predicate<Path> filter,
                            boolean modular,
-                           SequencedSet<String> platform) {
+                           Platform platform) {
         this.group = group;
         this.prefix = prefix;
         this.root = root;
@@ -71,7 +71,7 @@ public class ModularProject implements BuildExecutorModule {
         return new ModularProject(group, prefix, root, filter, modular, platform);
     }
 
-    public ModularProject platform(SequencedSet<String> platform) {
+    public ModularProject platform(Platform platform) {
         return new ModularProject(group, prefix, root, filter, modular, platform);
     }
 
@@ -168,7 +168,7 @@ public class ModularProject implements BuildExecutorModule {
                              String prefix,
                              String path,
                              boolean modular,
-                             SequencedSet<String> platform) implements BuildStep {
+                             Platform platform) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -201,10 +201,9 @@ public class ModularProject implements BuildExecutorModule {
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             SequencedMap<String, String> versions = new LinkedHashMap<>(info.versions());
             for (Map.Entry<String, SequencedMap<String, String>> variant : info.variants().entrySet()) {
-                String selected = Platform.select(variant.getKey(),
+                String selected = platform.select(variant.getKey(),
                         versions.get(variant.getKey()),
-                        variant.getValue(),
-                        platform);
+                        variant.getValue());
                 if (selected != null) {
                     versions.put(variant.getKey(), selected);
                 }

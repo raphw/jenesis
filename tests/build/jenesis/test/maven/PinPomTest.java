@@ -74,10 +74,10 @@ public class PinPomTest {
     }
 
     private String run(Path pomFile) throws IOException {
-        return run(pomFile, Platform.tokens("linux,x86_64"));
+        return run(pomFile, Platform.of("linux,x86_64"));
     }
 
-    private String run(Path pomFile, SequencedSet<String> platform) throws IOException {
+    private String run(Path pomFile, Platform platform) throws IOException {
         new PinPom("maven", "", List.of(pomFile), new HashDigestFunction("SHA-256"))
                 .platform(platform)
                 .apply(Runnable::run,
@@ -109,7 +109,7 @@ public class PinPomTest {
                 """);
         writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3 SHA-256/fresh"));
         writeResolved("plugin", Map.of("maven/org.example/other", "4.5.6 SHA-256/cafebabe"));
-        String result = run(pom, Platform.tokens("windows,x86_64"));
+        String result = run(pom, Platform.of("windows,x86_64"));
         assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/fresh [windows]");
         assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/bbb");
         assertThat(result).doesNotContain("SHA-256/aaa");
@@ -134,7 +134,7 @@ public class PinPomTest {
                 </project>
                 """);
         writeResolved("kotlin", Map.of("maven/org.jetbrains/something", "1.2.3 SHA-256/fresh"));
-        String result = run(pom, Platform.tokens("linux,x86_64"));
+        String result = run(pom, Platform.of("linux,x86_64"));
         assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.0.0 SHA-256/aaa [windows]");
         assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/fresh");
         assertThat(result).doesNotContain("SHA-256/bbb");
@@ -157,7 +157,7 @@ public class PinPomTest {
                 </project>
                 """);
         writeResolved(Map.of("maven/io.smallrye.reactive/mutiny-zero", "1.1.1 SHA-256/fresh"));
-        String result = run(pom, Platform.tokens("linux,x86_64"));
+        String result = run(pom, Platform.of("linux,x86_64"));
         assertThat(result).contains("main/maven/io.smallrye.reactive/mutiny-zero 1.0.0 SHA-256/aaa [windows]");
         assertThat(result).contains("main/maven/io.smallrye.reactive/mutiny-zero 1.1.1 SHA-256/fresh");
         assertThat(result).doesNotContain("SHA-256/bbb");
@@ -180,7 +180,7 @@ public class PinPomTest {
                 </project>
                 """);
         writeResolved("plugin", Map.of("maven/org.example/other", "4.5.6"));
-        String result = run(pom, Platform.tokens("linux,x86_64"));
+        String result = run(pom, Platform.of("linux,x86_64"));
         assertThat(result).contains("kotlin/maven/org.jetbrains/something 1.0.0 [windows]");
         assertThat(result).contains("plugin/maven/org.example/other 4.5.6");
     }
