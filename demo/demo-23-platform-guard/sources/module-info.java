@@ -1,14 +1,14 @@
 /**
  * A modular Java sample that selects a dependency variant per platform. A
  * {@code @jenesis.pin} line may end with a bracketed guard that is matched
- * against the {@code jenesis.dependency.platform} token set, which defaults
- * to the detected operating system and chipset: the most specific matching
- * guard wins and the unguarded line is the fallback. This demo guards with
- * the neutral token {@code legacy} instead of an OS name, so the selection
- * is observable on any machine: the default build resolves the modern
- * {@code mutiny.zero} 1.1.1, while
- * {@code -Djenesis.dependency.platform=legacy} resolves the classified
- * {@code jdk-flow} variant of 0.4.3.
+ * against the active platform: the detected operating system and chipset,
+ * plus any token a {@code -Djenesis.platform.<token>=true} flag adds on top.
+ * The most specific matching guard wins and the unguarded line is the
+ * fallback. This demo guards with the neutral token {@code legacy} instead
+ * of an OS name, so the selection is observable on any machine: the default
+ * build resolves the modern {@code mutiny.zero} 1.1.1, while
+ * {@code -Djenesis.platform.legacy=true} adds the {@code legacy} token and
+ * resolves the classified {@code jdk-flow} variant of 0.4.3.
  *
  * @jenesis.release 25
  * @jenesis.main sample.Sample

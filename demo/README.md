@@ -75,7 +75,7 @@ Quick index
 | 20 | [`maven-exclusions`](demo-20-maven-exclusions/README.md)     | Maven only: a dependency with an `<exclusions>` block; a test asserts the excluded transitive is absent | `java build/jenesis/Project.java`  |
 | 21 | [`module-layout`](demo-21-module-layout/README.md)           | Explicitly select the pure MODULAR layout (via `jenesis.properties`): resolve by module name, emit a modular jar with no `pom.xml` | `java build/jenesis/Project.java`  |
 | 22 | [`module-classifier`](demo-22-module-classifier/README.md)   | Pin a classified variant of a module (`:jdk-flow:0.4.3`): the build fetches the classifier artifact, validated by checksum and asserted at runtime | `java build/jenesis/Execute.java`  |
-| 23 | [`platform-guard`](demo-23-platform-guard/README.md)         | Select a dependency variant per platform: guarded pin lines (`[windows]`) matched against the `jenesis.dependency.platform` token set, with an unguarded fallback | `java build/jenesis/Execute.java`  |
+| 23 | [`platform-guard`](demo-23-platform-guard/README.md)         | Select a dependency variant per platform: guarded pin lines (`[windows]`) matched against the `-Djenesis.platform.<token>=true` flags, with an unguarded fallback | `java build/jenesis/Execute.java`  |
 | 24 | [`platform-guard-pom`](demo-24-platform-guard-pom/README.md)  | The same guards in a `pom.xml`'s `<!--jenesis.pin-->` block: switch a transitive's pinned version per platform, each variant checksummed | `java build/jenesis/Execute.java`  |
 | 25 | [`custom-assembler`](demo-25-custom-assembler/README.md)     | Wrap the assembler to preprocess sources before the regular flow      | `java build/Demo.java`             |
 | 26 | [`custom-jmod`](demo-26-custom-jmod/README.md)               | Wrap the assembler to pack extra content into a `.jmod`, `jlink` it into a runtime, and `jpackage` that into a runnable app | `java build/Demo.java`             |
@@ -450,10 +450,10 @@ never the coordinate - so it applies wherever the module appears in the closure,
 and only one variant of a module name can be selected, mirroring the module path's
 own uniqueness rule. Per-machine selection composes on top as plain data: a pin
 line ending in a bracketed guard (`[windows]`, `[linux,aarch64]`) applies only when
-its tokens are all contained in the `jenesis.dependency.platform` token set
-(defaulting to the detected OS and chipset, overridable to cross-resolve another
-platform), with the unguarded line as the fallback. Every variant stays committed
-in source, so the build remains reproducible from the repository alone.
+its tokens are all contained in the active platform - the detected OS and chipset
+plus any token a `-Djenesis.platform.<token>=true` flag adds - with the unguarded
+line as the fallback. Every variant stays committed in source, so the build remains
+reproducible from the repository alone.
 
 The demo pins the `jdk-flow` variant of `mutiny.zero`, a deliberately
 OS-independent classifier: it exposes `java.util.concurrent.Flow` types where the
@@ -469,9 +469,9 @@ jar carries `requires transitive org.reactivestreams`). Run
 
 The previous demo committed one classified variant explicitly; `platform-guard`
 declares several and lets the build pick. A `@jenesis.pin` line may end with a
-bracketed **guard**, matched against the active platform tokens of the
-`jenesis.dependency.platform` property (comma-separated, defaulting to the
-detected OS and chipset, e.g. `linux,x86_64`):
+bracketed **guard**, matched against the active platform: the detected OS and
+chipset (e.g. `linux,x86_64`) plus any token a `-Djenesis.platform.<token>=true`
+system property adds on top:
 
     @jenesis.pin mutiny.zero 1.1.1 SHA-256/2ba03737...
     @jenesis.pin mutiny.zero :jdk-flow:0.4.3 SHA-256/0556f076... [legacy]
@@ -482,12 +482,13 @@ distinct matches fail the build. Tokens are free-form - a real project guards
 with `[windows]` or `[macos,aarch64]`, while this demo uses the neutral token
 `legacy` so the differential selection is observable on any machine: the default
 build resolves `mutiny.zero` 1.1.1, and
-`java -Djenesis.dependency.platform=legacy build/jenesis/Execute.java` resolves
-the classified `jdk-flow` variant instead, with the entry point printing which
-variant is on the module path. The token set is a field of the manifests step,
-so switching platforms invalidates exactly the affected selection - no `target/`
-cleanup needed - and every variant stays committed with its own checksum, so the
-build remains reproducible from the repository alone on every platform.
+`java -Djenesis.platform.legacy=true build/jenesis/Execute.java` adds the `legacy`
+token so the guarded `jdk-flow` variant of 0.4.3 is resolved instead, with the
+entry point printing which variant is on the module path. The platform is a field
+of the manifests step, so adding a flag invalidates exactly the affected selection
+- no `target/` cleanup needed - and every variant stays committed with its own
+checksum, so the build remains reproducible from the repository alone on every
+platform.
 
 `platform-guard-pom` shows the same guards in a Maven project: pin lines in the
 `pom.xml`'s `<!--jenesis.pin ... -->` comment block take the identical bracketed

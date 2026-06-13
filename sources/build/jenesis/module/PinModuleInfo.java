@@ -20,17 +20,17 @@ public class PinModuleInfo implements BuildStep {
     private final String path;
     private final List<Path> moduleInfoFiles;
     private final transient HashDigestFunction hashFunction;
-    private final SequencedSet<String> platform;
+    private final Platform platform;
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, moduleInfoFiles, hashFunction, Platform.tokens());
+        this(prefix, path, moduleInfoFiles, hashFunction, new Platform());
     }
 
     private PinModuleInfo(String prefix,
                           String path,
                           List<Path> moduleInfoFiles,
                           HashDigestFunction hashFunction,
-                          SequencedSet<String> platform) {
+                          Platform platform) {
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
@@ -38,7 +38,7 @@ public class PinModuleInfo implements BuildStep {
         this.platform = platform;
     }
 
-    public PinModuleInfo platform(SequencedSet<String> platform) {
+    public PinModuleInfo platform(Platform platform) {
         return new PinModuleInfo(prefix, path, moduleInfoFiles, hashFunction, platform);
     }
 
@@ -71,7 +71,7 @@ public class PinModuleInfo implements BuildStep {
 
     private static void updateModuleInfo(Path file,
                                          SequencedMap<String, String> entries,
-                                         SequencedSet<String> platform) throws IOException {
+                                         Platform platform) throws IOException {
         String existing = Files.readString(file);
         Matcher moduleDeclarationMatcher = MODULE_DECLARATION.matcher(existing);
         if (!moduleDeclarationMatcher.find()) {
@@ -160,7 +160,7 @@ public class PinModuleInfo implements BuildStep {
 
     private static String updateJavadoc(String prelude,
                                         SequencedMap<String, String> entries,
-                                        SequencedSet<String> platform) {
+                                        Platform platform) {
         int javadocEnd = -1;
         int javadocStart = -1;
         Matcher javadocEndMatcher = JAVADOC_END.matcher(prelude);
@@ -188,7 +188,7 @@ public class PinModuleInfo implements BuildStep {
 
     private static String rewriteJavadoc(String javadoc,
                                          SequencedMap<String, String> entries,
-                                         SequencedSet<String> platform) {
+                                         Platform platform) {
         List<String> lines = new ArrayList<>(List.of(javadoc.split("\\n", -1)));
         SequencedMap<String, List<PinLine>> guarded = new LinkedHashMap<>();
         for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
@@ -235,15 +235,15 @@ public class PinModuleInfo implements BuildStep {
                     fallback = pin;
                     continue;
                 }
-                SequencedSet<String> tokens = Platform.tokens(pin.guard());
-                if (!platform.containsAll(tokens)) {
+                Platform guard = Platform.of(pin.guard());
+                if (!platform.matches(guard)) {
                     continue;
                 }
-                if (tokens.size() > specificity) {
+                if (guard.tokens().size() > specificity) {
                     matched = pin;
-                    specificity = tokens.size();
+                    specificity = guard.tokens().size();
                     ambiguous = false;
-                } else if (tokens.size() == specificity) {
+                } else if (guard.tokens().size() == specificity) {
                     ambiguous = true;
                 }
             }

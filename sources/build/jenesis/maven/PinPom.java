@@ -24,17 +24,17 @@ public class PinPom implements BuildStep {
     private final String path;
     private final List<Path> pomFiles;
     private final transient HashDigestFunction hashFunction;
-    private final SequencedSet<String> platform;
+    private final Platform platform;
 
     public PinPom(String prefix, String path, List<Path> pomFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, pomFiles, hashFunction, Platform.tokens());
+        this(prefix, path, pomFiles, hashFunction, new Platform());
     }
 
     private PinPom(String prefix,
                    String path,
                    List<Path> pomFiles,
                    HashDigestFunction hashFunction,
-                   SequencedSet<String> platform) {
+                   Platform platform) {
         this.prefix = prefix;
         this.path = path;
         this.pomFiles = List.copyOf(pomFiles);
@@ -42,7 +42,7 @@ public class PinPom implements BuildStep {
         this.platform = platform;
     }
 
-    public PinPom platform(SequencedSet<String> platform) {
+    public PinPom platform(Platform platform) {
         return new PinPom(prefix, path, pomFiles, hashFunction, platform);
     }
 
@@ -209,15 +209,15 @@ public class PinPom implements BuildStep {
                     fallback = index;
                     continue;
                 }
-                SequencedSet<String> tokens = Platform.tokens(pin.guard());
-                if (!platform.containsAll(tokens)) {
+                Platform guard = Platform.of(pin.guard());
+                if (!platform.matches(guard)) {
                     continue;
                 }
-                if (tokens.size() > specificity) {
+                if (guard.tokens().size() > specificity) {
                     matched = index;
-                    specificity = tokens.size();
+                    specificity = guard.tokens().size();
                     ambiguous = false;
-                } else if (tokens.size() == specificity) {
+                } else if (guard.tokens().size() == specificity) {
                     ambiguous = true;
                 }
             }

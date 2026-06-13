@@ -72,9 +72,9 @@ jobs:
           - { name: module-layout, dir: demo-21-module-layout, entry: build/jenesis/Project.java }
           - { name: module-classifier, dir: demo-22-module-classifier, entry: build/jenesis/Execute.java }
           - { name: platform-guard, dir: demo-23-platform-guard, entry: build/jenesis/Execute.java }
-          - { name: platform-guard-legacy, dir: demo-23-platform-guard, entry: build/jenesis/Execute.java, flags: -Djenesis.dependency.platform=legacy }
+          - { name: platform-guard-legacy, dir: demo-23-platform-guard, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
           - { name: platform-guard-pom, dir: demo-24-platform-guard-pom, entry: build/jenesis/Execute.java }
-          - { name: platform-guard-pom-legacy, dir: demo-24-platform-guard-pom, entry: build/jenesis/Execute.java, flags: -Djenesis.dependency.platform=legacy }
+          - { name: platform-guard-pom-legacy, dir: demo-24-platform-guard-pom, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
           - { name: custom-assembler, dir: demo-25-custom-assembler, entry: build/Demo.java }
           - { name: custom-jmod, dir: demo-26-custom-jmod, entry: build/Demo.java }
           - { name: internal-module, dir: demo-27-internal-module, entry: build/Demo.java }

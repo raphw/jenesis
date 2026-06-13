@@ -402,6 +402,14 @@ public record Project(
                       pins by running the %{name}pin%{reset} step under it). Unset keeps existing pins
                       but tolerates missing ones.
 
+                    %{header}Platform (-Djenesis.platform.<token>=<true|false>):%{reset}
+                      The active platform starts from the detected operating system and
+                      chipset (%{name}windows%{reset}/%{name}linux%{reset}/%{name}macos%{reset} plus %{name}x86_64%{reset}/%{name}aarch64%{reset}). A
+                      %{name}<token>=true%{reset} flag adds a token and %{name}<token>=false%{reset} removes a
+                      detected one, selecting platform-guarded pins (see the guard
+                      suffix below); e.g. %{name}-Djenesis.platform.linux=false
+                      -Djenesis.platform.windows=true%{reset} cross-resolves a Windows closure.
+
                     %{header}Repositories (-Djenesis.repository.<key>=<value>):%{reset}
                       %{name}insecure%{reset}                          Allow plaintext (%{name}http://%{reset}) repository fetches;
                                                       by default only %{name}https://%{reset} and %{name}file://%{reset} are
@@ -432,11 +440,14 @@ public record Project(
                       %{name}@jenesis.release%{reset} <V>             Java release target
                       %{name}@jenesis.main%{reset} <class>            Main class for the module
                       %{name}@jenesis.test%{reset} [<module>]         Mark module as a test variant of <module>
-                      %{name}@jenesis.pin%{reset} <group>/<repo>/<coord> <ver> [<algo>/<hex>]
+                      %{name}@jenesis.pin%{reset} <group>/<repo>/<coord> <ver> [<algo>/<hex>] [<guard>]
                                                        Pin a dependency version and checksum
                                                        (<module> is short for <group>/module/<module>,
-                                                       <groupId>/<artifactId> for <group>/maven/<groupId>/<artifactId>)
-                    
+                                                       <groupId>/<artifactId> for <group>/maven/<groupId>/<artifactId>);
+                                                       an optional trailing %{name}[<token>,<token>...]%{reset} guard applies
+                                                       the pin only when those tokens are in the active platform,
+                                                       with an unguarded line for the same coordinate as fallback
+
                     See README.md for the full reference.
                     """)
                     .replace("%{layout}", layout)
@@ -673,7 +684,7 @@ public record Project(
                       @jenesis.main <class>             Main class for the module.
                       @jenesis.test [<module>]          Mark this module as a test
                                                         variant of <module>.
-                      @jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>]
+                      @jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>] [<guard>]
                                                         Pin a dependency's version
                                                         and (optionally) its
                                                         content checksum. A bare
@@ -682,6 +693,13 @@ public record Project(
                                                         and <groupId>/<artifactId>
                                                         abbreviates
                                                         <group>/maven/<groupId>/<artifactId>.
+                                                        An optional trailing
+                                                        [<token>,<token>...] guard
+                                                        applies the pin only when
+                                                        those tokens are in the
+                                                        active platform, with an
+                                                        unguarded line for the same
+                                                        coordinate as the fallback.
                     
                     9. Set system properties for one-off overrides
                     ----------------------------------------------
@@ -707,6 +725,15 @@ public record Project(
                                                   floats to the latest and skips
                                                   checksums (refresh pins via
                                                   the pin step).
+
+                    Platform:
+                      -Djenesis.platform.<token>=true|false  The active platform
+                                                  starts from the detected OS and
+                                                  chipset (windows/linux/macos plus
+                                                  x86_64/aarch64); =true adds a
+                                                  token and =false removes a
+                                                  detected one, selecting which
+                                                  platform-guarded pins apply.
 
                     Repositories:
                       -Djenesis.repository.insecure=true  Allow plaintext
@@ -812,8 +839,10 @@ public record Project(
                     It writes pom.xml (`<dependencyManagement>` versions with
                     `<!--Checksum/<algo>/<hex>-->`, and qualified compiler closures
                     in a `<!--jenesis.pin ... -->` comment) or module-info.java
-                    (`@jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>]` tags), per layout.
-                    The same pins can be written by hand. Enforce coverage with
+                    (`@jenesis.pin <group>/<repo>/<coord> <ver> [<algo>/<hex>] [<guard>]` tags), per layout.
+                    A trailing `[<token>,...]` guard scopes a pin to a platform; the pin
+                    step refreshes only the line matching the local platform and preserves
+                    the rest. The same pins can be written by hand. Enforce coverage with
                     `-Djenesis.dependency.pin=strict`, which fails the build on
                     any unpinned artifact, or refresh them with
                     `-Djenesis.dependency.pin=ignore` and the `pin` step.

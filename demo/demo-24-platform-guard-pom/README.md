@@ -17,14 +17,14 @@ which resolves the unguarded fallback and prints:
 
     Selected Variant: The Modern Commons-lang3 3.14.0
 
-Then select the guarded variant by overriding the platform tokens:
+Then select the guarded variant by adding the `legacy` platform token:
 
-    java -Djenesis.dependency.platform=legacy build/jenesis/Execute.java
+    java -Djenesis.platform.legacy=true build/jenesis/Execute.java
 
     Selected Variant: The Legacy Commons-lang3 3.12.0
 
-No `target/` cleanup is needed between the two: the platform token set is part
-of the manifests step's cache identity, so changing it invalidates exactly the
+No `target/` cleanup is needed between the two: the platform is part of the
+manifests step's cache identity, so adding the flag invalidates exactly the
 selection and the resolution that depends on it.
 
 The guarded pins
@@ -47,10 +47,10 @@ The project declares `commons-text` and the guarded pins govern its
 that applies at any depth of the closure, so the guard switches which
 `commons-lang3` the resolution picks, each line validated by its own checksum.
 The entry point tells the variants apart by a class that only exists since
-3.13 (`FluentBitSet`). The demo guards with the neutral token `legacy` so the
-selection is observable on every machine; a real project guards with platform
-tokens (`[windows]`, `[macos,aarch64]`) against the `jenesis.dependency.platform`
-set, which defaults to the detected OS and chipset.
+3.13 (`FluentBitSet`). The demo guards with the neutral token `legacy`, added
+with `-Djenesis.platform.legacy=true`, so the selection is observable on every
+machine; a real project guards with platform tokens (`[windows]`,
+`[macos,aarch64]`) that match the detected OS and chipset directly.
 
 Two Maven-specific boundaries are worth knowing. A **directly declared**
 version is identity-like in Maven and wins over the bill of materials, so a

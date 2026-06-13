@@ -46,10 +46,10 @@ public class MavenProject implements BuildExecutorModule {
     private final String prefix;
     private final MavenRepository repository;
     private final MavenResolver resolver;
-    private final SequencedSet<String> platform;
+    private final Platform platform;
 
     public MavenProject(Path root, String prefix, MavenRepository repository, MavenResolver resolver) {
-        this(root, "main", prefix, repository, resolver, Platform.tokens());
+        this(root, "main", prefix, repository, resolver, new Platform());
     }
 
     private MavenProject(Path root,
@@ -57,7 +57,7 @@ public class MavenProject implements BuildExecutorModule {
                          String prefix,
                          MavenRepository repository,
                          MavenResolver resolver,
-                         SequencedSet<String> platform) {
+                         Platform platform) {
         this.root = root;
         this.group = group;
         this.prefix = prefix;
@@ -70,7 +70,7 @@ public class MavenProject implements BuildExecutorModule {
         return new MavenProject(root, group, prefix, repository, resolver, platform);
     }
 
-    public MavenProject platform(SequencedSet<String> platform) {
+    public MavenProject platform(Platform platform) {
         return new MavenProject(root, group, prefix, repository, resolver, platform);
     }
 
@@ -169,7 +169,7 @@ public class MavenProject implements BuildExecutorModule {
             return;
         }
         String group = this.group;
-        SequencedSet<String> tokens = platform;
+        Platform platform = this.platform;
         buildExecutor.addStep(SCAN, new Scan(root));
         buildExecutor.addStep(PREPARE, new Prepare(prefix, resolver, repository), SCAN);
         buildExecutor.addModule(MODULE, (modules, paths) -> {
@@ -291,10 +291,9 @@ public class MavenProject implements BuildExecutorModule {
                                         }
                                     }
                                     for (Map.Entry<String, SequencedMap<String, String>> variant : variants.entrySet()) {
-                                        String selected = Platform.select(variant.getKey(),
+                                        String selected = platform.select(variant.getKey(),
                                                 unguarded.get(variant.getKey()),
-                                                variant.getValue(),
-                                                tokens);
+                                                variant.getValue());
                                         if (selected != null) {
                                             unguarded.put(variant.getKey(), selected);
                                         }
