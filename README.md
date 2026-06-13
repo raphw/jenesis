@@ -341,6 +341,36 @@ precompiling or going native. The one-time cost to obtain them is a couple of se
 about 160 s (yielding a 61 MB binary) for the native image, and both must be rebuilt whenever the build sources
 change.
 
+**First run on a bare machine.** The tables assume the build tool and its caches are already present; standing
+each tool up from nothing - a shell and a JDK, empty caches - is a one-time cost worth comparing too. Maven is
+not on the machine, so the project carries the Maven wrapper: `./mvnw` downloads the Maven distribution (a
+9.4 MB zip, plus the 63 KB `maven-wrapper.jar` when it is not committed), unzips it and boots Maven in about 1 s
+here. That only obtains Maven itself - the first real build then populates an empty `~/.m2` with every plugin,
+its POM and its transitive libraries alongside the project's own dependencies. For this project that is about
+33 MB across ~490 files (56 jars, 127 POMs, the rest checksums and metadata) and added roughly 6.7 s to the
+first build on this connection; being many small POM and metadata requests it is latency-bound rather than
+bandwidth-bound, so it stretches on a slow or distant link and is impossible offline. Roughly a third of those
+bytes are Maven's own runtime and plugins (`maven-compiler-plugin`, `maven-surefire-plugin`, `maven-jar-plugin`
+and their `plexus`/`codehaus` plumbing) - build tooling that has no Jenesis equivalent.
+
+Jenesis ships as source and runs on the JDK that is required anyway, so there is no tool to download and no
+plugin ecosystem to fetch; its first run pulls only the project's own dependencies, the same ones Maven also
+downloads. What it pays for being source rather than a compiled artifact is the per-run engine recompile from
+the launch-overhead table - about 2.4 s (`java build/jenesis/Project.java help` at ~2.5 s against the compiled
+launcher's ~0.07 s). That cost is CPU-only: it transfers nothing, works offline, does not grow on a worse
+connection, and disappears once the engine is compiled once into `.jenesis/launcher` (0.07 s) or installed
+through SDKMAN, which ships that same compiled jar. So on a fast network these are all single-digit seconds and
+roughly comparable; the difference is in kind, in that Maven must reach the network to assemble its tooling
+before it can build while Jenesis trades that for a fixed, offline, eliminable recompile.
+
+There is a supply-chain dimension to the wrapper too. The Maven wrapper commits a 63 KB `maven-wrapper.jar` into
+the repository, and Gradle's equivalent a 47 KB `gradle-wrapper.jar` (which then fetches a ~131 MB Gradle
+distribution on first run, around 6 s here and far longer on a slower link); each is an opaque binary, checked into version control and run with the build's full
+privileges, which is enough of an attack surface that Gradle ships a dedicated wrapper-validation step to
+checksum its jar. Committing a binary to a source repository is exactly what a build tool should not require:
+Jenesis checks in only the engine's Java source under `build/jenesis/`, auditable as text and compiled locally
+by the JDK, so there is no opaque artifact to trust or verify in the first place.
+
 **Compile and package, tests compiled but not run** (`-DskipTests` for Maven, `-Djenesis.test.skip` for Jenesis).
 Both compile the 130 main and 112 test sources and skip only execution, which is the fairest tool-to-tool
 comparison: CPU-bound and network-free. Cold is the median of five runs (tight, within +/- 0.4 s); the rest are the
