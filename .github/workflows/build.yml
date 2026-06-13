@@ -87,6 +87,7 @@ jobs:
           - { name: kotlin-plugin, dir: demo-14-kotlin-plugin, entry: build/jenesis/Project.java }
           - { name: sbom, dir: demo-10-sbom, entry: build/jenesis/Project.java }
           - { name: profiles, dir: demo-11-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }
+          - { name: test-selection, dir: demo-36-test-selection, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

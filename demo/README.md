@@ -7,8 +7,9 @@ Jenesis' features: start with a single Maven project, turn it into a module,
 scale to many modules, package a module into a runnable application image, build
 a multi-release JAR, infer code-quality tools, bring in other JVM languages and
 lint them too, customize or replace the build template itself, lock down the
-supply chain, assemble a release for Maven Central, and finally compile a module
-ahead of time into a GraalVM native binary.
+supply chain, assemble a release for Maven Central, compile a module ahead of
+time into a GraalVM native binary, and finally tighten the development loop by
+re-running only the tests a change can affect.
 
 Every demo has its own `build/jenesis` symlink into this repository's
 `sources/build/jenesis`, so each runs in isolation from inside its own directory
@@ -88,6 +89,7 @@ Quick index
 | 33 | [`supply-chain-security`](demo-33-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 34 | [`publishing`](demo-34-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 | 35 | [`native-image`](demo-35-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary with `-Djenesis.java.native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
+| 36 | [`test-selection`](demo-36-test-selection/README.md)         | Re-run only the tests a change can affect (`-Djenesis.test.select=true`), a watch-mode development-loop optimisation | `java build/Demo.java`             |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
