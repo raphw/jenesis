@@ -72,7 +72,7 @@ Quick index
 | 17 | [`groovy`](demo-17-groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
 | 18 | [`groovy-quality`](demo-18-groovy-quality/README.md)         | Inferred code quality for Groovy: CodeNarc lints the sources          | `java build/jenesis/Project.java`  |
 | 19 | [`code-coverage`](demo-19-code-coverage/README.md)          | Inferred test observation: JaCoCo records coverage during the test run and renders an HTML/XML report, enabled with `-Djenesis.observe.jacoco=true` | `java build/jenesis/Project.java`  |
-| 20 | [`test-selection`](demo-20-test-selection/README.md)         | Re-run only the tests a change can affect (`-Djenesis.test.select=true`), a watch-mode development-loop optimisation | `java build/Demo.java`             |
+| 20 | [`test-selection`](demo-20-test-selection/README.md)         | Re-run only the tests a change can affect (`-Djenesis.test.incremental`), a watch-mode development-loop optimisation | `java build/Demo.java`             |
 | 21 | [`pitest`](demo-21-pitest/README.md)                         | Mutation testing: a `pitest.properties` config file makes the build run PIT, which seeds faults into the code and checks the tests catch them | `java build/jenesis/Project.java`  |
 | 22 | [`maven-exclusions`](demo-22-maven-exclusions/README.md)     | Maven only: a dependency with an `<exclusions>` block; a test asserts the excluded transitive is absent | `java build/jenesis/Project.java`  |
 | 23 | [`module-layout`](demo-23-module-layout/README.md)           | Explicitly select the pure MODULAR layout (via `jenesis.properties`): resolve by module name, emit a modular jar with no `pom.xml` | `java build/jenesis/Project.java`  |
@@ -395,7 +395,7 @@ JDK (the agent ships in the GraalVM runtime), so like `native-image` it is a loc
 exercise.
 
 `test-selection` is the testing demo's other half: a feedback-loop optimisation
-rather than an observation. With `-Djenesis.test.select=true`, most useful under
+rather than an observation. With `-Djenesis.test.incremental` (or a named digest), most useful under
 `-Djenesis.project.watch=true`, a module that changed re-runs only the test classes
 a change can reach: the test step diffs a per-class bytecode snapshot against the
 previous run and walks a class-to-test dependency graph, leaving every unaffected
