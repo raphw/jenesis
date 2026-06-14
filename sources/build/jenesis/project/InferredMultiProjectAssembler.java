@@ -10,7 +10,6 @@ import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
-import build.jenesis.step.Bind;
 import build.jenesis.step.Bundle;
 import build.jenesis.step.CycloneDxEmitter;
 import build.jenesis.step.JLink;
@@ -152,6 +151,7 @@ public record InferredMultiProjectAssembler(String packaging,
                     SequencedProperties properties = SequencedProperties.ofFiles(module);
                     if (properties.getProperty("test") != null) {
                         sub.addModule("observed", observe.apply(new InferredTestObservationModule(
+                                descriptor.configuration(),
                                 repositories,
                                 resolvers,
                                 descriptor.pinning(),
@@ -164,12 +164,6 @@ public record InferredMultiProjectAssembler(String packaging,
                     }
                 }
             }
-            Bind.configured(sub,
-                    Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)).collect(Collectors.toCollection(LinkedHashSet::new)),
-                    "mutate",
-                    true,
-                    PiTestModule.configurationFile(descriptor.configuration()),
-                    new PiTestModule(repositories, resolvers).pinning(descriptor.pinning()));
             if (descriptor.source()) {
                 sub.addModule("sources", (module, inherited) ->
                         module.addStep("archive",

@@ -6,11 +6,13 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.step.Bind;
 
 public class InferredTestObservationModule implements BuildExecutorModule {
 
-    public static final String TEST = "test";
+    public static final String TEST = "test", MUTATE = "mutate";
 
+    private final Path configuration;
     private final boolean jacoco;
     private final boolean nativeImage;
     private final Map<String, Repository> repositories;
@@ -18,11 +20,13 @@ public class InferredTestObservationModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget;
 
-    public InferredTestObservationModule(Map<String, Repository> repositories,
+    public InferredTestObservationModule(Path configuration,
+                                         Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers,
                                          Pinning pinning,
                                          Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
-        this(Boolean.getBoolean("jenesis.observe.jacoco"),
+        this(configuration,
+                Boolean.getBoolean("jenesis.observe.jacoco"),
                 Boolean.getBoolean("jenesis.observe.native"),
                 repositories,
                 resolvers,
@@ -30,12 +34,14 @@ public class InferredTestObservationModule implements BuildExecutorModule {
                 toTarget);
     }
 
-    private InferredTestObservationModule(boolean jacoco,
+    private InferredTestObservationModule(Path configuration,
+                                          boolean jacoco,
                                           boolean nativeImage,
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers,
                                           Pinning pinning,
                                           Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget) {
+        this.configuration = configuration;
         this.jacoco = jacoco;
         this.nativeImage = nativeImage;
         this.repositories = repositories;
@@ -45,11 +51,11 @@ public class InferredTestObservationModule implements BuildExecutorModule {
     }
 
     public InferredTestObservationModule jacoco(boolean jacoco) {
-        return new InferredTestObservationModule(jacoco, nativeImage, repositories, resolvers, pinning, toTarget);
+        return new InferredTestObservationModule(configuration, jacoco, nativeImage, repositories, resolvers, pinning, toTarget);
     }
 
     public InferredTestObservationModule nativeImage(boolean nativeImage) {
-        return new InferredTestObservationModule(jacoco, nativeImage, repositories, resolvers, pinning, toTarget);
+        return new InferredTestObservationModule(configuration, jacoco, nativeImage, repositories, resolvers, pinning, toTarget);
     }
 
     @Override
@@ -71,5 +77,11 @@ public class InferredTestObservationModule implements BuildExecutorModule {
         reportInputs.add(TEST);
         reportInputs.addAll(inherited.sequencedKeySet());
         reports.forEach((name, report) -> buildExecutor.addModule(name, report, reportInputs));
+        Bind.configured(buildExecutor,
+                inherited.sequencedKeySet(),
+                MUTATE,
+                true,
+                configuration == null ? null : PiTestModule.configurationFile(configuration),
+                new PiTestModule(repositories, resolvers).pinning(pinning));
     }
 }

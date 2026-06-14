@@ -24,7 +24,7 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(null, Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
         }).jacoco(true), "project");
@@ -42,7 +42,7 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(null, Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
         }).jacoco(false).nativeImage(false), "project");
@@ -51,6 +51,40 @@ public class InferredTestObservationModuleTest {
         assertThat(observed).isEmpty();
         assertThat(root.resolve("observed").resolve("jacoco"))
                 .as("no observation engine is wired unless it is selected")
+                .doesNotExist();
+    }
+
+    @Test
+    public void wires_mutate_when_a_pitest_config_is_present() throws IOException {
+        Files.writeString(project.resolve("pitest.properties"), "targetClasses=sample.*\ntargetTests=sample.*\n");
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("observed",
+                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {})
+                        .jacoco(false).nativeImage(false),
+                "project");
+        executor.execute("observed/mutate/tool/required");
+
+        Path requiredOutput = root.resolve("observed").resolve("mutate").resolve("tool").resolve("required").resolve("output");
+        SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
+        assertThat(requires.stringPropertyNames())
+                .containsExactlyInAnyOrder(
+                        "pitest/runtime/maven/org.pitest/pitest-command-line/RELEASE",
+                        "pitest/runtime/maven/org.pitest/pitest-junit5-plugin/RELEASE");
+    }
+
+    @Test
+    public void does_not_wire_mutate_without_a_pitest_config() throws IOException {
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("observed",
+                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {})
+                        .jacoco(false).nativeImage(false),
+                "project");
+        executor.execute();
+
+        assertThat(root.resolve("observed").resolve("mutate"))
+                .as("mutation testing is not wired unless pitest.properties is present")
                 .doesNotExist();
     }
 
