@@ -413,6 +413,7 @@ public class TestModule implements BuildExecutorModule {
                         group,
                         parallel,
                         reporting,
+                        dependencyGroup,
                         observers,
                         incrementalProperty == null ? null : incrementalProperty.isEmpty() ? "MD5" : incrementalProperty),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
@@ -479,7 +480,7 @@ public class TestModule implements BuildExecutorModule {
             }
             for (ObservabilityEngine observer : observers) {
                 for (Map.Entry<String, String> entry : observer.coordinates().entrySet()) {
-                    properties.setProperty(observer.name() + "/runtime/" + entry.getKey() + "/" + entry.getValue(), "");
+                    properties.setProperty(group + "/agent/" + entry.getKey() + "/" + entry.getValue(), "");
                 }
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
@@ -499,6 +500,7 @@ public class TestModule implements BuildExecutorModule {
         private final String group;
         private final transient boolean parallel;
         private final boolean reporting;
+        private final String dependencyGroup;
         private final List<ObservabilityEngine> observers;
         private final transient String incrementalDigest;
 
@@ -512,6 +514,7 @@ public class TestModule implements BuildExecutorModule {
                     String group,
                     boolean parallel,
                     boolean reporting,
+                    String dependencyGroup,
                     List<ObservabilityEngine> observers,
                     String incrementalDigest) {
             super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
@@ -522,6 +525,7 @@ public class TestModule implements BuildExecutorModule {
             this.group = group;
             this.parallel = parallel;
             this.reporting = reporting;
+            this.dependencyGroup = dependencyGroup;
             this.observers = observers;
             this.incrementalDigest = incrementalDigest;
         }
@@ -544,7 +548,7 @@ public class TestModule implements BuildExecutorModule {
             SequencedSet<String> groups = groups(group);
             List<String> commands = new ArrayList<>();
             for (ObservabilityEngine observer : observers) {
-                commands.addAll(observer.commands(agentJars(arguments, observer), context.next()));
+                commands.addAll(observer.commands(agentJars(arguments, observer, dependencyGroup), context.next()));
             }
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
@@ -701,7 +705,8 @@ public class TestModule implements BuildExecutorModule {
         }
 
         private static SequencedMap<String, Path> agentJars(SequencedMap<String, BuildStepArgument> arguments,
-                                                            ObservabilityEngine observer) throws IOException {
+                                                            ObservabilityEngine observer,
+                                                            String group) throws IOException {
             SequencedMap<String, Path> resolved = new LinkedHashMap<>();
             for (BuildStepArgument argument : arguments.values()) {
                 Path file = argument.folder().resolve(BuildStep.DEPENDENCIES);
@@ -710,7 +715,7 @@ public class TestModule implements BuildExecutorModule {
                 }
                 SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String coordinate : observer.coordinates().sequencedKeySet()) {
-                    String prefix = observer.name() + "/runtime/" + coordinate + "/";
+                    String prefix = group + "/agent/" + coordinate + "/";
                     for (String key : properties.stringPropertyNames()) {
                         if (key.startsWith(prefix)) {
                             String value = properties.getProperty(key);

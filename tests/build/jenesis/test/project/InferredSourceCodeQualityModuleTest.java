@@ -24,9 +24,9 @@ public class InferredSourceCodeQualityModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("quality", new InferredSourceCodeQualityModule(project, Map.of(), Map.of()), "project");
-        executor.execute("quality/checkstyle/required");
+        executor.execute("quality/checkstyle/tool/required");
 
-        Path requiredOutput = root.resolve("quality").resolve("checkstyle").resolve("required").resolve("output");
+        Path requiredOutput = root.resolve("quality").resolve("checkstyle").resolve("tool").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("checkstyle/runtime/maven/com.puppycrawl.tools/checkstyle/RELEASE");

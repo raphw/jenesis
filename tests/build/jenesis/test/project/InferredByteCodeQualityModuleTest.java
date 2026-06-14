@@ -24,9 +24,9 @@ public class InferredByteCodeQualityModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("quality", new InferredByteCodeQualityModule(project, Map.of(), Map.of()), "project");
-        executor.execute("quality/spotbugs/required");
+        executor.execute("quality/spotbugs/tool/required");
 
-        Path requiredOutput = root.resolve("quality").resolve("spotbugs").resolve("required").resolve("output");
+        Path requiredOutput = root.resolve("quality").resolve("spotbugs").resolve("tool").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .containsExactly("spotbugs/runtime/maven/com.github.spotbugs/spotbugs/RELEASE");

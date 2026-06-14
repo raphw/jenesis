@@ -1,6 +1,8 @@
 package build.jenesis.step;
 
 import module java.base;
+import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -32,6 +34,26 @@ public class Bind implements BuildStep {
 
     public static Bind asMetadata() {
         return new Bind(Map.of(Path.of(""), Path.of(METADATA)));
+    }
+
+    public static void configured(BuildExecutor buildExecutor,
+                                  SequencedSet<String> inputs,
+                                  String name,
+                                  boolean enabled,
+                                  Path configurationFile,
+                                  BuildExecutorModule module) {
+        if (!enabled || configurationFile == null) {
+            return;
+        }
+        buildExecutor.addModule(name, (nested, inherited) -> {
+            nested.addSource("configuration",
+                    new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
+                    configurationFile);
+            SequencedSet<String> toolInputs = new LinkedHashSet<>();
+            toolInputs.add("configuration");
+            toolInputs.addAll(inherited.sequencedKeySet());
+            nested.addModule("tool", module, toolInputs);
+        }, inputs);
     }
 
     @Override
