@@ -92,10 +92,10 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                         inherited.sequencedKeySet());
             }
         }
-        Bind.configured(buildExecutor, inherited.sequencedKeySet(),KTLINT, ktlint,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(), KTLINT, ktlint,
                 KtlintFormatModule.configurationFile(configuration),
                 new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
-        Bind.configured(buildExecutor, inherited.sequencedKeySet(),SCALAFMT, scalafmt,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(), SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
                 new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
     }
