@@ -25,9 +25,9 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/ktlint-format/execution/required");
+        executor.execute("format/ktlint-format/tool/required");
 
-        assertThat(coordinates("ktlint-format", "execution"))
+        assertThat(coordinates("ktlint-format", "tool"))
                 .containsExactly("ktlint-format/runtime/maven/com.pinterest.ktlint/ktlint-cli/RELEASE");
     }
 
@@ -38,9 +38,9 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/scalafmt-format/execution/required");
+        executor.execute("format/scalafmt-format/tool/required");
 
-        assertThat(coordinates("scalafmt-format", "execution"))
+        assertThat(coordinates("scalafmt-format", "tool"))
                 .containsExactly("scalafmt-format/runtime/maven/org.scalameta/scalafmt-cli_2.13/RELEASE");
     }
 

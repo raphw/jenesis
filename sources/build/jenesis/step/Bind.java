@@ -38,10 +38,10 @@ public class Bind implements BuildStep {
 
     public static void configured(BuildExecutor buildExecutor,
                                   SequencedSet<String> inputs,
-                            String name,
-                            boolean enabled,
-                            Path configurationFile,
-                            BuildExecutorModule module) {
+                                  String name,
+                                  boolean enabled,
+                                  Path configurationFile,
+                                  BuildExecutorModule module) {
         if (!enabled || configurationFile == null) {
             return;
         }
@@ -49,10 +49,10 @@ public class Bind implements BuildStep {
             nested.addSource("configuration",
                     new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
                     configurationFile);
-            SequencedSet<String> executed = new LinkedHashSet<>();
-            executed.add("configuration");
-            executed.addAll(inherited.sequencedKeySet());
-            nested.addModule("execution", module, executed);
+            SequencedSet<String> toolInputs = new LinkedHashSet<>();
+            toolInputs.add("configuration");
+            toolInputs.addAll(inherited.sequencedKeySet());
+            nested.addModule("tool", module, toolInputs);
         }, inputs);
     }
 
