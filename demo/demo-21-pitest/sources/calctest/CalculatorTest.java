@@ -1,5 +1,6 @@
-package calc;
+package calctest;
 
+import calc.Calculator;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

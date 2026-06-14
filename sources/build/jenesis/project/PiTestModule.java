@@ -24,22 +24,19 @@ public class PiTestModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final String group;
-    private final Path configuration;
 
     public PiTestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "pitest", null);
+        this(repositories, resolvers, null, "pitest");
     }
 
     private PiTestModule(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
-                         String group,
-                         Path configuration) {
+                         String group) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.group = group;
-        this.configuration = configuration;
     }
 
     public static Path configurationFile(Path configuration) {
@@ -48,15 +45,11 @@ public class PiTestModule implements BuildExecutorModule {
     }
 
     public PiTestModule pinning(Pinning pinning) {
-        return new PiTestModule(repositories, resolvers, pinning, group, configuration);
+        return new PiTestModule(repositories, resolvers, pinning, group);
     }
 
     public PiTestModule group(String group) {
-        return new PiTestModule(repositories, resolvers, pinning, group, configuration);
-    }
-
-    public PiTestModule configuration(Path configuration) {
-        return new PiTestModule(repositories, resolvers, pinning, group, configuration);
+        return new PiTestModule(repositories, resolvers, pinning, group);
     }
 
     @Override
@@ -71,7 +64,7 @@ public class PiTestModule implements BuildExecutorModule {
         SequencedSet<String> mutateInputs = new LinkedHashSet<>();
         mutateInputs.add(DEPENDENCIES);
         mutateInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(MUTATE, new Mutate(group, configuration), mutateInputs);
+        buildExecutor.addStep(MUTATE, new Mutate(group), mutateInputs);
     }
 
     private record Requires(String group) implements BuildStep {
@@ -90,12 +83,10 @@ public class PiTestModule implements BuildExecutorModule {
             SequencedProperties requires = new SequencedProperties();
             requires.setProperty(group + "/runtime/maven/org.pitest/pitest-command-line/RELEASE", "");
             requires.setProperty(group + "/runtime/maven/org.pitest/pitest-junit5-plugin/RELEASE", "");
-            requires.store(context.next().resolve(BuildStep.REQUIRES));
             if (launcher != null) {
-                SequencedProperties versions = new SequencedProperties();
-                versions.setProperty(group + "/maven/org.junit.platform/junit-platform-launcher", launcher);
-                versions.store(context.next().resolve(BuildStep.VERSIONS));
+                requires.setProperty(group + "/classpath/maven/org.junit.platform/junit-platform-launcher/" + launcher, "");
             }
+            requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
 
@@ -122,12 +113,10 @@ public class PiTestModule implements BuildExecutorModule {
     private static class Mutate extends JdkProcessBuildStep {
 
         private final String group;
-        private final Path configuration;
 
-        private Mutate(String group, Path configuration) {
+        private Mutate(String group) {
             super("pitest", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
             this.group = group;
-            this.configuration = configuration;
         }
 
         @Override
@@ -137,20 +126,28 @@ public class PiTestModule implements BuildExecutorModule {
                                                      SequencedMap<String, SequencedMap<String, String>> properties)
                 throws IOException {
             SequencedProperties config = new SequencedProperties();
-            if (configuration != null && Files.isRegularFile(configuration)) {
-                config.putAll(SequencedProperties.ofFiles(configuration));
-            }
-            List<String> tools = new ArrayList<>(), application = new ArrayList<>(), sources = new ArrayList<>();
+            List<String> tools = new ArrayList<>(), external = new ArrayList<>(), sources = new ArrayList<>();
+            SequencedSet<String> candidates = new LinkedHashSet<>();
+            Set<String> expanded = new HashSet<>();
+            Path code = Files.createDirectories(context.supplement().resolve("code")).toAbsolutePath();
             for (BuildStepArgument argument : arguments.values()) {
                 for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
                     tools.add(jar.toString());
                 }
+                for (Path jar : Dependencies.select(argument.folder(), group, "classpath")) {
+                    external.add(jar.toString());
+                }
                 for (Path jar : Dependencies.select(argument.folder(), "runtime")) {
-                    application.add(jar.toString());
+                    String fileName = jar.getFileName().toString();
+                    if (fileName.contains("%2F")) {
+                        external.add(jar.toString());
+                    } else if (expanded.add(fileName)) {
+                        extract(jar, code);
+                    }
                 }
                 Path classes = argument.folder().resolve(BuildStep.CLASSES);
                 if (Files.isDirectory(classes)) {
-                    application.add(classes.toString());
+                    copy(classes, code);
                 }
                 Path source = argument.folder().resolve(BuildStep.SOURCES);
                 if (Files.isDirectory(source)) {
@@ -164,13 +161,28 @@ public class PiTestModule implements BuildExecutorModule {
             if (tools.isEmpty()) {
                 throw new IllegalStateException("No PIT jars resolved upstream of the PIT mutation step");
             }
-            if (application.isEmpty() || sources.isEmpty()) {
+            Files.walkFileTree(code, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    String name = code.relativize(file).toString();
+                    if (name.endsWith(".class") && !name.equals("module-info.class")) {
+                        candidates.add(name.substring(0, name.length() - 6).replace(File.separatorChar, '.'));
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+            if (candidates.isEmpty() || sources.isEmpty()) {
+                return CompletableFuture.completedStage(null);
+            }
+            if (!matches(candidates, config.getProperty("targetTests", "*"))) {
                 return CompletableFuture.completedStage(null);
             }
             Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "pitest"));
-            List<String> classPath = new ArrayList<>(new LinkedHashSet<>(application));
+            List<String> classPath = new ArrayList<>();
+            classPath.add(code.toString());
+            classPath.addAll(new LinkedHashSet<>(external));
             List<String> commands = new ArrayList<>(List.of(
-                    "-cp", Stream.concat(tools.stream(), classPath.stream()).distinct().collect(Collectors.joining(File.pathSeparator)),
+                    "-cp", tools.stream().distinct().collect(Collectors.joining(File.pathSeparator)),
                     "org.pitest.mutationtest.commandline.MutationCoverageReport",
                     "--reportDir", report.toString(),
                     "--classPath", String.join(",", classPath),
@@ -178,6 +190,7 @@ public class PiTestModule implements BuildExecutorModule {
                     "--targetClasses", config.getProperty("targetClasses", "*"),
                     "--targetTests", config.getProperty("targetTests", "*"),
                     "--outputFormats", config.getProperty("outputFormats", "XML"),
+                    "--mutableCodePaths", code.toString(),
                     "--timestampedReports", "false",
                     "--failWhenNoMutations", config.getProperty("failWhenNoMutations", "false")));
             String mutators = config.getProperty("mutators");
@@ -186,6 +199,55 @@ public class PiTestModule implements BuildExecutorModule {
                 commands.add(mutators);
             }
             return CompletableFuture.completedStage(commands);
+        }
+
+        private static void extract(Path jar, Path code) throws IOException {
+            try (JarFile archive = new JarFile(jar.toFile())) {
+                Enumeration<JarEntry> entries = archive.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    String entryName = entry.getName();
+                    if (!entryName.endsWith(".class") || entryName.equals("module-info.class") || entryName.startsWith("META-INF/")) {
+                        continue;
+                    }
+                    Path file = code.resolve(entryName);
+                    Files.createDirectories(file.getParent());
+                    try (InputStream input = archive.getInputStream(entry)) {
+                        Files.copy(input, file, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            }
+        }
+
+        private static void copy(Path classes, Path code) throws IOException {
+            Files.walkFileTree(classes, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    String name = classes.relativize(file).toString();
+                    if (!name.equals("module-info.class")) {
+                        Path target = code.resolve(name);
+                        Files.createDirectories(target.getParent());
+                        Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+
+        private static boolean matches(SequencedSet<String> names, String globs) {
+            for (String glob : globs.split(",")) {
+                String trimmed = glob.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                Pattern pattern = Pattern.compile(trimmed.replace(".", "\\.").replace("*", ".*"));
+                for (String name : names) {
+                    if (pattern.matcher(name).matches()) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
     }
 }
