@@ -6,6 +6,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.step.Bind;
 
 public class InferredSourceFormattingModule implements BuildExecutorModule {
 
@@ -91,10 +92,10 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                         inherited.sequencedKeySet());
             }
         }
-        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, KTLINT, ktlint,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),KTLINT, ktlint,
                 KtlintFormatModule.configurationFile(configuration),
                 new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
-        InferredSourceCodeQualityModule.wire(buildExecutor, inherited, SCALAFMT, scalafmt,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
                 new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
     }

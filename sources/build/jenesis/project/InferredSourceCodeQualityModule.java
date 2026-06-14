@@ -109,45 +109,26 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        wire(buildExecutor, inherited, CHECKSTYLE, checkstyle,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),CHECKSTYLE, checkstyle,
                 CheckstyleModule.configurationFile(configuration),
                 new CheckstyleModule(repositories, resolvers).pinning(pinning));
-        wire(buildExecutor, inherited, PMD, pmd,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),PMD, pmd,
                 PmdModule.configurationFile(configuration),
                 new PmdModule(repositories, resolvers).pinning(pinning));
-        wire(buildExecutor, inherited, DETEKT, detekt,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),DETEKT, detekt,
                 DetektModule.configurationFile(configuration),
                 new DetektModule(repositories, resolvers).pinning(pinning));
-        wire(buildExecutor, inherited, KTLINT, ktlint,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),KTLINT, ktlint,
                 KtlintModule.configurationFile(configuration),
                 new KtlintModule(repositories, resolvers).pinning(pinning));
-        wire(buildExecutor, inherited, SCALASTYLE, scalastyle,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),SCALASTYLE, scalastyle,
                 ScalastyleModule.configurationFile(configuration),
                 new ScalastyleModule(repositories, resolvers).pinning(pinning));
-        wire(buildExecutor, inherited, SCALAFMT, scalafmt,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),SCALAFMT, scalafmt,
                 ScalafmtModule.configurationFile(configuration),
                 new ScalafmtModule(repositories, resolvers).pinning(pinning));
-        wire(buildExecutor, inherited, CODENARC, codenarc,
+        Bind.configured(buildExecutor, inherited.sequencedKeySet(),CODENARC, codenarc,
                 CodeNarcModule.configurationFile(configuration),
                 new CodeNarcModule(repositories, resolvers).pinning(pinning));
-    }
-
-    static void wire(BuildExecutor buildExecutor,
-                     SequencedMap<String, Path> inherited,
-                     String name,
-                     boolean enabled,
-                     Path configurationFile,
-                     BuildExecutorModule module) {
-        if (!enabled || configurationFile == null) {
-            return;
-        }
-        String configuration = name + "-configuration";
-        buildExecutor.addSource(configuration,
-                new Bind(Map.of(Path.of(""), configurationFile.getFileName())),
-                configurationFile);
-        SequencedSet<String> inputs = new LinkedHashSet<>();
-        inputs.add(configuration);
-        inputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addModule(name, module, inputs);
     }
 }

@@ -25,9 +25,9 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/ktlint-format/required");
+        executor.execute("format/ktlint-format/execution/required");
 
-        assertThat(coordinates("ktlint-format"))
+        assertThat(coordinates("ktlint-format", "execution"))
                 .containsExactly("ktlint-format/runtime/maven/com.pinterest.ktlint/ktlint-cli/RELEASE");
     }
 
@@ -38,9 +38,9 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/scalafmt-format/required");
+        executor.execute("format/scalafmt-format/execution/required");
 
-        assertThat(coordinates("scalafmt-format"))
+        assertThat(coordinates("scalafmt-format", "execution"))
                 .containsExactly("scalafmt-format/runtime/maven/org.scalameta/scalafmt-cli_2.13/RELEASE");
     }
 
@@ -96,8 +96,12 @@ public class InferredSourceFormattingModuleTest {
         assertThat(root.resolve("format").resolve("ktlint-format")).doesNotExist();
     }
 
-    private Iterable<String> coordinates(String group) throws IOException {
-        Path output = root.resolve("format").resolve(group).resolve("required").resolve("output");
+    private Iterable<String> coordinates(String... segments) throws IOException {
+        Path output = root.resolve("format");
+        for (String segment : segments) {
+            output = output.resolve(segment);
+        }
+        output = output.resolve("required").resolve("output");
         return SequencedProperties.ofFiles(output.resolve(BuildStep.REQUIRES)).stringPropertyNames();
     }
 
