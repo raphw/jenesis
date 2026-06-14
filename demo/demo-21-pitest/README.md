@@ -8,9 +8,11 @@ a return value is replaced with a constant - re-runs the tests against each
 mutant, and reports which mutants the tests killed and which survived. A
 surviving mutant is a change to the program that no test noticed.
 
-Like the lint tools, PIT is **discovered from a config file**: when a module has
-a `pitest.properties`, the assembler wires a `mutate` step into the build. There
-is no flag and no plugin to register; the plain build runs it:
+Like the lint tools, PIT is **discovered from a config file**: when a tested
+module also has a `pitest.properties`, a `mutate` step is wired into the test
+block alongside the normal test run, so the suite runs as usual *and* PIT then
+assesses how good it is. There is no flag and no plugin to register; the plain
+build runs it:
 
     java build/jenesis/Project.java
 
@@ -21,14 +23,16 @@ the `mutate` step's `reports/pitest/`. The version of PIT's JUnit 5 plugin is
 taken from the project's own resolved `junit-platform`, so it always lines up
 with the test framework the project uses rather than floating independently.
 
-The module
-----------
+The modules
+-----------
 
-`Calculator.add` is covered by `CalculatorTest`. Running the demo seeds two
-mutants into `add` (replace the addition with subtraction; replace the return
-value with `0`); the test computes `2 + 3` and asserts `5`, so it kills both, and
-the report records `status='KILLED'`. Weaken the assertion (for example assert
-nothing) and a mutant survives.
+The production module `demo.mutation` exports `calc.Calculator`; a separate test
+module (`@jenesis.test demo.mutation`) holds `CalculatorTest`. The normal test
+step runs the suite, and PIT then re-runs it against mutants of the code under
+test. The demo seeds two mutants into `Calculator.add` (replace the addition with
+subtraction; replace the return value with `0`); the test computes `2 + 3` and
+asserts `5`, so it kills both, and the report records `status='KILLED'`. Weaken
+the assertion (for example assert nothing) and a mutant survives.
 
 The configuration
 -----------------
@@ -37,9 +41,9 @@ The configuration
 configuration rather than an empty marker:
 
     targetClasses=calc.Calculator   # which classes to mutate
-    targetTests=calc.*              # which tests to run against the mutants
+    targetTests=calctest.*          # which tests to run against the mutants
     outputFormats=XML,HTML          # report formats (an optional `mutators` key selects a mutator set)
 
-For a single module the production code and its tests are compiled together, so
-PIT sees both on one classpath; the production class is what gets mutated and the
-test is what must catch it.
+PIT runs in the test module's context, where the production module is on the
+classpath as a dependency and the test classes are local: `targetClasses` selects
+the production class to mutate and `targetTests` the tests that must catch it.
