@@ -34,7 +34,7 @@ public class Demo {
                 System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java").toString());
         Process process = new ProcessBuilder(
                 java,
-                "-Djenesis.test.select=true",
+                "-Djenesis.test.incremental",
                 "build/jenesis/Project.java")
                 .inheritIO()
                 .start();

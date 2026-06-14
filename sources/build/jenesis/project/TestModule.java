@@ -401,6 +401,7 @@ public class TestModule implements BuildExecutorModule {
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
+        String incrementalProperty = System.getProperty("jenesis.test.incremental");
         buildExecutor.addStep(EXECUTED, new Run(
                         factory,
                         resolved,
@@ -413,7 +414,7 @@ public class TestModule implements BuildExecutorModule {
                         parallel,
                         reporting,
                         observers,
-                        Boolean.getBoolean("jenesis.test.select")),
+                        incrementalProperty == null ? null : incrementalProperty.isEmpty() ? "MD5" : incrementalProperty),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
     }
 
@@ -499,7 +500,7 @@ public class TestModule implements BuildExecutorModule {
         private final transient boolean parallel;
         private final boolean reporting;
         private final List<ObservabilityEngine> observers;
-        private final transient boolean select;
+        private final transient String incrementalDigest;
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
                     TestEngine engine,
@@ -512,7 +513,7 @@ public class TestModule implements BuildExecutorModule {
                     boolean parallel,
                     boolean reporting,
                     List<ObservabilityEngine> observers,
-                    boolean select) {
+                    String incrementalDigest) {
             super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
@@ -522,7 +523,7 @@ public class TestModule implements BuildExecutorModule {
             this.parallel = parallel;
             this.reporting = reporting;
             this.observers = observers;
-            this.select = select;
+            this.incrementalDigest = incrementalDigest;
         }
 
         @Override
@@ -605,7 +606,7 @@ public class TestModule implements BuildExecutorModule {
                         + " or set jenesis.test.skip to skip testing.");
             }
             SequencedSet<String> selection = matchedClasses;
-            if (select && filter == null && group == null && !matchedClasses.isEmpty()) {
+            if (incrementalDigest != null && filter == null && group == null && !matchedClasses.isEmpty()) {
                 SequencedSet<String> narrowed = selected(arguments, context, matchedClasses);
                 if (narrowed != null && !narrowed.isEmpty()) {
                     selection = narrowed;
@@ -661,7 +662,7 @@ public class TestModule implements BuildExecutorModule {
             }
             MessageDigest digest;
             try {
-                digest = MessageDigest.getInstance("SHA-256");
+                digest = MessageDigest.getInstance(incrementalDigest);
             } catch (NoSuchAlgorithmException e) {
                 throw new IllegalStateException(e);
             }
