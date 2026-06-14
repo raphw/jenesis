@@ -478,7 +478,7 @@ public class TestModule implements BuildExecutorModule {
             }
             for (ObservabilityEngine observer : observers) {
                 for (Map.Entry<String, String> entry : observer.coordinates().entrySet()) {
-                    properties.setProperty(observer.name() + "/runtime/" + entry.getKey() + "/" + entry.getValue(), "");
+                    properties.setProperty("main/agent/" + entry.getKey() + "/" + entry.getValue(), "");
                 }
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
@@ -709,7 +709,7 @@ public class TestModule implements BuildExecutorModule {
                 }
                 SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String coordinate : observer.coordinates().sequencedKeySet()) {
-                    String prefix = observer.name() + "/runtime/" + coordinate + "/";
+                    String prefix = "main/agent/" + coordinate + "/";
                     for (String key : properties.stringPropertyNames()) {
                         if (key.startsWith(prefix)) {
                             String value = properties.getProperty(key);
