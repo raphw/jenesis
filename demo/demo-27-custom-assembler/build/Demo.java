@@ -1,7 +1,6 @@
 package build;
 
 import module java.base;
-import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -9,6 +8,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -28,19 +28,19 @@ public class Demo {
             implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         @Override
-        public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
-                                         Map<String, Repository> repositories,
-                                         Map<String, Resolver> resolvers) {
+        public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
+                                        Map<String, Repository> repositories,
+                                        Map<String, Resolver> resolvers) {
             // Redirect the descriptor's sources to a preprocessing step using
             // the ProjectModuleDescriptor wither, then let the stock assembler
-            // wire the regular flow against the preprocessed tree.
+            // wire the regular flow against the preprocessed tree. Only the build
+            // phase is decorated; any later (packaging) phases pass through.
             SequencedSet<String> original = descriptor.sources();
             ProjectModuleDescriptor redirected = descriptor.sources("preprocess");
-            BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
-            return (sub, inherited) -> {
+            return delegate.apply(redirected, repositories, resolvers).mapBuild(inner -> (sub, inherited) -> {
                 sub.addStep("preprocess", new Preprocess(), original.stream());
                 inner.accept(sub, inherited);
-            };
+            });
         }
     }
 

@@ -1,11 +1,11 @@
 package build;
 
 import module java.base;
-import build.jenesis.BuildExecutorModule;
 import build.jenesis.Execute;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.InternalModule;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
@@ -50,21 +50,20 @@ public class Demo {
             implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         @Override
-        public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
-                                         Map<String, Repository> repositories,
-                                         Map<String, Resolver> resolvers) {
+        public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
+                                        Map<String, Repository> repositories,
+                                        Map<String, Resolver> resolvers) {
             // Load the preprocessing logic from the plugin/ build module via
             // InternalModule, and let the stock assembler wire the regular flow
             // against its output. The project's sources are passed to the module
             // as inherited steps: InternalModule compiles the plugin in isolation
             // and forwards those sources to it only at run time, where the plugin
             // reads and rewrites them. The substituted copy it emits stands in for
-            // them downstream.
+            // them downstream. Only the build phase is decorated.
             SequencedSet<String> original = descriptor.sources();
             SequencedSet<String> manifests = descriptor.manifests();
             ProjectModuleDescriptor redirected = descriptor.sources("preprocess/substitute");
-            BuildExecutorModule inner = delegate.apply(redirected, repositories, resolvers);
-            return (sub, inherited) -> {
+            return delegate.apply(redirected, repositories, resolvers).mapBuild(inner -> (sub, inherited) -> {
                 InternalModule preprocess = new InternalModule(
                         "module",                           // resolution prefix for the plugin's requires
                         "tool",                             // dependency group for the plugin's resolved closure
@@ -74,7 +73,7 @@ public class Demo {
                 // resolves the plugin's build.jenesis/org.json closure against them.
                 sub.addModule("preprocess", preprocess, Stream.concat(original.stream(), manifests.stream()));
                 inner.accept(sub, inherited);
-            };
+            });
         }
     }
 }

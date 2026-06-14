@@ -13,6 +13,7 @@ import build.jenesis.Platform;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
@@ -98,7 +99,12 @@ public class MavenProject implements BuildExecutorModule {
         MavenResolver resolver = MavenResolver.of(resolvers.get(prefix));
         return new MultiProjectModule(new MavenProject(root, prefix, repository, resolver).group(group),
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
-                _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
+                _ -> (name, dependencies, _) -> {
+                    AssemblyDescriptor packaging = assembler.apply(
+                            new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), Collections.emptyNavigableSet()),
+                            repositories,
+                            resolvers);
+                    AssemblyDescriptor assembly = new AssemblyDescriptor((buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
                             Repository.ofProperties(BuildStep.IDENTITY,
                                     inherited.entrySet().stream()
@@ -139,7 +145,7 @@ public class MavenProject implements BuildExecutorModule {
                     buildExecutor.addModule(PRODUCE,
                             assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources),
                                     mergedRepositories,
-                                    resolvers),
+                                    resolvers).build(),
                             produceDeps);
                     buildExecutor.addStep(ASSIGN,
                             new Assign(),
@@ -151,6 +157,11 @@ public class MavenProject implements BuildExecutorModule {
                             ASSIGN,
                             PRODUCE,
                             DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+                    });
+                    for (Map.Entry<String, BuildExecutorModule> phase : packaging.tail().entrySet()) {
+                        assembly = assembly.then(phase.getKey(), phase.getValue());
+                    }
+                    return assembly;
                 });
     }
 

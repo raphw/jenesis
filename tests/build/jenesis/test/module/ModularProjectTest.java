@@ -11,6 +11,7 @@ import build.jenesis.Platform;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.JavaToolchainModule;
 import build.jenesis.project.MultiProjectModule;
 
@@ -328,7 +329,7 @@ public class ModularProjectTest {
                         case "module-bar" -> assertThat(descriptor.dependencies()).containsExactly("module-foo");
                         default -> fail("Unexpected module: " + descriptor.name());
                     }
-                    return (buildExecutor, inherited) -> {
+                    return new AssemblyDescriptor((buildExecutor, inherited) -> {
                         switch (descriptor.name()) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../manifests",
@@ -351,7 +352,7 @@ public class ModularProjectTest {
                         buildExecutor.addModule("java", new JavaToolchainModule(),
                                 "../sources", "../manifests",
                                 "../dependencies/artifacts");
-                    };
+                    });
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties foo = SequencedProperties.ofFiles(results

@@ -10,9 +10,9 @@ runs it), this one produces a self-contained machine-code program with no JVM at
 all.
 
 The demo deliberately reaches for **reflection**, the thing native-image's
-closed-world analysis cannot see, so it shows the whole loop: a test captures the
-reachability metadata, you commit it next to the sources, and the native build picks
-it up. `Sample` loads its greeter by a name assembled at run time -
+closed-world analysis cannot see, so it shows the whole loop in a single build: a
+test captures the reachability metadata, and the native build picks it up directly.
+`Sample` loads its greeter by a name assembled at run time -
 `Class.forName("sample." + name)` - and invokes it reflectively, so neither the class
 nor its methods are statically reachable.
 
@@ -23,86 +23,90 @@ do not carry, so unlike most demos it is not part of the CI matrix.
 Build the native image
 ----------------------
 
-`native-image` is located the same way every external tool is - `GRAALVM_HOME`
-first, then the running JDK's own `bin/` (`java.home`), then `PATH`. So either run
-the build with a GraalVM JDK:
+A single build captures the metadata and compiles the image in one pass. The capture
+attaches GraalVM's tracing agent to the test run (`-Djenesis.observe.native=true`),
+and the native compilation reads what it recorded (`-Djenesis.java.native=true`).
+`native-image` is located the same way every external tool is - `GRAALVM_HOME` first,
+then the running JDK's own `bin/` (`java.home`), then `PATH` - so either run the build
+with a GraalVM JDK:
 
-    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.java.native=true build/jenesis/Project.java
+    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java
 
 or keep your usual JDK 25 and point `GRAALVM_HOME` at a GraalVM install (here one
 managed by [SDKMAN](https://sdkman.io/), `sdk install java 25.0.3-graal`):
 
-    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.java.native=true build/jenesis/Project.java
+    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java
 
-The build compiles the modules, runs the test, then runs `native-image` over the
-produced module path. The image build is the slow step (a minute or two - it
-analyses the whole reachable program), after which the standalone binary lands at:
+The build compiles the modules, runs the test under the agent, then runs
+`native-image` over the produced module path. The image build is the slow step (a
+minute or two - it analyses the whole reachable program), after which the standalone
+binary lands at:
 
-    target/build/modules/compose/module/module-sources/produce/assemble/native-image/output/native/demo.graal.image
+    target/build/modules/compose/module/package/module-sources/package/native-image/output/native/demo.graal.image
 
 Run it directly - there is no `java` in the command, because there is no JVM:
 
     .../native/demo.graal.image            # Hello, world, from a native binary built by Jenesis (reflectively)!
     .../native/demo.graal.image Ada        # Hello, Ada, from a native binary built by Jenesis (reflectively)!
 
-The result is a ~6 MB ELF executable (`.exe` on Windows, a Mach-O binary on macOS)
+The result is a ~15 MB ELF executable (`.exe` on Windows, a Mach-O binary on macOS)
 that links `java.base` statically and starts without a runtime. The greeting comes
-back through reflection - which only works because the committed metadata told
-native-image to keep `sample.Greeter`. Delete
-`sources/META-INF/native-image/demo.graal.image/reachability-metadata.json`, rebuild,
-and the binary fails at run time with `ClassNotFoundException: sample.Greeter`: the
-closed-world analysis dropped the class it never saw referenced.
+back through reflection - which only works because the test capture told native-image
+to keep `sample.Greeter`. Build with `-Djenesis.java.native=true` alone (no
+`-Djenesis.observe.native=true`, so nothing captures the reflection) and the binary
+fails at run time with `ClassNotFoundException: sample.Greeter`: the closed-world
+analysis dropped the class it never saw referenced.
 
-Capturing the metadata with the tracing agent
-----------------------------------------------
+How the test capture reaches the image, in one build
+----------------------------------------------------
 
-Where does that metadata come from? Jenesis runs GraalVM's tracing agent the same
-way it runs JaCoCo coverage (`../demo-19-code-coverage`): as a **test-observation
-engine**. The `demo.graal.image.test` module exercises exactly the reflective call
-`Sample` makes, so building on a GraalVM JDK with
+Where does that metadata come from? Jenesis runs GraalVM's tracing agent the same way
+it runs JaCoCo coverage (`../demo-19-code-coverage`): as a **test-observation engine**.
+The `demo.graal.image.test` module exercises exactly the reflective call `Sample`
+makes, so `-Djenesis.observe.native=true` attaches `-agentlib:native-image-agent` to
+the test JVM, and the agent records every reflective, JNI, resource and proxy access
+the test triggers, into a `native-image/` directory in the test's own output.
 
-    java -Djenesis.observe.native=true build/jenesis/Project.java stage
+The reason this can feed the same build is the assembler's two-phase layout. An
+assembler returns an `AssemblyDescriptor` - a per-module *build* phase plus optional
+later phases - and the heavy packaging steps, `native-image` among them, run in a
+*package* phase wired as a second, cross-module level: it runs after every module has
+built. Each module's `inventory.properties` names its `artifact`; a test module's also
+records the artifact it tests (`test`) and its capture (`nativeimage`), recorded the same
+cross-module way as `package`/`image`/`jmod` - but under `nativeimage/`, not `reports/`,
+because the metadata is build-internal (fed back into the image) rather than a report
+meant for an external tool. The package phase reads its sibling modules' inventories,
+and a `reachability` step collects the capture of the test module whose `test` names
+this module's `artifact` - so each native image gets exactly its own test's metadata,
+never another module's - into a config directory `native-image` points
+`-H:ConfigurationFileDirectories` at, discovering it by content exactly as it would a
+committed file. The main module never has to depend on the test module that `requires`
+it - the cycle that would otherwise force a hand-off never arises.
 
-attaches `-agentlib:native-image-agent` to the test JVM, and the agent records every
-reflective, JNI, resource and proxy access the test triggers. The capture is staged
-as a report:
+For review, the capture is readable in the test module's build output:
 
-    target/stage/reports/native-image/<module>/reachability-metadata.json
+    target/build/modules/compose/module/<test-module>/produce/assemble/observed/native-image/report/output/nativeimage/reachability-metadata.json
 
 which for this demo holds exactly the `sample.Greeter` constructor and `greet`
-method. You review that, then commit the app-relevant entries into the module's
-`sources/META-INF/native-image/` (here under `demo.graal.image/`).
-
-How the committed metadata reaches the build
---------------------------------------------
-
-`META-INF/native-image/` is the GraalVM-standard location: native-image scans it
-inside every jar on the module path and applies whatever configuration it finds, so
-nothing has to point the build at the file. Jenesis packages it there for free -
-files under `META-INF/` are copied into the jar verbatim (they are resources, not
-sources to compile), so `sources/META-INF/native-image/demo.graal.image/reachability-metadata.json`
-lands at `META-INF/native-image/demo.graal.image/` in the produced jar, and the
-native build on that jar discovers it automatically.
-
-That keeps capture and build deliberately **separate**: the agent only ships in the
-GraalVM runtime (so the observation engine needs no coordinate to resolve), and the
-metadata it records is staged for you to vet and commit before the image is built
-from it, rather than fed blindly into the same build. The same committed file also
-serves a plain JVM run and any other tool that honours `META-INF/native-image/`.
+method. The committed-metadata route still exists for published artifacts: drop a
+file under `sources/META-INF/native-image/` and it is copied verbatim into the jar
+(files under `META-INF/` are resources), where `native-image` - and a plain JVM, and
+any other tool that honours `META-INF/native-image/` - discovers it. This demo needs
+no such file; the single build feeds the metadata straight through.
 
 How the native-image step fits the build
 -----------------------------------------
 
 Native compilation is opt-in through a single boolean property,
 `-Djenesis.java.native=true`. When it is set, `InferredMultiProjectAssembler` wires a
-per-module `native-image` step that runs for every module declaring a main class -
-exactly the `@jenesis.main` field that `../demo-06-java-modular-executable` uses for
-`jpackage`, read from the same `module.properties`. Modules without a main class
-(the test module) are skipped. The step reuses the launcher coordinates the build
-already derived - the produced module path and `--module <module>/<main-class>` - and
-invokes:
+`native-image` step in the package phase that runs for every module declaring a main
+class - exactly the `@jenesis.main` field that `../demo-06-java-modular-executable`
+uses for `jpackage`, read from the same `module.properties`. Modules without a main
+class (the test module) produce no image. The step reuses the launcher coordinates the
+build already derived - the produced module path and `--module <module>/<main-class>` -
+adds the test-captured config directory, and invokes:
 
-    native-image --no-fallback -o <name> --module-path <jars> --module <module>/<main-class>
+    native-image --no-fallback -H:ConfigurationFileDirectories=<captured> -o <name> --module-path <jars> --module <module>/<main-class>
 
 The native binary is **not** collected by the `STAGE` module (there is no
 `stage/native` analogue of `stage/packages`); it stays under its step's output
@@ -115,7 +119,6 @@ Layout
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
     |-- sources/
     |   |-- module-info.java     module demo.graal.image (@jenesis.main sample.Sample)
-    |   |-- META-INF/native-image/demo.graal.image/reachability-metadata.json
     |   `-- sample/
     |       |-- Sample.java       main; loads the greeter reflectively by a run-time name
     |       `-- Greeter.java      the reflective target (reached only via Class.forName)
@@ -126,7 +129,8 @@ Layout
 With a `module-info.java` and no `pom.xml`, Jenesis auto-detects the
 MODULAR_TO_MAVEN layout, exactly as `../demo-02-java-modular` does. The module is
 named `demo.graal.image` rather than `demo.native.image` because `native` is a Java
-reserved word and cannot be a module-name segment.
+reserved word and cannot be a module-name segment. There is no committed
+`META-INF/native-image/` - the metadata is captured and consumed within the build.
 
 native-image vs. jpackage
 -------------------------

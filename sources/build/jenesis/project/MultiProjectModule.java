@@ -6,6 +6,7 @@ import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Group;
+import build.jenesis.step.Inventory;
 
 public record MultiProjectModule(BuildExecutorModule identifier,
                                  Function<String, Optional<String>> resolver,
@@ -14,7 +15,9 @@ public record MultiProjectModule(BuildExecutorModule identifier,
 
     public static final String IDENTIFIER = "identifier",
             COMPOSE = "compose",
-            MODULE = "module";
+            MODULE = "module",
+            PACKAGE = "package",
+            SELECTION = "selection";
 
     public static final String SOURCES = "sources",
             MANIFESTS = "manifests",
@@ -74,6 +77,7 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                     projects.put(entry.getKey(), new LinkedHashSet<>(properties.stringPropertyNames()));
                 }
                 MultiProject project = factory.apply(projects);
+                SequencedMap<String, AssemblyDescriptor> assemblies = new LinkedHashMap<>();
                 SequencedMap<String, SequencedSet<String>> pending = new LinkedHashMap<>(projects);
                 while (!pending.isEmpty()) {
                     boolean progressed = false;
@@ -95,14 +99,14 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                                     queue.addAll(values);
                                 }
                             }
-                            build.addModule(entry.getKey(), project.module(entry.getKey(),
-                                    dependencies,
-                                    arguments), Stream.of(
+                            AssemblyDescriptor assembly = project.module(entry.getKey(), dependencies, arguments);
+                            build.addModule(entry.getKey(), assembly.build(), Stream.of(
                                             arguments.sequencedKeySet().stream(),
                                             dependencies.sequencedKeySet().stream(),
                                             inherited.sequencedKeySet().stream()
                                                     .map(identifier -> PREVIOUS.repeat(2) + identifier))
                                     .flatMap(Function.identity()));
+                            assemblies.put(entry.getKey(), assembly);
                             it.remove();
                             progressed = true;
                         }
@@ -110,6 +114,34 @@ public record MultiProjectModule(BuildExecutorModule identifier,
                     if (!progressed) {
                         throw new IllegalStateException("Cyclic module dependencies: " + pending.keySet());
                     }
+                }
+                if (assemblies.values().stream().anyMatch(assembly -> !assembly.tail().isEmpty())) {
+                    build.addModule(PACKAGE, (packaged, packageInherited) -> {
+                        for (Map.Entry<String, AssemblyDescriptor> entry : assemblies.entrySet()) {
+                            SequencedMap<String, BuildExecutorModule> tail = entry.getValue().tail();
+                            if (tail.isEmpty()) {
+                                continue;
+                            }
+                            String ownPrefix = PREVIOUS + entry.getKey() + "/";
+                            SequencedMap<String, String> inputs = new LinkedHashMap<>();
+                            for (String key : packageInherited.sequencedKeySet()) {
+                                if (key.startsWith(ownPrefix)) {
+                                    inputs.put(key, key.substring(ownPrefix.length()));
+                                } else if (Files.isRegularFile(packageInherited.get(key).resolve(Inventory.INVENTORY))) {
+                                    inputs.put(key, SELECTION + "/" + key.substring(PREVIOUS.length()));
+                                }
+                            }
+                            packaged.addModule(entry.getKey(), (phases, phaseInherited) -> {
+                                SequencedMap<String, String> phaseInputs = new LinkedHashMap<>();
+                                for (String key : phaseInherited.sequencedKeySet()) {
+                                    phaseInputs.put(key, key.substring(PREVIOUS.length()));
+                                }
+                                for (Map.Entry<String, BuildExecutorModule> phase : tail.entrySet()) {
+                                    phases.addModule(phase.getKey(), phase.getValue(), phaseInputs);
+                                }
+                            }, inputs);
+                        }
+                    }, assemblies.sequencedKeySet().stream());
                 }
             }, Stream.concat(Stream.of(GROUP), identified.sequencedKeySet().stream()));
         }, Stream.concat(Stream.of(IDENTIFIER), inherited.sequencedKeySet().stream()));

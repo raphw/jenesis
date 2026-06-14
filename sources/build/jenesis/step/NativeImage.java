@@ -11,6 +11,8 @@ public class NativeImage extends JdkProcessBuildStep {
 
     public static final String NATIVE = "native/";
 
+    public static final String METADATA = "nativeimage/";
+
     private final PathPlacement modulePath;
 
     public NativeImage(PathPlacement modulePath) {

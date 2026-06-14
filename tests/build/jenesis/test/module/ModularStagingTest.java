@@ -134,16 +134,19 @@ public class ModularStagingTest {
     }
 
     @Test
-    public void module_property_missing_throws() throws IOException {
+    public void inventory_without_module_property_is_skipped() throws IOException {
         Path folder = Files.createDirectory(source.resolve("foo"));
         SequencedProperties props = new SequencedProperties();
-        props.setProperty("module-foo.artifacts", "artifacts/classes.jar");
+        props.setProperty("module.package", "packages");
         props.store(folder.resolve(Inventory.INVENTORY));
-        writeArtifact(folder, "classes.jar", "c");
+        Files.createDirectories(folder.resolve("packages").resolve("app"));
 
-        assertThatThrownBy(() -> run(false, folder))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Missing 'module' in inventory");
+        BuildStepResult result = run(false, folder);
+
+        assertThat(result.next()).isTrue();
+        try (Stream<Path> stream = Files.walk(next)) {
+            assertThat(stream.filter(Files::isRegularFile)).isEmpty();
+        }
     }
 
     @Test

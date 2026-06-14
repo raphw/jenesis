@@ -27,6 +27,7 @@ public class Inventory implements BuildStep {
                 Path.of(JPackage.PACKAGES),
                 Path.of(JMod.JMODS),
                 Path.of(JLink.RUNTIME),
+                Path.of(NativeImage.METADATA),
                 Path.of(REPORTS)));
     }
 
@@ -40,10 +41,12 @@ public class Inventory implements BuildStep {
         String module = null;
         String tests = null;
         String version = null;
+        String artifact = null;
         Path pomFile = null;
         boolean modular = false;
         Path image = null;
         Path runtimeImage = null;
+        Path metadataImage = null;
         SequencedSet<Path> artifacts = new LinkedHashSet<>();
         SequencedSet<Path> sources = new LinkedHashSet<>();
         SequencedSet<Path> documentation = new LinkedHashSet<>();
@@ -79,6 +82,9 @@ public class Inventory implements BuildStep {
                 SequencedProperties properties = SequencedProperties.ofFiles(metadataFile);
                 if (version == null) {
                     version = properties.getProperty("version");
+                }
+                if (artifact == null) {
+                    artifact = properties.getProperty("artifact");
                 }
             }
             Path identityFile = folder.resolve(IDENTITY);
@@ -118,6 +124,10 @@ public class Inventory implements BuildStep {
             Path runtime = folder.resolve(JLink.RUNTIME);
             if (runtimeImage == null && Files.isDirectory(runtime)) {
                 runtimeImage = runtime;
+            }
+            Path metadata = folder.resolve(NativeImage.METADATA);
+            if (metadataImage == null && Files.isDirectory(metadata)) {
+                metadataImage = metadata;
             }
             collectClosure(folder, closureJars, closureScopes, closureChecksums);
         }
@@ -169,11 +179,17 @@ public class Inventory implements BuildStep {
         if (runtimeImage != null) {
             inventory.setProperty(prefix + "image", relativize(context, runtimeImage));
         }
+        if (metadataImage != null) {
+            inventory.setProperty(prefix + "nativeimage", relativize(context, metadataImage));
+        }
         if (pomFile != null) {
             inventory.setProperty(prefix + "pom", relativize(context, pomFile));
         }
         if (version != null) {
             inventory.setProperty(prefix + "version", version);
+        }
+        if (artifact != null) {
+            inventory.setProperty(prefix + "artifact", artifact);
         }
         if (tests != null) {
             inventory.setProperty(prefix + "test", tests);

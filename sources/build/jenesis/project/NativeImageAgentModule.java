@@ -7,6 +7,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.step.NativeImage;
 
 public class NativeImageAgentModule implements BuildExecutorModule {
 
@@ -34,11 +35,11 @@ public class NativeImageAgentModule implements BuildExecutorModule {
             }
             if (captured != null) {
                 Path source = captured;
-                Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + NativeImageAgent.NATIVE_IMAGE));
+                Path metadata = Files.createDirectories(context.next().resolve(NativeImage.METADATA));
                 Files.walkFileTree(source, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
-                        Path destination = report.resolve(source.relativize(file).toString());
+                        Path destination = metadata.resolve(source.relativize(file).toString());
                         Files.createDirectories(destination.getParent());
                         BuildStep.linkOrCopy(destination, file);
                         return FileVisitResult.CONTINUE;

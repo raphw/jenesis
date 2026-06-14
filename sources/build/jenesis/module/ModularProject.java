@@ -12,6 +12,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectDependencies;
@@ -100,7 +101,12 @@ public class ModularProject implements BuildExecutorModule {
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root).group(group).filter(filter).modular(modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
-                _ -> (name, dependencies, _) -> (buildExecutor, inherited) -> {
+                _ -> (name, dependencies, _) -> {
+                    AssemblyDescriptor packaging = assembler.apply(
+                            new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
+                            repositories,
+                            resolvers);
+                    AssemblyDescriptor assembly = new AssemblyDescriptor((buildExecutor, inherited) -> {
                     Map<String, Repository> mergedRepositories = Repository.prepend(repositories,
                             Repository.ofProperties(BuildStep.IDENTITY,
                                     inherited.entrySet().stream()
@@ -132,7 +138,7 @@ public class ModularProject implements BuildExecutorModule {
                     buildExecutor.addModule(PRODUCE,
                             assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
                                     mergedRepositories,
-                                    resolvers),
+                                    resolvers).build(),
                             produceDeps);
                     buildExecutor.addStep(ASSIGN,
                             new Assign(),
@@ -144,6 +150,11 @@ public class ModularProject implements BuildExecutorModule {
                             ASSIGN,
                             PRODUCE,
                             DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+                    });
+                    for (Map.Entry<String, BuildExecutorModule> phase : packaging.tail().entrySet()) {
+                        assembly = assembly.then(phase.getKey(), phase.getValue());
+                    }
+                    return assembly;
                 });
     }
 
