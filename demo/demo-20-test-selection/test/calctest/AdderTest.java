@@ -1,5 +1,6 @@
-package calc;
+package calctest;
 
+import calc.Adder;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
