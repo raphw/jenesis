@@ -163,6 +163,12 @@ public record InferredMultiProjectAssembler(String packaging,
                     }
                 }
             }
+            Path pitest = PiTestModule.configurationFile(descriptor.configuration());
+            if (pitest != null) {
+                sub.addModule("mutate",
+                        new PiTestModule(repositories, resolvers).pinning(descriptor.pinning()).configuration(pitest),
+                        Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
+            }
             if (descriptor.source()) {
                 sub.addModule("sources", (module, inherited) ->
                         module.addStep("archive",
