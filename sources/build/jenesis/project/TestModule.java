@@ -412,6 +412,7 @@ public class TestModule implements BuildExecutorModule {
                         group,
                         parallel,
                         reporting,
+                        dependencyGroup,
                         observers,
                         Boolean.getBoolean("jenesis.test.select")),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
@@ -478,7 +479,7 @@ public class TestModule implements BuildExecutorModule {
             }
             for (ObservabilityEngine observer : observers) {
                 for (Map.Entry<String, String> entry : observer.coordinates().entrySet()) {
-                    properties.setProperty("main/agent/" + entry.getKey() + "/" + entry.getValue(), "");
+                    properties.setProperty(group + "/agent/" + entry.getKey() + "/" + entry.getValue(), "");
                 }
             }
             properties.store(context.next().resolve(BuildStep.REQUIRES));
@@ -498,6 +499,7 @@ public class TestModule implements BuildExecutorModule {
         private final String group;
         private final transient boolean parallel;
         private final boolean reporting;
+        private final String dependencyGroup;
         private final List<ObservabilityEngine> observers;
         private final transient boolean select;
 
@@ -511,6 +513,7 @@ public class TestModule implements BuildExecutorModule {
                     String group,
                     boolean parallel,
                     boolean reporting,
+                    String dependencyGroup,
                     List<ObservabilityEngine> observers,
                     boolean select) {
             super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
@@ -521,6 +524,7 @@ public class TestModule implements BuildExecutorModule {
             this.group = group;
             this.parallel = parallel;
             this.reporting = reporting;
+            this.dependencyGroup = dependencyGroup;
             this.observers = observers;
             this.select = select;
         }
@@ -543,7 +547,7 @@ public class TestModule implements BuildExecutorModule {
             SequencedSet<String> groups = groups(group);
             List<String> commands = new ArrayList<>();
             for (ObservabilityEngine observer : observers) {
-                commands.addAll(observer.commands(agentJars(arguments, observer), context.next()));
+                commands.addAll(observer.commands(agentJars(arguments, observer, dependencyGroup), context.next()));
             }
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
@@ -700,7 +704,8 @@ public class TestModule implements BuildExecutorModule {
         }
 
         private static SequencedMap<String, Path> agentJars(SequencedMap<String, BuildStepArgument> arguments,
-                                                            ObservabilityEngine observer) throws IOException {
+                                                            ObservabilityEngine observer,
+                                                            String group) throws IOException {
             SequencedMap<String, Path> resolved = new LinkedHashMap<>();
             for (BuildStepArgument argument : arguments.values()) {
                 Path file = argument.folder().resolve(BuildStep.DEPENDENCIES);
@@ -709,7 +714,7 @@ public class TestModule implements BuildExecutorModule {
                 }
                 SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String coordinate : observer.coordinates().sequencedKeySet()) {
-                    String prefix = "main/agent/" + coordinate + "/";
+                    String prefix = group + "/agent/" + coordinate + "/";
                     for (String key : properties.stringPropertyNames()) {
                         if (key.startsWith(prefix)) {
                             String value = properties.getProperty(key);
