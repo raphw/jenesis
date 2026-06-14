@@ -76,6 +76,9 @@ jobs:
           MAVEN3_VERSION: ${{ inputs.maven3_version }}
         run: |
           dir="$RUNNER_TEMP/maven3"
+          # On Windows $RUNNER_TEMP is a `D:\...` path; cygpath rewrites it to a
+          # POSIX path so tar does not read the `D:` drive letter as a remote host.
+          command -v cygpath >/dev/null && dir="$(cygpath -u "$dir")"
           mkdir -p "$dir"
           base="apache-maven-$MAVEN3_VERSION-bin.tar.gz"
           curl -fsSL --retry 3 "https://dlcdn.apache.org/maven/maven-3/$MAVEN3_VERSION/binaries/$base" -o "$dir/$base" \
@@ -91,6 +94,7 @@ jobs:
           MAVEN4_VERSION: ${{ inputs.maven4_version }}
         run: |
           dir="$RUNNER_TEMP/maven4"
+          command -v cygpath >/dev/null && dir="$(cygpath -u "$dir")"
           mkdir -p "$dir"
           base="apache-maven-$MAVEN4_VERSION-bin.tar.gz"
           curl -fsSL --retry 3 "https://dlcdn.apache.org/maven/maven-4/$MAVEN4_VERSION/binaries/$base" -o "$dir/$base" \
