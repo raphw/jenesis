@@ -294,7 +294,7 @@ metadata is captured by the *test* module, which `requires build.jenesis` (it te
 metadata in the same build, the main module would have to depend on the test module that already depends on it - a
 cycle. So capture and consumption are necessarily separated by the `META-INF/native-image/` hand-off (which also
 serves as the human review point for what reflection gets baked into the closed-world image), exactly as the
-[`demo-36-native-image`](demo/demo-36-native-image) example shows for an application rather than the build tool. The
+[`demo-37-native-image`](demo/demo-37-native-image) example shows for an application rather than the build tool. The
 only fully automatic alternative would move `native-image` out of the per-module pipeline into a terminal step that
 depends on both the main artifact and the test capture, which the shipped layouts deliberately do not do.
 
@@ -717,7 +717,12 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   off without deleting its configuration file by setting its property to `false`: `jenesis.source.<tool>`
   (Checkstyle, PMD, detekt, ktlint, Scalastyle, scalafmt, CodeNarc) or `jenesis.validator.spotbugs`, each
   defaulting to `true`, with a matching `.<tool>(boolean)` wither that overrides the property in code. Source
-  formatting is covered by the separate inferred formatting chain described below. The detekt runner targets the
+  formatting is covered by the separate inferred formatting chain described below. Mutation testing follows the
+  same config-file-discovery convention: a `pitest.properties` in a module wires a `mutate` step (`PiTestModule`)
+  that resolves PIT and its JUnit 5 plugin in a `pitest` group, seeds faults into the compiled classes and re-runs
+  the tests against each mutant, and reports under `reports/pitest/` which mutants survived; the JUnit 5 plugin's
+  version is taken from the project's resolved `junit-platform` so it always matches the test framework. The
+  [`pitest`](demo/demo-21-pitest/README.md) demo shows it killing both mutants of a covered method. The detekt runner targets the
   1.x main class (`io.gitlab.arturbosch.detekt.cli.Main`); detekt 2.x relocates it to `dev.detekt.cli.Main`, so
   the floated `RELEASE` and runner main class want confirming against the resolved jar.
 - The **inferred formatting chain** (`InferredSourceFormattingModule`) is the rewriting counterpart to the
