@@ -314,8 +314,14 @@ the order-of-magnitude warm-path gap, and it reproduces on every runner. All wal
 harness records (the `%e` elapsed field, never a build tool's own self-report); both tools run with warm dependency
 caches (`~/.m2` for Maven, `.jenesis/cache` for Jenesis). The cold compile figure is the median of five runs and
 the other compile-only figures the median of three; the full builds are run once or twice, being test-bound and
-barely variable. A first build on a fresh machine pays a one-time dependency download not shown here. The only
-build that touches the network is the full build with tests, which moves about 25 KB **symmetrically on both
+barely variable. Warming the caches isolates CPU cost, but it also hides a charge Maven pays on any cold CI runner
+whose `~/.m2` was not restored: before any build work it downloads its own distribution (via the wrapper) and its
+full plugin tree on top of the project's dependencies - the one-time, latency-bound, offline-impossible fetch
+detailed under *First run on a bare machine*. Jenesis pulls only the project's own dependencies (no tool, no
+plugins), and its source-launcher overhead is a pure-CPU engine recompile that needs no network - so on a genuinely
+cold CI build the source launcher's recompile tax is offset by the Maven download these warm-cache tables leave
+out. The only build that touches the network is the full build with tests, which moves about 25 KB **symmetrically
+on both
 tools** (a `maven-metadata.xml` lookup for the `RELEASE`-versioned external tools the test fixtures resolve - PMD,
 Checkstyle, the Scala and Kotlin compilers); that is sub-second against ~200 s of test execution and identical on
 both sides, so it does not bias the comparison. Maven is 3.9.9 (Maven 4 is discussed at the end).
@@ -389,7 +395,10 @@ two are otherwise close: Jenesis's extra per-build work (resolving the dependenc
 and an inventory, content-hashing every input and output) is repaid by compiling each module in a single in-process
 `javac` invocation. The source launcher adds the per-run engine recompile on top (18.2 s). Warm and incremental are where content-hashing
 separates them. A no-op rebuild is 0.09 to 0.54 s on a compiled or native launcher, because every step's input
-hash matches its recorded output and nothing re-runs, while Maven still walks its lifecycle in ~2.0 s. On any change
+hash matches its recorded output and nothing re-runs, while Maven still walks its lifecycle in ~2.0 s. The source
+launcher is the honest exception: even its no-op is ~8.9 s, *slower* than Maven, because it recompiles the engine
+before the hash check can skip the unchanged build - the per-run tax that `compiled`, `native`, and an installed
+`jenesis` remove. On any change
 to a main source - a real one-line edit, or even a content-preserving `touch` - Maven's mtime-based staleness
 recompiles the main sources *and* all 112 test sources (~14 s), because test compilation depends on the main output.
 Jenesis keys on content instead: a `touch` that does not change the bytes is a near no-op (0.09 s native), and a
@@ -472,11 +481,18 @@ external-tool cache already warm on both sides.)
 **Maven 3 versus Maven 4.** The project's `pom.xml` pins `maven-compiler-plugin` to 3.15.0 in `<pluginManagement>`,
 which both Maven versions honour; Maven 3.9.9 already selects that version by default, while Maven 4.0.0-rc-5 would
 otherwise bind the older 3.13.0, whose bundled ASM rejects Java 25 bytecode (`Unsupported class file major version
-69`), so the pin is what lets Maven 4 compile Java 25 at all. With it in place, the two are equivalent on real
-builds: measured back to back, a cold compile lands within run-to-run noise of Maven 3, and Maven 4-rc5 only adds
-about 1 s of fixed CLI startup overhead, visible just on near-empty rebuilds. The tables above were measured with
-Maven 3.9.9. Jenesis sidesteps the plugin question entirely: it compiles through the JDK's own
-`javac` by way of `ToolProvider`, with no intermediate bytecode-analysis layer that can lag the JDK.
+69`), so the pin is what lets Maven 4 compile Java 25 at all. With it in place the two are close on real builds,
+Maven 4-rc5 adding a fixed slice of CLI startup that shows up most on near-empty rebuilds (Linux x64):
+
+| Scenario   | Maven 3 | Maven 4 |
+|------------|---------|---------|
+| cold       | 13.9 s  | 14.9 s  |
+| warm no-op | 2.0 s   | 3.0 s   |
+
+That gap is startup, not compile work, so it weighs most on the warm no-op; it is also platform-sensitive - about
+0.5 s on macOS ARM64, but ~3 s on Windows x64 (a 6.3 s no-op against Maven 3's 3.3 s). The headline tables above
+use Maven 3.9.9. Jenesis sidesteps the plugin question entirely: it compiles through the JDK's own `javac` by way
+of `ToolProvider`, with no intermediate bytecode-analysis layer that can lag the JDK.
 
 **Across three platforms.** The headline tables above are the Linux x64 runner; the workflow runs the same
 `benchmark/benchmark.sh` on macOS ARM64 and Windows x64 too, and the *shape* is identical on all three. Cold
