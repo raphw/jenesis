@@ -401,6 +401,7 @@ public class TestModule implements BuildExecutorModule {
         buildExecutor.addStep(DEPENDENCIES,
                 new Dependencies(repositories, resolvers).pinning(pinning),
                 resolveInputs);
+        String incrementalProperty = System.getProperty("jenesis.test.incremental");
         buildExecutor.addStep(EXECUTED, new Run(
                         factory,
                         resolved,
@@ -412,7 +413,8 @@ public class TestModule implements BuildExecutorModule {
                         group,
                         parallel,
                         reporting,
-                        observers),
+                        observers,
+                        incrementalProperty == null ? null : incrementalProperty.isEmpty() ? "MD5" : incrementalProperty),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
     }
 
@@ -498,6 +500,7 @@ public class TestModule implements BuildExecutorModule {
         private final transient boolean parallel;
         private final boolean reporting;
         private final List<ObservabilityEngine> observers;
+        private final transient String incrementalDigest;
 
         private Run(Function<List<String>, ProcessHandler.OfProcess> factory,
                     TestEngine engine,
@@ -509,7 +512,8 @@ public class TestModule implements BuildExecutorModule {
                     String group,
                     boolean parallel,
                     boolean reporting,
-                    List<ObservabilityEngine> observers) {
+                    List<ObservabilityEngine> observers,
+                    String incrementalDigest) {
             super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
             this.engine = engine;
             this.isTest = isTest;
@@ -519,6 +523,7 @@ public class TestModule implements BuildExecutorModule {
             this.parallel = parallel;
             this.reporting = reporting;
             this.observers = observers;
+            this.incrementalDigest = incrementalDigest;
         }
 
         @Override
@@ -600,15 +605,99 @@ public class TestModule implements BuildExecutorModule {
                         + ". Adjust jenesis.test.filter / jenesis.test.group or the isTest predicate,"
                         + " or set jenesis.test.skip to skip testing.");
             }
+            SequencedSet<String> selection = matchedClasses;
+            if (incrementalDigest != null && filter == null && group == null && !matchedClasses.isEmpty()) {
+                SequencedSet<String> narrowed = selected(arguments, context, matchedClasses);
+                if (narrowed != null && !narrowed.isEmpty()) {
+                    selection = narrowed;
+                }
+            }
             commands.addAll(resolved.commands(
                     context.supplement(),
                     context.next(),
-                    matchedClasses,
+                    selection,
                     matchedMethods,
                     groups,
                     parallel,
                     reporting));
             return CompletableFuture.completedFuture(commands);
+        }
+
+        private SequencedSet<String> selected(SequencedMap<String, BuildStepArgument> arguments,
+                                              BuildStepContext context,
+                                              SequencedSet<String> candidates) throws IOException {
+            Map<String, byte[]> classes = new LinkedHashMap<>();
+            for (BuildStepArgument argument : arguments.values()) {
+                Path folder = argument.folder().resolve(CLASSES);
+                if (Files.isDirectory(folder)) {
+                    Files.walkFileTree(folder, new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                            String name = folder.relativize(file).toString();
+                            if (name.endsWith(".class") && !name.equals("module-info.class")) {
+                                classes.putIfAbsent(name.substring(0, name.length() - 6).replace(File.separatorChar, '.'),
+                                        Files.readAllBytes(file));
+                            }
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+                }
+                for (Path jar : Dependencies.select(argument.folder(), "runtime")) {
+                    if (!Files.isRegularFile(jar)) {
+                        continue;
+                    }
+                    try (JarFile archive = new JarFile(jar.toFile())) {
+                        Enumeration<JarEntry> entries = archive.entries();
+                        while (entries.hasMoreElements()) {
+                            JarEntry entry = entries.nextElement();
+                            String name = entry.getName();
+                            if (name.endsWith(".class") && !name.startsWith("META-INF/") && !name.equals("module-info.class")) {
+                                try (InputStream input = archive.getInputStream(entry)) {
+                                    classes.putIfAbsent(name.substring(0, name.length() - 6).replace('/', '.'), input.readAllBytes());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance(incrementalDigest);
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException(e);
+            }
+            SequencedProperties current = new SequencedProperties();
+            for (Map.Entry<String, byte[]> entry : classes.entrySet()) {
+                current.setProperty(entry.getKey(), HexFormat.of().formatHex(digest.digest(entry.getValue())));
+            }
+            current.store(context.next().resolve("test-selection.properties"));
+            Path baseline = context.previous() == null ? null : context.previous().resolve("test-selection.properties");
+            if (baseline == null || !Files.exists(baseline)) {
+                return null;
+            }
+            SequencedProperties previous = SequencedProperties.ofFiles(baseline);
+            for (String name : previous.stringPropertyNames()) {
+                if (current.getProperty(name) == null) {
+                    return null;
+                }
+            }
+            SequencedSet<String> changed = new LinkedHashSet<>();
+            for (String name : current.stringPropertyNames()) {
+                if (!current.getProperty(name).equals(previous.getProperty(name))) {
+                    changed.add(name);
+                }
+            }
+            if (changed.isEmpty()) {
+                return null;
+            }
+            SequencedSet<String> impacted = TestSelection.of(classes).impacted(changed);
+            SequencedSet<String> result = new TreeSet<>();
+            for (String candidate : candidates) {
+                if (impacted.contains(candidate)) {
+                    result.add(candidate);
+                }
+            }
+            return result;
         }
 
         private static SequencedMap<String, Path> agentJars(SequencedMap<String, BuildStepArgument> arguments,

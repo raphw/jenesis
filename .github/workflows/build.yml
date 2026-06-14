@@ -68,25 +68,26 @@ jobs:
           - { name: groovy-documentation, dir: demo-17-groovy, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
           - { name: groovy-quality, dir: demo-18-groovy-quality, entry: build/jenesis/Project.java }
           - { name: code-coverage, dir: demo-19-code-coverage, entry: build/jenesis/Project.java }
-          - { name: maven-exclusions, dir: demo-20-maven-exclusions, entry: build/jenesis/Project.java }
-          - { name: module-layout, dir: demo-21-module-layout, entry: build/jenesis/Project.java }
-          - { name: module-classifier, dir: demo-22-module-classifier, entry: build/jenesis/Execute.java }
-          - { name: platform-guard, dir: demo-23-platform-guard, entry: build/jenesis/Execute.java }
-          - { name: platform-guard-legacy, dir: demo-23-platform-guard, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
-          - { name: platform-guard-pom, dir: demo-24-platform-guard-pom, entry: build/jenesis/Execute.java }
-          - { name: platform-guard-pom-legacy, dir: demo-24-platform-guard-pom, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
-          - { name: custom-assembler, dir: demo-25-custom-assembler, entry: build/Demo.java }
-          - { name: custom-jmod, dir: demo-26-custom-jmod, entry: build/Demo.java }
-          - { name: internal-module, dir: demo-27-internal-module, entry: build/Demo.java }
-          - { name: external-module, dir: demo-28-external-module, entry: build/Demo.java }
-          - { name: custom-maven, dir: demo-29-custom-maven, entry: build/Demo.java }
-          - { name: custom-modular, dir: demo-30-custom-modular, entry: build/Demo.java }
-          - { name: custom-build, dir: demo-31-custom-build, entry: build/Demo.java }
-          - { name: supply-chain-security, dir: demo-33-supply-chain-security, entry: build/Demo.java }
-          - { name: publishing, dir: demo-34-publishing, entry: build/Demo.java }
+          - { name: maven-exclusions, dir: demo-21-maven-exclusions, entry: build/jenesis/Project.java }
+          - { name: module-layout, dir: demo-22-module-layout, entry: build/jenesis/Project.java }
+          - { name: module-classifier, dir: demo-23-module-classifier, entry: build/jenesis/Execute.java }
+          - { name: platform-guard, dir: demo-24-platform-guard, entry: build/jenesis/Execute.java }
+          - { name: platform-guard-legacy, dir: demo-24-platform-guard, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
+          - { name: platform-guard-pom, dir: demo-25-platform-guard-pom, entry: build/jenesis/Execute.java }
+          - { name: platform-guard-pom-legacy, dir: demo-25-platform-guard-pom, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
+          - { name: custom-assembler, dir: demo-26-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-27-custom-jmod, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-28-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-29-external-module, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-30-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-31-custom-modular, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-32-custom-build, entry: build/Demo.java }
+          - { name: supply-chain-security, dir: demo-34-supply-chain-security, entry: build/Demo.java }
+          - { name: publishing, dir: demo-35-publishing, entry: build/Demo.java }
           - { name: kotlin-plugin, dir: demo-14-kotlin-plugin, entry: build/jenesis/Project.java }
           - { name: sbom, dir: demo-10-sbom, entry: build/jenesis/Project.java }
           - { name: profiles, dir: demo-11-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }
+          - { name: test-selection, dir: demo-20-test-selection, entry: build/Demo.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

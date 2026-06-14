@@ -425,6 +425,11 @@ public record Project(
                       %{name}filter%{reset} <patterns>                Comma-separated %{name}<classRegex>[#<method>]%{reset} entries
                                                       restricting which tests run; changing the value
                                                       invalidates the test step's cache and forces a re-run
+                      %{name}incremental%{reset} [<digest>]           Re-run only the tests a change can reach: a fast
+                                                      feedback aid for %{name}watch%{reset} loops, not a correctness gate.
+                                                      Static selection cannot see reflection or other indirect
+                                                      couplings, so conclude with a full run once a change is
+                                                      done. The value names the change-detection digest; omit it for %{name}MD5%{reset}
 
                     %{header}Staging (-Djenesis.stage.<key>=<value>):%{reset}
                       %{name}tests%{reset}                            Stage test-variant artifacts alongside main artifacts
@@ -794,7 +799,19 @@ public record Project(
                                                         value invalidates the test
                                                         step's cache and forces a
                                                         re-run.
-                    
+                      -Djenesis.test.incremental          Re-run only the tests a
+                                                        change can reach: a fast
+                                                        feedback aid for watch
+                                                        loops, not a correctness
+                                                        gate. Static selection
+                                                        cannot see reflection or
+                                                        other indirect couplings,
+                                                        so conclude a developed
+                                                        change with a full test
+                                                        run. The value names the
+                                                        change-detection digest;
+                                                        a bare flag picks MD5.
+
                     Tool execution:
                       -Djenesis.process.factory=fork      Fork JDK tools (jar,
                                                         javadoc, ...) into
