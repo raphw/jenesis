@@ -134,8 +134,8 @@ jobs:
             echo "tables: $TABLES"
             echo "runs:   cold=$RUNS_COLD warm=$RUNS_WARM"
             echo "date:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            "$MVN" -version 2>&1 | head -1 | sed 's/^/maven3: /'
-            [ -n "${MVN4:-}" ] && "$MVN4" -version 2>&1 | head -1 | sed 's/^/maven4: /'
+            "$MVN" -version 2>&1 | grep -m1 'Apache Maven' | sed 's/^/maven3: /'
+            [ -n "${MVN4:-}" ] && "$MVN4" -version 2>&1 | grep -m1 'Apache Maven' | sed 's/^/maven4: /'
             java -version 2>&1 | sed 's/^/java:   /'
             echo
           } | tee "$out"
