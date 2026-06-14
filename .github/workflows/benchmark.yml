@@ -2,13 +2,22 @@ name: Build performance benchmarks
 
 # On-demand only: build-performance numbers are environment-sensitive, so this is
 # never run automatically. Trigger it from the Actions tab; results are written to
-# a per-OS text file and uploaded as an artifact.
+# a per-OS text file and uploaded as an artifact. The default set produces every
+# table the README carries except the full (with-tests) build, which is slow and
+# gated behind the `full` switch.
 on:
   workflow_dispatch:
     inputs:
       tables:
-        description: 'Benchmark tables to run (space-separated subset of: launch compile full maven pinning aot all)'
-        default: 'launch compile pinning aot'
+        description: 'Tables to run (space-separated subset of: launch compile maven pinning aot)'
+        default: 'launch compile maven pinning aot'
+      full:
+        description: 'Also run the full build with the whole test suite (slow, adds ~15-20 min per runner)'
+        type: boolean
+        default: false
+      maven4_version:
+        description: 'Maven 4 version to download for the maven3-vs-4 table'
+        default: '4.0.0-rc-5'
       runs_cold:
         description: 'Repetitions per cold scenario'
         default: '5'
@@ -41,24 +50,56 @@ jobs:
           distribution: graalvm
           java-version: '25'
 
-      # Populate the caches the offline benchmarks rely on: a full Jenesis build
-      # primes its resolution cache, and a full Maven build primes ~/.m2 so the
-      # `-o` (offline) Maven scenarios resolve. Maven is only primed when a table
-      # that runs it is requested.
-      - name: Warm caches
+      # Fold the `full` switch into the table list so the rest of the job reads a
+      # single TABLES value.
+      - name: Resolve tables
+        shell: bash
+        run: |
+          tables="${{ inputs.tables }}"
+          if [ "${{ inputs.full }}" = "true" ]; then
+            case " $tables " in *" full "*) ;; *) tables="$tables full";; esac
+          fi
+          echo "TABLES=$tables" >> "$GITHUB_ENV"
+
+      # GitHub runners ship Maven 3 as `mvn`; download Maven 4 for the maven3-vs-4
+      # table and expose it to benchmark.sh through MVN4. The unix `bin/mvn` script
+      # is used on every OS (Git Bash on Windows runs it like Maven 3's launcher).
+      - name: Install Maven 4
+        if: contains(env.TABLES, 'maven')
         shell: bash
         env:
-          TABLES: ${{ inputs.tables }}
+          MAVEN4_VERSION: ${{ inputs.maven4_version }}
+        run: |
+          dir="$RUNNER_TEMP/maven4"
+          mkdir -p "$dir"
+          base="apache-maven-$MAVEN4_VERSION-bin.tar.gz"
+          curl -fsSL --retry 3 "https://dlcdn.apache.org/maven/maven-4/$MAVEN4_VERSION/binaries/$base" -o "$dir/$base" \
+            || curl -fsSL --retry 3 "https://archive.apache.org/dist/maven/maven-4/$MAVEN4_VERSION/binaries/$base" -o "$dir/$base"
+          tar -xzf "$dir/$base" -C "$dir"
+          echo "MVN4=$dir/apache-maven-$MAVEN4_VERSION/bin/mvn" >> "$GITHUB_ENV"
+          "$dir/apache-maven-$MAVEN4_VERSION/bin/mvn" -version
+
+      # Populate the caches the offline benchmarks rely on: a full Jenesis build
+      # primes its resolution cache; a Maven build primes ~/.m2 so the `-o`
+      # (offline) Maven scenarios resolve - with tests when the full table is
+      # requested (it needs the test-execution plugins offline), otherwise the
+      # faster -DskipTests warm that the compile/maven tables match. Maven 4 is
+      # primed separately because it binds some plugin versions of its own.
+      - name: Warm caches
+        shell: bash
         run: |
           java build/jenesis/Project.java build
           case " $TABLES " in
-            *" compile "*|*" full "*|*" maven "*|*" all "*) mvn -B -ntp package ;;
+            *" full "*) mvn -B -ntp package ;;
+            *" compile "*|*" maven "*) mvn -B -ntp -DskipTests package ;;
           esac
+          if [ -n "${MVN4:-}" ]; then
+            case " $TABLES " in *" maven "*) "$MVN4" -B -ntp -DskipTests package ;; esac
+          fi
 
       - name: Run benchmarks
         shell: bash
         env:
-          TABLES: ${{ inputs.tables }}
           RUNS_COLD: ${{ inputs.runs_cold }}
           RUNS_WARM: ${{ inputs.runs_warm }}
         run: |
@@ -69,6 +110,7 @@ jobs:
             echo "tables: $TABLES"
             echo "runs:   cold=$RUNS_COLD warm=$RUNS_WARM"
             echo "date:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            [ -n "${MVN4:-}" ] && "$MVN4" -version 2>&1 | head -1 | sed 's/^/maven4: /'
             java -version 2>&1 | sed 's/^/java:   /'
             echo
           } | tee "$out"
