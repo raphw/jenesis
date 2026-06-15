@@ -17,6 +17,7 @@ import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.module.ModularStaging;
 import build.jenesis.module.PinModuleInfo;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
@@ -981,11 +982,10 @@ public record Project(
                                      boolean resolved) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         @Override
-        public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
-                                         Map<String, Repository> repositories,
-                                         Map<String, Resolver> resolvers) {
-            BuildExecutorModule delegate = base.apply(descriptor.toInherited(), repositories, resolvers);
-            return (sub, inherited) -> {
+        public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
+                                        Map<String, Repository> repositories,
+                                        Map<String, Resolver> resolvers) {
+            return base.apply(descriptor.toInherited(), repositories, resolvers).mapBuild(delegate -> (sub, inherited) -> {
                 sub.addModule("assemble", delegate, inherited.sequencedKeySet().stream());
                 sub.addModule("describe", (describe, describeInherited) -> {
                             describe.addStep("pom", new Pom().resolved(resolved), describeInherited.sequencedKeySet().stream());
@@ -994,7 +994,7 @@ public record Project(
                             }
                         },
                         inherited.sequencedKeySet().stream());
-            };
+            });
         }
     }
 

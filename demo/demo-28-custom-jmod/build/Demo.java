@@ -1,7 +1,6 @@
 package build;
 
 import module java.base;
-import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -9,6 +8,7 @@ import build.jenesis.BuildStepResult;
 import build.jenesis.Project;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -67,14 +67,17 @@ public class Demo {
             implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
         @Override
-        public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
-                                         Map<String, Repository> repositories,
-                                         Map<String, Resolver> resolvers) {
-            BuildExecutorModule inner = delegate.apply(descriptor.content("config"), repositories, resolvers);
-            return (sub, inherited) -> {
+        public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
+                                        Map<String, Repository> repositories,
+                                        Map<String, Resolver> resolvers) {
+            // Declare a config step's output as the module's content, so the stock
+            // jmod step (which runs in the build phase) depends on it and routes the
+            // emitted config/ directory to jmod --config. Only the build phase is
+            // decorated; the later jlink/jpackage phase passes through unchanged.
+            return delegate.apply(descriptor.content("config"), repositories, resolvers).mapBuild(inner -> (sub, inherited) -> {
                 sub.addStep("config", new GenerateConfig());
                 inner.accept(sub, inherited);
-            };
+            });
         }
     }
 

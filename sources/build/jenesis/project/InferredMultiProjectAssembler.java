@@ -1,7 +1,6 @@
 package build.jenesis.project;
 
 import module java.base;
-import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -12,6 +11,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bundle;
 import build.jenesis.step.CycloneDxEmitter;
+import build.jenesis.step.Inventory;
 import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
 import build.jenesis.step.JPackage;
@@ -105,11 +105,11 @@ public record InferredMultiProjectAssembler(String packaging,
     }
 
     @Override
-    public BuildExecutorModule apply(ProjectModuleDescriptor descriptor,
-                                     Map<String, Repository> repositories,
-                                     Map<String, Resolver> resolvers) {
+    public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
+                                    Map<String, Repository> repositories,
+                                    Map<String, Resolver> resolvers) {
         ProcessHandler.Factory factory = ProcessHandler.Factory.of();
-        return (sub, outerInherited) -> {
+        AssemblyDescriptor assembly = new AssemblyDescriptor((sub, outerInherited) -> {
             sub.addStep("prepare",
                     new Prepare(descriptor.modulePath()),
                     outerInherited.sequencedKeySet().stream());
@@ -186,41 +186,39 @@ public record InferredMultiProjectAssembler(String packaging,
                         new JMod(factory),
                         Stream.concat(Stream.of("binary"), descriptor.content().stream()));
             }
-            if (jlink) {
-                sub.addStep("jlink",
-                        new JLink(factory),
-                        Stream.concat(
-                                Stream.of("prepare", jmod ? "jmod" : "binary"),
-                                descriptor.artifacts().stream()));
-            }
-            if (packaging != null) {
-                Stream<String> inputs = Stream.concat(
-                        Stream.of("prepare", "binary"),
-                        descriptor.artifacts().stream());
-                sub.addStep("jpackage",
-                        new JPackage(factory, packaging),
-                        jlink ? Stream.concat(Stream.of("jlink"), inputs) : inputs);
-            }
-            if (bundle) {
-                sub.addStep("bundle",
-                        new Bundle(),
-                        Stream.concat(
-                                Stream.of("prepare", "binary"),
-                                descriptor.artifacts().stream()));
-            }
-            if (launcher) {
-                sub.addModule("launcher",
-                        new LauncherModule(repositories, resolvers).pinning(descriptor.pinning()),
-                        Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
-            }
-            if (nativeImage) {
-                sub.addStep("native-image",
-                        new NativeImage(descriptor.modulePath()),
-                        Stream.concat(
-                                Stream.of("prepare", "binary"),
-                                descriptor.artifacts().stream()));
-            }
-        };
+        });
+        if (jlink || packaging != null || bundle || launcher || nativeImage) {
+            assembly = assembly.then("package", (sub, inherited) -> {
+                SequencedSet<String> images = new LinkedHashSet<>();
+                if (jlink) {
+                    sub.addStep("jlink", new JLink(factory), inherited.sequencedKeySet().stream());
+                    images.add("jlink");
+                }
+                if (packaging != null) {
+                    sub.addStep("jpackage", new JPackage(factory, packaging), jlink
+                            ? Stream.concat(Stream.of("jlink"), inherited.sequencedKeySet().stream())
+                            : inherited.sequencedKeySet().stream());
+                    images.add("jpackage");
+                }
+                if (bundle) {
+                    sub.addStep("bundle", new Bundle(), inherited.sequencedKeySet().stream());
+                }
+                if (launcher) {
+                    sub.addModule("launcher",
+                            new LauncherModule(repositories, resolvers).pinning(descriptor.pinning()),
+                            inherited.sequencedKeySet().stream());
+                }
+                if (nativeImage) {
+                    sub.addStep("reachability", new NativeImageMetadata(), inherited.sequencedKeySet().stream());
+                    sub.addStep("native-image", new NativeImage(descriptor.modulePath()),
+                            Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("reachability")));
+                }
+                if (!images.isEmpty()) {
+                    sub.addStep("inventory", new Inventory(), images.stream());
+                }
+            });
+        }
+        return assembly;
     }
 
     private static Stream<String> inputs(ProjectModuleDescriptor descriptor) {

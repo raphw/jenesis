@@ -77,9 +77,10 @@ How packaging fits the build
 ----------------------------
 
 Packaging is opt-in through a single system property, `-Djenesis.java.jpackage`.
-When it is set, `InferredMultiProjectAssembler` wires a per-module `package` step that
-runs `jpackage` for every module declaring a main class (modules without one are
-skipped). The property's value is the `jpackage --type`; a bare flag defaults to
+When it is set, `InferredMultiProjectAssembler` wires a `jpackage` step into the
+package phase - the cross-module level that runs after every module's build - which
+produces an application image for every module declaring a main class (modules
+without one are skipped). The property's value is the `jpackage --type`; a bare flag defaults to
 `app-image`, a self-contained launcher plus bundled runtime that needs no
 platform-native tooling. `--name` / `--main-jar` / `--main-class` are derived
 automatically (the name from the module's coordinate, here `demo.modular.executable`).

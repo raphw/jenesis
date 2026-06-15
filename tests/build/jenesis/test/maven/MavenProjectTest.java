@@ -14,6 +14,7 @@ import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenPomResolver;
 import build.jenesis.maven.MavenProject;
 import build.jenesis.maven.MavenRepository;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.JavaToolchainModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -521,7 +522,7 @@ public class MavenProjectTest {
                         case "module-bar" -> assertThat(descriptor.dependencies()).containsExactly("module-foo");
                         default -> fail("Unexpected module: " + descriptor.name());
                     }
-                    return (buildExecutor, inherited) -> {
+                    return new AssemblyDescriptor((buildExecutor, inherited) -> {
                         switch (descriptor.name()) {
                             case "module-foo" -> assertThat(inherited).containsOnlyKeys(
                                     "../sources",
@@ -544,7 +545,7 @@ public class MavenProjectTest {
                         buildExecutor.addModule("java", new JavaToolchainModule(),
                                 "../sources", "../manifests",
                                 "../dependencies/artifacts");
-                    };
+                    });
                 }));
         SequencedMap<String, Path> results = root.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties foo = SequencedProperties.ofFiles(results

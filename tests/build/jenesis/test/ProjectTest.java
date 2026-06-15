@@ -8,6 +8,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Project;
 import build.jenesis.module.JenesisModuleRepositoryExport;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -181,7 +182,7 @@ public class ProjectTest {
 
     @Test
     public void assembler_can_be_overridden() {
-        MultiProjectAssembler<ProjectModuleDescriptor> custom = (_, _, _) -> (_, _) -> {};
+        MultiProjectAssembler<ProjectModuleDescriptor> custom = (_, _, _) -> new AssemblyDescriptor((_, _) -> {});
         assertThat(new Project().assembler(custom).assembler()).isSameAs(custom);
     }
 

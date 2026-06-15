@@ -4,6 +4,7 @@ import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
+import build.jenesis.PathPlacement;
 
 public class JLink extends JdkProcessBuildStep {
 
@@ -22,25 +23,47 @@ public class JLink extends JdkProcessBuildStep {
         if (properties.values().stream().noneMatch(folder -> folder.containsKey("--add-modules"))) {
             return CompletableFuture.completedStage(null);
         }
-        List<String> path = new ArrayList<>();
+        List<Path> jmods = new ArrayList<>(), jars = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (String moduleFolder : List.of(JMod.JMODS, BuildStep.ARTIFACTS)) {
-                Path modules = argument.folder().resolve(moduleFolder);
-                if (Files.exists(modules)) {
-                    Files.walkFileTree(modules, new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            String name = file.toString();
-                            if (name.endsWith(".jar") || name.endsWith(".jmod")) {
-                                path.add(name);
-                            }
-                            return FileVisitResult.CONTINUE;
+            Path modules = argument.folder().resolve(JMod.JMODS);
+            if (Files.exists(modules)) {
+                Files.walkFileTree(modules, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (file.toString().endsWith(".jmod")) {
+                            jmods.add(file);
                         }
-                    });
-                }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+            Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.exists(artifacts)) {
+                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (file.toString().endsWith(".jar")) {
+                            jars.add(file);
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
             }
             for (Path file : Dependencies.select(argument.folder(), "runtime")) {
-                path.add(file.toString());
+                jars.add(file);
+            }
+        }
+        SequencedSet<String> modules = new LinkedHashSet<>();
+        List<String> path = new ArrayList<>();
+        for (Path jmod : jmods) {
+            String file = jmod.getFileName().toString();
+            modules.add(file.substring(0, file.length() - ".jmod".length()));
+            path.add(jmod.toString());
+        }
+        for (Path jar : jars) {
+            ModuleDescriptor descriptor = PathPlacement.moduleDescriptor(jar);
+            if (descriptor == null || !modules.contains(descriptor.name())) {
+                path.add(jar.toString());
             }
         }
         if (path.isEmpty()) {

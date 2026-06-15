@@ -4,12 +4,16 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
+import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.step.Inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,7 +63,7 @@ public class MultiProjectModuleTest {
                             "../../identifier/1-module",
                             "../../identifier/1-source");
                     assertThat(dependencies).isEmpty();
-                    yield (module1, inherited) -> {
+                    yield new AssemblyDescriptor((module1, inherited) -> {
                         assertThat(inherited).containsOnlyKeys(
                                 "../../../identifier/1-module",
                                 "../../../identifier/1-source");
@@ -67,14 +71,14 @@ public class MultiProjectModuleTest {
                             Files.writeString(context.next().resolve("file"), "foo");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
                         });
-                    };
+                    });
                 }
                 case "2" -> {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identifier/2-module",
                             "../../identifier/2-source");
                     assertThat(dependencies).containsExactly(Map.entry("1", Collections.emptyNavigableSet()));
-                    yield (module2, inherited) -> {
+                    yield new AssemblyDescriptor((module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/2-module",
                                 "../../../identifier/2-source",
@@ -85,7 +89,7 @@ public class MultiProjectModuleTest {
                                     Files.readString(arguments.get("../1/step").folder().resolve("file")) + "bar");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
                         }, "../1/step");
-                    };
+                    });
                 }
                 default -> throw new AssertionError();
             };
@@ -133,7 +137,7 @@ public class MultiProjectModuleTest {
                             "../../identifier/1-module",
                             "../../identifier/1-source");
                     assertThat(dependencies).isEmpty();
-                    yield (module1, inherited) -> {
+                    yield new AssemblyDescriptor((module1, inherited) -> {
                         assertThat(inherited).containsOnlyKeys(
                                 "../../../identifier/1-module",
                                 "../../../identifier/1-source");
@@ -141,14 +145,14 @@ public class MultiProjectModuleTest {
                             Files.writeString(context.next().resolve("file"), "foo");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
                         });
-                    };
+                    });
                 }
                 case "2" -> {
                     assertThat(identifiers).containsOnlyKeys(
                             "../../identifier/2-module",
                             "../../identifier/2-source");
                     assertThat(dependencies).containsExactly(Map.entry("1", Collections.emptyNavigableSet()));
-                    yield (module2, inherited) -> {
+                    yield new AssemblyDescriptor((module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/2-module",
                                 "../../../identifier/2-source",
@@ -159,7 +163,7 @@ public class MultiProjectModuleTest {
                                     Files.readString(arguments.get("../1/step").folder().resolve("file")) + "bar");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
                         }, "../1/step");
-                    };
+                    });
                 }
                 case "3" -> {
                     assertThat(identifiers).containsOnlyKeys(
@@ -168,7 +172,7 @@ public class MultiProjectModuleTest {
                     assertThat(dependencies).containsExactly(
                             Map.entry("2", new LinkedHashSet<>(Set.of("1"))),
                             Map.entry("1", Collections.emptyNavigableSet()));
-                    yield (module2, inherited) -> {
+                    yield new AssemblyDescriptor((module2, inherited) -> {
                         assertThat(inherited).containsKeys(
                                 "../../../identifier/3-module",
                                 "../../../identifier/3-source",
@@ -180,7 +184,7 @@ public class MultiProjectModuleTest {
                                     Files.readString(arguments.get("../2/step").folder().resolve("file")) + "qux");
                             return CompletableFuture.completedStage(new BuildStepResult(true));
                         }, "../2/step");
-                    };
+                    });
                 }
                 default -> throw new AssertionError();
             };
@@ -218,21 +222,21 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), _ -> (name, _, _) -> switch (name) {
-            case "1" -> (module, _) -> module.addStep("step", (_, context, _) -> {
+            case "1" -> new AssemblyDescriptor((module, _) -> module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), "1");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
-            });
-            case "2" -> (module, _) -> module.addStep("step", (_, context, _) -> {
+            }));
+            case "2" -> new AssemblyDescriptor((module, _) -> module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), "2");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
-            });
-            case "3" -> (module, inherited) -> {
+            }));
+            case "3" -> new AssemblyDescriptor((module, inherited) -> {
                 assertThat(inherited).containsKeys("../1/step", "../2/step");
                 module.addStep("step", (_, context, _) -> {
                     Files.writeString(context.next().resolve("file"), "3");
                     return CompletableFuture.completedStage(new BuildStepResult(true));
                 });
-            };
+            });
             default -> throw new AssertionError("Unexpected module: " + name);
         }));
         buildExecutor.execute();
@@ -266,24 +270,24 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("3-source", Files.writeString(Files.createDirectory(source3
                     .resolve(BuildStep.SOURCES)).resolve("source"), "qux"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')), _ -> (name, _, _) -> switch (name) {
-            case "1" -> (module, _) -> module.addStep("step", (_, context, _) -> {
+            case "1" -> new AssemblyDescriptor((module, _) -> module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), "1");
                 return CompletableFuture.completedStage(new BuildStepResult(true));
-            });
-            case "2" -> (module, inherited) -> {
+            }));
+            case "2" -> new AssemblyDescriptor((module, inherited) -> {
                 assertThat(inherited).containsKey("../1/step");
                 module.addStep("step", (_, context, _) -> {
                     Files.writeString(context.next().resolve("file"), "2");
                     return CompletableFuture.completedStage(new BuildStepResult(true));
                 });
-            };
-            case "3" -> (module, inherited) -> {
+            });
+            case "3" -> new AssemblyDescriptor((module, inherited) -> {
                 assertThat(inherited).containsKeys("../1/step", "../2/step");
                 module.addStep("step", (_, context, _) -> {
                     Files.writeString(context.next().resolve("file"), "3");
                     return CompletableFuture.completedStage(new BuildStepResult(true));
                 });
-            };
+            });
             default -> throw new AssertionError("Unexpected module: " + name);
         }));
         buildExecutor.execute();
@@ -336,15 +340,61 @@ public class MultiProjectModuleTest {
             buildExecutor.addSource("5-source", Files.writeString(Files.createDirectory(source5
                     .resolve(BuildStep.SOURCES)).resolve("source"), "e"));
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
-                _ -> (name, _, _) -> (module, _) -> {
+                _ -> (name, _, _) -> new AssemblyDescriptor((module, _) -> {
             built.add(name);
             module.addStep("step", (_, context, _) -> {
                 Files.writeString(context.next().resolve("file"), name);
                 return CompletableFuture.completedStage(new BuildStepResult(true));
             });
-        }));
+        })));
         buildExecutor.execute("project/compose/module/1", "project/compose/module/5");
         assertThat(built).contains("1", "2", "3", "5").doesNotContain("4");
+    }
+
+    @Test
+    public void package_phase_runs_after_all_builds_and_sees_own_build_and_sibling_inventories() {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/bar", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            buildExecutor.addSource("1-module", module1);
+            buildExecutor.addSource("1-source", Files.writeString(Files.createDirectory(source1
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/qux", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("main/compile/foo/bar", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("2-module", module2);
+            buildExecutor.addSource("2-source", Files.writeString(Files.createDirectory(source2
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
+        }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
+                _ -> (name, _, _) -> {
+            BuildExecutorModule build = (module, _) -> module.addStep(MultiProjectModule.INVENTORY, (_, context, _) -> {
+                Files.writeString(context.next().resolve(Inventory.INVENTORY), name);
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            });
+            BuildExecutorModule pack = (module, inherited) -> module.addStep("bundle", (_, context, arguments) -> {
+                StringBuilder builder = new StringBuilder();
+                for (Map.Entry<String, BuildStepArgument> argument : arguments.entrySet()) {
+                    Path file = argument.getValue().folder().resolve(Inventory.INVENTORY);
+                    if (Files.exists(file)) {
+                        builder.append(argument.getKey()).append('=').append(Files.readString(file)).append(';');
+                    }
+                }
+                Files.writeString(context.next().resolve("bundle"), builder.toString());
+                return CompletableFuture.completedStage(new BuildStepResult(true));
+            }, inherited.sequencedKeySet());
+            return new AssemblyDescriptor(build).then("package", pack);
+        }));
+        SequencedMap<String, Path> paths = buildExecutor.execute();
+        assertThat(paths).containsKeys("project/1/inventory", "project/2/inventory",
+                "project/package/1/package/bundle", "project/package/2/package/bundle");
+        assertThat(paths.get("project/package/2/package/bundle").resolve("bundle"))
+                .content()
+                .contains("../inventory=2")
+                .contains("../selection/1/inventory=1");
     }
 
     @Test
@@ -365,9 +415,9 @@ public class MultiProjectModuleTest {
             dependencies2.store(module2.resolve(BuildStep.REQUIRES));
             buildExecutor.addSource("2-module", module2);
         }, identifier -> Optional.of(identifier.substring(0, identifier.indexOf('-')).replace('-', '/')),
-                _ -> (name, _, _) -> (module, _) -> {
+                _ -> (name, _, _) -> new AssemblyDescriptor((module, _) -> {
             throw new AssertionError("Unexpected module: " + name);
-        }));
+        })));
         assertThatThrownBy(buildExecutor::execute)
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .rootCause()

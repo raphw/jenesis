@@ -10,6 +10,7 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
+import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -90,7 +91,7 @@ public class InferredMultiProjectAssemblerTest {
     @Test
     public void package_type_enabled_adds_jpackage_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, false, false, "app-image");
-        Path packageOutput = fixture.execute("sub/jpackage").get("sub/jpackage");
+        Path packageOutput = fixture.execute("package/jpackage").get("package/jpackage");
         assertThat(packageOutput.resolve(JPackage.PACKAGES))
                 .as("a module without a main class produces no application image")
                 .doesNotExist();
@@ -284,7 +285,7 @@ public class InferredMultiProjectAssemblerTest {
             }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, sources, tests, source, documentation, null, PathPlacement.INFERRED);
-        BuildExecutorModule assembled = new InferredMultiProjectAssembler()
+        AssemblyDescriptor assembled = new InferredMultiProjectAssembler()
                 .packaging(packageType).jmod(jmod).jlink(jlink).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
@@ -294,8 +295,11 @@ public class InferredMultiProjectAssemblerTest {
         executor.addSource("manifests", manifests);
         executor.addSource("sources", sources);
         executor.addSource("artifacts", artifacts);
-        executor.addModule("sub", assembled,
+        executor.addModule("sub", assembled.build(),
                 "manifests", "sources", "artifacts");
+        for (Map.Entry<String, BuildExecutorModule> phase : assembled.tail().entrySet()) {
+            executor.addModule(phase.getKey(), phase.getValue(), "sub");
+        }
         return new Fixture(executor, manifests, sources);
     }
 
