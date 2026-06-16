@@ -326,20 +326,20 @@ The Jenesis build is launched three ways, differing only in how the build engine
 
 - *source* - `java build/jenesis/Project.java`, the canonical form, which recompiles the engine every invocation;
 - *compiled* - `javac` the engine once into `.jenesis/launcher`, then `java -cp .jenesis/launcher build.jenesis.Project`; an SDKMAN-installed `jenesis` (or the unpacked release zip) runs this same already-compiled engine jar, so it shares the *compiled* figures rather than the *source* ones;
-- *native* - `native-image` the launcher once into `./jenesis`.
+- *native* - Graal `native-image` the launcher once into `./jenesis`, a standalone ahead-of-time-compiled binary. This is the *Graal* native image, and it is a different mechanism from *Java AOT* (JDK 25's command-line `-XX:AOTCache`, JEP 514/515), which keeps the *compiled* launcher on the JVM and is measured separately below. Throughout this section *Graal* means the native-image binary and *Java AOT* the JVM cache; the two are never the same row.
 
 **Launch overhead** (running `help`, no project work; median of three):
 
-| Launcher    | Overhead     |
-|-------------|--------------|
-| source      | 3.6 s        |
-| compiled    | 0.14 s       |
-| native      | under 0.01 s |
+| Launcher        | Overhead     |
+|-----------------|--------------|
+| source          | 3.6 s        |
+| compiled        | 0.14 s       |
+| native (Graal)  | under 0.01 s |
 
 The source launcher recompiles the roughly 130-file engine on every run; removing that is the entire point of
-precompiling or going native. The one-time cost to obtain them is a couple of seconds for the `javac` launcher and
-a few minutes (yielding a ~60 MB binary) for the native image, and both must be rebuilt whenever the build sources
-change.
+precompiling or building the Graal image. The one-time cost to obtain them is a couple of seconds for the `javac`
+launcher and a few minutes (yielding a ~60 MB binary) for the Graal image, and both must be rebuilt whenever the
+build sources change.
 
 **First run on a bare machine.** The tables assume the build tool and its caches are already present; standing
 each tool up from nothing - a shell and a JDK, empty caches - is a one-time cost worth comparing too. Maven is
@@ -375,29 +375,30 @@ by the JDK, so there is no opaque artifact to trust or verify in the first place
 Both compile the 131 main and 112 test sources and skip only execution, which is the fairest tool-to-tool
 comparison: CPU-bound and network-free. Cold is the median of five runs; the rest are the median of three:
 
-| Scenario                          | Maven 3 | Jenesis source | Jenesis compiled | Jenesis native |
-|-----------------------------------|---------|----------------|------------------|----------------|
+| Scenario                          | Maven 3 | Jenesis source | Jenesis compiled | Jenesis native (Graal) |
+|-----------------------------------|---------|----------------|------------------|------------------------|
 | cold (empty `target/`)            | 13.7 s  | 18.2 s         | 12.5 s           | 7.8 s          |
 | warm no-op (nothing changed)      | 2.0 s   | 8.9 s          | 0.54 s           | 0.09 s         |
 | one-line edit to a main source    | 13.9 s  | 11.0 s         | 4.5 s            | 1.1 s          |
 | spurious `touch` (content same)   | 13.8 s  | 8.9 s          | 0.57 s           | 0.09 s         |
 
-The `native` column is the in-process build (`--add-modules jdk.compiler,jdk.jartool`, see below); a bare native
-image that forks `javac` instead is slower cold and is the variant to reach for only when a smaller
-image matters more than build speed.
+The `native (Graal)` column is the Graal `native-image` build run in-process (`--add-modules
+jdk.compiler,jdk.jartool`, see below); a bare native image that forks `javac` instead is slower cold and is the
+variant to reach for only when a smaller image matters more than build speed. This column is the Graal native image,
+not the Java AOT cache (the JVM `-XX:AOTCache`) tabled further down.
 
 Read cold-to-warm, not only left-to-right. Cold, the compiled launcher (12.5 s) edges out Maven (13.7 s) and the
 two are otherwise close: Jenesis's extra per-build work (resolving the dependency graph, emitting a POM, metadata
 and an inventory, content-hashing every input and output) is repaid by compiling each module in a single in-process
 `javac` invocation. The source launcher adds the per-run engine recompile on top (18.2 s). Warm and incremental are where content-hashing
-separates them. A no-op rebuild is 0.09 to 0.54 s on a compiled or native launcher, because every step's input
+separates them. A no-op rebuild is 0.09 to 0.54 s on a compiled or Graal launcher, because every step's input
 hash matches its recorded output and nothing re-runs, while Maven still walks its lifecycle in ~2.0 s. The source
 launcher is the honest exception: even its no-op is ~8.9 s, *slower* than Maven, because it recompiles the engine
-before the hash check can skip the unchanged build - the per-run tax that `compiled`, `native`, and an installed
-`jenesis` remove. On any change
+before the hash check can skip the unchanged build - the per-run tax that `compiled`, `native (Graal)`, and an
+installed `jenesis` remove. On any change
 to a main source - a real one-line edit, or even a content-preserving `touch` - Maven's mtime-based staleness
 recompiles the main sources *and* all 112 test sources (~14 s), because test compilation depends on the main output.
-Jenesis keys on content instead: a `touch` that does not change the bytes is a near no-op (0.09 s native), and a
+Jenesis keys on content instead: a `touch` that does not change the bytes is a near no-op (0.09 s on Graal), and a
 real edit recompiles only the module that changed (4.5 s compiled), leaving the unaffected module's compiled
 tests cached.
 
@@ -413,32 +414,49 @@ samples are MD5's compression), and is deliberately distinct from the SHA-256 us
 checksums, which a warm build does not touch. That is the incremental engine made visible: a warm rebuild hashes,
 it does not compile.
 
-The native launcher leads the table, and why is worth unpacking. It is built with `--add-modules
+The Graal launcher leads the table, and why is worth unpacking. It is built with `--add-modules
 jdk.compiler,jdk.jartool` (see [Faster launch](#faster-launch-precompiling-and-native-images)), which keeps `javac`
-and `jar` *inside* the image so `Factory.of()` runs them in-process. The ahead-of-time-compiled `javac` reaches
+and `jar` *inside* the image so `Factory.of()` runs them in-process. Graal's ahead-of-time-compiled `javac` reaches
 full speed instantly - no JVM to boot, no JIT warm-up - so it wins every row: a cold build in ~7.8 s (under the
 compiled launcher's 12.5 s and Maven's 13.7 s), a one-line edit in ~1.1 s (the changed module recompiled by an
-already-hot AOT compiler, against the compiled launcher's 4.5 s), and the warm and `touch` no-ops at ~0.09 s
-(just the MD5 hash check, with no JVM to start). Its times are also the most *reproducible*: being AOT they barely
-move run to run, where the JVM launchers drift with JIT and the shared runner's variable clock.
+already-hot Graal-compiled `javac`, against the compiled launcher's 4.5 s), and the warm and `touch` no-ops at ~0.09 s
+(just the MD5 hash check, with no JVM to start). Its times are also the most *reproducible*: being compiled to native
+code they barely move run to run, where the JVM launchers drift with JIT and the shared runner's variable clock.
 
-Two caveats come with it. A native image is closed-world, so its reachability metadata must be complete - and the
+Two caveats come with it. A Graal native image is closed-world, so its reachability metadata must be complete - and the
 agent only records the message bundles a training compile happened to load, so without `-H:IncludeResourceBundles`
 for javac's and jar's bundles the in-process compiler dies at run time with a `MissingResourceException`
-(`JavacMessages.getBundles`); the flag forces them in and makes it deterministic. And a *bare* native image,
+(`JavacMessages.getBundles`); the flag forces them in and makes it deterministic. And a *bare* Graal native image,
 without `--add-modules`, has no in-process JDK tools and forks an external `javac` instead - that variant is the
 slowest cold (~12.5 s, paying a process fork plus a cold `javac` JVM with no shared JIT state) and earns its keep
 only when a smaller image and reusing the machine's JDK matter more than build speed. A JDK on `JAVA_HOME` is
 required either way (`javac --release` reads its symbol files).
 
-**A JVM AOT cache, without GraalVM (JDK 25).** The compiled launcher can also be sped up on a plain JVM with
-JDK 25's AOT cache (JEP 514/515): a *recording run* captures the classes the build loads and links, plus JIT
-method profiles, into a cache that later runs memory-map in. It is a smaller, lower-effort win than a native image
-- measured here a cold compile goes 12.5 s to 12.2 s and a warm no-op 0.58 s to 0.52 s, a few percent and close to
-run-to-run noise on a shared runner - because the cache front-loads class loading and warm-up but the JVM still
-interprets-then-JITs `javac`, where the native image's `javac` is machine code from the first instruction. Two practicalities decide whether it works: the engine must be
-a *jar*, not an exploded class directory (CDS/AOT refuses a non-empty directory on the classpath), and the cache
-comes from a training run:
+**Java AOT, without Graal (JDK 25).** Distinct from the Graal `native` launcher above, the *compiled* launcher can
+also be sped up on a plain HotSpot JVM with Java AOT, JDK 25's command-line AOT cache (JEP 514/515): a *recording run*
+captures the classes the build loads and links, plus JIT method profiles, into a cache that later runs memory-map in.
+The launcher stays ordinary JVM bytecode - no `native-image`, no standalone binary - so Java AOT is a separate,
+lower-effort mechanism from the Graal native image, and a smaller win. Measured across the same scenarios as the
+launcher table above (each cell is *compiled (jar)* baseline / *+ Java AOT*; from a dedicated `aot` run, so the
+baseline is re-measured and drifts a little from the headline *compiled* figures):
+
+| Scenario                  | Linux x64 (jar / +AOT) | macOS ARM64 (jar / +AOT) | Windows x64 (jar / +AOT) |
+|---------------------------|------------------------|--------------------------|--------------------------|
+| launch overhead (`help`)  | 0.15 / 0.15 s          | 0.09 / 0.09 s            | 0.25 / 0.24 s            |
+| cold (empty `target/`)    | 12.9 / 12.6 s          | 8.0 / 7.6 s              | 16.6 / 16.5 s            |
+| warm no-op                | 0.59 / 0.54 s          | 0.39 / 0.38 s            | 0.90 / 0.83 s            |
+| one-line edit             | 4.9 / 3.9 s            | 2.7 / 2.3 s              | 6.9 / 5.3 s              |
+| spurious `touch`          | 0.59 / 0.57 s          | 0.35 / 0.32 s            | 1.15 / 1.10 s            |
+
+The baseline column is the compiled launcher repackaged as a jar (Java AOT requires it; see below), so it tracks the
+*compiled* column of the headline table. The cache is within run-to-run noise on the launch, no-op and `touch` rows
+(there is barely any JVM work there to front-load) and a few percent on the cold build (dominated by actual compile
+work, not warm-up). Its clearest win is the **one-line edit** - ~12 to 22 % across the three platforms - because a
+short incremental build is mostly engine startup and `javac` warm-up, exactly what the cache replays. Even there it
+cannot approach the Graal launcher (a ~1.1 s edit), because the JVM still interprets-then-JITs `javac` where Graal's
+`javac` is machine code from the first instruction. Two practicalities decide whether it works: the engine must be a
+*jar*, not an exploded class directory (CDS/AOT refuses a non-empty directory on the classpath), and the cache comes
+from a training run:
 
     jar --create --file launcher.jar -C .jenesis/launcher .
     java -XX:AOTCacheOutput=build.aot -cp launcher.jar build.jenesis.Project build   # recording run
@@ -446,7 +464,7 @@ comes from a training run:
 
 The same mechanism would trim the startup and early warm-up off the test JVM, but the full build's test phase is
 dominated by long-running and forked external tools rather than JVM warm-up, so the effect there is small.
-`benchmark/benchmark.sh aot` reproduces the launcher figures above.
+`benchmark/benchmark.sh aot` reproduces these figures.
 
 **Full build, all 1054 tests** (warm caches; the ~25 KB symmetric metadata fetch noted under *Conditions* applies
 here and only here):
@@ -457,9 +475,9 @@ here and only here):
 | warm no-op (nothing changed)     | 188 s   | 9.2 s   |
 
 The launcher variant is omitted here on purpose. This table is test-bound, and which launcher starts the build
-(source, compiled, or native) only moves the few seconds of launch-and-compile against ~200 s of tool-driven
-test execution; the native launcher's win does not apply, and running the 1049-test integration suite *inside* a
-native image (JUnit plus the forked external tools, all closed-world) is impractical, so the JVM launcher is used.
+(source, compiled, or Graal) only moves the few seconds of launch-and-compile against ~200 s of tool-driven
+test execution; the Graal launcher's win does not apply, and running the 1049-test integration suite *inside* a
+Graal native image (JUnit plus the forked external tools, all closed-world) is impractical, so the JVM launcher is used.
 
 Cold, the two land within about one percent: the build is dominated by running 1054 integration tests that drive
 external tools (PMD, Checkstyle, the Scala and Kotlin compilers, and so on), which is process- and IO-bound and
@@ -494,20 +512,21 @@ of `ToolProvider`, with no intermediate bytecode-analysis layer that can lag the
 `benchmark/benchmark.sh` on macOS ARM64 and Windows x64 too, and the *shape* is identical on all three. Cold
 compile-and-package and warm no-op, medians under the same `-DskipTests` / `jenesis.test.skip` flags:
 
-| Platform (runner) | Maven 3 cold | source cold | compiled cold | native cold | Maven 3 warm | source warm | compiled warm | native warm |
-|-------------------|--------------|-------------|---------------|-------------|--------------|-------------|---------------|-------------|
+| Platform (runner) | Maven 3 cold | source cold | compiled cold | native (Graal) cold | Maven 3 warm | source warm | compiled warm | native (Graal) warm |
+|-------------------|--------------|-------------|---------------|---------------------|--------------|-------------|---------------|---------------------|
 | macOS ARM64       | 11.2 s       | 17.6 s      | 11.4 s        | 6.9 s       | 2.2 s        | 11.9 s      | 0.63 s        | 0.18 s      |
 | Linux x64         | 13.7 s       | 18.2 s      | 12.5 s        | 7.8 s       | 2.0 s        | 8.9 s       | 0.54 s        | 0.09 s      |
 | Windows x64       | 22.3 s       | 27.9 s      | 16.7 s        | 9.3 s       | 4.4 s        | 15.5 s      | 0.87 s        | 0.17 s      |
 
-The ordering is the same on every platform: the native launcher is the fastest cold build and the source launcher
+The ordering is the same on every platform: the Graal launcher is the fastest cold build and the source launcher
 the slowest (it recompiles the ~130-file engine on every run), with the compiled launcher edging Maven in between;
-a warm no-op on a compiled or native launcher stays an order of magnitude under Maven, while the source launcher's
+a warm no-op on a compiled or Graal launcher stays an order of magnitude under Maven, while the source launcher's
 no-op stays above it for the same recompile reason. macOS ARM64 is the quickest of the three - its single-thread
-speed gives the lowest native cold build (~6.9 s) - and Windows x64 the slowest, paying its heavier filesystem. The
+speed gives the lowest Graal cold build (~6.9 s) - and Windows x64 the slowest, paying its heavier filesystem. The
 secondary findings hold across all three: `pin=versions` is indistinguishable from the default (checksum validation
-costs nothing on the warm path), the JDK 25 AOT cache's win is within run-to-run noise on these shared runners, and
-the in-process native launcher built successfully on every runner, Windows included.
+costs nothing on the warm path), the Java AOT cache is within run-to-run noise on the no-op paths and a modest win
+(~12 to 22 %) only on an incremental edit, and the in-process Graal launcher built successfully on every runner,
+Windows included.
 
 ### Selectors
 
