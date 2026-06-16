@@ -390,8 +390,10 @@ not the Java AOT cache (the JVM `-XX:AOTCache`) tabled further down.
 Read cold-to-warm, not only left-to-right. Cold, the compiled launcher (12.5 s) edges out Maven (13.7 s) and the
 two are otherwise close: Jenesis's extra per-build work (resolving the dependency graph, emitting a POM, metadata
 and an inventory, content-hashing every input and output) is repaid by compiling each module in a single in-process
-`javac` invocation. The source launcher adds the per-run engine recompile on top (18.2 s). Warm and incremental are where content-hashing
-separates them. A no-op rebuild is 0.09 to 0.54 s on a compiled or Graal launcher, because every step's input
+`javac` invocation. The source launcher adds the per-run engine recompile on top (18.2 s), though a cold build partially amortizes it:
+the in-memory engine compile leaves `javac` JIT-hot for the project compile that follows, so the recompile costs less
+net here than on the warm no-op, where there is no following compile to absorb it. Warm and incremental are where
+content-hashing separates them. A no-op rebuild is 0.09 to 0.54 s on a compiled or Graal launcher, because every step's input
 hash matches its recorded output and nothing re-runs, while Maven still walks its lifecycle in ~2.0 s. The source
 launcher is the honest exception: even its no-op is ~8.9 s, *slower* than Maven, because it recompiles the engine
 before the hash check can skip the unchanged build - the per-run tax that `compiled`, `native (Graal)`, and an
