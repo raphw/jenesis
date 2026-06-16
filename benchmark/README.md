@@ -12,8 +12,10 @@ Running
     benchmark/benchmark.sh compile     # one table
     benchmark/benchmark.sh all         # every table
 
-Subcommands: `launch`, `compile`, `full`, `maven`, `pinning`, `aot`, `all`. (`aot` measures a JDK 25 AOT cache
-for the precompiled launcher - JEP 514/515 - via a recording run; it needs JDK 25+.)
+Subcommands: `launch`, `compile`, `full`, `maven`, `pinning`, `aot`, `all`. (`aot` measures *Java AOT* - JDK 25's
+command-line AOT cache for the compiled launcher, JEP 514/515, captured via a recording run; this is the JVM cache,
+*not* Graal `native-image`. It mirrors the `launch` and `compile` scenarios - launch overhead, cold, warm no-op,
+one-line edit and spurious touch - and needs JDK 25+.)
 
 Configuration (environment variables, all optional):
 
@@ -68,12 +70,13 @@ These controls are what make the comparison fair; they are the conclusions of a 
 Notes on the figures
 ---------------------
 
-- The `native` launcher this script builds carries `jdk.compiler`/`jdk.jartool` (`--add-modules`) and forces
+- The `native` (Graal) launcher this script builds carries `jdk.compiler`/`jdk.jartool` (`--add-modules`) and forces
   javac's and jar's message bundles in (`-H:IncludeResourceBundles`, without which the in-process compiler fails
   non-deterministically on an un-recorded bundle), so it runs `javac` in-process; with the ahead-of-time-compiled
   compiler - no JVM startup, no JIT warm-up - it is the fastest configuration measured here, cold and warm. A bare
-  native image without those modules has no in-process JDK tools and forks an external `javac`, making it the
-  slowest on a cold build instead (the `jenesis.process.factory=tool|fork` property forces either path).
+  Graal native image without those modules has no in-process JDK tools and forks an external `javac`, making it the
+  slowest on a cold build instead (the `jenesis.process.factory=tool|fork` property forces either path). This is the
+  Graal `native-image` launcher; the `aot` table measures the separate *Java AOT* JVM cache.
 - `pin=versions` (checksums stripped, versions kept) shows no measurable speedup: the warm hot path is the
   incremental cache's MD5 hashing, and the SHA-256 artifact validation it removes runs only on a cold
   `Dependencies` step and is negligible.

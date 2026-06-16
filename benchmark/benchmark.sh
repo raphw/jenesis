@@ -178,20 +178,36 @@ table_maven() {
 }
 
 table_aot() {
-  note "Table: JDK 25 AOT cache (JEP 514/515) for the precompiled launcher"
+  note "Table: Java AOT cache (JEP 514/515) for the compiled launcher - JVM, not Graal"
   build_launcher
   local jar="$ROOT/.jenesis/launcher.jar" aot="$ROOT/.jenesis/build.aot"
   rm -f "$jar"; jar --create --file "$jar" -C "$LAUNCHER" .
   local B="-Djenesis.test.skip=true -cp $jar build.jenesis.Project build"
+  local J="java $B" JA="java -XX:AOTCache=$aot $B"
+  local H="java -cp $jar build.jenesis.Project help" HA="java -XX:AOTCache=$aot -cp $jar build.jenesis.Project help"
   note "recording run (-XX:AOTCacheOutput captures classes + method profiles)"
   rm -rf target "$aot"
   java -XX:AOTCacheOutput="$aot" $B >/dev/null 2>&1 || { warn "AOT cache training failed (needs JDK 25+)"; rm -f "$jar"; return 1; }
-  echo "-- cold --"
-  bench "precompiled (jar)"       "$RUNS_COLD" "rm -rf target" "java $B"
-  bench "precompiled (jar) + AOT" "$RUNS_COLD" "rm -rf target" "java -XX:AOTCache=$aot $B"
-  echo "-- warm no-op --"
-  bench_warm "precompiled (jar)"       "$RUNS_WARM" "rm -rf target; java $B"                  "java $B"
-  bench_warm "precompiled (jar) + AOT" "$RUNS_WARM" "rm -rf target; java -XX:AOTCache=$aot $B" "java -XX:AOTCache=$aot $B"
+  echo "-- launch overhead (run 'help', no project work) --"
+  bench_warm "compiled (jar)"       "$RUNS_WARM" "$H"  "$H"
+  bench_warm "compiled (jar) + AOT" "$RUNS_WARM" "$HA" "$HA"
+  echo "-- cold (empty target/) --"
+  bench "compiled (jar)"       "$RUNS_COLD" "rm -rf target" "$J"
+  bench "compiled (jar) + AOT" "$RUNS_COLD" "rm -rf target" "$JA"
+  echo "-- warm no-op (nothing changed) --"
+  bench_warm "compiled (jar)"       "$RUNS_WARM" "rm -rf target; $J"  "$J"
+  bench_warm "compiled (jar) + AOT" "$RUNS_WARM" "rm -rf target; $JA" "$JA"
+  echo "-- one-line edit to a main source --"
+  if git diff --quiet -- "$EDIT" 2>/dev/null; then
+    bench_warm "compiled (jar)"       "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $J"  "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $J"
+    bench_warm "compiled (jar) + AOT" "$RUNS_WARM" "git checkout -- $EDIT; rm -rf target; $JA" "printf '\n//e%s\n' \"\$(date +%s%N)\">>$EDIT; $JA"
+    git checkout -- "$EDIT" 2>/dev/null
+  else
+    warn "skipping the edit rows: $EDIT has uncommitted changes (commit or stash them to measure it)"
+  fi
+  echo "-- spurious touch (content identical) --"
+  bench "compiled (jar)"       "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $J>/dev/null 2>&1; touch $EDIT"  "$J"
+  bench "compiled (jar) + AOT" "$RUNS_WARM" "rm -rf target>/dev/null 2>&1; $JA>/dev/null 2>&1; touch $EDIT" "$JA"
   rm -f "$jar" "$aot"
 }
 
